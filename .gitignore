@@ -1,0 +1,15 @@
+/vendor
+/node_modules
+/.idea
+/.vscode
+/.env
+/.env.*
+!/.env.example
+/storage/*.key
+/storage/logs
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/views
+/bootstrap/cache
+/public/build
+*.log
