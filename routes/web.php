@@ -6,6 +6,7 @@ use App\Livewire\Admin\Agencies\Index as AgenciesIndex;
 use App\Livewire\Admin\Agencies\Form as AgencyForm;
 use App\Livewire\Admin\Agencies\Show as AgencyShow;
 use App\Livewire\Admin\Agencies\Import as AgencyImport;
+use App\Livewire\Admin\DesignSystem;
 use App\Livewire\PublicAgencies\Index as PublicAgenciesIndex;
 use App\Livewire\PublicAgencies\Show as PublicAgencyShow;
 use App\Modules\Agencies\Http\Controllers\AgencyImportPreviewController;
@@ -30,7 +31,9 @@ Route::get('/admin/agencies/import', AgencyImport::class)->middleware(['auth'])-
 Route::get('/admin/agencies/create', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.create');
 Route::get('/admin/agencies/{agency}/edit', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.edit');
 Route::get('/admin/agencies/{agency}', AgencyShow::class)->middleware(['auth'])->name('admin.agencies.show');
-Route::view('/admin/design-system', 'admin.design-system')->middleware(['auth', 'can:viewAny,'.Agency::class])->name('admin.design-system');
+Route::get('/admin/design-system', DesignSystem::class)
+    ->middleware(['auth'])
+    ->name('admin.design-system');
 Route::get('/agencies', PublicAgenciesIndex::class)->name('public.agencies.index');
 Route::get('/agencies/{code}', PublicAgencyShow::class)->name('public.agencies.show');
 Route::post('/admin/agencies/import/preview', AgencyImportPreviewController::class)->middleware(['auth'])->name('admin.agencies.import.preview');

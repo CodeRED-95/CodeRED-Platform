@@ -17,6 +17,12 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+También puedes usar el instalador oficial:
+
+```bash
+sh scripts/install.sh
+```
+
 Después de levantar los contenedores, el proyecto completa automáticamente su bootstrap:
 
 - genera `APP_KEY` solo si está vacía;
@@ -25,7 +31,8 @@ Después de levantar los contenedores, el proyecto completa automáticamente su 
 - ejecuta seeders con `--force`;
 - crea `storage:link` si falta;
 - compila el frontend si no existe `public/build/manifest.json`;
-- instala dependencias PHP o frontend solo si faltan los artefactos esperados.
+- instala dependencias PHP o frontend solo si faltan los artefactos esperados;
+- verifica que `public/build/manifest.json` exista al terminar.
 
 No debes ejecutar manualmente:
 
@@ -120,6 +127,9 @@ Durante desarrollo, `npm run dev` sirve para recompilar assets en caliente. Para
 |---|---|
 | `Credenciales inválidas` al iniciar sesión después de una instalación limpia | Verificar que el bootstrap del contenedor terminó y que el seed del administrador se ejecutó |
 | `Vite manifest not found` | Ejecutar `docker compose up -d --build` para regenerar `public/build/manifest.json` |
+| La web aparece sin estilos tras una instalación limpia | Verificar que el instalador haya corrido `npm ci`/`npm install` y `npm run build`; luego revisar `public/build/manifest.json` |
+| `validation.required` aparece literal en el login | Revisar `lang/es/validation.php`, la propagación de `wire:model` en los inputs y el método `authenticate()` del componente Livewire |
+| `Design System` aparece sin estilos | Confirmar que la ruta usa el componente Livewire `App\Livewire\Admin\DesignSystem` y que carga `layouts.app` |
 | `ERR AUTH` en Redis | Vaciar `REDIS_PASSWORD` si Redis no usa contraseña y reiniciar contenedores |
 | PostgreSQL no autentica | Sincronizar `DB_PASSWORD` con el rol existente o revisar el volumen inicializado |
 
@@ -131,6 +141,11 @@ docker compose exec app php artisan about
 docker compose exec app php artisan migrate:status
 curl http://localhost:8090/api/v1/health
 curl -I http://localhost:8090/login
+curl -I http://localhost:8090/build/manifest.json
+docker compose exec app sh scripts/check-assets.sh
+```
+
+docker compose exec app sh scripts/check-assets.sh
 ```
 
 ## Notas

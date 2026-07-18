@@ -68,6 +68,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - No olvidar que `package-lock.json` debe persistir y versionarse; la primera instalación puede usar `npm install`, pero las siguientes deben usar `npm ci`.
 - No crear colores hexadecimales dispersos si existe un token semántico del CodeRED Design System.
 - No crear interfaces nuevas sin reutilizar primero el CodeRED Design System.
+- Los componentes Blade de formulario deben propagar atributos HTML reales hasta el elemento interactivo.
 - No usar `REDIS_PASSWORD=null`; si Redis no tiene contraseña, el valor debe ir vacío.
 - No sobrescribir `User::can()` ni otros métodos internos de `Authenticatable`.
 - No mover el bootstrap inicial a comandos manuales si el entrypoint ya lo resuelve.

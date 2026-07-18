@@ -3,6 +3,7 @@
 namespace App\Livewire\Auth;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class Login extends Component
@@ -11,21 +12,29 @@ class Login extends Component
     public string $password = '';
     public bool $remember = true;
 
-    public function submit()
+    public function authenticate(): void
     {
-        $credentials = $this->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+        $validated = $this->validate(
+            [
+                'email' => ['required', 'email'],
+                'password' => ['required', 'string'],
+            ],
+            [],
+            [
+                'email' => 'correo electrónico',
+                'password' => 'contraseña',
+            ]
+        );
 
-        if (! Auth::attempt($credentials, $this->remember)) {
-            $this->addError('email', __('Credenciales inválidas.'));
-            return;
+        if (! Auth::attempt(['email' => $validated['email'], 'password' => $validated['password']], $this->remember)) {
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
         }
 
-        session()->regenerate();
+        request()->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        $this->redirectIntended(route('dashboard'), navigate: true);
     }
 
     public function render()

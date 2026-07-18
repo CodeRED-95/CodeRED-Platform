@@ -74,6 +74,7 @@ docker compose exec app php artisan make:migration nombre
 - Reutilizar siempre los componentes Blade del CodeRED Design System antes de crear estilos nuevos.
 - Agregar nuevos tokens o componentes solo cuando exista una necesidad real y documentada.
 - Evitar estilos locales que dupliquen patrones ya resueltos en el sistema visual.
+- Los componentes de formulario deben propagar atributos como `wire:model`, `name`, `id`, `autocomplete` y `aria-*` hasta el elemento HTML real.
 
 ## Autorización
 

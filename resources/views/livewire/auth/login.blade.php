@@ -16,7 +16,13 @@
     </section>
 
     <section class="flex items-center justify-center px-4 py-8 lg:px-10">
-        <form wire:submit.prevent="submit" class="w-full max-w-md rounded-[var(--radius-modal)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/95 p-6 shadow-2xl backdrop-blur">
+        <form
+            wire:submit="authenticate"
+            x-data
+            x-init="setTimeout(() => { $refs.email?.dispatchEvent(new Event('input', { bubbles: true })); $refs.password?.dispatchEvent(new Event('input', { bubbles: true })); }, 350)"
+            x-on:submit="$refs.email?.dispatchEvent(new Event('input', { bubbles: true })); $refs.password?.dispatchEvent(new Event('input', { bubbles: true }));"
+            class="w-full max-w-md rounded-[var(--radius-modal)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/95 p-6 shadow-2xl backdrop-blur"
+        >
             <div class="mb-8 space-y-3 lg:hidden">
                 <x-ui.logo variant="full" class="h-14" />
                 <p class="text-sm text-[color:var(--color-text-secondary)]">Plataforma modular de administración</p>
@@ -25,11 +31,33 @@
             <p class="mt-2 text-sm text-[color:var(--color-text-secondary)]">Acceso administrativo seguro a CodeRED Platform.</p>
 
             <div class="mt-6 space-y-4">
-                <x-ui.input wire:model="email" type="email" label="Correo" autocomplete="email" placeholder="admin@codered.local" :error="$errors->first('email')" />
+                <x-ui.input
+                    wire:model.live="email"
+                    type="email"
+                    id="email"
+                    name="email"
+                    label="Correo electrónico"
+                    autocomplete="username"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    placeholder="admin@codered.local"
+                    :error="$errors->first('email')"
+                    x-ref="email"
+                    x-on:input.debounce.150ms="$wire.set('email', $el.value)"
+                />
                 <div x-data="{ show: false }" class="space-y-1">
-                    <label class="block text-sm font-medium text-[color:var(--color-text-primary)]">Contraseña</label>
+                    <label class="block text-sm font-medium text-[color:var(--color-text-primary)]" for="password">Contraseña</label>
                     <div class="relative">
-                        <input :type="show ? 'text' : 'password'" wire:model="password" autocomplete="current-password" class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 pr-12 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring">
+                        <input
+                            :type="show ? 'text' : 'password'"
+                            wire:model.live="password"
+                            id="password"
+                            name="password"
+                            autocomplete="current-password"
+                            class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 pr-12 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring"
+                            x-ref="password"
+                            x-on:input.debounce.150ms="$wire.set('password', $el.value)"
+                        >
                         <button type="button" x-on:click="show = !show" class="absolute inset-y-0 right-0 px-4 text-xs text-[color:var(--color-text-secondary)]">Ver</button>
                     </div>
                     @error('password') <span class="text-sm text-[color:var(--color-danger)]">{{ $message }}</span> @enderror
@@ -40,7 +68,16 @@
                 </label>
             </div>
 
-            <x-ui.button type="submit" variant="primary" class="mt-6 w-full">Entrar</x-ui.button>
+            <x-ui.button type="submit" variant="primary" class="mt-6 w-full" wire:loading.attr="disabled" wire:target="authenticate">
+                <span wire:loading.remove wire:target="authenticate">Entrar</span>
+                <span wire:loading wire:target="authenticate" class="inline-flex items-center gap-2">
+                    <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity=".2" />
+                        <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+                    </svg>
+                    Accediendo...
+                </span>
+            </x-ui.button>
         </form>
     </section>
 </div>

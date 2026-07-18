@@ -51,6 +51,8 @@
 |---|---|---|
 | Vistas no cargan | Assets no compilados | Ejecutar `npm run build` |
 | `ViteManifestNotFoundException` | `public/build/manifest.json` no existe | Ejecutar `npm run build` y verificar que el directorio `public/build/` se generó |
+| `validation.required` aparece visible | Faltan traducciones en `lang/es/validation.php` o el input no está propagando `wire:model` | Revisar el componente `Login`, los inputs Blade y la localización |
+| El login muestra campos llenos pero Livewire los toma vacíos | El navegador autocompletó sin sincronizar el estado del componente | Confirmar `name`, `id`, `autocomplete`, `wire:model.live` y la sincronización al enviar |
 | `No composer.lock file present` | El lockfile no existe o no se persistió | Verificar que `composer.lock` exista en el host y dentro del contenedor |
 
 ## NPM
@@ -94,3 +96,4 @@
 | El detalle público no muestra traslado | La agencia no tiene `has_moved = true` o no se guardó el destino | Revisar la Action de traslado |
 | `/admin/agencies` devuelve 403 | El usuario no tiene `agencies.view` o no fue asignado como `super-admin` | Ejecutar `php artisan db:seed` y revisar el rol del administrador |
 | El superadministrador no entra | `RolesAndPermissionsSeeder` no se ejecutó o el usuario quedó sin rol | Re-seed con el orden correcto |
+| `/admin/design-system` aparece como HTML nativo | La ruta no está resolviendo el componente Livewire `App\Livewire\Admin\DesignSystem` o no usa `layouts.app` | Verificar la ruta y el método `render()` |

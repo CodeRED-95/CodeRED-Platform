@@ -13,6 +13,9 @@ Todas las versiones siguen `Keep a Changelog`.
 - Snapshot compacto para extensión y API pública de agencias
 - Dashboard con estadísticas básicas del módulo
 - CodeRED Design System con componentes Blade, tokens y página interna de referencia
+- Login con traducciones en español y sincronización explícita de campos Livewire
+- Página `/admin/design-system` convertida en componente Livewire con layout administrativo
+- Script de instalación reforzado con verificación del manifest actual de Vite
 
 ### Changed
 

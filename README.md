@@ -12,6 +12,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 - Docker Compose con servicios separados para aplicación, web, base de datos, caché, cola y scheduler.
 - Módulo `Agencies` con soporte para importación desde GitHub Gist, snapshot público y agencias trasladadas.
 - CodeRED Design System con componentes Blade, tokens semánticos y branding unificado.
+- Login, dashboard y panel administrativo unificados bajo un layout oscuro y responsivo.
 - PHP-FPM ejecuta el master como root y los workers como `www`.
 - Git Safe Directory se configura automáticamente para `/var/www/html`.
 - `composer.lock` debe existir y versionarse para instalaciones reproducibles.
