@@ -5,6 +5,8 @@
 - Se reemplazó el selector nativo de estado del formulario de agencias por un
   combobox Blade, Alpine y Livewire accesible, con panel oscuro, iconos y navegación
   completa por teclado.
+- Se extendió el listbox personalizado a filtros, tamaño, fuente, estrategia, estado
+  inicial y gestión de usuarios, eliminando `select` y `option` de todas las vistas.
 
 Todas las versiones siguen `Keep a Changelog`.
 

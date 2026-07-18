@@ -40,7 +40,7 @@ El CodeRED Design System estandariza la interfaz del proyecto con componentes Bl
 - `x-ui.button`
 - `x-ui.input`
 - `x-ui.textarea`
-- `x-ui.select`
+- `x-ui.dropdown-select`
 - `x-ui.status-select`
 - `x-ui.checkbox`
 - `x-ui.toggle`
@@ -77,15 +77,17 @@ Sí usar:
 
 ## Selector de estados de agencias
 
-`x-ui.status-select` reemplaza el `select` nativo cuando se edita el catálogo completo
-de estados de agencias. Conserva los valores de `AgencyStatus`, sincroniza el campo
-con Livewire y ofrece lista oscura, iconos semánticos, selección visible y navegación
-mediante teclado. No debe reutilizarse para estados de usuarios ni para catálogos
-parciales con valores diferentes.
+`x-ui.dropdown-select` es el control base para selecciones simples. Renderiza botones,
+un listbox oscuro y un input oculto; nunca delega la interfaz a `select` u `option`.
+`x-ui.status-select` configura su variante con los iconos y valores de `AgencyStatus`.
+Ambos sincronizan con Livewire, ofrecen selección visible y navegación mediante teclado.
 
 El botón expone el patrón ARIA `combobox`/`listbox`, cierra con Escape o clic exterior,
 y permite recorrer las opciones con flechas y confirmar con Enter. La selección se
 sincroniza mediante un input oculto que conserva el `wire:model` original.
+
+Las vistas Blade no deben introducir controles `select` nativos. Los nuevos catálogos
+simples deben proporcionar un arreglo `valor => etiqueta` a `x-ui.dropdown-select`.
 
 ## Variantes semánticas
 

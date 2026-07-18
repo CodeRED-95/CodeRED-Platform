@@ -7,24 +7,9 @@
     <x-ui.card>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <x-ui.input wire:model.live.debounce.400ms="search" type="search" label="Buscar" placeholder="Código, nombre o ubicación..." />
-            <x-ui.select wire:model.live="department" label="Departamento">
-                <option value="">Todos</option>
-                @foreach($departments as $item)
-                    <option value="{{ $item }}">{{ $item }}</option>
-                @endforeach
-            </x-ui.select>
-            <x-ui.select wire:model.live="province" label="Provincia">
-                <option value="">Todas</option>
-                @foreach($provinces as $item)
-                    <option value="{{ $item }}">{{ $item }}</option>
-                @endforeach
-            </x-ui.select>
-            <x-ui.select wire:model.live="district" label="Distrito">
-                <option value="">Todos</option>
-                @foreach($districts as $item)
-                    <option value="{{ $item }}">{{ $item }}</option>
-                @endforeach
-            </x-ui.select>
+            <x-ui.dropdown-select id="public-department" wire:model.live="department" label="Departamento" :value="$department" :options="['' => 'Todos'] + $departments->mapWithKeys(fn ($item) => [$item => $item])->all()" />
+            <x-ui.dropdown-select id="public-province" wire:model.live="province" label="Provincia" :value="$province" :options="['' => 'Todas'] + $provinces->mapWithKeys(fn ($item) => [$item => $item])->all()" />
+            <x-ui.dropdown-select id="public-district" wire:model.live="district" label="Distrito" :value="$district" :options="['' => 'Todos'] + $districts->mapWithKeys(fn ($item) => [$item => $item])->all()" />
         </div>
     </x-ui.card>
 

@@ -65,14 +65,15 @@
                                         required
                                     />
                                 @elseif ($field === 'size')
-                                    <label>
-                                        <span class="text-sm font-medium">Tamaño</span>
-                                        <select wire:model="size" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                                            @foreach($sizes as $value => $label)
-                                                <option value="{{ $value }}">{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </label>
+                                    <x-ui.dropdown-select
+                                        id="agency-size"
+                                        name="size"
+                                        wire:model="size"
+                                        label="Tamaño"
+                                        :value="$size"
+                                        :options="['' => 'Sin especificar'] + $sizes"
+                                        :error="$errors->first('size')"
+                                    />
                                 @elseif ($field === 'moved_to_agency_id')
                                     @if ($has_moved)
                                     <div class="md:col-span-2" x-data="{ open: false }" x-on:keydown.escape.window="open = false">

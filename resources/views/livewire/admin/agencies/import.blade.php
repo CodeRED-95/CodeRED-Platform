@@ -12,14 +12,14 @@
     <div class="grid gap-6 xl:grid-cols-2">
         <section class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
             <div class="grid gap-4">
-                <label>
-                    <span class="text-sm font-medium">Fuente</span>
-                    <select wire:model.live="sourceType" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                        <option value="json">JSON pegado</option>
-                        <option value="url">URL raw</option>
-                        <option value="file">Archivo JSON</option>
-                    </select>
-                </label>
+                <x-ui.dropdown-select
+                    id="import-source"
+                    name="sourceType"
+                    wire:model.live="sourceType"
+                    label="Fuente"
+                    :value="$sourceType"
+                    :options="['json' => 'JSON pegado', 'url' => 'URL raw', 'file' => 'Archivo JSON']"
+                />
                 @if($sourceType === 'json')
                     <label>
                         <span class="text-sm font-medium">Contenido JSON</span>
@@ -36,22 +36,22 @@
                         <input type="file" wire:model="file" accept="application/json" class="mt-1 w-full text-sm">
                     </label>
                 @endif
-                <label>
-                    <span class="text-sm font-medium">Estrategia</span>
-                    <select wire:model="strategy" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                        <option value="ignore_existing">Ignorar existentes</option>
-                        <option value="update_existing">Actualizar existentes</option>
-                        <option value="create_only_new">Crear solo nuevos</option>
-                        <option value="mark_conflicts">Marcar conflictos</option>
-                    </select>
-                </label>
-                <label>
-                    <span class="text-sm font-medium">Estado inicial</span>
-                    <select wire:model="statusOnCreate" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                        <option value="under_review">En revisión</option>
-                        <option value="active">Activa</option>
-                    </select>
-                </label>
+                <x-ui.dropdown-select
+                    id="import-strategy"
+                    name="strategy"
+                    wire:model="strategy"
+                    label="Estrategia"
+                    :value="$strategy"
+                    :options="['ignore_existing' => 'Ignorar existentes', 'update_existing' => 'Actualizar existentes', 'create_only_new' => 'Crear solo nuevos', 'mark_conflicts' => 'Marcar conflictos']"
+                />
+                <x-ui.status-select
+                    id="import-initial-status"
+                    name="statusOnCreate"
+                    wire:model="statusOnCreate"
+                    label="Estado inicial"
+                    :value="$statusOnCreate"
+                    :options="['under_review' => 'En revisión', 'active' => 'Activa']"
+                />
                 <div class="flex gap-3">
                     <button type="button" wire:click="preview" class="rounded-xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">Vista previa</button>
                     <button type="button" wire:click="import" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-slate-900">Importar</button>

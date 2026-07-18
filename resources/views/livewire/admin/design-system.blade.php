@@ -51,10 +51,7 @@
             <x-ui.section-header title="Formularios" />
             <div class="mt-5 space-y-4">
                 <x-ui.input label="Correo" placeholder="admin@codered.local" />
-                <x-ui.select label="Estado">
-                    <option>Activa</option>
-                    <option>En revisión</option>
-                </x-ui.select>
+                <x-ui.status-select label="Estado" value="active" :options="['active' => 'Activa', 'under_review' => 'En revisión']" />
                 <x-ui.textarea label="Observaciones" rows="3" placeholder="Notas internas..." />
                 <x-ui.toggle>Centro de Operaciones</x-ui.toggle>
             </div>

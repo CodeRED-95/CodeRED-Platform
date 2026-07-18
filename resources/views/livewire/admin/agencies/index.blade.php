@@ -18,73 +18,19 @@
     <x-ui.card>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <x-ui.input wire:model.live.debounce.400ms="search" type="search" label="Buscar" placeholder="Código, nombre o ubicación..." />
-            <x-ui.select wire:model.live="status" label="Estado">
-                <option value="">Todos</option>
-                @foreach($statuses as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
-                @endforeach
-            </x-ui.select>
-            <x-ui.select wire:model.live="department" label="Departamento">
-                <option value="">Todos</option>
-                @foreach($departments as $item)
-                    <option value="{{ $item }}">{{ $item }}</option>
-                @endforeach
-            </x-ui.select>
-            <x-ui.select wire:model.live="province" label="Provincia">
-                <option value="">Todas</option>
-                @foreach($provinces as $item)
-                    <option value="{{ $item }}">{{ $item }}</option>
-                @endforeach
-            </x-ui.select>
-            <x-ui.select wire:model.live="district" label="Distrito">
-                <option value="">Todos</option>
-                @foreach($districts as $item)
-                    <option value="{{ $item }}">{{ $item }}</option>
-                @endforeach
-            </x-ui.select>
-            <x-ui.select wire:model.live="size" label="Tamaño">
-                @foreach($sizes as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
-                @endforeach
-            </x-ui.select>
-            <x-ui.select wire:model.live="operationsCenter" label="Centro de Operaciones">
-                <option value="">Todos</option>
-                <option value="1">Sí</option>
-                <option value="0">No</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="moved" label="Trasladadas">
-                <option value="">Todas</option>
-                <option value="1">Sí</option>
-                <option value="0">No</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="source" label="Fuente">
-                <option value="">Todas</option>
-                <option value="github_gist">GitHub Gist</option>
-                <option value="manual">Manual</option>
-                <option value="seed">Seeder</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="withoutCoordinates" label="Coordenadas">
-                <option value="">Todas</option>
-                <option value="1">Sin coordenadas</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="withoutPhone" label="Teléfono">
-                <option value="">Todos</option>
-                <option value="1">Sin teléfono</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="withTrashed" label="Eliminadas">
-                <option value="">No incluir</option>
-                <option value="1">Incluir</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="underReview" label="Revisión">
-                <option value="">Todas</option>
-                <option value="1">Solo en revisión</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="perPage" label="Por página">
-                <option value="15">15</option>
-                <option value="30">30</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-            </x-ui.select>
+            <x-ui.status-select id="agencies-status-filter" wire:model.live="status" label="Estado" :value="$status" :options="$statuses" />
+            <x-ui.dropdown-select id="agencies-department-filter" wire:model.live="department" label="Departamento" :value="$department" :options="['' => 'Todos'] + $departments->mapWithKeys(fn ($item) => [$item => $item])->all()" />
+            <x-ui.dropdown-select id="agencies-province-filter" wire:model.live="province" label="Provincia" :value="$province" :options="['' => 'Todas'] + $provinces->mapWithKeys(fn ($item) => [$item => $item])->all()" />
+            <x-ui.dropdown-select id="agencies-district-filter" wire:model.live="district" label="Distrito" :value="$district" :options="['' => 'Todos'] + $districts->mapWithKeys(fn ($item) => [$item => $item])->all()" />
+            <x-ui.dropdown-select id="agencies-size-filter" wire:model.live="size" label="Tamaño" :value="$size" :options="$sizes" />
+            <x-ui.dropdown-select id="agencies-operations-filter" wire:model.live="operationsCenter" label="Centro de Operaciones" :value="$operationsCenter" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
+            <x-ui.dropdown-select id="agencies-moved-filter" wire:model.live="moved" label="Trasladadas" :value="$moved" :options="['' => 'Todas', '1' => 'Sí', '0' => 'No']" />
+            <x-ui.dropdown-select id="agencies-source-filter" wire:model.live="source" label="Fuente" :value="$source" :options="['' => 'Todas', 'github_gist' => 'GitHub Gist', 'manual' => 'Manual', 'seed' => 'Seeder']" />
+            <x-ui.dropdown-select id="agencies-coordinates-filter" wire:model.live="withoutCoordinates" label="Coordenadas" :value="$withoutCoordinates" :options="['' => 'Todas', '1' => 'Sin coordenadas']" />
+            <x-ui.dropdown-select id="agencies-phone-filter" wire:model.live="withoutPhone" label="Teléfono" :value="$withoutPhone" :options="['' => 'Todos', '1' => 'Sin teléfono']" />
+            <x-ui.dropdown-select id="agencies-deleted-filter" wire:model.live="withTrashed" label="Eliminadas" :value="$withTrashed" :options="['' => 'No incluir', '1' => 'Incluir']" />
+            <x-ui.dropdown-select id="agencies-review-filter" wire:model.live="underReview" label="Revisión" :value="$underReview" :options="['' => 'Todas', '1' => 'Solo en revisión']" />
+            <x-ui.dropdown-select id="agencies-per-page" wire:model.live="perPage" label="Por página" :value="$perPage" :options="[15 => '15', 30 => '30', 50 => '50', 100 => '100']" />
         </div>
     </x-ui.card>
 

@@ -16,11 +16,16 @@
             <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <x-ui.input wire:model.live="name" label="Nombre" :error="$errors->first('name')" />
                 <x-ui.input wire:model.live="email" type="email" label="Correo electrónico" :error="$errors->first('email')" />
-                <x-ui.select wire:model.live="status" label="Estado">
-                    <option value="active">Activo</option>
-                    <option value="suspended">Suspendido</option>
-                    <option value="inactive">Inactivo</option>
-                </x-ui.select>
+                <x-ui.dropdown-select
+                    id="user-status"
+                    name="status"
+                    wire:model.live="status"
+                    label="Estado"
+                    :value="$status"
+                    :options="['active' => 'Activo', 'suspended' => 'Suspendido', 'inactive' => 'Inactivo']"
+                    icon-set="user-status"
+                    :error="$errors->first('status')"
+                />
                 <x-ui.toggle wire:model.live="email_verified" label="Correo verificado" />
                 <x-ui.toggle wire:model.live="must_change_password" label="Forzar cambio de contraseña" />
             </div>

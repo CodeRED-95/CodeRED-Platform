@@ -12,33 +12,11 @@
     <x-ui.card>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <x-ui.input wire:model.live.debounce.400ms="search" type="search" label="Buscar" placeholder="Nombre o correo..." />
-            <x-ui.select wire:model.live="status" label="Estado">
-                <option value="">Todos</option>
-                <option value="active">Activo</option>
-                <option value="suspended">Suspendido</option>
-                <option value="inactive">Inactivo</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="role" label="Rol">
-                <option value="">Todos</option>
-                @foreach ($roles as $role)
-                    <option value="{{ $role->slug }}">{{ $role->name }}</option>
-                @endforeach
-            </x-ui.select>
-            <x-ui.select wire:model.live="verified" label="Correo verificado">
-                <option value="">Todos</option>
-                <option value="1">Sí</option>
-                <option value="0">No</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="access" label="Último acceso">
-                <option value="">Todos</option>
-                <option value="1">Con acceso</option>
-                <option value="0">Nunca</option>
-            </x-ui.select>
-            <x-ui.select wire:model.live="perPage" label="Por página">
-                <option value="15">15</option>
-                <option value="30">30</option>
-                <option value="50">50</option>
-            </x-ui.select>
+            <x-ui.dropdown-select id="users-status-filter" wire:model.live="status" label="Estado" :value="$status" :options="['' => 'Todos', 'active' => 'Activo', 'suspended' => 'Suspendido', 'inactive' => 'Inactivo']" icon-set="user-status" />
+            <x-ui.dropdown-select id="users-role-filter" wire:model.live="role" label="Rol" :value="$role" :options="['' => 'Todos'] + $roles->pluck('name', 'slug')->all()" />
+            <x-ui.dropdown-select id="users-verified-filter" wire:model.live="verified" label="Correo verificado" :value="$verified" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
+            <x-ui.dropdown-select id="users-access-filter" wire:model.live="access" label="Último acceso" :value="$access" :options="['' => 'Todos', '1' => 'Con acceso', '0' => 'Nunca']" />
+            <x-ui.dropdown-select id="users-per-page" wire:model.live="perPage" label="Por página" :value="$perPage" :options="[15 => '15', 30 => '30', 50 => '50']" />
         </div>
     </x-ui.card>
 
