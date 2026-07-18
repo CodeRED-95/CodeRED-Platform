@@ -1,6 +1,6 @@
 <?php
 
-use App\Livewire\Auth\Login;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Livewire\Dashboard;
 use App\Livewire\Admin\Agencies\Index as AgenciesIndex;
 use App\Livewire\Admin\Agencies\Form as AgencyForm;
@@ -17,18 +17,14 @@ use App\Modules\Agencies\Http\Controllers\AgencyImportPreviewController;
 use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use App\Modules\Agencies\Models\Agency;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', Dashboard::class)->middleware(['auth'])->name('dashboard');
-Route::get('/login', Login::class)->middleware('guest')->name('login');
-Route::post('/logout', function (Request $request) {
-    Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return redirect()->route('login');
-})->middleware('auth')->name('logout');
+Route::middleware('guest')->group(function (): void {
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+});
+Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth')->name('logout');
 Route::view('/404', 'errors.404')->name('error.404');
 Route::get('/admin/agencies', AgenciesIndex::class)->middleware(['auth'])->name('admin.agencies.index');
 Route::get('/admin/agencies/import', AgencyImport::class)->middleware(['auth'])->name('admin.agencies.import');

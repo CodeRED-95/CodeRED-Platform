@@ -17,6 +17,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Dashboard con estadísticas básicas del módulo
 - CodeRED Design System con componentes Blade, tokens y página interna de referencia
 - Login con traducciones en español y sincronización explícita de campos Livewire
+- Login migrado a autenticación tradicional por sesión con `POST /login` para eliminar dependencia de Livewire en la pantalla de acceso
 - Página `/admin/design-system` convertida en componente Livewire con layout administrativo
 - Script de instalación reforzado con verificación del manifest actual de Vite
 

@@ -51,9 +51,10 @@
 |---|---|---|
 | Vistas no cargan | Assets no compilados | Ejecutar `npm run build` |
 | `ViteManifestNotFoundException` | `public/build/manifest.json` no existe | Ejecutar `npm run build` y verificar que el directorio `public/build/` se generó |
+| El login envía credenciales a `/login` pero falla con `MethodNotAllowedHttpException` | Existe un `POST /login` o el formulario no apunta al controlador de sesión correcto | Verificar que el login use `method="POST"`, `action="{{ route('login.store') }}"`, `@csrf` y que no exista un submit duplicado |
 | El formulario hace GET en vez de `POST /livewire/update` | El HTML final no está siendo hidratado por Livewire o el botón `submit` está siendo sobrescrito | Verificar `wire:id`, `wire:submit.prevent`, `@livewireScripts` y el HTML final del botón |
-| `validation.required` aparece visible | Faltan traducciones en `lang/es/validation.php` o el input no está propagando `wire:model` | Revisar el componente `Login`, los inputs Blade y la localización |
-| El login muestra campos llenos pero Livewire los toma vacíos | El navegador autocompletó sin sincronizar el estado del componente | Confirmar `name`, `id`, `autocomplete`, `wire:model.live` y la sincronización al enviar |
+| `validation.required` aparece visible | Faltan traducciones en `lang/es/validation.php` o el formulario no está usando los nombres reales de los campos | Revisar el formulario Blade, los inputs y la localización |
+| El login muestra credenciales correctas pero falla | El submit tradicional no apunta a `POST /login` o el request llega sin CSRF | Confirmar `method="POST"`, `action="{{ route('login.store') }}"`, `@csrf` y el controlador de sesión |
 | Aparece `Detected multiple instances of Alpine running` | Alpine se está inicializando manualmente en `resources/js/app.js` además de la instancia incluida por Livewire 3 | Eliminar `import Alpine from 'alpinejs'`, `window.Alpine = Alpine` y `Alpine.start()`; dejar que `@livewireScripts` cargue Alpine una sola vez |
 | `Alpine Expression Error: $wire is not defined` | Se está usando `\$wire.set()` o `\$wire.call()` dentro de expresiones Alpine del formulario | Eliminar la sincronización Alpine duplicada y dejar que `wire:model` maneje el estado |
 | `No composer.lock file present` | El lockfile no existe o no se persistió | Verificar que `composer.lock` exista en el host y dentro del contenedor |

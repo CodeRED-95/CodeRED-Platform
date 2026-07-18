@@ -4,6 +4,7 @@
 
 - Web: guard `web`
 - API: Sanctum preparado para futuras credenciales/token
+- El login usa autenticación tradicional por sesión con `POST /login`, `@csrf` y `Auth::attempt()`; no depende de Livewire.
 
 ## Autorización
 

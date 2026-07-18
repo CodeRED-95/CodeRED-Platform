@@ -33,6 +33,7 @@ Después de levantar los contenedores, el proyecto completa automáticamente su 
 - compila el frontend si no existe `public/build/manifest.json`;
 - instala dependencias PHP o frontend solo si faltan los artefactos esperados;
 - verifica que `public/build/manifest.json` exista al terminar.
+- deja el acceso funcionando con autenticación tradicional por sesión en `POST /login`.
 
 No debes ejecutar manualmente:
 
@@ -125,7 +126,7 @@ Durante desarrollo, `npm run dev` sirve para recompilar assets en caliente. Para
 
 | Problema | Solución |
 |---|---|
-| `Credenciales inválidas` al iniciar sesión después de una instalación limpia | Verificar que el bootstrap del contenedor terminó y que el seed del administrador se ejecutó |
+| `Credenciales inválidas` al iniciar sesión después de una instalación limpia | Verificar que el bootstrap del contenedor terminó, que el seed del administrador se ejecutó y que el formulario usa `POST /login` con `@csrf` |
 | `Vite manifest not found` | Ejecutar `docker compose up -d --build` para regenerar `public/build/manifest.json` |
 | La web aparece sin estilos tras una instalación limpia | Verificar que el instalador haya corrido `npm ci`/`npm install` y `npm run build`; luego revisar `public/build/manifest.json` |
 | `validation.required` aparece literal en el login | Revisar `lang/es/validation.php`, la propagación de `wire:model` en los inputs y el método `authenticate()` del componente Livewire |

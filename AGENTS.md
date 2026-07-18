@@ -126,3 +126,4 @@ No introducir colores hexadecimales sueltos cuando exista un token semántico eq
 - Todo formulario Livewire debe verificarse con pruebas que confirmen `wire:id`, `wire:submit` y persistencia real en base de datos.
 - No agregar `\$wire.set()` ni listeners Alpine que dupliquen `wire:model` en formularios Livewire.
 - CodeRED Platform usa la instancia Alpine incluida por Livewire 3. Está prohibido importar `alpinejs`, asignar `window.Alpine` o ejecutar `Alpine.start()` desde `resources/js/app.js` mientras los layouts usen `@livewireScripts`.
+- El login de CodeRED Platform es tradicional por sesión (`GET /login` + `POST /login`) y no debe volver a implementarse con Livewire.

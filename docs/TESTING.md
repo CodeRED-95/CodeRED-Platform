@@ -45,8 +45,9 @@ docker compose exec app php artisan test
 ## Login y Design System
 
 - Verificar que `/login` responda 200.
-- Verificar que el login renderice `wire:model` en los inputs reales y no dependa de una sincronización Alpine adicional.
-- Verificar que el HTML final contenga `wire:id` y `wire:submit.prevent="authenticate"`.
+- Verificar que el login sea un formulario Blade tradicional con `method="POST"`, `@csrf` y `action` hacia `login.store`.
+- Verificar que el login no use Livewire, `wire:submit`, `wire:model`, `$wire` ni envío HTML duplicado.
+- Verificar que el HTML final contenga `name="_token"` y campos `name="email"`, `name="password"` y `name="remember"`.
 - Verificar que el login use mensajes en español para validación y credenciales inválidas.
 - Verificar que `/admin/design-system` cargue dentro del layout administrativo y no como HTML aislado.
 - Verificar que el manifest de Vite existe y que los assets actuales referenciados por el manifest estén presentes.

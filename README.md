@@ -13,7 +13,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 - Módulo `Agencies` con soporte para importación desde GitHub Gist, snapshot público y agencias trasladadas.
 - Módulo `Users` para administración de cuentas, roles, estado y actividad.
 - CodeRED Design System con componentes Blade, tokens semánticos y branding unificado.
-- Login, dashboard y panel administrativo unificados bajo un layout oscuro y responsivo.
+- Login tradicional por sesión con `POST /login`, dashboard y panel administrativo unificados bajo un layout oscuro y responsivo.
 - PHP-FPM ejecuta el master como root y los workers como `www`.
 - Git Safe Directory se configura automáticamente para `/var/www/html`.
 - `composer.lock` debe existir y versionarse para instalaciones reproducibles.
