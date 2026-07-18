@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Admin\Users\Form;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -58,7 +59,7 @@ class UserManagementTest extends TestCase
 
         $this->actingAs($actor);
 
-        Livewire::test(\App\Livewire\Admin\Users\Form::class)
+        Livewire::test(Form::class)
             ->assertSeeHtml('wire:submit.prevent="save"')
             ->assertSeeHtml('<button type="submit"');
     }
@@ -85,7 +86,7 @@ class UserManagementTest extends TestCase
 
         $this->actingAs($actor);
 
-        Livewire::test(\App\Livewire\Admin\Users\Form::class)
+        Livewire::test(Form::class)
             ->set('name', 'Usuario Prueba')
             ->set('email', 'test@example.test')
             ->set('password', 'PasswordSeguro123!')
@@ -115,7 +116,7 @@ class UserManagementTest extends TestCase
 
         $this->actingAs($actor);
 
-        Livewire::test(\App\Livewire\Admin\Users\Form::class, ['user' => $target->id])
+        Livewire::test(Form::class, ['user' => $target->id])
             ->set('name', 'Usuario Editado')
             ->set('email', 'editado@example.test')
             ->set('roles', ['admin'])
@@ -133,13 +134,15 @@ class UserManagementTest extends TestCase
 
     public function test_inactive_user_cannot_log_in(): void
     {
+        $token = 'csrf-usuario-inactivo';
         $user = User::factory()->create([
             'status' => 'inactive',
             'is_active' => false,
             'password' => bcrypt('Secret12345!'),
         ]);
 
-        $this->post('/login', [
+        $this->withSession(['_token' => $token])->post('/login', [
+            '_token' => $token,
             'email' => $user->email,
             'password' => 'Secret12345!',
         ])->assertSessionHasErrors(['email']);

@@ -6,11 +6,14 @@ use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Support\AgencyVersion;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
 use Tests\TestCase;
 
 class AgencyMoveTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_move_to_another_agency_sets_status_and_destination(): void
     {
         $origin = Agency::factory()->create(['status' => AgencyStatus::Active, 'has_moved' => false]);
@@ -101,7 +104,7 @@ class AgencyMoveTest extends TestCase
         $response = $this->getJson('/api/v1/agencies');
 
         $response->assertOk();
-        $this->assertSame(0, $response->json('data.total'));
+        $this->assertSame(0, $response->json('meta.total'));
     }
 
     public function test_moved_agency_is_available_by_code(): void

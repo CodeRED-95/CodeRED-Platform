@@ -47,6 +47,7 @@ class LoginPageTest extends TestCase
 
     public function test_valid_login_redirects_to_dashboard(): void
     {
+        $token = 'csrf-login-valido';
         $user = User::factory()->create([
             'email' => 'admin@example.test',
             'password' => Hash::make('Secret123!'),
@@ -54,7 +55,8 @@ class LoginPageTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->post(route('login.store'), [
+        $this->withSession(['_token' => $token])->post(route('login.store'), [
+            '_token' => $token,
             'email' => 'admin@example.test',
             'password' => 'Secret123!',
             'remember' => 1,
@@ -65,6 +67,7 @@ class LoginPageTest extends TestCase
 
     public function test_invalid_login_shows_spanish_error(): void
     {
+        $token = 'csrf-login-invalido';
         User::factory()->create([
             'email' => 'admin@example.test',
             'password' => Hash::make('Secret123!'),
@@ -72,8 +75,10 @@ class LoginPageTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->from('/login')
+        $this->withSession(['_token' => $token])
+            ->from('/login')
             ->post(route('login.store'), [
+                '_token' => $token,
                 'email' => 'admin@example.test',
                 'password' => 'WrongPassword!',
             ])
@@ -96,5 +101,13 @@ class LoginPageTest extends TestCase
         $this->get('/login')
             ->assertOk()
             ->assertSeeHtml('<button type="submit"');
+    }
+
+    public function test_login_rejects_request_without_csrf_token(): void
+    {
+        $this->post(route('login.store'), [
+            'email' => 'admin@example.test',
+            'password' => 'Secret123!',
+        ])->assertStatus(419);
     }
 }

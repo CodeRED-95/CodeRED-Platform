@@ -1,3 +1,7 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
+
 parameters:
     level: 5
     paths:
@@ -6,13 +10,6 @@ parameters:
         - database
         - tests
     tmpDir: storage/framework/cache/phpstan
-    bootstrapFiles:
-        - vendor/autoload.php
-    checkMissingIterableValueType: false
     inferPrivatePropertyTypeFromConstructor: true
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: true
-    excludes_analyse:
-        - storage
-        - bootstrap/cache
-        - public/build

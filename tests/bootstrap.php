@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 require __DIR__.'/../vendor/autoload.php';
 
+$environment = Dotenv\Dotenv::parse(
+    is_file(__DIR__.'/../.env') ? file_get_contents(__DIR__.'/../.env') : ''
+);
+
+foreach (['DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'] as $key) {
+    if (getenv($key) === false && isset($environment[$key])) {
+        putenv($key.'='.$environment[$key]);
+        $_ENV[$key] = $environment[$key];
+        $_SERVER[$key] = $environment[$key];
+    }
+}
+
 $connection = getenv('DB_CONNECTION') ?: 'pgsql';
 
 if ($connection === 'pgsql') {

@@ -18,7 +18,6 @@
         <env name="DB_PORT" value="5432"/>
         <env name="DB_DATABASE" value="codered_testing"/>
         <env name="DB_USERNAME" value="codered"/>
-        <env name="DB_PASSWORD" value="CHANGE_THIS_BEFORE_SEEDING"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

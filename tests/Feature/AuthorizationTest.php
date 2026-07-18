@@ -6,8 +6,8 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -156,7 +156,11 @@ class AuthorizationTest extends TestCase
 
         $this->actingAs($user);
 
-        $rendered = Blade::render("@can('agencies.view')visible@endcan");
+        $rendered = Blade::render(<<<'BLADE'
+            @can('agencies.view')
+                visible
+            @endcan
+        BLADE);
 
         $this->assertStringContainsString('visible', $rendered);
     }

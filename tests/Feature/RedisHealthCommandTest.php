@@ -16,11 +16,6 @@ class RedisHealthCommandTest extends TestCase
         $originalSession = config('session.driver');
         $originalRedisClient = config('database.redis.client');
 
-        config()->set('cache.default', 'redis');
-        config()->set('queue.default', 'redis');
-        config()->set('session.driver', 'redis');
-        config()->set('database.redis.client', 'phpredis');
-
         $exitCode = Artisan::call('health:redis');
 
         $this->assertSame(0, $exitCode);

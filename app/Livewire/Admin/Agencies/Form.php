@@ -6,10 +6,10 @@ use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class Form extends Component
@@ -19,40 +19,73 @@ class Form extends Component
     public string $mode = 'create';
 
     public string $code = '';
+
     public string $name = '';
+
     public ?string $short_name = null;
+
     public ?string $slug = null;
+
     public string $department = '';
+
     public string $province = '';
+
     public string $district = '';
+
     public string $address = '';
+
     public ?string $reference = null;
+
     public ?string $phone = null;
+
     public ?string $secondary_phone = null;
+
     public ?string $email = null;
+
     public ?string $schedule = null;
+
     public ?string $latitude = null;
+
     public ?string $longitude = null;
+
     public ?string $map_url = null;
+
     public array $services = [];
+
     public ?string $observations = null;
+
     public string $status = 'under_review';
+
     public ?string $size = null;
+
     public bool $is_operations_center = false;
+
     public string $source = 'manual';
+
     public ?string $source_reference = null;
+
     public ?string $source_text = null;
+
     public string $servicesInput = '';
+
     public bool $has_moved = false;
+
     public ?int $moved_to_agency_id = null;
+
     public ?string $moved_to_address = null;
+
     public ?string $move_notice = null;
+
     public ?string $moved_at = null;
 
     public string $destinationSearch = '';
 
     public function mount(?Agency $agency = null): void
     {
+        if ($agency !== null && ! $agency->exists) {
+            $agency = null;
+        }
+
         $this->agency = $agency;
         $this->mode = $agency ? 'edit' : 'create';
 

@@ -5,7 +5,6 @@ namespace App\Livewire\Admin\Users;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Users\Services\UserSecurityService;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
@@ -14,20 +13,37 @@ use Livewire\Component;
 
 class Form extends Component
 {
-    public ?User $user = null;
+    public ?User $managedUser = null;
+
     public string $mode = 'create';
+
     public string $name = '';
+
     public string $email = '';
+
     public ?string $password = null;
+
     public ?string $password_confirmation = null;
+
     public array $roles = [];
+
     public string $status = 'active';
+
     public bool $email_verified = false;
+
     public bool $must_change_password = false;
 
-    public function mount(?User $user = null): void
+    public function mount(User|int|null $user = null): void
     {
-        $this->user = $user;
+        if (is_int($user)) {
+            $user = User::query()->findOrFail($user);
+        }
+
+        if ($user !== null && ! $user->exists) {
+            $user = null;
+        }
+
+        $this->managedUser = $user;
         $this->mode = $user ? 'edit' : 'create';
         Gate::authorize($user ? 'update' : 'create', $user ?? User::class);
 
@@ -58,32 +74,32 @@ class Form extends Component
             if ($this->mode === 'create') {
                 $payload['password'] = Hash::make($validated['password']);
                 $payload['email_verified_at'] = $validated['email_verified'] ? now() : null;
-                $this->user = User::query()->create($payload);
+                $this->managedUser = User::query()->create($payload);
             } else {
-                $security->canManage($actor, $this->user);
-                $this->user->fill($payload);
+                $security->canManage($actor, $this->managedUser);
+                $this->managedUser->fill($payload);
                 if ($this->email !== $validated['email']) {
-                    $this->user->email_verified_at = $validated['email_verified'] ? now() : null;
+                    $this->managedUser->email_verified_at = $validated['email_verified'] ? now() : null;
                 }
                 if ($validated['password']) {
-                    $this->user->password = Hash::make($validated['password']);
+                    $this->managedUser->password = Hash::make($validated['password']);
                 }
-                $this->user->save();
+                $this->managedUser->save();
             }
 
-            $security->canAssignRoles($actor, $this->user, $validated['roles']);
-            $this->user->roles()->sync(\App\Models\Role::query()->whereIn('slug', $validated['roles'])->pluck('id')->all());
+            $security->canAssignRoles($actor, $this->managedUser, $validated['roles']);
+            $this->managedUser->roles()->sync(Role::query()->whereIn('slug', $validated['roles'])->pluck('id')->all());
         });
 
         session()->flash('success', $this->mode === 'edit' ? 'Usuario actualizado correctamente.' : 'Usuario creado correctamente.');
-        $this->redirectRoute('admin.users.show', $this->user);
+        $this->redirectRoute('admin.users.show', $this->managedUser);
     }
 
     protected function rules(): array
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user?->id)],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->managedUser?->id)],
             'password' => [$this->mode === 'create' ? 'required' : 'nullable', 'confirmed', 'min:12'],
             'password_confirmation' => [$this->mode === 'create' ? 'required' : 'nullable'],
             'roles' => ['array', 'min:1'],

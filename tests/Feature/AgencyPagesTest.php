@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Admin\Agencies\Form;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -72,17 +73,20 @@ class AgencyPagesTest extends TestCase
     {
         $this->actingAs($this->actingAsAgencyManager());
 
-        Livewire::test(\App\Livewire\Admin\Agencies\Form::class)
+        Livewire::test(Form::class)
             ->assertSeeHtml('wire:submit.prevent="save"')
             ->assertSeeHtml('<button type="submit"');
     }
 
     public function test_agency_destination_selector_renders_single_combobox_without_select_listbox(): void
     {
+        $destination = Agency::factory()->create(['status' => AgencyStatus::Active, 'has_moved' => false]);
+
         $this->actingAs($this->actingAsAgencyManager());
 
-        Livewire::test(\App\Livewire\Admin\Agencies\Form::class)
+        Livewire::test(Form::class)
             ->set('has_moved', true)
+            ->call('selectDestination', $destination->id)
             ->assertSeeHtml('wire:model.live.debounce.350ms="destinationSearch"')
             ->assertSeeHtml('wire:click="selectDestination(null)"')
             ->assertDontSeeHtml('multiple')
@@ -96,7 +100,7 @@ class AgencyPagesTest extends TestCase
 
         $this->actingAs($this->actingAsAgencyManager());
 
-        $component = Livewire::test(\App\Livewire\Admin\Agencies\Form::class)
+        $component = Livewire::test(Form::class)
             ->set('has_moved', true)
             ->call('selectDestination', $destination->id)
             ->set('moved_to_address', 'Jr. Nueva 123')
@@ -112,7 +116,7 @@ class AgencyPagesTest extends TestCase
 
         $this->actingAs($this->actingAsAgencyManager());
 
-        $component = Livewire::test(\App\Livewire\Admin\Agencies\Form::class)
+        $component = Livewire::test(Form::class)
             ->set('has_moved', true)
             ->call('selectDestination', $destination->id)
             ->call('selectDestination', null);
@@ -127,7 +131,7 @@ class AgencyPagesTest extends TestCase
 
         $this->actingAs($this->actingAsAgencyManager());
 
-        Livewire::test(\App\Livewire\Admin\Agencies\Form::class, ['agency' => $agency])
+        Livewire::test(Form::class, ['agency' => $agency])
             ->set('has_moved', true)
             ->set('destinationSearch', $agency->code)
             ->assertDontSeeHtml($agency->code.' — '.$agency->name);

@@ -10,9 +10,7 @@ class DesignSystem extends Component
 {
     public function mount(): void
     {
-        if (! app()->environment('local')) {
-            Gate::authorize('viewAny', Agency::class);
-        }
+        Gate::authorize('viewAny', Agency::class);
     }
 
     public function render()

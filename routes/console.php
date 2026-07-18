@@ -2,31 +2,51 @@
 
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Console\Command\Command;
 
 Artisan::command('health:redis', function (): int {
     $key = 'codered_health_test_'.bin2hex(random_bytes(8));
-
-    Cache::put($key, 'ok', 60);
-    $value = Cache::get($key);
-    Cache::forget($key);
-
-    if ($value !== 'ok') {
-        $this->error('Redis o la caché no respondieron correctamente.');
-
-        return Command::FAILURE;
-    }
+    $original = [
+        'cache' => config('cache.default'),
+        'queue' => config('queue.default'),
+        'session' => config('session.driver'),
+        'client' => config('database.redis.client'),
+    ];
 
     try {
+        config()->set([
+            'cache.default' => 'redis',
+            'queue.default' => 'redis',
+            'session.driver' => 'redis',
+            'database.redis.client' => 'phpredis',
+        ]);
+
+        Cache::put($key, 'ok', 60);
+        $value = Cache::get($key);
+        Cache::forget($key);
+
+        if ($value !== 'ok') {
+            $this->error('Redis o la caché no respondieron correctamente.');
+
+            return Command::FAILURE;
+        }
+
         Redis::connection()->ping();
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $this->error('PhpRedis no respondió: '.$e->getMessage());
 
         return Command::FAILURE;
+    } finally {
+        config()->set([
+            'cache.default' => $original['cache'],
+            'queue.default' => $original['queue'],
+            'session.driver' => $original['session'],
+            'database.redis.client' => $original['client'],
+        ]);
     }
 
     $this->info('Redis y la caché responden correctamente.');

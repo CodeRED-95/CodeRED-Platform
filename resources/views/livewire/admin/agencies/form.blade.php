@@ -78,8 +78,8 @@
                                                 class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-[color:var(--color-text-primary)]"
                                             >
                                                 <span class="truncate">
-                                                    @if ($selectedDestination)
-                                                        {{ $selectedDestination->code }} — {{ $selectedDestination->name }} · {{ $selectedDestination->department }} / {{ $selectedDestination->province }} / {{ $selectedDestination->district }}
+                                                    @if ($this->selectedDestination)
+                                                        {{ $this->selectedDestination->code }} — {{ $this->selectedDestination->name }} · {{ $this->selectedDestination->department }} / {{ $this->selectedDestination->province }} / {{ $this->selectedDestination->district }}
                                                     @else
                                                         Selecciona una agencia
                                                     @endif
