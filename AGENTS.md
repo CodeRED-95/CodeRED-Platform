@@ -55,6 +55,8 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - No inventar endpoints, variables o contenedores.
 - No cambiar una decisión arquitectónica sin revisar si existe ADR relacionado.
 - No considerar una tarea terminada sin actualizar documentación afectada.
+- No usar `777` como solución final para permisos.
+- No usar `www-data` como usuario de ejecución final si el proyecto está estandarizado en `www`.
 
 ## Qué debe ejecutar antes de finalizar
 
@@ -66,6 +68,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 | API | Verificar rutas y respuestas si cambió el contrato |
 | Importador | Probar transformación y duplicados si cambió el flujo |
 | Arquitectura | Actualizar ADR, `README`, `CHANGELOG` y docs relacionadas |
+| Infraestructura | Verificar permisos, usuario de ejecución, extensión `redis` y compatibilidad de `APP_URL` |
 
 ## Política de sincronización documental
 
@@ -85,4 +88,3 @@ Toda modificación importante en arquitectura, API, importación, configuración
 5. Ejecutar pruebas relacionadas.
 6. Ejecutar formateador y análisis estático si están disponibles.
 7. Actualizar documentación.
-

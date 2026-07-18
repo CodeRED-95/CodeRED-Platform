@@ -42,7 +42,7 @@ Devuelve estado de la aplicación, conexión a PostgreSQL, conexión a Redis, ve
 ### Ejemplo curl
 
 ```bash
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8090/api/v1/health
 ```
 
 ## `GET /api/v1/agencies`
@@ -68,7 +68,7 @@ Lista agencias activas para consumo público.
 ### Ejemplo curl
 
 ```bash
-curl "http://localhost:8080/api/v1/agencies?search=chachapoyas"
+curl "http://localhost:8090/api/v1/agencies?search=chachapoyas"
 ```
 
 ## `GET /api/v1/agencies/search`
@@ -80,7 +80,7 @@ Búsqueda rápida por código, nombre, ubicación y dirección.
 ### Ejemplo curl
 
 ```bash
-curl "http://localhost:8080/api/v1/agencies/search?q=tacna"
+curl "http://localhost:8090/api/v1/agencies/search?q=tacna"
 ```
 
 ## `GET /api/v1/agencies/version`
@@ -92,7 +92,7 @@ Devuelve la versión global de agencias y métricas básicas.
 ### Ejemplo curl
 
 ```bash
-curl http://localhost:8080/api/v1/agencies/version
+curl http://localhost:8090/api/v1/agencies/version
 ```
 
 ## `GET /api/v1/agencies/snapshot`
@@ -104,7 +104,7 @@ Snapshot compacto para extensión o integraciones ligeras. Incluye agencias acti
 ### Ejemplo curl
 
 ```bash
-curl -i http://localhost:8080/api/v1/agencies/snapshot
+curl -i http://localhost:8090/api/v1/agencies/snapshot
 ```
 
 ## `GET /api/v1/agencies/{code}`
@@ -116,7 +116,7 @@ Devuelve el detalle de una agencia por código.
 ### Ejemplo curl
 
 ```bash
-curl http://localhost:8080/api/v1/agencies/SHA-000003
+curl http://localhost:8090/api/v1/agencies/SHA-000003
 ```
 
 ## Rutas administrativas

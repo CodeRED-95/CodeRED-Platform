@@ -6,11 +6,11 @@ Todas las variables listadas provienen de `.env.example`.
 
 | Variable | Descripción | Recomendado | Ejemplo | Obligatoria | Consecuencias de cambiarla | Relacionadas |
 |---|---|---|---|---|---|---|
-| `APP_NAME` | Nombre visible de la aplicación. | `CodeRED Platform` | `CodeRED Platform` | Sí | Cambia títulos y branding. | `VITE_APP_NAME` |
+| `APP_NAME` | Nombre visible de la aplicación. Debe escribirse entre comillas si contiene espacios. | `"CodeRED Platform"` | `"CodeRED Platform"` | Sí | Cambia títulos y branding. Si contiene espacios y no va entre comillas, Dotenv falla al interpretar el archivo. | `VITE_APP_NAME` |
 | `APP_ENV` | Entorno de ejecución. | `local` | `production` | Sí | Cambia comportamiento de errores y caché. | `APP_DEBUG` |
 | `APP_KEY` | Clave criptográfica de Laravel. | Generada con `key:generate` | `base64:...` | Sí | Rompe cifrado y sesiones si cambia. | Ninguna |
 | `APP_DEBUG` | Activa depuración. | `false` en producción | `true` | Sí | Expone errores detallados. | `LOG_LEVEL` |
-| `APP_URL` | URL base de la aplicación. | URL pública real | `http://localhost:8080` | Sí | Afecta enlaces absolutos. | `SANCTUM_STATEFUL_DOMAINS` |
+| `APP_URL` | URL base de la aplicación. | URL pública real | `http://localhost:8090` | Sí | Afecta enlaces absolutos. Debe coincidir con el puerto expuesto por Nginx. | `SANCTUM_STATEFUL_DOMAINS` |
 | `APP_TIMEZONE` | Zona horaria de la app. | `America/Lima` | `America/Lima` | Sí | Cambia fechas mostradas y tareas programadas. | `APP_LOCALE` |
 | `APP_LOCALE` | Idioma principal. | `es` | `es` | Sí | Cambia traducciones. | `APP_FALLBACK_LOCALE` |
 | `APP_FALLBACK_LOCALE` | Idioma de respaldo. | `es` | `es` | Sí | Se usa si falta traducción. | `APP_LOCALE` |
@@ -80,13 +80,13 @@ Todas las variables listadas provienen de `.env.example`.
 
 | Variable | Descripción | Recomendado | Ejemplo | Obligatoria | Consecuencias de cambiarla | Relacionadas |
 |---|---|---|---|---|---|---|
-| `SANCTUM_STATEFUL_DOMAINS` | Dominios que usan autenticación con cookies. | `localhost:8080,127.0.0.1:8080` | `localhost:8080,127.0.0.1:8080` | Sí | Si falta el dominio correcto, falla la sesión SPA. | `APP_URL`, `SESSION_DOMAIN` |
+| `SANCTUM_STATEFUL_DOMAINS` | Dominios que usan autenticación con cookies. | `localhost:8090,127.0.0.1:8090` | `localhost:8090,127.0.0.1:8090` | Sí | Si falta el dominio correcto, falla la sesión SPA. Debe coincidir con `APP_URL`. | `APP_URL`, `SESSION_DOMAIN` |
 
 ## Variables propias del proyecto
 
 | Variable | Descripción | Recomendado | Ejemplo | Obligatoria | Consecuencias de cambiarla | Relacionadas |
 |---|---|---|---|---|---|---|
-| `DEV_ADMIN_NAME` | Nombre del usuario administrador de desarrollo. | `Administrador Dev` | `Administrador Dev` | Sí | Cambia el seed del usuario inicial. | `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` |
+| `DEV_ADMIN_NAME` | Nombre del usuario administrador de desarrollo. Debe escribirse entre comillas si contiene espacios. | `"Administrador Dev"` | `"Administrador Dev"` | Sí | Cambia el seed del usuario inicial. Si contiene espacios y no va entre comillas, Dotenv falla al interpretar el archivo. | `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` |
 | `DEV_ADMIN_EMAIL` | Correo del usuario administrador de desarrollo. | `admin@codered.local` | `admin@codered.local` | Sí | Define el correo del usuario sembrado. | `DEV_ADMIN_PASSWORD` |
 | `DEV_ADMIN_PASSWORD` | Contraseña del usuario administrador de desarrollo. | Cambiar en entornos reales | `ChangeMe123!` | Sí | Si es débil, compromete el seed inicial. | `DEV_ADMIN_EMAIL` |
 | `VITE_APP_NAME` | Nombre visible en frontend. | `"CodeRED Platform"` | `"CodeRED Platform"` | Sí | Cambia el título del frontend. | `APP_NAME` |
@@ -101,3 +101,15 @@ Todas las variables listadas provienen de `.env.example`.
 
 - Mail real: `PENDIENTE DE CONFIGURAR`
 - Importador específico vía URL configurable: `PENDIENTE DE CONFIGURAR`
+- `composer.lock`: no existe en el estado actual del repositorio. Debe versionarse cuando se genere correctamente.
+
+## Regla de sintaxis Dotenv
+
+Todo valor con espacios, `#`, comillas o caracteres que puedan romper el parser debe escribirse entre comillas.
+
+Ejemplos válidos:
+
+```env
+APP_NAME="CodeRED Platform"
+DEV_ADMIN_NAME="Administrador Dev"
+```

@@ -45,3 +45,20 @@ Cada ADR debe incluir:
 - Consecuencias
 - Referencias
 
+## ADR actuales
+
+| Nº | Título |
+|---:|---|
+| 0001 | Arquitectura modular del proyecto |
+| 0002 | Uso de Laravel como framework base |
+| 0003 | Uso de PostgreSQL como base de datos principal |
+| 0004 | Uso de Livewire para la interfaz administrativa |
+| 0005 | Uso de Docker Compose |
+| 0006 | Importación desde GitHub Gist |
+| 0007 | Estrategia de caché para la futura extensión Chrome |
+| 0008 | Versionado de API en `/api/v1` |
+| 0009 | Estrategia de agencias trasladadas |
+| 0010 | Campo propio para Centro de Operaciones |
+| 0011 | Uso de PhpRedis como cliente Redis |
+| 0012 | Usuario `www` y estrategia de permisos para bind mounts |
+| 0013 | Reutilización de una sola imagen PHP para app, queue y scheduler |

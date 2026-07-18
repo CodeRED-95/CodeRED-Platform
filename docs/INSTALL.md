@@ -13,7 +13,7 @@
 ## Clonar proyecto
 
 ```bash
-git clone https://github.com/CodeRED-95/CodeRED-Platform.git
+git clone <URL_DEL_REPOSITORIO>
 cd CodeRED-Platform
 ```
 
@@ -28,6 +28,10 @@ cp .env.example .env
 ```bash
 docker compose up -d --build
 ```
+
+## Puerto de acceso
+
+La configuración actual expone Nginx en `http://localhost:8090`.
 
 ## Instalar dependencias
 
@@ -66,6 +70,12 @@ docker compose exec app npm run build
 docker compose up -d --build
 docker compose exec app php artisan migrate --seed
 ```
+
+## Notas de instalación
+
+- Si `.env` contiene valores con espacios, deben ir entre comillas.
+- El proyecto debe escribirse con el usuario interno `www`.
+- `composer.lock` debe versionarse cuando el entorno permita generarlo correctamente.
 
 ## Problemas frecuentes
 

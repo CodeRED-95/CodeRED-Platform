@@ -17,8 +17,11 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Fixed
 
-- PENDIENTE DE CONFIGURAR
+- Valores con espacios documentados con comillas en `.env`
+- Referencia de puerto sincronizada con `8090`
+- Reglas de permisos y usuario `www` documentadas
+- Solución documental para `Class "Redis" not found`
 
 ### Removed
 
-- PENDIENTE DE CONFIGURAR
+- Ninguno

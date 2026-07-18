@@ -7,7 +7,7 @@ Servicios actuales:
 | Servicio | Imagen / Build | Puerto | Propósito |
 |---|---|---:|---|
 | `app` | `docker/php/Dockerfile` | Ninguno expuesto directamente | PHP-FPM y Laravel |
-| `nginx` | `nginx:1.27-alpine` | `8080:80` | Servidor web |
+| `nginx` | `nginx:1.27-alpine` | `8090:80` | Servidor web |
 | `postgres` | `postgres:16-alpine` | Ninguno expuesto al host en compose actual | Base de datos |
 | `redis` | `redis:7-alpine` | Ninguno expuesto al host en compose actual | Caché y colas |
 | `queue` | `docker/php/Dockerfile` | Ninguno | Worker de colas |
@@ -19,6 +19,31 @@ Servicios actuales:
 |---|---|
 | `pgdata` | Persistencia de PostgreSQL |
 | `redisdata` | Persistencia de Redis |
+
+## Usuario de ejecución
+
+El proyecto ejecuta PHP con el usuario interno `www`:
+
+| Usuario | UID | GID |
+|---|---:|---:|
+| `www` | `1000` | `1000` |
+
+`www-data` no se usa como usuario de ejecución final.
+
+## Permisos
+
+Los directorios escribibles se corrigen en el entrypoint de forma idempotente:
+
+- `bootstrap/cache`
+- `storage/framework/cache`
+- `storage/framework/sessions`
+- `storage/framework/views`
+- `storage/logs`
+
+Permisos objetivo:
+
+- directorios: `775`
+- archivos: `664`
 
 ## Redes
 
@@ -97,4 +122,13 @@ Redis:
 
 ```bash
 PENDIENTE DE CONFIGURAR
+```
+
+## Comprobación de Redis y permisos
+
+```bash
+docker compose exec app php -m | grep -i redis
+docker compose exec app php --ri redis
+docker compose exec app php artisan tinker --execute="dump(\Illuminate\Support\Facades\Redis::connection()->ping());"
+docker compose exec app php artisan tinker --execute="cache()->put('codered_test', 'ok', 60); dump(cache()->get('codered_test'));"
 ```

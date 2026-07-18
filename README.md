@@ -40,6 +40,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 2. Configura variables en [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
 3. Levanta Docker según [docs/DOCKER.md](docs/DOCKER.md).
 4. Revisa el modelo de datos en [docs/DATABASE.md](docs/DATABASE.md).
+5. Recuerda que la URL pública actual es `http://localhost:8090`.
 
 ## Capturas
 
