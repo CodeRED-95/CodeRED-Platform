@@ -131,6 +131,8 @@ class Form extends Component
     public function getDestinationOptionsProperty()
     {
         return Agency::query()
+            ->active()
+            ->whereNull('deleted_at')
             ->when($this->agency?->exists, fn ($query) => $query->whereKeyNot($this->agency->id))
             ->when($this->destinationSearch !== '', function ($query): void {
                 $search = mb_strtolower(trim($this->destinationSearch));
@@ -143,6 +145,27 @@ class Form extends Component
             ->orderBy('name')
             ->limit(20)
             ->get(['id', 'code', 'name', 'department', 'province', 'district', 'address']);
+    }
+
+    public function getSelectedDestinationProperty(): ?Agency
+    {
+        if (! $this->moved_to_agency_id) {
+            return null;
+        }
+
+        return Agency::query()
+            ->withTrashed()
+            ->select(['id', 'code', 'name', 'department', 'province', 'district', 'address'])
+            ->find($this->moved_to_agency_id);
+    }
+
+    public function selectDestination(?int $agencyId): void
+    {
+        $this->moved_to_agency_id = $agencyId;
+
+        if ($agencyId === null) {
+            $this->destinationSearch = '';
+        }
     }
 
     public function rules(): array
@@ -185,7 +208,12 @@ class Form extends Component
             'source_reference' => ['nullable', 'string', 'max:255'],
             'source_text' => ['nullable', 'string'],
             'has_moved' => ['boolean'],
-            'moved_to_agency_id' => ['nullable', 'exists:agencies,id'],
+            'moved_to_agency_id' => [
+                'nullable',
+                Rule::exists('agencies', 'id')
+                    ->whereNull('deleted_at')
+                    ->where('status', AgencyStatus::Active->value),
+            ],
             'moved_to_address' => ['nullable', 'string'],
             'move_notice' => ['nullable', 'string'],
             'moved_at' => ['nullable', 'date'],

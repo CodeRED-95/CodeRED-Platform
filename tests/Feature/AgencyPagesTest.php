@@ -77,6 +77,62 @@ class AgencyPagesTest extends TestCase
             ->assertSeeHtml('<button type="submit"');
     }
 
+    public function test_agency_destination_selector_renders_single_combobox_without_select_listbox(): void
+    {
+        $this->actingAs($this->actingAsAgencyManager());
+
+        Livewire::test(\App\Livewire\Admin\Agencies\Form::class)
+            ->set('has_moved', true)
+            ->assertSeeHtml('wire:model.live.debounce.350ms="destinationSearch"')
+            ->assertSeeHtml('wire:click="selectDestination(null)"')
+            ->assertDontSeeHtml('multiple')
+            ->assertDontSeeHtml('size="')
+            ->assertDontSeeHtml('Selecciona una agencia</option>');
+    }
+
+    public function test_agency_destination_selection_persists_moved_to_agency_id(): void
+    {
+        $destination = Agency::factory()->create(['status' => AgencyStatus::Active, 'has_moved' => false]);
+
+        $this->actingAs($this->actingAsAgencyManager());
+
+        $component = Livewire::test(\App\Livewire\Admin\Agencies\Form::class)
+            ->set('has_moved', true)
+            ->call('selectDestination', $destination->id)
+            ->set('moved_to_address', 'Jr. Nueva 123')
+            ->set('move_notice', 'Traslado temporal')
+            ->set('moved_at', '2026-07-18');
+
+        $component->assertSet('moved_to_agency_id', $destination->id);
+    }
+
+    public function test_agency_destination_selection_can_be_cleared(): void
+    {
+        $destination = Agency::factory()->create(['status' => AgencyStatus::Active, 'has_moved' => false]);
+
+        $this->actingAs($this->actingAsAgencyManager());
+
+        $component = Livewire::test(\App\Livewire\Admin\Agencies\Form::class)
+            ->set('has_moved', true)
+            ->call('selectDestination', $destination->id)
+            ->call('selectDestination', null);
+
+        $component->assertSet('moved_to_agency_id', null);
+        $component->assertSet('destinationSearch', '');
+    }
+
+    public function test_agency_destination_search_excludes_current_agency(): void
+    {
+        $agency = Agency::factory()->create(['status' => AgencyStatus::Active, 'has_moved' => false]);
+
+        $this->actingAs($this->actingAsAgencyManager());
+
+        Livewire::test(\App\Livewire\Admin\Agencies\Form::class, ['agency' => $agency])
+            ->set('has_moved', true)
+            ->set('destinationSearch', $agency->code)
+            ->assertDontSeeHtml($agency->code.' — '.$agency->name);
+    }
+
     public function test_admin_agency_detail_loads(): void
     {
         $agency = Agency::factory()->create();

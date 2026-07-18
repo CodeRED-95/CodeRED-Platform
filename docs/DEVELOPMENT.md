@@ -78,6 +78,7 @@ docker compose exec app php artisan make:migration nombre
 - No agregar `\$wire.set()` ni sincronización Alpine duplicada a campos que ya usan `wire:model`; Livewire debe ser la única fuente de verdad.
 - Livewire 3 ya incluye Alpine cuando se usan `@livewireStyles` y `@livewireScripts`; no volver a importar `alpinejs`, no asignar `window.Alpine` y no ejecutar `Alpine.start()` desde `resources/js/app.js` en esa configuración.
 - El login del proyecto usa autenticación tradicional por sesión con `POST /login`; Livewire queda reservado para módulos administrativos y no debe volver a usarse en la pantalla de acceso.
+- No usar `<select size>` ni `<select multiple>` para relaciones simples; cuando existan muchas opciones, usar el combobox buscable oficial del CodeRED Design System.
 
 ## Autorización
 

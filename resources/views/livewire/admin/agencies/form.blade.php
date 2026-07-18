@@ -64,16 +64,52 @@
                                     </label>
                                 @elseif ($field === 'moved_to_agency_id')
                                     @if ($has_moved)
-                                    <label class="md:col-span-2">
-                                        <span class="text-sm font-medium">Agencia destino</span>
-                                        <input type="search" wire:model.live.debounce.400ms="destinationSearch" placeholder="Buscar por código, nombre o ubicación" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                                        <select wire:model="moved_to_agency_id" class="mt-2 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                                            <option value="">Selecciona una agencia</option>
-                                            @foreach($destinations as $destination)
-                                                <option value="{{ $destination->id }}">{{ $destination->code }} · {{ $destination->name }} · {{ $destination->department }} / {{ $destination->province }} / {{ $destination->district }}</option>
-                                            @endforeach
-                                        </select>
-                                    </label>
+                                    <div class="md:col-span-2" x-data="{ open: false }" x-on:keydown.escape.window="open = false">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <span class="text-sm font-medium">Agencia destino</span>
+                                            @if ($moved_to_agency_id)
+                                                <button type="button" wire:click="selectDestination(null)" class="text-xs font-medium text-[color:var(--color-brand-light)] hover:text-white">Limpiar</button>
+                                            @endif
+                                        </div>
+                                        <div class="mt-1 rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+                                            <button
+                                                type="button"
+                                                x-on:click="open = !open"
+                                                class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-[color:var(--color-text-primary)]"
+                                            >
+                                                <span class="truncate">
+                                                    @if ($selectedDestination)
+                                                        {{ $selectedDestination->code }} — {{ $selectedDestination->name }} · {{ $selectedDestination->department }} / {{ $selectedDestination->province }} / {{ $selectedDestination->district }}
+                                                    @else
+                                                        Selecciona una agencia
+                                                    @endif
+                                                </span>
+                                                <span class="text-[color:var(--color-text-secondary)]">⌄</span>
+                                            </button>
+                                            <div x-show="open" x-cloak x-on:click.outside="open = false" class="border-t border-[color:var(--color-border-subtle)] p-3">
+                                                <input type="search" wire:model.live.debounce.350ms="destinationSearch" placeholder="Buscar por código, nombre o ubicación" class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring">
+                                                <div class="mt-3 max-h-72 overflow-y-auto rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]">
+                                                    @forelse ($destinations as $destination)
+                                                        <button
+                                                            type="button"
+                                                            wire:click="selectDestination({{ $destination->id }})"
+                                                            x-on:click="open = false"
+                                                            class="flex w-full flex-col gap-1 border-b border-[color:var(--color-border-subtle)] px-4 py-3 text-left text-sm transition last:border-b-0 hover:bg-white/5 focus-ring"
+                                                        >
+                                                            <span class="font-medium text-[color:var(--color-text-primary)]">{{ $destination->code }} — {{ $destination->name }}</span>
+                                                            <span class="text-xs text-[color:var(--color-text-secondary)]">{{ $destination->department }} / {{ $destination->province }} / {{ $destination->district }}</span>
+                                                            <span class="truncate text-xs text-[color:var(--color-text-muted)]">{{ $destination->address }}</span>
+                                                        </button>
+                                                    @empty
+                                                        <div class="px-4 py-8 text-center text-sm text-[color:var(--color-text-secondary)]">
+                                                            No hay agencias disponibles con ese filtro.
+                                                        </div>
+                                                    @endforelse
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @error('moved_to_agency_id') <span class="mt-1 block text-sm text-[color:var(--color-danger)]">{{ $message }}</span> @enderror
+                                    </div>
                                     @endif
                                 @elseif (in_array($field, ['moved_to_address','moved_at','move_notice'], true))
                                     @if ($has_moved)

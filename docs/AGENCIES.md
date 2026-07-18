@@ -53,6 +53,19 @@ Campos detectados en `agencies`:
 | `move_notice` | Aviso público de traslado |
 | `moved_at` | Fecha de traslado |
 | `data_version` | Versión pública de datos |
+
+## Selector de Agencia Destino
+
+Cuando un formulario necesita relacionar una agencia con otra y la lista puede ser grande, CodeRED usa un combobox buscable en lugar de un `<select>` nativo expandido.
+
+Reglas:
+
+- no usar `<select multiple>` para relaciones simples;
+- no usar `<select size="...">` salvo listas intencionalmente múltiples;
+- no duplicar un select nativo y otro componente personalizado para el mismo campo;
+- mostrar código, nombre y ubicación;
+- excluir la agencia actual, eliminadas y destinos no válidos desde servidor;
+- mantener el campo cerrado por defecto y abrirlo solo bajo interacción.
 | `last_verified_at` | Última verificación |
 | `created_by` | Usuario creador |
 | `updated_by` | Usuario actualizador |

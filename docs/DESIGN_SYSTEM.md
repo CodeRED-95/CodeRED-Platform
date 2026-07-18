@@ -45,6 +45,24 @@ El CodeRED Design System estandariza la interfaz del proyecto con componentes Bl
 - `x-ui.toggle`
 - `x-ui.card`
 - `x-ui.stat-card`
+
+## Combobox para relaciones grandes
+
+Cuando una relación simple tiene demasiados registros para un `<select>` nativo, el sistema visual oficial usa un combobox buscable.
+
+No usar:
+
+- `<select multiple>`
+- `<select size="...">`
+- dos controles distintos para el mismo campo
+
+Sí usar:
+
+- un único control cerrado por defecto;
+- búsqueda con debounce;
+- lista con scroll interno;
+- estilos oscuros del sistema;
+- exclusión del registro actual y de registros inválidos desde servidor.
 - `x-ui.badge`
 - `x-ui.alert`
 - `x-ui.modal`
