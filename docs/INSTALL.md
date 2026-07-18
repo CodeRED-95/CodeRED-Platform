@@ -13,7 +13,7 @@
 ## Clonar proyecto
 
 ```bash
-git clone <PENDIENTE DE CONFIGURAR>
+git clone https://github.com/CodeRED-95/CodeRED-Platform.git
 cd CodeRED Platform
 ```
 

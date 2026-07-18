@@ -7,10 +7,13 @@ Todas las versiones siguen `Keep a Changelog`.
 ### Added
 
 - Documentación modular del proyecto
+- `AGENTS.md` como guía oficial para IA
+- Carpeta `docs/adr` con decisiones arquitectónicas
 
 ### Changed
 
 - README principal convertido en portada
+- Estructura documental centralizada en `docs/`
 
 ### Fixed
 
@@ -19,4 +22,3 @@ Todas las versiones siguen `Keep a Changelog`.
 ### Removed
 
 - PENDIENTE DE CONFIGURAR
-

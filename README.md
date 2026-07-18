@@ -47,6 +47,7 @@ PENDIENTE DE CONFIGURAR
 
 ## Documentación
 
+- [Guía para IAs](AGENTS.md)
 - [Instalación](docs/INSTALL.md)
 - [Entorno](docs/ENVIRONMENT.md)
 - [Docker](docs/DOCKER.md)
@@ -63,6 +64,7 @@ PENDIENTE DE CONFIGURAR
 - [Roadmap](docs/ROADMAP.md)
 - [Changelog](docs/CHANGELOG.md)
 - [FAQ](docs/FAQ.md)
+- [ADR](docs/adr/README.md)
 
 ## Roadmap resumido
 
