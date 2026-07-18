@@ -17,7 +17,6 @@
 
     <section class="flex items-center justify-center px-4 py-8 lg:px-10">
         <form
-            method="POST"
             wire:submit.prevent="authenticate"
             x-data="{ showPassword: false }"
             x-init="
