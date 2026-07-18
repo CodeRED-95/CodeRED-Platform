@@ -21,6 +21,7 @@ docker compose exec app php artisan make:migration nombre
 1. Crear permiso en seeders o migraciones de datos.
 2. Asociarlo al rol correspondiente.
 3. Proteger la acción vía Policy.
+4. Si el permiso debe resolver `can()`, hacerlo mediante `Gate::before`, nunca sobrescribiendo `User::can()`.
 
 ## Buenas prácticas
 
@@ -48,6 +49,12 @@ docker compose exec app php artisan make:migration nombre
 - PHP estándar del proyecto.
 - Formateo con Pint.
 - Análisis estático con PHPStan.
+
+## Autorización
+
+- No sobrescribir métodos internos de `Authenticatable`.
+- Usar `User::hasPermission()` y `User::hasRole()` como helpers explícitos.
+- Delegar la autorización en Gates y Policies.
 
 ## Flujo frontend
 

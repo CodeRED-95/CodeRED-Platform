@@ -32,6 +32,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Corrección técnica de la migración `000009` para eliminar la restricción UNIQUE como constraint y crear un índice único parcial
 - Flujo frontend documentado para generar `package-lock.json` con `npm install` en el primer inicio y usar `npm ci` en instalaciones posteriores
 - Redis configurado sin `AUTH` cuando el servidor no utiliza contraseña
+- Estrategia de autorización reorientada a Gates y Policies sin sobrescribir `User::can()`
 
 ### Removed
 

@@ -9,6 +9,9 @@
 
 - Policies para `Agencies`
 - Permisos granulares por módulo
+- Laravel nativo con `Gate::before` y Policies
+- No sobrescribir `User::can()`
+- Helpers propios recomendados: `hasPermission()`, `hasRole()`, `hasAnyRole()` y `hasAllPermissions()`
 
 ## CSRF
 
@@ -46,4 +49,4 @@ El importador solo permite:
 
 - No guardar secretos en el repositorio
 - No exponer trazas en producción
-
+- Mantener la lógica de autorización en Gates y Policies, nunca en overrides de métodos del framework

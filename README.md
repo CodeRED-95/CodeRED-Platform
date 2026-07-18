@@ -63,6 +63,7 @@ PENDIENTE DE CONFIGURAR
 - [Agencies](docs/AGENCIES.md)
 - [Importador](docs/IMPORTER.md)
 - [Redis](docs/REDIS.md)
+- [Autorización](docs/AUTHORIZATION.md)
 - [Arquitectura](docs/ARCHITECTURE.md)
 - [Desarrollo](docs/DEVELOPMENT.md)
 - [Testing](docs/TESTING.md)

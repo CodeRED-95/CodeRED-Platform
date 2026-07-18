@@ -33,14 +33,29 @@ class User extends Authenticatable
         ];
     }
 
-    public function can(string $ability, $arguments = []): bool
+    public function hasPermission(string $permission): bool
     {
-        if (parent::can($ability, $arguments)) {
-            return true;
-        }
-
         return $this->roles()
-            ->whereHas('permissions', fn ($query) => $query->where('slug', $ability))
+            ->whereHas('permissions', fn ($query) => $query->where('slug', $permission))
             ->exists();
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return $this->roles()
+            ->where('slug', $role)
+            ->exists();
+    }
+
+    public function hasAnyRole(array $roles): bool
+    {
+        return $this->roles()
+            ->whereIn('slug', $roles)
+            ->exists();
+    }
+
+    public function hasAllPermissions(array $permissions): bool
+    {
+        return collect($permissions)->every(fn (string $permission) => $this->hasPermission($permission));
     }
 }
