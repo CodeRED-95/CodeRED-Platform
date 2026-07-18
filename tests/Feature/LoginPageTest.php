@@ -25,6 +25,7 @@ class LoginPageTest extends TestCase
             ->assertSeeHtml('method="POST"')
             ->assertSeeHtml('action="'.route('login.store').'"')
             ->assertSeeHtml('name="_token"')
+            ->assertDontSeeHtml('wire:id=')
             ->assertDontSeeHtml('wire:submit')
             ->assertDontSeeHtml('wire:model')
             ->assertDontSeeHtml('$wire.set');
@@ -33,12 +34,14 @@ class LoginPageTest extends TestCase
     public function test_login_route_has_get_and_post_endpoints(): void
     {
         $routes = collect(app('router')->getRoutes()->getRoutes())
-            ->filter(fn ($route) => in_array('/login', $route->uri(), true))
-            ->map(fn ($route) => implode('|', $route->methods()))
+            ->filter(fn ($route) => $route->uri() === 'login')
+            ->flatMap(fn ($route) => $route->methods())
+            ->unique()
             ->values()
             ->all();
 
-        $this->assertContains('GET|HEAD', $routes);
+        $this->assertContains('GET', $routes);
+        $this->assertContains('HEAD', $routes);
         $this->assertContains('POST', $routes);
     }
 

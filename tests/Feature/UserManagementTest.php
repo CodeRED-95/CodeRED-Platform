@@ -30,9 +30,13 @@ class UserManagementTest extends TestCase
 
         $super = Role::query()->updateOrCreate(['slug' => 'super-admin'], ['name' => 'Super Administrador', 'is_system' => true]);
         $admin = Role::query()->updateOrCreate(['slug' => 'admin'], ['name' => 'Administrador', 'is_system' => true]);
+        $editor = Role::query()->updateOrCreate(['slug' => 'editor'], ['name' => 'Editor', 'is_system' => false]);
+        $viewer = Role::query()->updateOrCreate(['slug' => 'viewer'], ['name' => 'Consulta', 'is_system' => false]);
 
         $super->permissions()->sync(Permission::query()->pluck('id')->all());
         $admin->permissions()->sync(Permission::query()->whereIn('slug', ['users.view', 'users.create', 'users.update', 'users.manage_roles', 'users.reset_password', 'users.manage_status', 'users.view_activity'])->pluck('id')->all());
+        $editor->permissions()->sync([]);
+        $viewer->permissions()->sync([]);
     }
 
     public function test_super_admin_can_open_users_index(): void
