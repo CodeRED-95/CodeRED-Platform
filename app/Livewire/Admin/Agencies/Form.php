@@ -124,6 +124,7 @@ class Form extends Component
             return $agency;
         });
 
+        session()->flash('success', $this->mode === 'edit' ? 'Agencia actualizada correctamente.' : 'Agencia creada correctamente.');
         $this->redirectRoute('admin.agencies.show', $agency);
     }
 

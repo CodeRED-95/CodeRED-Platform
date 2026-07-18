@@ -93,6 +93,16 @@
                 </header>
 
                 <main class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
+                    @if (session('success') || session('error'))
+                        <div class="mb-6 space-y-3">
+                            @if (session('success'))
+                                <x-ui.alert tone="success">{{ session('success') }}</x-ui.alert>
+                            @endif
+                            @if (session('error'))
+                                <x-ui.alert tone="danger">{{ session('error') }}</x-ui.alert>
+                            @endif
+                        </div>
+                    @endif
                     {{ $slot }}
                 </main>
             </div>

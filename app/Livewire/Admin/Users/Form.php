@@ -75,6 +75,7 @@ class Form extends Component
             $this->user->roles()->sync(\App\Models\Role::query()->whereIn('slug', $validated['roles'])->pluck('id')->all());
         });
 
+        session()->flash('success', $this->mode === 'edit' ? 'Usuario actualizado correctamente.' : 'Usuario creado correctamente.');
         $this->redirectRoute('admin.users.show', $this->user);
     }
 

@@ -5,12 +5,17 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <form wire:submit="save" class="grid gap-6 lg:grid-cols-2">
+    <form wire:submit.prevent="save" class="grid gap-6 lg:grid-cols-2">
         <x-ui.card class="lg:col-span-2">
             <x-ui.section-header title="Identificación" subtitle="Datos básicos de la cuenta." />
+            @if ($errors->any())
+                <x-ui.alert variant="danger" title="Revisa el formulario">
+                    Se encontraron errores de validación. Corrige los campos marcados antes de guardar.
+                </x-ui.alert>
+            @endif
             <div class="mt-4 grid gap-4 md:grid-cols-2">
-                <x-ui.input wire:model.live="name" label="Nombre" />
-                <x-ui.input wire:model.live="email" type="email" label="Correo electrónico" />
+                <x-ui.input wire:model.live="name" label="Nombre" :error="$errors->first('name')" />
+                <x-ui.input wire:model.live="email" type="email" label="Correo electrónico" :error="$errors->first('email')" />
                 <x-ui.select wire:model.live="status" label="Estado">
                     <option value="active">Activo</option>
                     <option value="suspended">Suspendido</option>
@@ -24,8 +29,8 @@
         <x-ui.card>
             <x-ui.section-header title="Seguridad" subtitle="Contraseña temporal y confirmación." />
             <div class="mt-4 space-y-4">
-                <x-ui.input wire:model.live="password" type="password" label="Contraseña temporal" autocomplete="new-password" />
-                <x-ui.input wire:model.live="password_confirmation" type="password" label="Confirmar contraseña" autocomplete="new-password" />
+                <x-ui.input wire:model.live="password" type="password" label="Contraseña temporal" autocomplete="new-password" :error="$errors->first('password')" />
+                <x-ui.input wire:model.live="password_confirmation" type="password" label="Confirmar contraseña" autocomplete="new-password" :error="$errors->first('password_confirmation')" />
             </div>
         </x-ui.card>
 
@@ -45,7 +50,10 @@
         </x-ui.card>
 
         <div class="lg:col-span-2 flex justify-end">
-            <x-ui.button type="submit" variant="primary">Guardar usuario</x-ui.button>
+            <x-ui.button type="submit" variant="primary" wire:loading.attr="disabled" wire:target="save">
+                <span wire:loading.remove wire:target="save">Guardar usuario</span>
+                <span wire:loading wire:target="save">Guardando…</span>
+            </x-ui.button>
         </div>
     </form>
 </div>

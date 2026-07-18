@@ -11,6 +11,11 @@
 
     <form wire:submit.prevent="save" class="space-y-6">
         @csrf
+        @if ($errors->any())
+            <x-ui.alert variant="danger" title="Revisa el formulario">
+                Se encontraron errores de validación. Corrige los campos marcados antes de guardar.
+            </x-ui.alert>
+        @endif
         <div class="grid gap-6 xl:grid-cols-2">
             @php
                 $sections = [
@@ -100,7 +105,10 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white dark:bg-white dark:text-slate-900">Guardar</button>
+            <button type="submit" wire:loading.attr="disabled" wire:target="save" class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white dark:bg-white dark:text-slate-900">
+                <span wire:loading.remove wire:target="save">Guardar</span>
+                <span wire:loading wire:target="save">Guardando…</span>
+            </button>
         </div>
     </form>
 </div>
