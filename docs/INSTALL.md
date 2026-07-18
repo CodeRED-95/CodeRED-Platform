@@ -40,6 +40,8 @@ docker compose exec app composer install
 docker compose exec app npm install
 ```
 
+Si el proyecto ya dispone de `package-lock.json`, la instalación frontend debe ejecutarse con `npm ci` en lugar de `npm install`.
+
 ## Generar clave de aplicación
 
 ```bash
@@ -64,11 +66,25 @@ docker compose exec app php artisan db:seed
 docker compose exec app npm run build
 ```
 
+Este paso genera `public/build/manifest.json` y `public/build/assets/`. Si no se ejecuta, la página de login puede fallar con `Vite manifest not found`.
+
 ## Primer inicio
 
 ```bash
 docker compose up -d --build
 docker compose exec app php artisan migrate --seed
+```
+
+Flujo recomendado de primer inicio:
+
+```bash
+docker compose up -d --build
+docker compose exec app composer install
+docker compose exec app npm install
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
+docker compose exec app php artisan storage:link
+docker compose exec app npm run build
 ```
 
 ## Notas de instalación
@@ -77,7 +93,7 @@ docker compose exec app php artisan migrate --seed
 - El proyecto debe escribirse con el usuario interno `www`.
 - El proceso master de PHP-FPM debe iniciar como root; los workers corren como `www`.
 - Git Safe Directory se configura automáticamente para `/var/www/html` durante el build y el entrypoint.
-- `composer.lock` debe versionarse cuando el entorno permita generarlo correctamente.
+- `composer.lock` no existe actualmente en el árbol del repositorio; debe generarse con `composer install` y versionarse para que futuras instalaciones usen el lockfile.
 
 ## Problemas frecuentes
 

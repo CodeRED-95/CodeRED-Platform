@@ -13,6 +13,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 - Módulo `Agencies` con soporte para importación desde GitHub Gist, snapshot público y agencias trasladadas.
 - PHP-FPM ejecuta el master como root y los workers como `www`.
 - Git Safe Directory se configura automáticamente para `/var/www/html`.
+- `composer.lock` debe existir y versionarse para instalaciones reproducibles.
 
 ## Arquitectura resumida
 

@@ -47,6 +47,7 @@
 | Problema | Causa probable | Solución |
 |---|---|---|
 | Vistas no cargan | Assets no compilados | Ejecutar `npm run build` |
+| `ViteManifestNotFoundException` | `public/build/manifest.json` no existe | Ejecutar `npm run build` y verificar que el directorio `public/build/` se generó |
 
 ## Importador
 
@@ -66,3 +67,9 @@
 | Problema | Causa probable | Solución |
 |---|---|---|
 | `fatal: detected dubious ownership in repository at '/var/www/html'` | Git no considera seguro el directorio montado | Registrar `/var/www/html` como `safe.directory` en la imagen o el entrypoint |
+
+## Composer
+
+| Problema | Causa probable | Solución |
+|---|---|---|
+| `No composer.lock file present` | El lockfile no está presente en el árbol o no se persistió | Ejecutar `composer install`, generar `composer.lock` y versionarlo en el repositorio |

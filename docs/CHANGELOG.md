@@ -23,6 +23,9 @@ Todas las versiones siguen `Keep a Changelog`.
 - Solución documental para `Class "Redis" not found`
 - Explicación arquitectónica de PHP-FPM master root y workers `www`
 - Solución permanente para Git Safe Directory en `/var/www/html`
+- Corrección documental sobre la persistencia de `composer.lock`
+- Flujo documentado para generar `public/build/manifest.json` con `npm run build`
+- Corrección del prefijo API para evitar `api/api/v1`
 
 ### Removed
 

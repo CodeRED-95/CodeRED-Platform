@@ -59,6 +59,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - No usar `www-data` como usuario de ejecución final si el proyecto está estandarizado en `www`.
 - No forzar PHP-FPM completo como usuario no privilegiado; el master debe poder iniciar como root y delegar workers al pool.
 - No olvidar `safe.directory` para Git cuando el repo esté montado como bind mount dentro del contenedor.
+- No olvidar que `composer.lock` debe persistir y versionarse; no usar `composer update` sin una razón comprobada.
 
 ## Qué debe ejecutar antes de finalizar
 
