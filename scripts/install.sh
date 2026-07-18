@@ -10,10 +10,6 @@ if [ ! -f .env ]; then
     fi
 fi
 
-if ! grep -qE '^APP_KEY=base64:.+' .env; then
-    echo "APP_KEY vacía. Debe generarse antes de continuar."
-fi
-
 docker compose exec app composer install
 
 if [ -f package-lock.json ]; then

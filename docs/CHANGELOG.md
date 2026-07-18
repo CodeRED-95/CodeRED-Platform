@@ -30,6 +30,8 @@ Todas las versiones siguen `Keep a Changelog`.
 - Explicación de cómo sincronizar credenciales de PostgreSQL cuando existe un volumen inicializado
 - Inclusión del comando `health:redis` para verificar Redis sin Tinker
 - Corrección técnica de la migración `000009` para eliminar la restricción UNIQUE como constraint y crear un índice único parcial
+- Flujo frontend documentado para generar `package-lock.json` con `npm install` en el primer inicio y usar `npm ci` en instalaciones posteriores
+- Redis configurado sin `AUTH` cuando el servidor no utiliza contraseña
 
 ### Removed
 

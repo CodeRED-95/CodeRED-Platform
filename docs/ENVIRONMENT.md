@@ -61,8 +61,11 @@ Todas las variables listadas provienen de `.env.example`.
 |---|---|---|---|---|---|---|
 | `REDIS_CLIENT` | Cliente Redis. | `phpredis` | `phpredis` | Sí | Si no está instalado, falla la conexión. | `REDIS_HOST`, `REDIS_PORT` |
 | `REDIS_HOST` | Host Redis. | `redis` en Docker | `redis` | Sí | Rompe caché/colas/sesiones. | `REDIS_PORT` |
-| `REDIS_PASSWORD` | Contraseña Redis. | `null` en local | `null` | No | Si se define, debe coincidir con el servidor. | `REDIS_HOST` |
+| `REDIS_USERNAME` | Usuario Redis. | vacío en local | `PENDIENTE DE CONFIGURAR` | No | Si Redis usa ACL, debe coincidir con el usuario configurado. | `REDIS_PASSWORD` |
+| `REDIS_PASSWORD` | Contraseña Redis. | vacío en local cuando Redis no autentica | `PENDIENTE DE CONFIGURAR` | No | Si se define, Laravel enviará AUTH. No escribir `null` como texto. | `REDIS_USERNAME` |
 | `REDIS_PORT` | Puerto Redis. | `6379` | `6379` | Sí | Cambia el puerto de conexión. | `REDIS_HOST` |
+| `REDIS_DB` | Base de datos Redis por defecto. | `0` | `0` | Sí | Cambia la base lógica por defecto. | `REDIS_CACHE_DB` |
+| `REDIS_CACHE_DB` | Base de datos Redis para caché. | `1` | `1` | Sí | Cambia la base lógica de caché. | `REDIS_DB` |
 
 ## Mail
 
@@ -102,6 +105,7 @@ Todas las variables listadas provienen de `.env.example`.
 - Mail real: `PENDIENTE DE CONFIGURAR`
 - Importador específico vía URL configurable: `PENDIENTE DE CONFIGURAR`
 - `composer.lock`: debe existir y versionarse para instalaciones reproducibles.
+- `REDIS_PASSWORD=null` no es equivalente a vacío: la cadena `null` puede provocar AUTH.
 
 ## Regla de sintaxis Dotenv
 

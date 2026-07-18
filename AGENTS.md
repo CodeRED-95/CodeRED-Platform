@@ -61,6 +61,8 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - No forzar PHP-FPM completo como usuario no privilegiado; el master debe poder iniciar como root y delegar workers al pool.
 - No olvidar `safe.directory` para Git cuando el repo esté montado como bind mount dentro del contenedor.
 - No olvidar que `composer.lock` debe persistir y versionarse; no usar `composer update` sin una razón comprobada.
+- No olvidar que `package-lock.json` debe persistir y versionarse; la primera instalación puede usar `npm install`, pero las siguientes deben usar `npm ci`.
+- No usar `REDIS_PASSWORD=null`; si Redis no tiene contraseña, el valor debe ir vacío.
 - No dejar credenciales de ejemplo en seeders ni variables reales en `.env.example`.
 
 ## Qué debe ejecutar antes de finalizar

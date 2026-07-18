@@ -24,6 +24,7 @@
 |---|---|---|
 | Sesiones no persisten | Redis inaccesible | Revisar `REDIS_HOST` |
 | `Class "Redis" not found` | La extensión PhpRedis no está instalada | Reconstruir la imagen PHP con la extensión `redis` habilitada |
+| `ERR AUTH <password> called without any password configured` | `REDIS_PASSWORD` tiene un valor no vacío aunque Redis no usa contraseña | Vaciar `REDIS_PASSWORD` y limpiar cachés de Laravel |
 
 ## PostgreSQL
 
@@ -50,6 +51,13 @@
 | Vistas no cargan | Assets no compilados | Ejecutar `npm run build` |
 | `ViteManifestNotFoundException` | `public/build/manifest.json` no existe | Ejecutar `npm run build` y verificar que el directorio `public/build/` se generó |
 | `No composer.lock file present` | El lockfile no existe o no se persistió | Verificar que `composer.lock` exista en el host y dentro del contenedor |
+
+## NPM
+
+| Problema | Causa probable | Solución |
+|---|---|---|
+| `The npm ci command can only install with an existing package-lock.json` | No existe `package-lock.json` | Ejecutar `npm install` una vez para generarlo, versionarlo y luego usar `npm ci` |
+| `EUSAGE` durante `npm ci` | `package-lock.json` ausente o desincronizado | Sincronizar `package.json` y `package-lock.json`, luego repetir `npm ci` |
 
 ## Importador
 

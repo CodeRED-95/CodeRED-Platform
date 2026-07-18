@@ -69,3 +69,4 @@ Cada ADR debe incluir:
 | 0018 | Credenciales de administrador de desarrollo desde `.env` |
 | 0019 | Persistencia de `APP_KEY` |
 | 0020 | Índice único parcial para `agencies.source` y `agencies.source_reference` |
+| 0021 | Redis sin contraseña con PhpRedis |

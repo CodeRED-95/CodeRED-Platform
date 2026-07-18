@@ -49,3 +49,13 @@ docker compose exec app php artisan make:migration nombre
 - Formateo con Pint.
 - Análisis estático con PHPStan.
 
+## Flujo frontend
+
+| Escenario | Comando |
+|---|---|
+| Primera instalación | `npm install` |
+| Instalaciones posteriores | `npm ci` |
+| Generar assets para producción o despliegue | `npm run build` |
+| Desarrollo con recarga en caliente | `npm run dev` |
+
+`package-lock.json` debe versionarse junto con `package.json` para que `npm ci` funcione de forma reproducible.

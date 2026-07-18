@@ -14,6 +14,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 - PHP-FPM ejecuta el master como root y los workers como `www`.
 - Git Safe Directory se configura automáticamente para `/var/www/html`.
 - `composer.lock` debe existir y versionarse para instalaciones reproducibles.
+- `package-lock.json` debe existir y versionarse para instalaciones frontend reproducibles.
 - PostgreSQL se inicializa desde las variables `DB_*` del archivo `.env`.
 
 ## Arquitectura resumida
@@ -45,6 +46,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 3. Levanta Docker según [docs/DOCKER.md](docs/DOCKER.md).
 4. Revisa el modelo de datos en [docs/DATABASE.md](docs/DATABASE.md).
 5. Recuerda que la URL pública local actual es `http://localhost:8090`; en la LAN puede ser `http://192.168.18.124:8090`.
+6. Para frontend, el primer inicio usa `npm install`; instalaciones posteriores usan `npm ci`.
 
 ## Capturas
 
@@ -60,6 +62,7 @@ PENDIENTE DE CONFIGURAR
 - [API](docs/API.md)
 - [Agencies](docs/AGENCIES.md)
 - [Importador](docs/IMPORTER.md)
+- [Redis](docs/REDIS.md)
 - [Arquitectura](docs/ARCHITECTURE.md)
 - [Desarrollo](docs/DEVELOPMENT.md)
 - [Testing](docs/TESTING.md)

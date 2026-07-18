@@ -38,10 +38,10 @@ En la red local puede responder también en `http://192.168.18.124:8090` si el h
 
 ```bash
 docker compose exec app composer install
-docker compose exec app npm ci
+docker compose exec app npm install
 ```
 
-Si todavía no existe `package-lock.json`, la instalación frontend puede ejecutarse con `npm install`, pero el estado actual del proyecto debe preferir `npm ci`.
+Si ya existe `package-lock.json`, la instalación frontend debe ejecutarse con `npm ci` en lugar de `npm install`.
 
 ## Generar clave de aplicación
 
@@ -83,7 +83,7 @@ Flujo recomendado de primer inicio:
 ```bash
 docker compose up -d --build
 docker compose exec app composer install
-docker compose exec app npm ci
+docker compose exec app npm install
 docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate
 docker compose exec app php artisan storage:link
@@ -98,8 +98,11 @@ docker compose exec app npm run build
 - El proceso master de PHP-FPM debe iniciar como root; los workers corren como `www`.
 - Git Safe Directory se configura automáticamente para `/var/www/html` durante el build y el entrypoint.
 - `composer.lock` debe existir, persistir y versionarse para instalaciones reproducibles.
+- `package-lock.json` debe existir, persistir y versionarse para instalaciones frontend reproducibles.
 - PostgreSQL se inicializa desde `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD`.
 - Si el volumen de PostgreSQL ya estaba inicializado, la contraseña interna puede requerir sincronización manual sin borrar el volumen.
+- La primera instalación frontend usa `npm install`; después se usa `npm ci`.
+- Redis local sin autenticación debe dejar `REDIS_PASSWORD=` vacío para evitar que Laravel intente autenticar.
 
 ## Problemas frecuentes
 
@@ -108,4 +111,4 @@ docker compose exec app npm run build
 | `docker` no existe | Instalar Docker Desktop o Docker Engine |
 | `composer` no existe | Usar `docker compose exec app composer install` |
 | `php artisan` falla | Verificar que el contenedor `app` esté activo |
-| El frontend no compila | Ejecutar `npm ci` o `npm install` según exista `package-lock.json`, y luego `npm run build` dentro del contenedor |
+| El frontend no compila | Ejecutar `npm install` si no existe `package-lock.json`, o `npm ci` si ya existe, y luego `npm run build` dentro del contenedor |
