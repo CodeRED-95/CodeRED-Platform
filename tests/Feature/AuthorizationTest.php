@@ -60,6 +60,30 @@ class AuthorizationTest extends TestCase
         $this->assertTrue(Gate::forUser($user)->allows('viewAny', Agency::class));
         $this->assertTrue(Gate::forUser($user)->allows('create', Agency::class));
         $this->assertTrue(Gate::forUser($user)->allows('view', $agency));
+        $this->assertTrue($user->hasPermission('agencies.view'));
+    }
+
+    public function test_gate_before_maps_viewany_to_agencies_view_permission(): void
+    {
+        $permission = Permission::query()->create([
+            'name' => 'Ver agencias',
+            'slug' => 'agencies.view',
+            'description' => null,
+        ]);
+
+        $role = Role::query()->create([
+            'name' => 'Administrador',
+            'slug' => 'admin',
+            'description' => null,
+            'is_system' => true,
+        ]);
+
+        $role->permissions()->attach($permission->id);
+
+        $user = User::factory()->create();
+        $user->roles()->attach($role->id);
+
+        $this->assertTrue(Gate::forUser($user)->allows('viewAny', Agency::class));
     }
 
     public function test_gate_before_allows_database_permissions_without_overriding_user_can(): void

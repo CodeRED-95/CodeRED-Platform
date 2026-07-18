@@ -27,9 +27,9 @@
                     <p class="text-sm text-slate-500">Plataforma modular</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    @auth
+                    @can('create', \App\Modules\Agencies\Models\Agency::class)
                         <a href="{{ route('admin.agencies.create') }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700">Nueva agencia</a>
-                    @endauth
+                    @endcan
                     <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700" x-on:click="dark = !dark; localStorage.theme = dark ? 'dark' : 'light'">Tema</button>
                 </div>
             </header>

@@ -22,6 +22,12 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
+            $mappedPermission = $this->mapAbilityToPermission($ability);
+
+            if ($mappedPermission !== null && $user->hasPermission($mappedPermission)) {
+                return true;
+            }
+
             if ($user->hasPermission($ability)) {
                 return true;
             }
@@ -32,5 +38,21 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
+    }
+
+    private function mapAbilityToPermission(string $ability): ?string
+    {
+        return match ($ability) {
+            'viewAny', 'view' => 'agencies.view',
+            'create' => 'agencies.create',
+            'update' => 'agencies.update',
+            'delete' => 'agencies.delete',
+            'restore' => 'agencies.restore',
+            'import' => 'agencies.import',
+            'export' => 'agencies.export',
+            'viewHistory' => 'agencies.view_history',
+            'manageStatus' => 'agencies.manage_status',
+            default => null,
+        };
     }
 }

@@ -10,16 +10,17 @@ En CodeRED Platform no debe sobrescribirse `User::can()`.
 | Capa | Uso |
 |---|---|
 | `User` | Helpers explícitos como `hasPermission()`, `hasRole()`, `hasAnyRole()` y `hasAllPermissions()` |
-| `Gate::before` | Resolver superadministrador y permisos almacenados en PostgreSQL |
+| `Gate::before` | Resolver superadministrador y traducir abilities de Policies a permisos almacenados en PostgreSQL |
 | Policies | Autorizar acciones específicas por modelo |
 
 ## Flujo
 
 1. Laravel llama a `can()`.
 2. `Gate::before` revisa si el usuario es `super-admin` o si tiene el permiso requerido.
-3. Si devuelve `true`, la acción se autoriza.
-4. Si devuelve `null`, Laravel continúa con Policies o Gates definidos.
-5. Si no hay coincidencia, se niega la acción.
+3. Las abilities como `viewAny`, `view`, `create`, `update`, `delete`, `restore`, `import`, `export`, `viewHistory` y `manageStatus` se traducen a permisos del módulo `Agencies` cuando corresponde.
+4. Si devuelve `true`, la acción se autoriza.
+5. Si devuelve `null`, Laravel continúa con Policies o Gates definidos.
+6. Si no hay coincidencia, se niega la acción.
 
 ## Qué no hacer
 
