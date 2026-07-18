@@ -50,6 +50,24 @@ Factories actuales:
 - `status` + `department` + `province` + `district`
 - `source` + `source_reference`
 
+### Índice único parcial para `source` y `source_reference`
+
+La migración `2026_07_17_000009_adjust_agency_source_reference_index.php` corrige la restricción heredada `agencies_source_reference_unique` y la reemplaza por un índice único parcial sobre:
+
+```sql
+(source, source_reference)
+```
+
+cuando `source_reference IS NOT NULL`.
+
+Esto permite:
+
+- repetir un mismo `source_reference` entre fuentes distintas;
+- mantener múltiples filas con `source_reference = NULL`;
+- bloquear duplicados dentro de la misma fuente sin alterar datos silenciosamente.
+
+Si antes de la migración existen duplicados, el proceso se detiene con un error explícito para que el conflicto se resuelva manualmente.
+
 ## Relaciones
 
 | Relación | Descripción |

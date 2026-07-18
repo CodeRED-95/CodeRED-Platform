@@ -29,6 +29,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Estrategia documentada para usar `DB_*` como fuente de PostgreSQL
 - Explicación de cómo sincronizar credenciales de PostgreSQL cuando existe un volumen inicializado
 - Inclusión del comando `health:redis` para verificar Redis sin Tinker
+- Corrección técnica de la migración `000009` para eliminar la restricción UNIQUE como constraint y crear un índice único parcial
 
 ### Removed
 
