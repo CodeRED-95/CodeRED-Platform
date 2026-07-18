@@ -17,7 +17,7 @@
 
     <section class="flex items-center justify-center px-4 py-8 lg:px-10">
         <form
-            wire:submit="authenticate"
+            wire:submit.prevent="authenticate"
             x-data
             x-init="setTimeout(() => { $refs.email?.dispatchEvent(new Event('input', { bubbles: true })); $refs.password?.dispatchEvent(new Event('input', { bubbles: true })); }, 350)"
             x-on:submit="$refs.email?.dispatchEvent(new Event('input', { bubbles: true })); $refs.password?.dispatchEvent(new Event('input', { bubbles: true }));"
@@ -48,16 +48,16 @@
                 <div x-data="{ show: false }" class="space-y-1">
                     <label class="block text-sm font-medium text-[color:var(--color-text-primary)]" for="password">Contraseña</label>
                     <div class="relative">
-                        <input
-                            :type="show ? 'text' : 'password'"
-                            wire:model.live="password"
-                            id="password"
-                            name="password"
-                            autocomplete="current-password"
-                            class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 pr-12 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring"
-                            x-ref="password"
-                            x-on:input.debounce.150ms="$wire.set('password', $el.value)"
-                        >
+                    <input
+                        :type="show ? 'text' : 'password'"
+                        wire:model.live="password"
+                        id="password"
+                        name="password"
+                        autocomplete="current-password"
+                        class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 pr-12 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring"
+                        x-ref="password"
+                        x-on:input.debounce.150ms="$wire.set('password', $el.value)"
+                    >
                         <button type="button" x-on:click="show = !show" class="absolute inset-y-0 right-0 px-4 text-xs text-[color:var(--color-text-secondary)]">Ver</button>
                     </div>
                     @error('password') <span class="text-sm text-[color:var(--color-danger)]">{{ $message }}</span> @enderror
