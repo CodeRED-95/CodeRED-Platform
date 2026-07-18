@@ -13,6 +13,7 @@
 |---|---|---|
 | `php artisan` no funciona | Contenedor `app` detenido | Levantar contenedores |
 | `APP_KEY` vacío | No se generó clave | Ejecutar `key:generate` |
+| Login muestra `Credenciales inválidas` después de una instalación limpia | El bootstrap no terminó o las cachés antiguas siguen activas | Reiniciar los contenedores; el entrypoint debe ejecutar migraciones, seeders y limpieza de caché automáticamente |
 | PostgreSQL rechaza la contraseña | Las credenciales de Laravel no coinciden con el volumen ya inicializado | Sincronizar el rol dentro de PostgreSQL o recrear la base solo si el volumen está vacío |
 | `bootstrap/cache` no es escribible | Permisos de bind mount o usuario incorrecto | Verificar entrypoint y propietario `www:www` |
 | `storage/logs/laravel.log` no es escribible | Archivo o carpeta sin permisos | Verificar `storage/logs` con permisos `775` y `664` |

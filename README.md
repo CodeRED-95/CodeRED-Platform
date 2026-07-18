@@ -46,7 +46,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 3. Levanta Docker según [docs/DOCKER.md](docs/DOCKER.md).
 4. Revisa el modelo de datos en [docs/DATABASE.md](docs/DATABASE.md).
 5. Recuerda que la URL pública local actual es `http://localhost:8090`; en la LAN puede ser `http://192.168.18.124:8090`.
-6. Para frontend, el primer inicio usa `npm install`; instalaciones posteriores usan `npm ci`.
+6. El bootstrap de Laravel se ejecuta automáticamente al iniciar los contenedores.
 
 ## Capturas
 

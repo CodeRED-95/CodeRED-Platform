@@ -6,109 +6,135 @@
 |---|---|
 | Docker | Requerido |
 | Docker Compose | Requerido |
-| Node.js | 20+ recomendado por el proyecto |
-| PHP local | No requerido si se usa Docker |
-| Composer local | No requerido si se usa Docker |
+| Git | Requerido para clonar el repositorio |
 
-## Clonar proyecto
+## Instalación
 
 ```bash
 git clone https://github.com/CodeRED-95/CodeRED-Platform.git
 cd CodeRED-Platform
-```
-
-## Copiar `.env`
-
-```bash
 cp .env.example .env
-```
-
-## Levantar Docker
-
-```bash
 docker compose up -d --build
 ```
 
-## Puerto de acceso
+Después de levantar los contenedores, el proyecto completa automáticamente su bootstrap:
 
-La configuración actual expone Nginx en `http://localhost:8090`.  
-En la red local puede responder también en `http://192.168.18.124:8090` si el host publica ese puerto.
+- genera `APP_KEY` solo si está vacía;
+- limpia la caché de configuración cuando corresponde;
+- ejecuta migraciones con `--force`;
+- ejecuta seeders con `--force`;
+- crea `storage:link` si falta;
+- compila el frontend si no existe `public/build/manifest.json`;
+- instala dependencias PHP o frontend solo si faltan los artefactos esperados.
 
-## Instalar dependencias
+No debes ejecutar manualmente:
 
-```bash
-docker compose exec app composer install
-docker compose exec app npm install
-```
+- `config:clear`
+- `optimize:clear`
+- `migrate`
+- `db:seed`
+- `storage:link`
+- `key:generate`
 
-Si ya existe `package-lock.json`, la instalación frontend debe ejecutarse con `npm ci` en lugar de `npm install`.
+## Variables importantes
 
-## Generar clave de aplicación
+### Aplicación
 
-```bash
-docker compose exec app php artisan key:generate
-```
+| Variable | Descripción | Ejemplo |
+|---|---|---|
+| `APP_URL` | URL pública del proyecto. Debe coincidir con el puerto expuesto por Nginx. | `http://localhost:8090` |
+| `APP_TIMEZONE` | Zona horaria de la aplicación. | `America/Lima` |
+| `APP_LOCALE` | Idioma principal. | `es` |
 
-La clave `APP_KEY` solo debe generarse si está vacía. No se regenera en cada arranque.
+### Base de datos
 
-## Migraciones
+| Variable | Descripción | Ejemplo |
+|---|---|---|
+| `DB_DATABASE` | Nombre de la base PostgreSQL. | `codered` |
+| `DB_USERNAME` | Usuario PostgreSQL. | `codered` |
+| `DB_PASSWORD` | Contraseña PostgreSQL. Debe coincidir con la inicialización del volumen. | `PENDIENTE DE CONFIGURAR` |
 
-```bash
-docker compose exec app php artisan migrate
-```
+### Redis
 
-## Seeders
+| Variable | Descripción | Ejemplo |
+|---|---|---|
+| `REDIS_CLIENT` | Cliente Redis. | `phpredis` |
+| `REDIS_HOST` | Host del contenedor Redis. | `redis` |
+| `REDIS_USERNAME` | Usuario Redis. Si Redis no usa autenticación, debe quedar vacío. | vacío |
+| `REDIS_PASSWORD` | Contraseña Redis. Si Redis no usa autenticación, debe quedar vacío. | vacío |
+| `REDIS_DB` | Base lógica para uso general. | `0` |
+| `REDIS_CACHE_DB` | Base lógica para caché. | `1` |
 
-```bash
-docker compose exec app php artisan db:seed
-```
+### Administración de desarrollo
 
-## Compilar frontend
-
-```bash
-docker compose exec app npm run build
-```
-
-Este paso genera `public/build/manifest.json` y `public/build/assets/`. Si no se ejecuta, la página de login puede fallar con `Vite manifest not found`.
+| Variable | Descripción | Ejemplo |
+|---|---|---|
+| `DEV_ADMIN_NAME` | Nombre del usuario administrador de desarrollo. | `Administrador Dev` |
+| `DEV_ADMIN_EMAIL` | Correo del administrador de desarrollo. | `admin@codered.local` |
+| `DEV_ADMIN_PASSWORD` | Contraseña del administrador de desarrollo. | `CHANGE_THIS_BEFORE_SEEDING` |
 
 ## Primer inicio
 
+En una instalación limpia, el contenedor `app` ejecuta el bootstrap automáticamente al arrancar. El flujo interno se encarga de:
+
+1. preparar directorios escribibles;
+2. instalar dependencias faltantes si aplica;
+3. compilar frontend si falta el manifest;
+4. generar la clave de la aplicación si está vacía;
+5. limpiar cachés de configuración;
+6. ejecutar migraciones;
+7. ejecutar seeders;
+8. crear el enlace de `storage`;
+9. dejar el dashboard y el login listos para uso.
+
+## Actualización
+
 ```bash
+git pull
 docker compose up -d --build
-docker compose exec app php artisan migrate --seed
 ```
 
-Flujo recomendado de primer inicio:
+Si cambian variables de entorno relevantes, reinicia los contenedores con el mismo comando para que el bootstrap vuelva a aplicar migraciones, seeders y limpieza de caché de forma idempotente.
+
+## Desarrollo
 
 ```bash
 docker compose up -d --build
 docker compose exec app composer install
 docker compose exec app npm install
-docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate
-docker compose exec app php artisan storage:link
-docker compose exec app npm run build
+docker compose exec app npm run dev
 ```
 
-## Notas de instalación
+Durante desarrollo, `npm run dev` sirve para recompilar assets en caliente. Para despliegue o verificaciones de login usa `npm run build`.
 
-- Si `.env` contiene valores con espacios, deben ir entre comillas.
-- `APP_URL` local debe coincidir con el puerto real expuesto por Nginx.
-- El proyecto debe escribirse con el usuario interno `www`.
-- El proceso master de PHP-FPM debe iniciar como root; los workers corren como `www`.
-- Git Safe Directory se configura automáticamente para `/var/www/html` durante el build y el entrypoint.
-- `composer.lock` debe existir, persistir y versionarse para instalaciones reproducibles.
-- `package-lock.json` debe existir, persistir y versionarse para instalaciones frontend reproducibles.
-- PostgreSQL se inicializa desde `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD`.
-- Si el volumen de PostgreSQL ya estaba inicializado, la contraseña interna puede requerir sincronización manual sin borrar el volumen.
-- La primera instalación frontend usa `npm install`; después se usa `npm ci`.
-- Redis local sin autenticación debe dejar `REDIS_PASSWORD=` vacío para evitar que Laravel intente autenticar.
+## Producción
 
-## Problemas frecuentes
+- Mantener `APP_DEBUG=false`.
+- Verificar credenciales reales de PostgreSQL y Redis.
+- Compilar frontend con `npm run build`.
+- No exponer secretos en `.env.example`.
+
+## Solución de problemas
 
 | Problema | Solución |
 |---|---|
-| `docker` no existe | Instalar Docker Desktop o Docker Engine |
-| `composer` no existe | Usar `docker compose exec app composer install` |
-| `php artisan` falla | Verificar que el contenedor `app` esté activo |
-| El frontend no compila | Ejecutar `npm install` si no existe `package-lock.json`, o `npm ci` si ya existe, y luego `npm run build` dentro del contenedor |
+| `Credenciales inválidas` al iniciar sesión después de una instalación limpia | Verificar que el bootstrap del contenedor terminó y que el seed del administrador se ejecutó |
+| `Vite manifest not found` | Ejecutar `docker compose up -d --build` para regenerar `public/build/manifest.json` |
+| `ERR AUTH` en Redis | Vaciar `REDIS_PASSWORD` si Redis no usa contraseña y reiniciar contenedores |
+| PostgreSQL no autentica | Sincronizar `DB_PASSWORD` con el rol existente o revisar el volumen inicializado |
+
+## Verificación
+
+```bash
+docker compose ps
+docker compose exec app php artisan about
+docker compose exec app php artisan migrate:status
+curl http://localhost:8090/api/v1/health
+curl -I http://localhost:8090/login
+```
+
+## Notas
+
+- `composer.lock` y `package-lock.json` deben versionarse.
+- Los valores con espacios en `.env` deben escribirse entre comillas.
+- Redis local sin contraseña debe usar valores vacíos, no la cadena `null`.

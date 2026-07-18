@@ -47,6 +47,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - Mantener `INSTALL.md` si cambia el flujo de arranque, build o validación.
 - Mantener `AUTHORIZATION.md` si cambia el flujo de Gates, Policies o helpers de autorización.
 - Mantener `SEEDERS.md` si cambia la orquestación o estructura de seeders.
+- Mantener la lógica de bootstrap del entrypoint documentada si cambia la inicialización automática.
 - No duplicar lógica entre panel, API e importador.
 
 ## Qué NO debe hacer una IA
@@ -66,6 +67,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - No olvidar que `package-lock.json` debe persistir y versionarse; la primera instalación puede usar `npm install`, pero las siguientes deben usar `npm ci`.
 - No usar `REDIS_PASSWORD=null`; si Redis no tiene contraseña, el valor debe ir vacío.
 - No sobrescribir `User::can()` ni otros métodos internos de `Authenticatable`.
+- No mover el bootstrap inicial a comandos manuales si el entrypoint ya lo resuelve.
 - No dejar credenciales de ejemplo en seeders ni variables reales en `.env.example`.
 
 ## Qué debe ejecutar antes de finalizar

@@ -92,3 +92,9 @@ docker compose exec app php artisan make:migration nombre
 - `DatabaseSeeder` debe orquestar, no contener toda la lógica.
 - Separar roles, permisos, administrador, settings y datos demo cuando sea posible.
 - Usar `updateOrCreate()` para datos que deben poder ejecutarse varias veces sin duplicar.
+
+## Bootstrap automático
+
+- El arranque inicial del proyecto vive en `docker/php/entrypoint.sh`.
+- No mover al usuario a pasos manuales de `config:clear`, `optimize:clear`, `migrate`, `db:seed`, `storage:link` o `key:generate` si el bootstrap automático ya los resuelve.
+- Cualquier cambio de flujo debe mantener la inicialización idempotente.
