@@ -32,7 +32,24 @@ class Login extends Component
             ]);
         }
 
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        if (! $user->isActive()) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
+        }
+
         request()->session()->regenerate();
+
+        if ($user->must_change_password) {
+            $this->redirect(route('account.change-password'), navigate: true);
+
+            return;
+        }
 
         $this->redirectIntended(route('dashboard'), navigate: true);
     }

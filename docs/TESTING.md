@@ -50,4 +50,11 @@ docker compose exec app php artisan test
 - Verificar que `/admin/design-system` cargue dentro del layout administrativo y no como HTML aislado.
 - Verificar que el manifest de Vite existe y que los assets actuales referenciados por el manifest estén presentes.
 - Verificar HTTP de assets con `docker compose exec app sh scripts/check-assets.sh`.
-- Verificar HTTP de assets con `docker compose exec app sh scripts/check-assets.sh`.
+
+## Usuarios
+
+- Validar acceso HTTP 200 para superadministrador.
+- Validar 403 para usuarios sin permiso.
+- Validar creación de usuario y hash de contraseña.
+- Validar estados `active`, `suspended` e `inactive`.
+- Validar que un usuario suspendido no pueda iniciar sesión.

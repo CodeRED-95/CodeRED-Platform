@@ -56,3 +56,12 @@ El importador solo permite:
 - La importación por URL solo debe aceptar HTTPS y hosts permitidos.
 - El panel administrativo debe permanecer protegido por permisos.
 - Las acciones de traslado deben quedar auditadas.
+
+## Usuarios
+
+- No sobrescribir `User::can()`.
+- Usar `Gate::before` solo para superadministrador, devolviendo `null` para el resto.
+- Bloquear el inicio de sesión de cuentas `suspended` o `inactive`.
+- No registrar contraseñas, hashes, tokens ni `remember_token` en auditoría.
+- No permitir que un usuario se elimine o se suspenda a sí mismo.
+- Proteger al último superadministrador activo como cuenta crítica.

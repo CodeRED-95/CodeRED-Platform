@@ -3,11 +3,13 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Policies\UserPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\RateLimiter;
+use App\Modules\Agencies\Models\Agency;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -17,6 +19,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::policy(User::class, UserPolicy::class);
+
         Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
             if ($user->hasRole('super-admin')) {
                 return true;

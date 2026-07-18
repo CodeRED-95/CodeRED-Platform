@@ -113,3 +113,10 @@ docker compose exec app php artisan make:migration nombre
 - La importación del Gist no debe sobrescribir campos manuales de traslado.
 - El snapshot y la API pública deben mantenerse en sincronía con `AgencyVersion`.
 - La autorización debe resolverse con Policies y `Gate::before`, nunca con overrides de `User::can()`.
+
+## Módulo Users
+
+- Mantener la administración de usuarios con Policy propia y reglas críticas centralizadas.
+- No permitir que un operador sin permiso gestione roles superiores.
+- Bloquear en servidor cualquier cuenta `suspended` o `inactive` antes de autorizar acceso.
+- No mostrar contraseñas ni hashes en formularios, tablas o auditoría.

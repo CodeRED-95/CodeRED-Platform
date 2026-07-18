@@ -11,6 +11,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 - Livewire, TailwindCSS y AlpineJS para la interfaz.
 - Docker Compose con servicios separados para aplicación, web, base de datos, caché, cola y scheduler.
 - Módulo `Agencies` con soporte para importación desde GitHub Gist, snapshot público y agencias trasladadas.
+- Módulo `Users` para administración de cuentas, roles, estado y actividad.
 - CodeRED Design System con componentes Blade, tokens semánticos y branding unificado.
 - Login, dashboard y panel administrativo unificados bajo un layout oscuro y responsivo.
 - PHP-FPM ejecuta el master como root y los workers como `www`.
@@ -64,6 +65,7 @@ PENDIENTE DE CONFIGURAR
 - [Seeders](docs/SEEDERS.md)
 - [API](docs/API.md)
 - [Agencies](docs/AGENCIES.md)
+- [Users](docs/USERS.md)
 - [Importador](docs/IMPORTER.md)
 - [Redis](docs/REDIS.md)
 - [Autorización](docs/AUTHORIZATION.md)
@@ -95,5 +97,6 @@ Proprietary
 ## Estado actual
 
 - El módulo **Agencias Shalom** ya incluye panel administrativo, detalle, importación y vista pública.
+- El módulo **Usuarios** ya prepara la administración de cuentas internas bajo el mismo Design System.
 - La documentación viva se mantiene en `/docs`.
 - Las decisiones técnicas relevantes se registran en `/docs/adr`.

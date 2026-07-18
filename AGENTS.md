@@ -117,3 +117,9 @@ Toda modificación importante en arquitectura, API, importación, configuración
 
 Toda nueva interfaz debe reutilizar el CodeRED Design System antes de crear estilos personalizados.
 No introducir colores hexadecimales sueltos cuando exista un token semántico equivalente.
+
+## Usuarios
+
+- No permitir la gestión de roles críticos sin autorización explícita en servidor.
+- Proteger al último superadministrador activo como cuenta crítica.
+- Bloquear en el backend cualquier cuenta suspendida o inactiva antes del acceso.

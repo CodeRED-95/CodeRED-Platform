@@ -6,6 +6,9 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Módulo administrativo de usuarios con Livewire, Policy, reglas de seguridad y pantallas de detalle.
+- Pantalla de cambio obligatorio de contraseña para cuentas marcadas por administración.
+- Documentación específica para usuarios, estados y reglas críticas.
 - Documentación modular del proyecto
 - `AGENTS.md` como guía oficial para IA
 - Carpeta `docs/adr` con decisiones arquitectónicas

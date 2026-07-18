@@ -28,7 +28,7 @@
                             ['label' => 'Agencias', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Importaciones', 'route' => 'admin.agencies.import', 'icon' => '⇪', 'can' => \Illuminate\Support\Facades\Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => app()->environment('local') || \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
-                            ['label' => 'Usuarios', 'route' => null, 'icon' => '◔', 'can' => false],
+                            ['label' => 'Usuarios', 'route' => 'admin.users.index', 'icon' => '◔', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Models\User::class)],
                             ['label' => 'Roles y permisos', 'route' => null, 'icon' => '◌', 'can' => false],
                             ['label' => 'Auditoría', 'route' => null, 'icon' => '▤', 'can' => false],
                             ['label' => 'Configuración', 'route' => null, 'icon' => '⚙', 'can' => false],
@@ -112,6 +112,9 @@
                     @endcan
                     @can('import', \App\Modules\Agencies\Models\Agency::class)
                         <a href="{{ route('admin.agencies.import') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Importaciones</a>
+                    @endcan
+                    @can('viewAny', \App\Models\User::class)
+                        <a href="{{ route('admin.users.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Usuarios</a>
                     @endcan
                 </div>
             </aside>

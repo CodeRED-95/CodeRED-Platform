@@ -18,5 +18,15 @@ class RolesSeeder extends Seeder
             ['slug' => 'admin'],
             ['name' => 'Administrador', 'description' => 'Administración operativa', 'is_system' => true]
         );
+
+        Role::query()->updateOrCreate(
+            ['slug' => 'editor'],
+            ['name' => 'Editor', 'description' => 'Edición limitada', 'is_system' => false]
+        );
+
+        Role::query()->updateOrCreate(
+            ['slug' => 'viewer'],
+            ['name' => 'Consulta', 'description' => 'Acceso de lectura', 'is_system' => false]
+        );
     }
 }
