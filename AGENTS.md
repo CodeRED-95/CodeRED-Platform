@@ -57,6 +57,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - No considerar una tarea terminada sin actualizar documentación afectada.
 - No usar `777` como solución final para permisos.
 - No usar `www-data` como usuario de ejecución final si el proyecto está estandarizado en `www`.
+- No forzar PHP-FPM completo como usuario no privilegiado; el master debe poder iniciar como root y delegar workers al pool.
 
 ## Qué debe ejecutar antes de finalizar
 

@@ -21,6 +21,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Referencia de puerto sincronizada con `8090`
 - Reglas de permisos y usuario `www` documentadas
 - Solución documental para `Class "Redis" not found`
+- Explicación arquitectónica de PHP-FPM master root y workers `www`
 
 ### Removed
 

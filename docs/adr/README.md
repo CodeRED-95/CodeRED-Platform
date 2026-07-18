@@ -62,3 +62,4 @@ Cada ADR debe incluir:
 | 0011 | Uso de PhpRedis como cliente Redis |
 | 0012 | Usuario `www` y estrategia de permisos para bind mounts |
 | 0013 | Reutilización de una sola imagen PHP para app, queue y scheduler |
+| 0014 | PHP-FPM master como root y workers como `www` |

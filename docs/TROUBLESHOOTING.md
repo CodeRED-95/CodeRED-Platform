@@ -15,6 +15,7 @@
 | `APP_KEY` vacío | No se generó clave | Ejecutar `key:generate` |
 | `bootstrap/cache` no es escribible | Permisos de bind mount o usuario incorrecto | Verificar entrypoint y propietario `www:www` |
 | `storage/logs/laravel.log` no es escribible | Archivo o carpeta sin permisos | Verificar `storage/logs` con permisos `775` y `664` |
+| `FPM initialization failed` | PHP-FPM master no está arrancando como root | Revisar `docker/php/entrypoint.sh` y `docker/php/fpm/www.conf` |
 
 ## Redis
 

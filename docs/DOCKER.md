@@ -30,6 +30,16 @@ El proyecto ejecuta PHP con el usuario interno `www`:
 
 `www-data` no se usa como usuario de ejecución final.
 
+## PHP-FPM
+
+El contenedor `app` inicia PHP-FPM con el proceso master como root y el pool `www` definido en:
+
+- `docker/php/fpm/www.conf`
+
+Los workers de PHP-FPM corren como `www`, pero el master conserva el contexto necesario para abrir `error_log` y postprocesar la configuración.
+
+Queue y scheduler no ejecutan FPM. Sus comandos se bajan de privilegios a `www` solo para correr `artisan`.
+
 ## Permisos
 
 Los directorios escribibles se corrigen en el entrypoint de forma idempotente:
@@ -131,4 +141,13 @@ docker compose exec app php -m | grep -i redis
 docker compose exec app php --ri redis
 docker compose exec app php artisan tinker --execute="dump(\Illuminate\Support\Facades\Redis::connection()->ping());"
 docker compose exec app php artisan tinker --execute="cache()->put('codered_test', 'ok', 60); dump(cache()->get('codered_test'));"
+```
+
+## Verificación de PHP-FPM
+
+```bash
+docker compose exec app php -v
+docker compose exec app php -m
+docker compose exec app php --ri redis
+docker compose exec app php-fpm -tt
 ```

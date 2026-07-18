@@ -75,6 +75,7 @@ docker compose exec app php artisan migrate --seed
 
 - Si `.env` contiene valores con espacios, deben ir entre comillas.
 - El proyecto debe escribirse con el usuario interno `www`.
+- El proceso master de PHP-FPM debe iniciar como root; los workers corren como `www`.
 - `composer.lock` debe versionarse cuando el entorno permita generarlo correctamente.
 
 ## Problemas frecuentes

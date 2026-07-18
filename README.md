@@ -11,6 +11,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 - Livewire, TailwindCSS y AlpineJS para la interfaz.
 - Docker Compose con servicios separados para aplicación, web, base de datos, caché, cola y scheduler.
 - Módulo `Agencies` con soporte para importación desde GitHub Gist, snapshot público y agencias trasladadas.
+- PHP-FPM ejecuta el master como root y los workers como `www`.
 
 ## Arquitectura resumida
 
