@@ -18,9 +18,6 @@
     <section class="flex items-center justify-center px-4 py-8 lg:px-10">
         <form
             wire:submit.prevent="authenticate"
-            x-data
-            x-init="setTimeout(() => { $refs.email?.dispatchEvent(new Event('input', { bubbles: true })); $refs.password?.dispatchEvent(new Event('input', { bubbles: true })); }, 350)"
-            x-on:submit="$refs.email?.dispatchEvent(new Event('input', { bubbles: true })); $refs.password?.dispatchEvent(new Event('input', { bubbles: true }));"
             class="w-full max-w-md rounded-[var(--radius-modal)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/95 p-6 shadow-2xl backdrop-blur"
         >
             <div class="mb-8 space-y-3 lg:hidden">
@@ -32,7 +29,7 @@
 
             <div class="mt-6 space-y-4">
                 <x-ui.input
-                    wire:model.live="email"
+                    wire:model="email"
                     type="email"
                     id="email"
                     name="email"
@@ -42,22 +39,18 @@
                     spellcheck="false"
                     placeholder="admin@codered.local"
                     :error="$errors->first('email')"
-                    x-ref="email"
-                    x-on:input.debounce.150ms="$wire.set('email', $el.value)"
                 />
                 <div x-data="{ show: false }" class="space-y-1">
                     <label class="block text-sm font-medium text-[color:var(--color-text-primary)]" for="password">Contraseña</label>
                     <div class="relative">
-                    <input
-                        :type="show ? 'text' : 'password'"
-                        wire:model.live="password"
-                        id="password"
-                        name="password"
-                        autocomplete="current-password"
-                        class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 pr-12 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring"
-                        x-ref="password"
-                        x-on:input.debounce.150ms="$wire.set('password', $el.value)"
-                    >
+                        <input
+                            :type="show ? 'text' : 'password'"
+                            wire:model="password"
+                            id="password"
+                            name="password"
+                            autocomplete="current-password"
+                            class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 pr-12 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring"
+                        >
                         <button type="button" x-on:click="show = !show" class="absolute inset-y-0 right-0 px-4 text-xs text-[color:var(--color-text-secondary)]">Ver</button>
                     </div>
                     @error('password') <span class="text-sm text-[color:var(--color-danger)]">{{ $message }}</span> @enderror

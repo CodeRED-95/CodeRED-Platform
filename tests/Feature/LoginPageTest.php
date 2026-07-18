@@ -35,7 +35,8 @@ class LoginPageTest extends TestCase
             ->assertOk()
             ->assertSeeHtml('wire:submit.prevent="authenticate"')
             ->assertDontSeeHtml('method="GET"')
-            ->assertDontSeeHtml('action="/login"');
+            ->assertDontSeeHtml('action="/login"')
+            ->assertDontSeeHtml('$wire.set');
     }
 
     public function test_login_validation_messages_are_in_spanish(): void
