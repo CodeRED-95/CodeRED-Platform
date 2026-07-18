@@ -14,6 +14,6 @@ class AgencyCollection extends ResourceCollection
 
     public function with(Request $request): array
     {
-        return ['success' => true, 'meta' => $this->resource->toArray()['meta'] ?? []];
+        return ['success' => true];
     }
 }

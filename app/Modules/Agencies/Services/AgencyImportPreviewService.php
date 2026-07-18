@@ -14,7 +14,7 @@ class AgencyImportPreviewService
     {
         $this->assertSafeUrl($url);
 
-        $response = Http::timeout(20)->withHeaders([
+        $response = Http::timeout(20)->acceptJson()->withHeaders([
             'Accept' => 'application/json',
         ])->get($url);
 
@@ -34,7 +34,7 @@ class AgencyImportPreviewService
         $invalid = 0;
 
         foreach (array_slice($decoded, 0, 20) as $row) {
-            if (!is_array($row)) {
+            if (!is_array($row) || array_is_list($row)) {
                 $invalid++;
                 continue;
             }
