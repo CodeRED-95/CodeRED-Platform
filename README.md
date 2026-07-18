@@ -51,6 +51,10 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 5. Recuerda que la URL pública local actual es `http://localhost:8090`; en la LAN puede ser `http://192.168.18.124:8090`.
 6. El bootstrap de Laravel se ejecuta automáticamente al iniciar los contenedores.
 
+## Desarrollo y pruebas
+
+La guía para VS Code, Dev Containers, tareas, Composer, PHPUnit, Pint y PHPStan está en [docs/development-testing.md](docs/development-testing.md).
+
 ## Capturas
 
 PENDIENTE DE CONFIGURAR

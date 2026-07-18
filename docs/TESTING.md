@@ -54,6 +54,14 @@ docker compose exec app php artisan test
 - Verificar HTTP de assets con `docker compose exec app sh scripts/check-assets.sh`.
 - Verificar en consola que no aparezca `Detected multiple instances of Alpine running`.
 
+## VS Code y Dev Containers
+
+- La integración oficial de desarrollo usa `.devcontainer/devcontainer.json`.
+- La tarea predeterminada de pruebas es `PHP: Todas las pruebas`.
+- Las tareas de VS Code ejecutan comandos directos dentro del contenedor y no requieren `docker compose exec` cuando el proyecto ya está abierto en Dev Container.
+- El comando de verificación principal es `composer verify`.
+- Si la base de pruebas no existe, el bootstrap de PHPUnit la crea de forma idempotente.
+
 ## Usuarios
 
 - Validar acceso HTTP 200 para superadministrador.

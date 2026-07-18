@@ -128,3 +128,17 @@ No introducir colores hexadecimales sueltos cuando exista un token semántico eq
 - CodeRED Platform usa la instancia Alpine incluida por Livewire 3. Está prohibido importar `alpinejs`, asignar `window.Alpine` o ejecutar `Alpine.start()` desde `resources/js/app.js` mientras los layouts usen `@livewireScripts`.
 - El login de CodeRED Platform es tradicional por sesión (`GET /login` + `POST /login`) y no debe volver a implementarse con Livewire.
 - No usar `<select size>` ni `<select multiple>` para relaciones simples; cuando existan muchas opciones, usar el combobox buscable oficial del CodeRED Design System.
+
+## Desarrollo y pruebas
+
+- El flujo recomendado es abrir el proyecto con VS Code y `Dev Containers: Reopen in Container`.
+- El servicio PHP real es `app` y el workspace oficial es `/var/www/html`.
+- No instalar PHP ni Composer en Windows para trabajar o probar el proyecto.
+- Las pruebas y validaciones se ejecutan dentro del servicio PHP existente.
+- No crear un contenedor externo exclusivo para pruebas.
+- Comandos oficiales dentro del contenedor: `composer test`, `composer test-unit`, `composer test-feature`, `composer lint`, `composer lint-fix`, `composer analyse`, `composer verify`.
+- Antes de finalizar cualquier tarea de desarrollo, ejecutar `composer verify`.
+- Si se trabaja desde el host, usar `docker compose up -d` y luego `docker compose exec -T app composer verify`.
+- No usar `docker compose run` para las pruebas.
+- Si la base de pruebas no existe, permitir que el bootstrap de PHPUnit la cree de forma idempotente.
+- No afirmar que algo funciona si no se ejecutó y verificó.

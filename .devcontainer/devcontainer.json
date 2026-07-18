@@ -1,0 +1,33 @@
+{
+  "name": "CodeRED Platform",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/var/www/html",
+  "shutdownAction": "stopCompose",
+  "runServices": [
+    "app",
+    "postgres",
+    "redis"
+  ],
+  "remoteUser": "www",
+  "postCreateCommand": "sh -lc 'composer install --no-interaction --prefer-dist --no-progress && php artisan optimize:clear'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bmewburn.vscode-intelephense-client",
+        "xdebug.php-debug",
+        "ms-azuretools.vscode-docker",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "php.validate.executablePath": "/usr/local/bin/php",
+        "php.suggest.basic": false,
+        "phpunit.phpunit": "vendor/bin/phpunit",
+        "intelephense.environment.phpVersion": "8.3.0",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "files.eol": "\n",
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  }
+}

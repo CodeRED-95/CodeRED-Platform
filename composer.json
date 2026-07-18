@@ -50,6 +50,26 @@
         "test": [
             "@php artisan test"
         ],
+        "test-unit": [
+            "@php artisan test --testsuite=Unit"
+        ],
+        "test-feature": [
+            "@php artisan test --testsuite=Feature"
+        ],
+        "lint": [
+            "@php ./vendor/bin/pint --test"
+        ],
+        "lint-fix": [
+            "@php ./vendor/bin/pint"
+        ],
+        "analyse": [
+            "@php ./vendor/bin/phpstan analyse --memory-limit=1G --configuration=phpstan.neon.dist"
+        ],
+        "verify": [
+            "@lint",
+            "@analyse",
+            "@test"
+        ],
         "pint": [
             "./vendor/bin/pint"
         ],
