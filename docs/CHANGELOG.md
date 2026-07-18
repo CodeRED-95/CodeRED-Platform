@@ -22,6 +22,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Reglas de permisos y usuario `www` documentadas
 - Solución documental para `Class "Redis" not found`
 - Explicación arquitectónica de PHP-FPM master root y workers `www`
+- Solución permanente para Git Safe Directory en `/var/www/html`
 
 ### Removed
 

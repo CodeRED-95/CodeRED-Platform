@@ -30,6 +30,20 @@ El proyecto ejecuta PHP con el usuario interno `www`:
 
 `www-data` no se usa como usuario de ejecución final.
 
+## Git Safe Directory
+
+El contenedor registra automáticamente `/var/www/html` como directorio seguro de Git durante el build y el arranque para evitar el error:
+
+```text
+fatal: detected dubious ownership in repository at '/var/www/html'
+```
+
+La corrección se aplica sin intervención manual mediante:
+
+```bash
+git config --global --add safe.directory /var/www/html
+```
+
 ## PHP-FPM
 
 El contenedor `app` inicia PHP-FPM con el proceso master como root y el pool `www` definido en:
@@ -151,3 +165,7 @@ docker compose exec app php -m
 docker compose exec app php --ri redis
 docker compose exec app php-fpm -tt
 ```
+
+## Imagen PHP compartida
+
+`app`, `queue` y `scheduler` reutilizan la misma imagen `docker/php/Dockerfile`. No se duplican imágenes específicas por servicio.

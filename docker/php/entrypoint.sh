@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+git config --global --add safe.directory /var/www/html >/dev/null 2>&1 || true
+
 TARGETS="/var/www/html/bootstrap/cache /var/www/html/storage/framework/cache /var/www/html/storage/framework/sessions /var/www/html/storage/framework/views /var/www/html/storage/logs"
 
 for dir in $TARGETS; do

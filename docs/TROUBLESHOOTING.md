@@ -60,3 +60,9 @@
 - Host permitido: `gist.githubusercontent.com`
 - Host permitido: `raw.githubusercontent.com`
 - Esquema requerido: `https`
+
+## Git
+
+| Problema | Causa probable | Solución |
+|---|---|---|
+| `fatal: detected dubious ownership in repository at '/var/www/html'` | Git no considera seguro el directorio montado | Registrar `/var/www/html` como `safe.directory` en la imagen o el entrypoint |

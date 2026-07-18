@@ -30,6 +30,7 @@ COPY docker/php/entrypoint.sh /usr/local/bin/codered-entrypoint
 RUN chmod +x /usr/local/bin/codered-entrypoint \
     && addgroup -g 1000 -S www \
     && adduser -u 1000 -S www -G www \
+    && git config --system --add safe.directory /var/www/html \
     && mkdir -p \
         /var/www/html/bootstrap/cache \
         /var/www/html/storage/framework/cache \
