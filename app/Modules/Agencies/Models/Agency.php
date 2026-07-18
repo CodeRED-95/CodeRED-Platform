@@ -3,11 +3,12 @@
 namespace App\Modules\Agencies\Models;
 
 use App\Models\User;
-use App\Modules\Agencies\Observers\AgencyObserver;
 use App\Modules\Agencies\Enums\AgencyStatus;
+use App\Modules\Agencies\Observers\AgencyObserver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -19,7 +20,9 @@ class Agency extends Model
         'code', 'name', 'short_name', 'slug', 'department', 'province', 'district',
         'address', 'reference', 'phone', 'secondary_phone', 'email', 'schedule',
         'latitude', 'longitude', 'services', 'observations', 'status', 'source',
-        'source_reference', 'data_version', 'last_verified_at', 'created_by', 'updated_by',
+        'source_reference', 'source_text', 'map_url', 'size', 'is_operations_center',
+        'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at',
+        'data_version', 'last_verified_at', 'created_by', 'updated_by',
     ];
 
     protected function casts(): array
@@ -30,6 +33,9 @@ class Agency extends Model
             'longitude' => 'decimal:7',
             'last_verified_at' => 'datetime',
             'status' => AgencyStatus::class,
+            'is_operations_center' => 'boolean',
+            'has_moved' => 'boolean',
+            'moved_at' => 'date',
         ];
     }
 
@@ -45,6 +51,14 @@ class Agency extends Model
                 }
             }
             $agency->slug = $agency->slug ?: Str::slug($agency->name);
+
+            if ($agency->has_moved && $agency->status !== AgencyStatus::Moved) {
+                $agency->status = AgencyStatus::Moved;
+            }
+
+            if (! $agency->has_moved && $agency->status === AgencyStatus::Moved) {
+                $agency->status = AgencyStatus::UnderReview;
+            }
         });
     }
 
@@ -56,5 +70,15 @@ class Agency extends Model
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function movedToAgency(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'moved_to_agency_id');
+    }
+
+    public function movedFromAgencies(): HasMany
+    {
+        return $this->hasMany(self::class, 'moved_to_agency_id');
     }
 }

@@ -8,6 +8,7 @@ enum AgencyStatus: string
     case Inactive = 'inactive';
     case TemporarilyClosed = 'temporarily_closed';
     case UnderReview = 'under_review';
+    case Moved = 'moved';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum AgencyStatus: string
             self::Inactive => 'Inactiva',
             self::TemporarilyClosed => 'Cerrada temporalmente',
             self::UnderReview => 'En revisión',
+            self::Moved => 'Trasladada',
         };
     }
 

@@ -10,7 +10,7 @@ class AgencySearchService
 {
     public function publicQuery(array $filters = []): Builder
     {
-        $query = Agency::query()->where('status', AgencyStatus::Active->value);
+        $query = Agency::query()->where('status', AgencyStatus::Active->value)->where('has_moved', false);
 
         return $this->applyFilters($query, $filters);
     }

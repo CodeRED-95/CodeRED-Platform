@@ -18,6 +18,8 @@
                     <th class="px-4 py-3">Departamento</th>
                     <th class="px-4 py-3">Provincia</th>
                     <th class="px-4 py-3">Distrito</th>
+                    <th class="px-4 py-3">CO</th>
+                    <th class="px-4 py-3">Traslado</th>
                     <th class="px-4 py-3">Estado</th>
                     <th class="px-4 py-3">Actualización</th>
                 </tr>
@@ -30,12 +32,26 @@
                         <td class="px-4 py-3">{{ $agency->department }}</td>
                         <td class="px-4 py-3">{{ $agency->province }}</td>
                         <td class="px-4 py-3">{{ $agency->district }}</td>
+                        <td class="px-4 py-3">
+                            @if($agency->is_operations_center)
+                                <span class="rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-600">Centro de Operaciones</span>
+                            @else
+                                <span class="text-slate-400">No</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3">
+                            @if($agency->has_moved)
+                                <span class="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600">Trasladada</span>
+                            @else
+                                <span class="text-slate-400">No</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3">{{ $agency->status?->label() ?? $agency->status }}</td>
                         <td class="px-4 py-3">{{ optional($agency->updated_at)->format('d/m/Y H:i') }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-10 text-center text-slate-500">No hay agencias registradas.</td>
+                        <td colspan="9" class="px-4 py-10 text-center text-slate-500">No hay agencias registradas.</td>
                     </tr>
                 @endforelse
             </tbody>
