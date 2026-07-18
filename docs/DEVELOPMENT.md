@@ -5,6 +5,25 @@
 - Crear carpeta en `app/Modules/<Modulo>`.
 - Agregar `Models`, `Services`, `Actions`, `Resources`, `Enums`, `Support`.
 
+## Factories en módulos
+
+Cuando un modelo modular usa `HasFactory`, Laravel puede intentar inferir una factory dentro de un namespace incorrecto.
+
+Regla del proyecto:
+
+- si el modelo vive en `app/Modules/...` y la factory se mantiene en `database/factories`, el modelo debe declarar `newFactory()`;
+- la factory debe importar explícitamente el modelo y declarar `protected $model = ...`;
+- no depender de la inferencia automática del framework en módulos.
+
+Ejemplo:
+
+```php
+protected static function newFactory(): Factory
+{
+    return AgencyFactory::new();
+}
+```
+
 ## Cómo agregar migraciones
 
 ```bash
@@ -66,3 +85,10 @@ docker compose exec app php artisan make:migration nombre
 | Desarrollo con recarga en caliente | `npm run dev` |
 
 `package-lock.json` debe versionarse junto con `package.json` para que `npm ci` funcione de forma reproducible.
+
+## Seeders
+
+- Mantener seeders pequeños y especializados.
+- `DatabaseSeeder` debe orquestar, no contener toda la lógica.
+- Separar roles, permisos, administrador, settings y datos demo cuando sea posible.
+- Usar `updateOrCreate()` para datos que deben poder ejecutarse varias veces sin duplicar.

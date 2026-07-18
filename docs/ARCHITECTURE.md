@@ -87,6 +87,20 @@ erDiagram
     agency_imports ||--o{ agency_import_failures : failures
 ```
 
+## Factories y seeders
+
+```mermaid
+flowchart LR
+    DatabaseSeeder --> RolesSeeder
+    DatabaseSeeder --> PermissionsSeeder
+    DatabaseSeeder --> SettingsSeeder
+    DatabaseSeeder --> AdminSeeder
+    DatabaseSeeder --> AgencySeeder
+    AgencySeeder --> AgencyFactory
+```
+
+Los modelos modulares que usan factories centralizadas en `database/factories` deben implementar `newFactory()` para no depender de la inferencia automática.
+
 ## Flujo de solicitudes
 
 ```mermaid
@@ -99,4 +113,3 @@ flowchart LR
 La extensión Chrome todavía no está implementada.
 
 PENDIENTE DE CONFIGURAR
-

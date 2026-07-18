@@ -46,6 +46,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - Mantener `IMPORTER.md` si cambia el origen o transformación del Gist.
 - Mantener `INSTALL.md` si cambia el flujo de arranque, build o validación.
 - Mantener `AUTHORIZATION.md` si cambia el flujo de Gates, Policies o helpers de autorización.
+- Mantener `SEEDERS.md` si cambia la orquestación o estructura de seeders.
 - No duplicar lógica entre panel, API e importador.
 
 ## Qué NO debe hacer una IA

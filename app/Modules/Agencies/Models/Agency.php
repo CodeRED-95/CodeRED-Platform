@@ -5,7 +5,9 @@ namespace App\Modules\Agencies\Models;
 use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Observers\AgencyObserver;
+use Database\Factories\AgencyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -37,6 +39,11 @@ class Agency extends Model
             'has_moved' => 'boolean',
             'moved_at' => 'date',
         ];
+    }
+
+    protected static function newFactory(): Factory
+    {
+        return AgencyFactory::new();
     }
 
     protected static function booted(): void

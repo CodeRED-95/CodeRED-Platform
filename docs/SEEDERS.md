@@ -1,0 +1,36 @@
+# Seeders
+
+## Objetivo
+
+Los seeders del proyecto preparan datos iniciales para desarrollo y pruebas sin duplicar información.
+
+## Estructura actual
+
+| Seeder | Responsabilidad |
+|---|---|
+| `DatabaseSeeder` | Orquestador principal |
+| `RolesSeeder` | Crea/actualiza roles |
+| `PermissionsSeeder` | Crea/actualiza permisos |
+| `SettingsSeeder` | Crea/actualiza configuraciones base |
+| `AdminSeeder` | Crea/actualiza el administrador de desarrollo |
+| `AgencySeeder` | Crea datos demo de agencias |
+
+## Reglas
+
+- `DatabaseSeeder` no debe contener toda la lógica de negocio.
+- Los seeders deben ser idempotentes.
+- Los datos de administración deben usar `updateOrCreate()`.
+- Las contraseñas siempre deben pasar por `Hash::make()`.
+- Los datos demo deben crearse solo si la tabla está vacía.
+
+## Orden recomendado
+
+1. Roles
+2. Permisos
+3. Configuración
+4. Administrador
+5. Agencias demo
+
+## Factories
+
+Las seeders que crean datos demo deben usar factories del proyecto. En módulos Laravel, si la factory está en `database/factories`, el modelo debe declarar `newFactory()`.

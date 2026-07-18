@@ -25,9 +25,14 @@ Las migraciones están ubicadas en `database/migrations`.
 
 ## Seeders
 
-Seeder actual:
+Seeders actuales:
 
 - `DatabaseSeeder`
+- `RolesSeeder`
+- `PermissionsSeeder`
+- `SettingsSeeder`
+- `AdminSeeder`
+- `AgencySeeder`
 
 ## Factories
 
@@ -35,6 +40,16 @@ Factories actuales:
 
 - `UserFactory`
 - `AgencyFactory`
+
+## Notas sobre `newFactory()`
+
+En módulos Laravel, si una factory está centralizada en `database/factories`, el modelo debe declarar explícitamente `newFactory()` para evitar resoluciones incorrectas como:
+
+```text
+Database\Factories\Modules\Agencies\Models\AgencyFactory
+```
+
+La factory de `Agency` se resuelve de forma explícita hacia `Database\Factories\AgencyFactory`.
 
 ## Índices
 

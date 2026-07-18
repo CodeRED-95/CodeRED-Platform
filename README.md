@@ -59,6 +59,7 @@ PENDIENTE DE CONFIGURAR
 - [Entorno](docs/ENVIRONMENT.md)
 - [Docker](docs/DOCKER.md)
 - [Base de datos](docs/DATABASE.md)
+- [Seeders](docs/SEEDERS.md)
 - [API](docs/API.md)
 - [Agencies](docs/AGENCIES.md)
 - [Importador](docs/IMPORTER.md)
