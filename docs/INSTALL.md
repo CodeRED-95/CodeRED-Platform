@@ -14,13 +14,13 @@
 
 ```bash
 git clone https://github.com/CodeRED-95/CodeRED-Platform.git
-cd CodeRED Platform
+cd CodeRED-Platform
 ```
 
 ## Copiar `.env`
 
 ```bash
-copy .env.example .env
+cp .env.example .env
 ```
 
 ## Levantar Docker
