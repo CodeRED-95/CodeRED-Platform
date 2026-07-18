@@ -14,7 +14,7 @@ class Show extends Component
     public function mount(User $user): void
     {
         Gate::authorize('view', $user);
-        $this->user = $user->load(['roles', 'creator', 'updater']);
+        $this->user = $user->load(['roles.permissions', 'creator', 'updater']);
     }
 
     public function render()

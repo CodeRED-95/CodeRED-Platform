@@ -23,8 +23,9 @@ final class AgencyImportNormalizer
     public static function parseOperationsCenter(mixed $value, array &$warnings = []): bool
     {
         $accepted = [true, false, 1, 0, 'true', 'false', '1', '0'];
-        if (!in_array($value, $accepted, true)) {
+        if (! in_array($value, $accepted, true)) {
             $warnings[] = 'El valor de co no pudo interpretarse como booleano.';
+
             return false;
         }
 
@@ -78,15 +79,15 @@ final class AgencyImportNormalizer
         $warnings = [];
         $errors = [];
 
-        if (!array_key_exists('id', $row) || $row['id'] === null || $row['id'] === '') {
+        if (! array_key_exists('id', $row) || $row['id'] === null || $row['id'] === '') {
             $errors[] = 'El registro no contiene id.';
         }
 
-        if (!array_key_exists('agencia', $row) || self::normalizeText($row['agencia'] ?? null) === null) {
+        if (! array_key_exists('agencia', $row) || self::normalizeText($row['agencia'] ?? null) === null) {
             $errors[] = 'El registro no contiene agencia.';
         }
 
-        $code = isset($row['id']) && $row['id'] !== null && $row['id'] !== ''
+        $code = isset($row['id']) && $row['id'] !== ''
             ? self::generateCode($row['id'])
             : null;
 
@@ -125,7 +126,7 @@ final class AgencyImportNormalizer
             'source' => 'github_gist',
             'source_reference' => isset($row['id']) ? (string) $row['id'] : null,
             'status' => AgencyStatus::UnderReview->value,
-            'slug' => $name ? static::slugifyUnique($name, (string) ($row['id'] ?? '')) : null,
+            'slug' => $name ? self::slugifyUnique($name, (string) ($row['id'] ?? '')) : null,
             'has_moved' => false,
             'moved_to_agency_id' => null,
             'moved_to_address' => null,

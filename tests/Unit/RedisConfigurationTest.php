@@ -8,11 +8,11 @@ class RedisConfigurationTest extends TestCase
 {
     public function test_redis_credentials_are_empty_when_no_auth_is_used(): void
     {
-        $this->assertSame('phpredis', env('REDIS_CLIENT'));
-        $this->assertSame('redis', env('REDIS_HOST'));
-        $this->assertSame('', (string) env('REDIS_USERNAME', ''));
-        $this->assertSame('', (string) env('REDIS_PASSWORD', ''));
-        $this->assertSame('0', (string) env('REDIS_DB', '0'));
-        $this->assertSame('1', (string) env('REDIS_CACHE_DB', '1'));
+        $this->assertSame('phpredis', config('database.redis.client'));
+        $this->assertSame('redis', config('database.redis.default.host'));
+        $this->assertNull(config('database.redis.default.username'));
+        $this->assertNull(config('database.redis.default.password'));
+        $this->assertSame('0', (string) config('database.redis.default.database'));
+        $this->assertSame('1', (string) config('database.redis.cache.database'));
     }
 }

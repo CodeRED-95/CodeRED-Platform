@@ -6,6 +6,9 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Entorno reproducible con Dev Containers, configuración versionada de VS Code y verificadores `verify.sh`/`verify.ps1`.
+- Script Composer `check` para ejecutar Pint, PHPStan y PHPUnit dentro del contenedor PHP.
+
 - Módulo administrativo de usuarios con Livewire, Policy, reglas de seguridad y pantallas de detalle.
 - Pantalla de cambio obligatorio de contraseña para cuentas marcadas por administración.
 - Documentación específica para usuarios, estados y reglas críticas.
@@ -27,6 +30,14 @@ Todas las versiones siguen `Keep a Changelog`.
 - Estructura documental centralizada en `docs/`
 
 ### Fixed
+
+- PHPStan/Larastan nivel 5 estabilizado en cero errores sin baseline ni reglas de ignore.
+- Errores reales corregidos en importación de Agencias, health de colas, filtro de usuarios, Resources, configuración cacheable y pruebas tautológicas.
+
+- CRUD manual de Agencias estabilizado con normalización previa, procedencia protegida, validación de traslados, relaciones completas y cobertura de búsqueda/filtros.
+
+- Login y sesiones reforzados con estado autoritativo, expulsión de cuentas bloqueadas y cambio obligatorio de contraseña protegido por middleware.
+- Cobertura Feature ampliada para login, logout, CSRF, sesiones, recordatorio, roles y validaciones.
 
 - Valores con espacios documentados con comillas en `.env`
 - Referencia de puerto sincronizada con `8090`

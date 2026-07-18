@@ -1,0 +1,136 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "testFilter",
+      "type": "promptString",
+      "description": "Filtro PHPUnit o nombre de prueba",
+      "default": ""
+    }
+  ],
+  "tasks": [
+    {
+      "label": "PHP: Check completo",
+      "type": "shell",
+      "command": "composer check",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Todas las pruebas",
+      "type": "shell",
+      "command": "composer test",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Unit",
+      "type": "shell",
+      "command": "composer test-unit",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Feature",
+      "type": "shell",
+      "command": "composer test-feature",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Prueba específica",
+      "type": "shell",
+      "command": "php artisan test --filter \"${input:testFilter}\"",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Pint validar",
+      "type": "shell",
+      "command": "composer lint",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Pint corregir",
+      "type": "shell",
+      "command": "composer lint-fix",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: PHPStan",
+      "type": "shell",
+      "command": "composer analyse",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Laravel: Rutas",
+      "type": "shell",
+      "command": "php artisan route:list",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Laravel: Limpiar cachés",
+      "type": "shell",
+      "command": "php artisan optimize:clear",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Desarrollo",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "/var/www/html"
+      },
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

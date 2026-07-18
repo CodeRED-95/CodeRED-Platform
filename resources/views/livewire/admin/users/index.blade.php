@@ -34,10 +34,6 @@
                 <option value="1">Con acceso</option>
                 <option value="0">Nunca</option>
             </x-ui.select>
-            <x-ui.select wire:model.live="withTrashed" label="Eliminados">
-                <option value="">No</option>
-                <option value="1">Sí</option>
-            </x-ui.select>
             <x-ui.select wire:model.live="perPage" label="Por página">
                 <option value="15">15</option>
                 <option value="30">30</option>

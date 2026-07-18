@@ -19,6 +19,9 @@ El módulo de usuarios administra cuentas internas del panel de CodeRED Platform
 - No se puede desactivar al último superadministrador activo.
 - No se puede eliminar al último superadministrador.
 - Solo un superadministrador puede gestionar otros superadministradores.
+- `status` es la fuente autoritativa de acceso; una cuenta suspendida no puede entrar aunque `is_active` tenga un valor legado inconsistente.
+- Una cuenta bloqueada durante una sesión activa es desconectada por middleware.
+- `must_change_password` impide acceder al resto de páginas hasta persistir una contraseña nueva válida.
 
 ## Campos principales
 

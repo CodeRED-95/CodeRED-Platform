@@ -2,12 +2,13 @@
 
 namespace App\Modules\Agencies\Actions;
 
-use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Enums\AgencyImportStrategy;
+use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
 use App\Modules\Agencies\Models\AgencyImportFailure;
 use App\Modules\Agencies\Support\AgencyImportNormalizer;
+use App\Modules\Agencies\Support\AgencyVersion;
 use Illuminate\Support\Facades\DB;
 
 class ImportAgenciesAction
@@ -33,10 +34,11 @@ class ImportAgenciesAction
                     'errors' => $transformed->errors,
                     'created_at' => now(),
                 ]);
+
                 continue;
             }
 
-            DB::transaction(function () use ($transformed, $import, &$summary): void {
+            DB::transaction(function () use ($transformed, $import, &$summary, $defaultStatus): void {
                 $data = $transformed->normalized;
                 $existing = Agency::query()
                     ->where('source', 'github_gist')
@@ -64,12 +66,14 @@ class ImportAgenciesAction
                         'data_version' => $version,
                     ]);
                     $summary['imported']++;
+
                     return;
                 }
 
                 $strategy = AgencyImportStrategy::from($import->strategy);
                 if (in_array($strategy, [AgencyImportStrategy::IgnoreExisting, AgencyImportStrategy::CreateOnlyNew], true)) {
                     $summary['skipped']++;
+
                     return;
                 }
 
@@ -82,6 +86,7 @@ class ImportAgenciesAction
                         'created_at' => now(),
                     ]);
                     $summary['failed']++;
+
                     return;
                 }
 
@@ -108,6 +113,7 @@ class ImportAgenciesAction
                 }
             });
         }
+
         return $summary;
     }
 }

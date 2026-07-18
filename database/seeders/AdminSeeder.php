@@ -13,9 +13,9 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $devAdminName = trim((string) (getenv('DEV_ADMIN_NAME') ?: env('DEV_ADMIN_NAME', '')));
-        $devAdminEmail = trim((string) (getenv('DEV_ADMIN_EMAIL') ?: env('DEV_ADMIN_EMAIL', '')));
-        $devAdminPassword = (string) (getenv('DEV_ADMIN_PASSWORD') ?: env('DEV_ADMIN_PASSWORD', ''));
+        $devAdminName = trim((string) (getenv('DEV_ADMIN_NAME') ?: config('codered.dev_admin.name', '')));
+        $devAdminEmail = trim((string) (getenv('DEV_ADMIN_EMAIL') ?: config('codered.dev_admin.email', '')));
+        $devAdminPassword = (string) (getenv('DEV_ADMIN_PASSWORD') ?: config('codered.dev_admin.password', ''));
 
         if ($devAdminName === '' || $devAdminEmail === '' || $devAdminPassword === '') {
             throw new InvalidArgumentException('Las variables DEV_ADMIN_NAME, DEV_ADMIN_EMAIL y DEV_ADMIN_PASSWORD son obligatorias.');

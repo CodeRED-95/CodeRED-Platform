@@ -21,6 +21,7 @@ final class AgencyVersion
         $version = (int) Cache::lock(self::CACHE_KEY.':lock', 10)->block(5, function (): int {
             $next = ((int) DB::table('agencies')->max('data_version') ?: 0) + 1;
             Cache::forever(self::CACHE_KEY, $next);
+
             return $next;
         });
 

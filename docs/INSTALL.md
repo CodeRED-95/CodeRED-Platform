@@ -104,13 +104,33 @@ docker compose up -d --build
 
 Si cambian variables de entorno relevantes, reinicia los contenedores con el mismo comando para que el bootstrap vuelva a aplicar migraciones, seeders y limpieza de caché de forma idempotente.
 
-## Desarrollo
+## Desarrollo con VS Code
+
+1. Instala la extensión Dev Containers.
+2. Abre el repositorio en VS Code.
+3. Ejecuta `Dev Containers: Reopen in Container`.
+4. Espera a que Composer termine el `postCreateCommand`.
+5. Ejecuta la tarea `PHP: Check completo`.
+
+El Dev Container reutiliza el servicio `app`, abre `/var/www/html` como workspace y levanta Nginx, PostgreSQL, Redis, queue y scheduler.
+
+## Desarrollo desde terminal
 
 ```bash
 docker compose up -d --build
 docker compose exec app composer install
 docker compose exec app npm install
 docker compose exec app npm run dev
+```
+
+Verificación reproducible desde el host:
+
+```bash
+./verify.sh
+```
+
+```powershell
+./verify.ps1
 ```
 
 Durante desarrollo, `npm run dev` sirve para recompilar assets en caliente. Para despliegue o verificaciones de login usa `npm run build`.
@@ -143,9 +163,6 @@ docker compose exec app php artisan migrate:status
 curl http://localhost:8090/api/v1/health
 curl -I http://localhost:8090/login
 curl -I http://localhost:8090/build/manifest.json
-docker compose exec app sh scripts/check-assets.sh
-```
-
 docker compose exec app sh scripts/check-assets.sh
 ```
 

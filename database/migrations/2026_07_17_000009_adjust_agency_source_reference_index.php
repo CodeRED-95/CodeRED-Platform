@@ -3,7 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         $duplicates = DB::table('agencies')
@@ -17,7 +18,7 @@ return new class extends Migration {
             $pairs = $duplicates->map(fn ($row) => sprintf('%s + %s (%d)', $row->source, $row->source_reference, $row->total))
                 ->implode(', ');
 
-            throw new \RuntimeException('No se puede crear el índice único parcial porque existen duplicados: '.$pairs);
+            throw new RuntimeException('No se puede crear el índice único parcial porque existen duplicados: '.$pairs);
         }
 
         DB::statement(<<<'SQL'
@@ -56,7 +57,7 @@ SQL);
             $pairs = $duplicates->map(fn ($row) => sprintf('%s (%d)', $row->source_reference, $row->total))
                 ->implode(', ');
 
-            throw new \RuntimeException('No se puede restaurar la restricción única porque existen duplicados: '.$pairs);
+            throw new RuntimeException('No se puede restaurar la restricción única porque existen duplicados: '.$pairs);
         }
 
         DB::statement('DROP INDEX IF EXISTS agencies_source_source_reference_unique');

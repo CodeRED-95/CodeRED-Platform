@@ -7,15 +7,19 @@ use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Observers\AgencyObserver;
 use Database\Factories\AgencyFactory;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
+/**
+ * @property AgencyStatus $status
+ * @property AgencySize|null $size
+ */
 class Agency extends Model
 {
     use HasFactory, SoftDeletes;
@@ -87,7 +91,9 @@ class Agency extends Model
 
     public function scopePublicVisible(Builder $query): Builder
     {
-        return $query->active()->where('has_moved', false);
+        return $query
+            ->where('status', AgencyStatus::Active->value)
+            ->where('has_moved', false);
     }
 
     public function scopeOperationsCenters(Builder $query): Builder
@@ -156,21 +162,31 @@ class Agency extends Model
         return $candidate;
     }
 
+    /** @return HasMany<AgencyChangeLog, $this> */
+    public function changeLogs(): HasMany
+    {
+        return $this->hasMany(AgencyChangeLog::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    /** @return BelongsTo<Agency, $this> */
     public function movedToAgency(): BelongsTo
     {
         return $this->belongsTo(self::class, 'moved_to_agency_id');
     }
 
+    /** @return HasMany<Agency, $this> */
     public function movedFromAgencies(): HasMany
     {
         return $this->hasMany(self::class, 'moved_to_agency_id');

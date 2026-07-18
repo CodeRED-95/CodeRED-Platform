@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class AgencySearchService
 {
+    /** @return Builder<Agency> */
     public function publicQuery(array $filters = []): Builder
     {
         $query = Agency::query()->publicVisible();
@@ -15,18 +16,23 @@ class AgencySearchService
         return $this->applyFilters($query, $filters);
     }
 
+    /** @return Builder<Agency> */
     public function adminQuery(array $filters = []): Builder
     {
         return $this->applyFilters(Agency::query(), $filters);
     }
 
+    /**
+     * @param  Builder<Agency>  $query
+     * @return Builder<Agency>
+     */
     public function applyFilters(Builder $query, array $filters): Builder
     {
         $query->search($filters['search'] ?? null);
         $query->byLocation($filters['department'] ?? null, $filters['province'] ?? null, $filters['district'] ?? null);
 
         foreach (['status', 'source', 'size'] as $field) {
-            if (!empty($filters[$field])) {
+            if (! empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
             }
         }
@@ -39,23 +45,23 @@ class AgencySearchService
             $query->where('has_moved', filter_var($filters['moved'], FILTER_VALIDATE_BOOLEAN));
         }
 
-        if (!empty($filters['updated_after'])) {
+        if (! empty($filters['updated_after'])) {
             $query->whereDate('updated_at', '>=', $filters['updated_after']);
         }
 
-        if (!empty($filters['with_trashed'])) {
+        if (! empty($filters['with_trashed'])) {
             $query->withTrashed();
         }
 
-        if (!empty($filters['without_coordinates'])) {
+        if (! empty($filters['without_coordinates'])) {
             $query->whereNull('latitude')->whereNull('longitude');
         }
 
-        if (!empty($filters['without_phone'])) {
+        if (! empty($filters['without_phone'])) {
             $query->whereNull('phone');
         }
 
-        if (!empty($filters['under_review'])) {
+        if (! empty($filters['under_review'])) {
             $query->where('status', AgencyStatus::UnderReview->value);
         }
 

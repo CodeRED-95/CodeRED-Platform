@@ -10,6 +10,7 @@ use App\Modules\Agencies\Services\AgencySearchService;
 use App\Modules\Agencies\Support\AgencyVersion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 
 class AgenciesController
@@ -66,7 +67,7 @@ class AgenciesController
         ]);
     }
 
-    public function snapshot(Request $request): JsonResponse
+    public function snapshot(Request $request): JsonResponse|Response
     {
         $version = AgencyVersion::current();
         $etag = '"agency-snapshot-'.$version.'"';

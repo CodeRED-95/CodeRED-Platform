@@ -6,6 +6,7 @@ use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -111,8 +112,8 @@ class Form extends Component
                 'map_url' => $agency->map_url,
                 'services' => $agency->services ?? [],
                 'observations' => $agency->observations,
-                'status' => $agency->status?->value ?? $agency->status,
-                'size' => $agency->size?->value ?? $agency->size,
+                'status' => $agency->status->value,
+                'size' => $agency->size?->value,
                 'is_operations_center' => (bool) $agency->is_operations_center,
                 'source' => $agency->source,
                 'source_reference' => $agency->source_reference,
@@ -129,22 +130,28 @@ class Form extends Component
 
     public function save(ApplyAgencyMoveAction $moveAction): void
     {
+        Gate::authorize($this->agency ? 'update' : 'create', $this->agency ?? Agency::class);
+
+        $this->normalizeInput();
         $data = $this->validate();
 
         $payload = $this->normalizePayload($data);
+        $wasMoved = (bool) $this->agency?->has_moved;
 
-        $agency = DB::transaction(function () use ($payload, $moveAction): Agency {
+        $agency = DB::transaction(function () use ($payload, $moveAction, $wasMoved): Agency {
             if ($this->mode === 'create') {
-                $payload['source'] = $payload['source'] ?: 'manual';
-                $payload['source_reference'] = $payload['source_reference'] ?: null;
+                $payload['source'] = 'manual';
+                $payload['source_reference'] = null;
+                $payload['source_text'] = null;
                 $payload['data_version'] = 1;
                 $agency = Agency::query()->create($payload);
             } else {
                 $agency = $this->agency;
+                unset($payload['source'], $payload['source_reference'], $payload['source_text']);
                 $agency->fill($payload)->save();
             }
 
-            if ($payload['has_moved'] || ($this->agency?->has_moved && ! $payload['has_moved'])) {
+            if ($payload['has_moved'] || $wasMoved) {
                 $moveAction->execute(
                     $agency,
                     $payload,
@@ -161,7 +168,8 @@ class Form extends Component
         $this->redirectRoute('admin.agencies.show', $agency);
     }
 
-    public function getDestinationOptionsProperty()
+    /** @return Collection<int, Agency> */
+    public function getDestinationOptionsProperty(): Collection
     {
         return Agency::query()
             ->active()
@@ -234,23 +242,39 @@ class Form extends Component
             'services.*' => ['nullable', 'string', 'max:255'],
             'observations' => ['nullable', 'string'],
             'servicesInput' => ['nullable', 'string'],
-            'status' => ['required', 'in:'.implode(',', array_map(fn ($case) => $case->value, AgencyStatus::cases()))],
-            'size' => ['nullable', 'in:'.implode(',', array_map(fn ($case) => $case->value, AgencySize::cases()))],
+            'status' => [
+                'required',
+                Rule::in(array_map(fn (AgencyStatus $case) => $case->value, AgencyStatus::cases())),
+                Rule::notIn($this->has_moved ? [] : [AgencyStatus::Moved->value]),
+            ],
+            'size' => ['nullable', Rule::in(array_map(fn (AgencySize $case) => $case->value, AgencySize::cases()))],
             'is_operations_center' => ['boolean'],
             'source' => ['required', 'string', 'max:100'],
             'source_reference' => ['nullable', 'string', 'max:255'],
             'source_text' => ['nullable', 'string'],
             'has_moved' => ['boolean'],
             'moved_to_agency_id' => [
+                Rule::requiredIf($this->has_moved && blank($this->moved_to_address)),
                 'nullable',
                 Rule::exists('agencies', 'id')
                     ->whereNull('deleted_at')
                     ->where('status', AgencyStatus::Active->value),
             ],
-            'moved_to_address' => ['nullable', 'string'],
+            'moved_to_address' => [
+                Rule::requiredIf($this->has_moved && $this->moved_to_agency_id === null),
+                'nullable',
+                'string',
+            ],
             'move_notice' => ['nullable', 'string'],
             'moved_at' => ['nullable', 'date'],
         ];
+    }
+
+    private function normalizeInput(): void
+    {
+        $this->code = strtoupper(trim($this->code));
+        $this->slug = filled($this->slug) ? Str::slug((string) $this->slug) : null;
+        $this->email = filled($this->email) ? mb_strtolower(trim((string) $this->email)) : null;
     }
 
     private function normalizePayload(array $data): array
@@ -290,7 +314,7 @@ class Form extends Component
         return view('livewire.admin.agencies.form', [
             'statuses' => AgencyStatus::options(),
             'sizes' => AgencySize::options(),
-            'destinations' => $this->destinationOptions,
+            'destinations' => $this->getDestinationOptionsProperty(),
         ])->layout('layouts.app', ['pageTitle' => $this->mode === 'edit' ? 'Editar agencia' : 'Nueva agencia']);
     }
 }

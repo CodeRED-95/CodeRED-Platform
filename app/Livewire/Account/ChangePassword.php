@@ -10,7 +10,9 @@ use Livewire\Component;
 class ChangePassword extends Component
 {
     public string $current_password = '';
+
     public string $password = '';
+
     public string $password_confirmation = '';
 
     public function mount(): void

@@ -8,6 +8,7 @@ use App\Modules\Agencies\Enums\AgencyImportStrategy;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
 use App\Modules\Agencies\Services\AgencyImportPreviewService;
+use App\Modules\Agencies\Support\AgencyImportNormalizer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -20,13 +21,21 @@ class Import extends Component
     use WithFileUploads;
 
     public string $sourceType = 'json';
+
     public string $strategy = AgencyImportStrategy::IgnoreExisting->value;
+
     public string $statusOnCreate = 'under_review';
+
     public ?string $url = null;
+
     public ?string $jsonPayload = null;
+
     public ?TemporaryUploadedFile $file = null;
+
     public array $preview = [];
+
     public array $summary = [];
+
     public ?string $message = null;
 
     public function mount(): void
@@ -43,7 +52,7 @@ class Import extends Component
         $invalid = 0;
 
         foreach (array_slice($payload, 0, 20) as $row) {
-            $transformed = \App\Modules\Agencies\Support\AgencyImportNormalizer::transform($row);
+            $transformed = AgencyImportNormalizer::transform($row);
             $preview[] = $transformed->toArray();
             $valid += $transformed->valid ? 1 : 0;
             $warnings += count($transformed->warnings);

@@ -5,6 +5,9 @@
 - Web: guard `web`
 - API: Sanctum preparado para futuras credenciales/token
 - El login usa autenticación tradicional por sesión con `POST /login`, `@csrf` y `Auth::attempt()`; no depende de Livewire.
+- La sesión se regenera después de autenticar y se invalida por completo al cerrar sesión o detectar una cuenta bloqueada.
+- `EnsureUserIsActive` expulsa cuentas suspendidas o inactivas incluso si su sesión ya estaba abierta.
+- `EnsurePasswordIsChanged` restringe la navegación hasta completar un cambio obligatorio de contraseña.
 
 ## Autorización
 
@@ -63,7 +66,7 @@ El importador solo permite:
 
 - No sobrescribir `User::can()`.
 - Usar `Gate::before` solo para superadministrador, devolviendo `null` para el resto.
-- Bloquear el inicio de sesión de cuentas `suspended` o `inactive`.
+- El campo `status` es la fuente autoritativa para bloquear cuentas `suspended` o `inactive`; `is_active` se conserva como campo legado sincronizado.
 - No registrar contraseñas, hashes, tokens ni `remember_token` en auditoría.
 - No permitir que un usuario se elimine o se suspenda a sí mismo.
 - Proteger al último superadministrador activo como cuenta crítica.

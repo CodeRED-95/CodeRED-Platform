@@ -168,3 +168,9 @@ docker compose exec app php-fpm -tt
 ## Imagen PHP compartida
 
 `app`, `queue` y `scheduler` reutilizan la misma imagen `docker/php/Dockerfile`. No se duplican imágenes específicas por servicio.
+
+## Dev Container
+
+`.devcontainer/devcontainer.json` reutiliza el servicio `app`; no crea una imagen PHP paralela. VS Code abre `/var/www/html` como usuario `www`, inicia los seis servicios del compose y conserva la publicación `8090:80` declarada por Nginx.
+
+Las tareas del editor ejecutan PHP, Composer, Artisan y npm directamente dentro del contenedor. Los scripts `verify.sh` y `verify.ps1` son wrappers de host que delegan `composer check` a `docker compose exec -T app`.

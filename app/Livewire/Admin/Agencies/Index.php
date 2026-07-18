@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Admin\Agencies;
 
+use App\Modules\Agencies\Enums\AgencySize;
+use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Services\AgencySearchService;
 use Illuminate\Support\Facades\Gate;
@@ -121,8 +123,8 @@ class Index extends Component
             'departments' => Agency::query()->select('department')->distinct()->orderBy('department')->pluck('department'),
             'provinces' => Agency::query()->select('province')->distinct()->orderBy('province')->pluck('province'),
             'districts' => Agency::query()->select('district')->distinct()->orderBy('district')->pluck('district'),
-            'sizes' => ['' => 'Todos'] + \App\Modules\Agencies\Enums\AgencySize::options(),
-            'statuses' => ['' => 'Todos'] + \App\Modules\Agencies\Enums\AgencyStatus::options(),
+            'sizes' => ['' => 'Todos'] + AgencySize::options(),
+            'statuses' => ['' => 'Todos'] + AgencyStatus::options(),
         ])->layout('layouts.app', ['pageTitle' => 'Agencias Shalom']);
     }
 }

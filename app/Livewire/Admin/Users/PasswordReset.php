@@ -13,6 +13,7 @@ class PasswordReset extends Component
     public User $user;
 
     public string $temporaryPassword = '';
+
     public bool $mustChangePassword = true;
 
     public function mount(User $user): void

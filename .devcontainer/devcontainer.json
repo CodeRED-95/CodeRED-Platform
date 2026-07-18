@@ -6,11 +6,14 @@
   "shutdownAction": "stopCompose",
   "runServices": [
     "app",
+    "nginx",
     "postgres",
-    "redis"
+    "redis",
+    "queue",
+    "scheduler"
   ],
   "remoteUser": "www",
-  "postCreateCommand": "sh -lc 'composer install --no-interaction --prefer-dist --no-progress && php artisan optimize:clear'",
+  "postCreateCommand": "composer install --no-interaction --prefer-dist --no-progress",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -26,8 +29,11 @@
         "intelephense.environment.phpVersion": "8.3.0",
         "terminal.integrated.defaultProfile.linux": "bash",
         "files.eol": "\n",
-        "files.trimTrailingWhitespace": true
+        "files.trimTrailingWhitespace": true,
+        "terminal.integrated.cwd": "/var/www/html"
       }
     }
-  }
+  },
+  "updateRemoteUserUID": false,
+  "postStartCommand": "php artisan about --only=environment"
 }

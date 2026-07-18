@@ -19,7 +19,7 @@
         <div class="grid gap-6 xl:grid-cols-2">
             @php
                 $sections = [
-                    'Identificación' => ['code','name','short_name','slug','source','source_reference','source_text'],
+                    'Identificación' => ['code','name','short_name','slug'],
                     'Ubicación' => ['department','province','district','address','reference'],
                     'Contacto' => ['phone','secondary_phone','email'],
                     'Horario' => ['schedule'],

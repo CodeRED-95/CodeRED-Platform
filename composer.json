@@ -67,15 +67,18 @@
             "@php ./vendor/bin/phpstan analyse --memory-limit=1G --configuration=phpstan.neon.dist"
         ],
         "verify": [
-            "@lint",
-            "@analyse",
-            "@test"
+            "@check"
         ],
         "pint": [
             "./vendor/bin/pint"
         ],
         "stan": [
             "./vendor/bin/phpstan analyse"
+        ],
+        "check": [
+            "@lint",
+            "@analyse",
+            "@test"
         ]
     },
     "config": {

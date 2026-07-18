@@ -38,7 +38,8 @@ class HealthController
         }
 
         try {
-            $queue = Queue::connection()->getName() !== '';
+            Queue::connection()->size();
+            $queue = true;
         } catch (\Throwable) {
             $queue = false;
         }

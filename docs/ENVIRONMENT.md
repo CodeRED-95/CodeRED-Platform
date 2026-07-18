@@ -122,3 +122,5 @@ DEV_ADMIN_NAME="Administrador Dev"
 
 Las variables `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` se usan para inicializar el servicio `postgres` en Docker Compose.  
 Si el volumen de PostgreSQL ya fue creado con otras credenciales, modificar `.env` no cambia automáticamente la contraseña interna del rol. En ese caso debe sincronizarse el rol dentro de PostgreSQL sin borrar el volumen.
+
+Las variables `DEV_ADMIN_*` se leen exclusivamente desde `config/codered.php` durante el bootstrap normal. El seeder consume `config()` para seguir funcionando con la configuración cacheada.

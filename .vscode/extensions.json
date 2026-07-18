@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "ms-vscode-remote.remote-containers",
+    "ms-azuretools.vscode-docker",
+    "bmewburn.vscode-intelephense-client",
+    "xdebug.php-debug",
+    "editorconfig.editorconfig",
+    "onecentlin.laravel-blade",
+    "amiralizadeh9480.laravel-extra-intellisense"
+  ],
+  "unwantedRecommendations": [
+    "ikappas.composer"
+  ]
+}

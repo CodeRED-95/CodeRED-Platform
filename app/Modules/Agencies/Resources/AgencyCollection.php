@@ -9,7 +9,9 @@ class AgencyCollection extends ResourceCollection
 {
     public function toArray(Request $request): array
     {
-        return $this->collection->map(fn ($item) => (new AgencyResource($item))->toArray($request))->all();
+        return $this->collection
+            ->map(fn (AgencyResource $resource): array => $resource->toArray($request))
+            ->all();
     }
 
     public function with(Request $request): array

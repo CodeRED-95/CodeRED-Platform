@@ -3,14 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasRoles;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Database\Factories\UserFactory;
 
 class User extends Authenticatable
 {
@@ -128,6 +128,6 @@ class User extends Authenticatable
 
     public function isActive(): bool
     {
-        return ($this->status ?? null) === 'active' || (bool) $this->is_active;
+        return $this->status === 'active';
     }
 }

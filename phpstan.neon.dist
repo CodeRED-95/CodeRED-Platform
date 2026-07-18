@@ -13,3 +13,5 @@ parameters:
     inferPrivatePropertyTypeFromConstructor: true
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: true
+    stubFiles:
+        - stubs/Illuminate/Database/Schema/ForeignKeyDefinition.stub

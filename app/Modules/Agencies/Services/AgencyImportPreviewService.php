@@ -2,7 +2,6 @@
 
 namespace App\Modules\Agencies\Services;
 
-use App\Modules\Agencies\Data\AgencyImportRowData;
 use App\Modules\Agencies\Support\AgencyImportNormalizer;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
@@ -23,7 +22,7 @@ class AgencyImportPreviewService
         }
 
         $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($decoded) || array_is_list($decoded) === false) {
+        if (! is_array($decoded) || array_is_list($decoded) === false) {
             throw new InvalidArgumentException('El JSON raíz debe ser un array.');
         }
 
@@ -40,8 +39,9 @@ class AgencyImportPreviewService
         $invalid = 0;
 
         foreach (array_slice($decoded, 0, 20) as $row) {
-            if (!is_array($row) || array_is_list($row)) {
+            if (! is_array($row) || array_is_list($row)) {
                 $invalid++;
+
                 continue;
             }
 
@@ -69,12 +69,12 @@ class AgencyImportPreviewService
     private function assertSafeUrl(string $url): void
     {
         $parts = parse_url($url);
-        if (!is_array($parts) || ($parts['scheme'] ?? null) !== 'https') {
+        if (! is_array($parts) || ($parts['scheme'] ?? null) !== 'https') {
             throw new InvalidArgumentException('La URL debe usar HTTPS.');
         }
 
         $host = strtolower((string) ($parts['host'] ?? ''));
-        if (!in_array($host, ['gist.githubusercontent.com', 'raw.githubusercontent.com'], true)) {
+        if (! in_array($host, ['gist.githubusercontent.com', 'raw.githubusercontent.com'], true)) {
             throw new InvalidArgumentException('Host no permitido.');
         }
 

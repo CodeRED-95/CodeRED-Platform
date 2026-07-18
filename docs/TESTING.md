@@ -2,8 +2,16 @@
 
 ## Cómo ejecutar pruebas
 
+Dentro del Dev Container:
+
 ```bash
-docker compose exec app php artisan test
+composer test
+```
+
+Desde el host:
+
+```bash
+docker compose exec -T app composer test
 ```
 
 ## Tipos de pruebas
@@ -31,14 +39,15 @@ docker compose exec app php artisan test
 
 1. Ejecutar pruebas.
 2. Ejecutar Pint.
-3. Ejecutar PHPStan.
+3. Ejecutar PHPStan; el resultado esperado es cero errores y no se usa baseline.
 4. Verificar rutas.
 5. Verificar migraciones si hubo cambios de esquema.
 
 ## Agencias Shalom
 
-- `php artisan test` debe cubrir importación, traslado, snapshot, API y páginas administrativas.
-- Si cambia el formulario o la vista pública, agregar pruebas de render o de ruta.
+- `php artisan test` debe cubrir CRUD manual, búsqueda, filtros, validaciones, relaciones, importación, traslado, snapshot, API y páginas administrativas.
+- Si cambia el formulario, probar persistencia real de creación/edición, normalización y errores de validación.
+- Si cambia el listado, probar búsqueda, combinación de filtros, soft deletes y paginación.
 - Si cambia el importador, validar normalización, duplicados y estrategia de conflicto.
 - Agregar pruebas de superadmin, permisos, `Gate::before` y denegación 403.
 
@@ -49,6 +58,9 @@ docker compose exec app php artisan test
 - Verificar que el login no use Livewire, `wire:submit`, `wire:model`, `$wire` ni envío HTML duplicado.
 - Verificar que el HTML final contenga `name="_token"` y campos `name="email"`, `name="password"` y `name="remember"`.
 - Verificar que el login use mensajes en español para validación y credenciales inválidas.
+- Verificar regeneración de sesión, intended URL, cookie de recordatorio, logout y CSRF.
+- Verificar que cuentas suspendidas sean rechazadas y expulsadas si ya tenían sesión.
+- Verificar el ciclo completo de cambio obligatorio de contraseña.
 - Verificar que `/admin/design-system` cargue dentro del layout administrativo y no como HTML aislado.
 - Verificar que el manifest de Vite existe y que los assets actuales referenciados por el manifest estén presentes.
 - Verificar HTTP de assets con `docker compose exec app sh scripts/check-assets.sh`.
@@ -57,9 +69,10 @@ docker compose exec app php artisan test
 ## VS Code y Dev Containers
 
 - La integración oficial de desarrollo usa `.devcontainer/devcontainer.json`.
-- La tarea predeterminada de pruebas es `PHP: Todas las pruebas`.
+- La tarea predeterminada es `PHP: Check completo`.
 - Las tareas de VS Code ejecutan comandos directos dentro del contenedor y no requieren `docker compose exec` cuando el proyecto ya está abierto en Dev Container.
-- El comando de verificación principal es `composer verify`.
+- El comando de verificación principal es `composer check`; `composer verify` se conserva como alias.
+- `verify.sh` y `verify.ps1` permiten lanzar la misma verificación desde el host sin instalar PHP ni Composer.
 - Si la base de pruebas no existe, el bootstrap de PHPUnit la crea de forma idempotente.
 
 ## Usuarios

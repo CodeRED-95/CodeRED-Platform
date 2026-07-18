@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Agencies;
 
 use App\Modules\Agencies\Enums\AgencyStatus;
+use App\Modules\Agencies\Models\Agency;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +11,7 @@ class StoreAgencyRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('create', \App\Modules\Agencies\Models\Agency::class) ?? false;
+        return $this->user()?->can('create', Agency::class) ?? false;
     }
 
     public function rules(): array

@@ -2,9 +2,6 @@
 
 namespace App\Modules\Agencies\Data;
 
-use App\Modules\Agencies\Enums\AgencySize;
-use App\Modules\Agencies\Enums\AgencyStatus;
-
 class AgencyImportRowData
 {
     public function __construct(
@@ -13,8 +10,7 @@ class AgencyImportRowData
         public readonly array $warnings,
         public readonly array $errors,
         public readonly bool $valid,
-    ) {
-    }
+    ) {}
 
     public static function make(array $raw, array $normalized, array $warnings = [], array $errors = []): self
     {

@@ -111,6 +111,8 @@ Una agencia trasladada:
 | `createdBy` | `belongsTo(User::class)` |
 | `updatedBy` | `belongsTo(User::class)` |
 | `movedToAgency` | `belongsTo(Agency::class)` |
+| `movedFromAgencies` | `hasMany(Agency::class)` |
+| `changeLogs` | `hasMany(AgencyChangeLog::class)` |
 
 ## Permisos
 
@@ -132,6 +134,15 @@ Permisos del módulo:
 - `Gate::before` permite el acceso total al rol `super-admin`.
 - El rol `admin` obtiene los permisos operativos del módulo a través de seeders idempotentes.
 - Las rutas administrativas siguen protegidas por `auth` y autorización nativa de Laravel.
+
+## CRUD manual
+
+- Crear fuerza `source = manual` y no permite suplantar procedencia importada.
+- Editar preserva `source`, `source_reference` y `source_text` existentes.
+- Código, slug, correo y espacios se normalizan antes de validar unicidad.
+- Un traslado exige agencia destino o dirección manual.
+- Listado y búsqueda admiten ubicación, estado, tamaño, fuente, centro de operaciones, traslado y registros eliminados.
+- El CRUD registra auditoría y mantiene `data_version` mediante el observer.
 
 ## Flujo de trabajo
 

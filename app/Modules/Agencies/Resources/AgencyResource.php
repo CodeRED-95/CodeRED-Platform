@@ -2,58 +2,66 @@
 
 namespace App\Modules\Agencies\Resources;
 
+use App\Modules\Agencies\Models\Agency;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use LogicException;
 
 class AgencyResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $agency = $this->resource;
+
+        if (! $agency instanceof Agency) {
+            throw new LogicException('AgencyResource requiere una instancia de Agency.');
+        }
+
         $move = null;
 
-        if ((bool) ($this->has_moved ?? false)) {
+        if ((bool) ($agency->has_moved ?? false)) {
             $move = [
-                'moved_at' => optional($this->moved_at)?->toDateString(),
-                'notice' => $this->move_notice,
-                'destination_agency' => $this->movedToAgency ? [
-                    'code' => $this->movedToAgency->code,
-                    'name' => $this->movedToAgency->name,
-                    'address' => $this->movedToAgency->address,
-                    'url' => url('/api/v1/agencies/'.$this->movedToAgency->code),
+                'moved_at' => optional($agency->moved_at)?->toDateString(),
+                'notice' => $agency->move_notice,
+                'destination_agency' => $agency->movedToAgency ? [
+                    'code' => $agency->movedToAgency->code,
+                    'name' => $agency->movedToAgency->name,
+                    'address' => $agency->movedToAgency->address,
+                    'url' => url('/api/v1/agencies/'.$agency->movedToAgency->code),
                 ] : null,
-                'destination_address' => $this->moved_to_address,
+                'destination_address' => $agency->moved_to_address,
             ];
         }
 
         return [
-            'code' => $this->code,
-            'name' => $this->name,
-            'short_name' => $this->short_name,
-            'slug' => $this->slug,
-            'department' => $this->department,
-            'province' => $this->province,
-            'district' => $this->district,
-            'address' => $this->address,
-            'reference' => $this->reference,
-            'phone' => $this->phone,
-            'secondary_phone' => $this->secondary_phone,
-            'email' => $this->email,
-            'schedule' => $this->schedule,
-            'latitude' => $this->latitude,
-            'longitude' => $this->longitude,
-            'map_url' => $this->map_url,
-            'services' => $this->services ?? [],
-            'size' => $this->size?->value ?? $this->size,
-            'status' => $this->status?->value ?? $this->status,
-            'has_moved' => (bool) ($this->has_moved ?? false),
-            'is_operations_center' => (bool) ($this->is_operations_center ?? false),
+            'code' => $agency->code,
+            'name' => $agency->name,
+            'short_name' => $agency->short_name,
+            'slug' => $agency->slug,
+            'department' => $agency->department,
+            'province' => $agency->province,
+            'district' => $agency->district,
+            'address' => $agency->address,
+            'reference' => $agency->reference,
+            'phone' => $agency->phone,
+            'secondary_phone' => $agency->secondary_phone,
+            'email' => $agency->email,
+            'schedule' => $agency->schedule,
+            'latitude' => $agency->latitude,
+            'longitude' => $agency->longitude,
+            'map_url' => $agency->map_url,
+            'services' => $agency->services ?? [],
+            'size' => $agency->size?->value,
+            'status' => $agency->status->value,
+            'has_moved' => (bool) ($agency->has_moved ?? false),
+            'is_operations_center' => (bool) ($agency->is_operations_center ?? false),
             'move' => $move,
-            'status_label' => $this->status?->label() ?? null,
-            'source' => $this->source,
-            'source_reference' => $this->source_reference,
-            'data_version' => $this->data_version,
-            'last_verified_at' => optional($this->last_verified_at)?->toIso8601String(),
-            'updated_at' => optional($this->updated_at)?->toIso8601String(),
+            'status_label' => $agency->status->label(),
+            'source' => $agency->source,
+            'source_reference' => $agency->source_reference,
+            'data_version' => $agency->data_version,
+            'last_verified_at' => optional($agency->last_verified_at)?->toIso8601String(),
+            'updated_at' => optional($agency->updated_at)?->toIso8601String(),
         ];
     }
 }

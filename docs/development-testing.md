@@ -16,7 +16,7 @@
 3. Ejecuta `Dev Containers: Reopen in Container`.
 4. Espera a que el servicio `app` termine de preparar el entorno.
 5. Verifica `php`, `composer` y `php artisan`.
-6. Ejecuta `composer verify`.
+6. Ejecuta `composer check`.
 
 ## Comandos
 
@@ -26,13 +26,30 @@
 - `composer lint`
 - `composer lint-fix`
 - `composer analyse`
-- `composer verify`
+- `composer check`
+- `composer verify` (alias compatible de `composer check`)
 
 ## Tareas de VS Code
 
 - Abre la paleta con `Ctrl + Shift + P`.
 - Ejecuta `Tasks: Run Task`.
-- La tarea predeterminada del grupo `test` es `PHP: Todas las pruebas`.
+- La tarea predeterminada del grupo `test` es `PHP: Check completo`. Todas las tareas usan `/var/www/html` y se ejecutan dentro del servicio PHP `app`.
+
+## Verificación desde el host
+
+Linux y macOS:
+
+```bash
+./verify.sh
+```
+
+Windows PowerShell:
+
+```powershell
+./verify.ps1
+```
+
+Ambos scripts levantan las dependencias mínimas y ejecutan `composer check` mediante `docker compose exec -T app`. No requieren PHP ni Composer instalados en el host.
 
 ## Resolución de problemas
 

@@ -12,18 +12,18 @@ class AgencyImportPreviewServiceTest extends TestCase
     public function test_rejects_non_allowed_url(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        (new AgencyImportPreviewService())->previewFromUrl('http://example.com/data.json');
+        (new AgencyImportPreviewService)->previewFromUrl('http://example.com/data.json');
     }
 
     public function test_rejects_private_network_like_url(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        (new AgencyImportPreviewService())->previewFromUrl('https://127.0.0.1/data.json');
+        (new AgencyImportPreviewService)->previewFromUrl('https://127.0.0.1/data.json');
     }
 
     public function test_preview_transform_payload_does_not_touch_database(): void
     {
-        $service = new AgencyImportPreviewService();
+        $service = new AgencyImportPreviewService;
         $preview = $service->transformPayload([
             [
                 'id' => 3,
@@ -52,7 +52,7 @@ class AgencyImportPreviewServiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('El JSON raíz debe ser un array.');
 
-        (new AgencyImportPreviewService())->previewFromUrl('https://raw.githubusercontent.com/example/data.json');
+        (new AgencyImportPreviewService)->previewFromUrl('https://raw.githubusercontent.com/example/data.json');
     }
 
     public function test_preview_accepts_valid_array_payload(): void
@@ -74,7 +74,7 @@ class AgencyImportPreviewServiceTest extends TestCase
             ], 200),
         ]);
 
-        $payload = (new AgencyImportPreviewService())->previewFromUrl('https://raw.githubusercontent.com/example/data.json');
+        $payload = (new AgencyImportPreviewService)->previewFromUrl('https://raw.githubusercontent.com/example/data.json');
 
         $this->assertSame(1, $payload['total_rows']);
         $this->assertSame('SHA-000003', $payload['preview'][0]['code']);
