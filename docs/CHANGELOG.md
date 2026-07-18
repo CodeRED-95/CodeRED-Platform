@@ -9,6 +9,9 @@ Todas las versiones siguen `Keep a Changelog`.
 - Documentación modular del proyecto
 - `AGENTS.md` como guía oficial para IA
 - Carpeta `docs/adr` con decisiones arquitectónicas
+- Módulo `Agencias Shalom` con panel administrativo, vista pública, detalle e importación
+- Snapshot compacto para extensión y API pública de agencias
+- Dashboard con estadísticas básicas del módulo
 
 ### Changed
 

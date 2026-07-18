@@ -50,3 +50,9 @@ El importador solo permite:
 - No guardar secretos en el repositorio
 - No exponer trazas en producción
 - Mantener la lógica de autorización en Gates y Policies, nunca en overrides de métodos del framework
+
+## Agencies Shalom
+
+- La importación por URL solo debe aceptar HTTPS y hosts permitidos.
+- El panel administrativo debe permanecer protegido por permisos.
+- Las acciones de traslado deben quedar auditadas.

@@ -5,7 +5,6 @@ namespace App\Modules\Agencies\Actions;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyChangeLog;
-use App\Modules\Agencies\Support\AgencyVersion;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -39,7 +38,6 @@ class ApplyAgencyMoveAction
 
                 $agency->save();
                 $this->log($agency, 'agency_move_cancelled', $original, $actorId, $ipAddress, $userAgent);
-                AgencyVersion::bump();
 
                 return $agency;
             }
@@ -75,7 +73,6 @@ class ApplyAgencyMoveAction
             $agency->save();
 
             $this->log($agency, 'agency_marked_as_moved', $original, $actorId, $ipAddress, $userAgent);
-            AgencyVersion::bump();
 
             return $agency;
         });

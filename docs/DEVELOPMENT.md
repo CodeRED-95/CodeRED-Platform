@@ -98,3 +98,9 @@ docker compose exec app php artisan make:migration nombre
 - El arranque inicial del proyecto vive en `docker/php/entrypoint.sh`.
 - No mover al usuario a pasos manuales de `config:clear`, `optimize:clear`, `migrate`, `db:seed`, `storage:link` o `key:generate` si el bootstrap automático ya los resuelve.
 - Cualquier cambio de flujo debe mantener la inicialización idempotente.
+
+## Módulo Agencies
+
+- Los componentes Livewire de Agencias deben delegar persistencia en Actions.
+- La importación del Gist no debe sobrescribir campos manuales de traslado.
+- El snapshot y la API pública deben mantenerse en sincronía con `AgencyVersion`.

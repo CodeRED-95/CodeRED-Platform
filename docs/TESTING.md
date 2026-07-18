@@ -32,3 +32,8 @@ docker compose exec app php artisan test
 4. Verificar rutas.
 5. Verificar migraciones si hubo cambios de esquema.
 
+## Agencias Shalom
+
+- `php artisan test` debe cubrir importación, traslado, snapshot, API y páginas administrativas.
+- Si cambia el formulario o la vista pública, agregar pruebas de render o de ruta.
+- Si cambia el importador, validar normalización, duplicados y estrategia de conflicto.

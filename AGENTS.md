@@ -100,3 +100,10 @@ Toda modificación importante en arquitectura, API, importación, configuración
 5. Ejecutar pruebas relacionadas.
 6. Ejecutar formateador y análisis estático si están disponibles.
 7. Actualizar documentación.
+
+## Módulo Agencies
+
+- Mantener el flujo de `Agencies Shalom` centralizado en Actions y Services.
+- No sobrescribir la lógica interna de Laravel para autorización.
+- No romper el contrato de API pública ni el snapshot de la extensión.
+- No reimportar el Gist sobreescribiendo campos manuales de traslado.

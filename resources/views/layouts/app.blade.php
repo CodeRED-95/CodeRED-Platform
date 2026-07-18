@@ -14,6 +14,10 @@
             <div class="p-6 text-lg font-semibold tracking-tight">CodeRED Platform</div>
             <nav class="px-4 space-y-1 text-sm">
                 <a class="block rounded-lg px-3 py-2 bg-slate-100 dark:bg-slate-800" href="{{ route('dashboard') }}">Dashboard</a>
+                @can('viewAny', \App\Modules\Agencies\Models\Agency::class)
+                    <a class="block rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" href="{{ route('admin.agencies.index') }}">Agencias</a>
+                    <a class="block rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" href="{{ route('public.agencies.index') }}">Pública</a>
+                @endcan
             </nav>
         </aside>
         <div class="flex-1 flex flex-col">
@@ -22,7 +26,12 @@
                     <h1 class="text-base font-semibold">{{ config('app.name') }}</h1>
                     <p class="text-sm text-slate-500">Plataforma modular</p>
                 </div>
-                <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700" x-on:click="dark = !dark; localStorage.theme = dark ? 'dark' : 'light'">Tema</button>
+                <div class="flex items-center gap-2">
+                    @auth
+                        <a href="{{ route('admin.agencies.create') }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700">Nueva agencia</a>
+                    @endauth
+                    <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700" x-on:click="dark = !dark; localStorage.theme = dark ? 'dark' : 'light'">Tema</button>
+                </div>
             </header>
             <main class="flex-1 p-4 lg:p-8">
                 {{ $slot }}

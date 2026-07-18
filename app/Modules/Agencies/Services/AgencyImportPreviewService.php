@@ -5,12 +5,11 @@ namespace App\Modules\Agencies\Services;
 use App\Modules\Agencies\Data\AgencyImportRowData;
 use App\Modules\Agencies\Support\AgencyImportNormalizer;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class AgencyImportPreviewService
 {
-    public function previewFromUrl(string $url, int $limitBytes = 5242880): array
+    public function payloadFromUrl(string $url, int $limitBytes = 5242880): array
     {
         $this->assertSafeUrl($url);
 
@@ -27,6 +26,13 @@ class AgencyImportPreviewService
         if (!is_array($decoded) || array_is_list($decoded) === false) {
             throw new InvalidArgumentException('El JSON raíz debe ser un array.');
         }
+
+        return $decoded;
+    }
+
+    public function previewFromUrl(string $url, int $limitBytes = 5242880): array
+    {
+        $decoded = $this->payloadFromUrl($url, $limitBytes);
 
         $items = [];
         $valid = 0;

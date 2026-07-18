@@ -2,6 +2,9 @@
 
 ## Formatos soportados
 
+- JSON
+- URL raw de GitHub Gist
+
 PENDIENTE DE CONFIGURAR
 
 ## GitHub Gist
@@ -96,3 +99,15 @@ Para registros del Gist:
 - `status = under_review`
 - `has_moved = false`
 
+## Estrategias de duplicados
+
+- `ignore_existing`
+- `update_existing`
+- `create_only_new`
+- `mark_conflicts`
+
+## Vista previa y procesamiento
+
+- La vista previa no escribe en base de datos.
+- La importación real se procesa mediante una Action.
+- El JSON raíz debe ser un array de objetos.

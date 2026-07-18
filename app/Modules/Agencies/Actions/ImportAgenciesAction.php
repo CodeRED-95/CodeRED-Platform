@@ -3,16 +3,16 @@
 namespace App\Modules\Agencies\Actions;
 
 use App\Modules\Agencies\Enums\AgencyStatus;
+use App\Modules\Agencies\Enums\AgencyImportStrategy;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
 use App\Modules\Agencies\Models\AgencyImportFailure;
 use App\Modules\Agencies\Support\AgencyImportNormalizer;
-use App\Modules\Agencies\Support\AgencyVersion;
 use Illuminate\Support\Facades\DB;
 
 class ImportAgenciesAction
 {
-    public function execute(AgencyImport $import, array $rows): array
+    public function execute(AgencyImport $import, array $rows, ?string $defaultStatus = null): array
     {
         $summary = [
             'imported' => 0,
@@ -60,21 +60,36 @@ class ImportAgenciesAction
                     $version = AgencyVersion::bump();
                     Agency::query()->create([
                         ...$data,
-                        'status' => AgencyStatus::from($data['status']),
+                        'status' => AgencyStatus::from($defaultStatus ?: $data['status']),
                         'data_version' => $version,
                     ]);
                     $summary['imported']++;
                     return;
                 }
 
+                $strategy = AgencyImportStrategy::from($import->strategy);
+                if (in_array($strategy, [AgencyImportStrategy::IgnoreExisting, AgencyImportStrategy::CreateOnlyNew], true)) {
+                    $summary['skipped']++;
+                    return;
+                }
+
+                if ($strategy === AgencyImportStrategy::MarkConflicts) {
+                    AgencyImportFailure::query()->create([
+                        'agency_import_id' => $import->id,
+                        'row_number' => 0,
+                        'raw_data' => $transformed->raw,
+                        'errors' => ['Conflicto detectado con un registro existente.'],
+                        'created_at' => now(),
+                    ]);
+                    $summary['failed']++;
+                    return;
+                }
+
                 $changes = [];
-                foreach (['name', 'department', 'province', 'district', 'address', 'source_text', 'map_url', 'size', 'status'] as $field) {
+                foreach (['name', 'department', 'province', 'district', 'address', 'source_text', 'map_url', 'size'] as $field) {
                     $value = $data[$field] ?? null;
                     if ($value === null || $value === '') {
                         continue;
-                    }
-                    if ($field === 'status') {
-                        $value = AgencyStatus::from($value);
                     }
                     $changes[$field] = $value;
                 }
@@ -93,9 +108,6 @@ class ImportAgenciesAction
                 }
             });
         }
-
-        AgencyVersion::bump();
-
         return $summary;
     }
 }

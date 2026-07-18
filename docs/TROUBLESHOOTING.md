@@ -84,3 +84,11 @@
 | Problema | Causa probable | Solución |
 |---|---|---|
 | `No composer.lock file present` | El lockfile no está presente en el árbol o no se persistió | Ejecutar `composer install`, generar `composer.lock` y versionarlo en el repositorio |
+
+## Agencies Shalom
+
+| Problema | Causa probable | Solución |
+|---|---|---|
+| El panel de agencias carga vacío | No existen registros o el filtro está restringiendo demasiado | Revisar filtros y seeders |
+| El importador marca conflictos | Hay coincidencias por `source_reference` o código | Elegir estrategia adecuada |
+| El detalle público no muestra traslado | La agencia no tiene `has_moved = true` o no se guardó el destino | Revisar la Action de traslado |

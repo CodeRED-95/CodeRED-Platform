@@ -124,6 +124,10 @@ curl http://localhost:8090/api/v1/agencies/SHA-000003
 | Método | Ruta | Descripción |
 |---|---|---|
 | `GET` | `/admin/agencies` | Panel administrativo de agencias |
+| `GET` | `/admin/agencies/create` | Alta de agencia |
+| `GET` | `/admin/agencies/{agency}` | Detalle administrativo |
+| `GET` | `/admin/agencies/{agency}/edit` | Edición de agencia |
+| `GET` | `/admin/agencies/import` | Importador de agencias |
 | `POST` | `/admin/agencies/import/preview` | Vista previa de importación |
 | `POST` | `/admin/agencies/{agency}/move` | Gestión de traslado |
 

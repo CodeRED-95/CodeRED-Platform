@@ -3,11 +3,13 @@
 namespace App\Modules\Agencies\Models;
 
 use App\Models\User;
+use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Observers\AgencyObserver;
 use Database\Factories\AgencyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -35,6 +37,7 @@ class Agency extends Model
             'longitude' => 'decimal:7',
             'last_verified_at' => 'datetime',
             'status' => AgencyStatus::class,
+            'size' => AgencySize::class,
             'is_operations_center' => 'boolean',
             'has_moved' => 'boolean',
             'moved_at' => 'date',
@@ -57,7 +60,15 @@ class Agency extends Model
                     $agency->$field = preg_replace('/\s+/u', ' ', trim((string) $agency->$field));
                 }
             }
-            $agency->slug = $agency->slug ?: Str::slug($agency->name);
+            $desiredSlug = $agency->slug ?: Str::slug($agency->name);
+            $slugExists = static::query()
+                ->when($agency->getKey(), fn (Builder $query) => $query->whereKeyNot($agency->getKey()))
+                ->where('slug', $desiredSlug)
+                ->exists();
+
+            if ($agency->slug === null || $agency->slug === '' || $slugExists) {
+                $agency->slug = self::makeUniqueSlug($desiredSlug, $agency->code ?: null, $agency->getKey());
+            }
 
             if ($agency->has_moved && $agency->status !== AgencyStatus::Moved) {
                 $agency->status = AgencyStatus::Moved;
@@ -67,6 +78,82 @@ class Agency extends Model
                 $agency->status = AgencyStatus::UnderReview;
             }
         });
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', AgencyStatus::Active->value);
+    }
+
+    public function scopePublicVisible(Builder $query): Builder
+    {
+        return $query->active()->where('has_moved', false);
+    }
+
+    public function scopeOperationsCenters(Builder $query): Builder
+    {
+        return $query->where('is_operations_center', true);
+    }
+
+    public function scopeMoved(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query->where('has_moved', true)->orWhere('status', AgencyStatus::Moved->value);
+        });
+    }
+
+    public function scopeByLocation(Builder $query, ?string $department = null, ?string $province = null, ?string $district = null): Builder
+    {
+        return $query
+            ->when($department, fn (Builder $query) => $query->where('department', $department))
+            ->when($province, fn (Builder $query) => $query->where('province', $province))
+            ->when($district, fn (Builder $query) => $query->where('district', $district));
+    }
+
+    public function scopeSearch(Builder $query, ?string $term = null): Builder
+    {
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        $term = mb_strtolower($term);
+
+        return $query->where(function (Builder $sub) use ($term): void {
+            foreach (['code', 'name', 'short_name', 'department', 'province', 'district', 'address', 'reference'] as $field) {
+                $sub->orWhereRaw("unaccent(lower($field)) ILIKE unaccent(?)", ['%'.$term.'%']);
+            }
+        });
+    }
+
+    public function statusLabel(): string
+    {
+        return $this->status instanceof AgencyStatus ? $this->status->label() : (string) $this->status;
+    }
+
+    public function sizeLabel(): ?string
+    {
+        return $this->size instanceof AgencySize ? $this->size->label() : null;
+    }
+
+    private static function makeUniqueSlug(string $name, ?string $suffix = null, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($name);
+        $candidate = $base;
+        $counter = 1;
+
+        while (static::query()
+            ->when($ignoreId, fn (Builder $query) => $query->whereKeyNot($ignoreId))
+            ->where('slug', $candidate)
+            ->exists()) {
+            $candidate = $suffix
+                ? $base.'-'.$suffix.($counter > 1 ? '-'.$counter : '')
+                : $base.'-'.$counter;
+            $counter++;
+        }
+
+        return $candidate;
     }
 
     public function createdBy(): BelongsTo

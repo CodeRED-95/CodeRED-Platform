@@ -88,3 +88,9 @@ PENDIENTE DE CONFIGURAR
 ## Licencia
 
 Proprietary
+
+## Estado actual
+
+- El módulo **Agencias Shalom** ya incluye panel administrativo, detalle, importación y vista pública.
+- La documentación viva se mantiene en `/docs`.
+- Las decisiones técnicas relevantes se registran en `/docs/adr`.

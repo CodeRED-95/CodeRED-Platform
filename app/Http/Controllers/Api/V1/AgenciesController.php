@@ -80,12 +80,13 @@ class AgenciesController
             ->where('status', AgencyStatus::Active->value)
             ->where('has_moved', false)
             ->orderBy('name')
-            ->get(['code', 'name', 'short_name', 'slug', 'department', 'province', 'district', 'address', 'phone', 'secondary_phone', 'latitude', 'longitude', 'status', 'updated_at', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at']);
+            ->get(['code', 'name', 'short_name', 'slug', 'department', 'province', 'district', 'address', 'reference', 'phone', 'secondary_phone', 'schedule', 'latitude', 'longitude', 'map_url', 'size', 'is_operations_center', 'status', 'updated_at', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at']);
 
         $movedAgencies = Agency::query()
             ->where('has_moved', true)
+            ->with('movedToAgency')
             ->orderBy('name')
-            ->get(['code', 'name', 'moved_to_agency_id', 'moved_to_address', 'move_notice']);
+            ->get(['code', 'name', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at']);
 
         return response()->json([
             'success' => true,
@@ -98,6 +99,7 @@ class AgenciesController
                 'destination_code' => optional($agency->movedToAgency)->code,
                 'destination_address' => $agency->moved_to_address,
                 'notice' => $agency->move_notice,
+                'moved_at' => optional($agency->moved_at)?->toDateString(),
             ])->values(),
         ])->header('ETag', $etag)->header('Last-Modified', $lastModified ? Carbon::parse($lastModified)->toRfc7231String() : now()->toRfc7231String());
     }

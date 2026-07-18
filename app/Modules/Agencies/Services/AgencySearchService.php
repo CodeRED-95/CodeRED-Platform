@@ -10,7 +10,7 @@ class AgencySearchService
 {
     public function publicQuery(array $filters = []): Builder
     {
-        $query = Agency::query()->where('status', AgencyStatus::Active->value)->where('has_moved', false);
+        $query = Agency::query()->publicVisible();
 
         return $this->applyFilters($query, $filters);
     }
@@ -22,19 +22,21 @@ class AgencySearchService
 
     public function applyFilters(Builder $query, array $filters): Builder
     {
-        if ($search = trim((string) ($filters['search'] ?? ''))) {
-            $search = mb_strtolower($search);
-            $query->where(function (Builder $sub) use ($search): void {
-                foreach (['code', 'name', 'short_name', 'department', 'province', 'district', 'address', 'reference'] as $field) {
-                    $sub->orWhereRaw("unaccent(lower($field)) ILIKE unaccent(?)", ['%'.$search.'%']);
-                }
-            });
-        }
+        $query->search($filters['search'] ?? null);
+        $query->byLocation($filters['department'] ?? null, $filters['province'] ?? null, $filters['district'] ?? null);
 
-        foreach (['department', 'province', 'district', 'status', 'source'] as $field) {
+        foreach (['status', 'source', 'size'] as $field) {
             if (!empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
             }
+        }
+
+        if (array_key_exists('operations_center', $filters) && $filters['operations_center'] !== '' && $filters['operations_center'] !== null) {
+            $query->where('is_operations_center', filter_var($filters['operations_center'], FILTER_VALIDATE_BOOLEAN));
+        }
+
+        if (array_key_exists('moved', $filters) && $filters['moved'] !== '' && $filters['moved'] !== null) {
+            $query->where('has_moved', filter_var($filters['moved'], FILTER_VALIDATE_BOOLEAN));
         }
 
         if (!empty($filters['updated_after'])) {

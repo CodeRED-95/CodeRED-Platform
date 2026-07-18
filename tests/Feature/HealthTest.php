@@ -15,6 +15,8 @@ class HealthTest extends TestCase
                 'status',
                 'database',
                 'redis',
+                'cache',
+                'queue',
                 'version',
                 'server_time',
             ]);

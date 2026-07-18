@@ -122,3 +122,32 @@ Permisos del módulo:
 5. Se incrementa `data_version`.
 6. Se actualiza snapshot y API pública.
 
+## Panel administrativo
+
+### Rutas
+
+- `/admin/agencies`
+- `/admin/agencies/create`
+- `/admin/agencies/{agency}`
+- `/admin/agencies/{agency}/edit`
+- `/admin/agencies/import`
+
+### Componentes Livewire
+
+- `App\Livewire\Admin\Agencies\Index`
+- `App\Livewire\Admin\Agencies\Form`
+- `App\Livewire\Admin\Agencies\Show`
+- `App\Livewire\Admin\Agencies\Import`
+
+## Vista pública
+
+- `/agencies`
+- `/agencies/{code}`
+
+## API pública
+
+- `/api/v1/agencies`
+- `/api/v1/agencies/search`
+- `/api/v1/agencies/version`
+- `/api/v1/agencies/snapshot`
+- `/api/v1/agencies/{code}`
