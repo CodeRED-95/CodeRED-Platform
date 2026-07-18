@@ -45,12 +45,13 @@ docker compose exec app php artisan test
 ## Login y Design System
 
 - Verificar que `/login` responda 200.
-- Verificar que el login renderice `wire:model.live` en los inputs reales.
+- Verificar que el login renderice `wire:model` en los inputs reales y no dependa de una sincronización Alpine adicional.
 - Verificar que el HTML final contenga `wire:id` y `wire:submit.prevent="authenticate"`.
 - Verificar que el login use mensajes en español para validación y credenciales inválidas.
 - Verificar que `/admin/design-system` cargue dentro del layout administrativo y no como HTML aislado.
 - Verificar que el manifest de Vite existe y que los assets actuales referenciados por el manifest estén presentes.
 - Verificar HTTP de assets con `docker compose exec app sh scripts/check-assets.sh`.
+- Verificar en consola que no aparezca `Detected multiple instances of Alpine running`.
 
 ## Usuarios
 

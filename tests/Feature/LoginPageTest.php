@@ -22,8 +22,9 @@ class LoginPageTest extends TestCase
     {
         Livewire::test(Login::class)
             ->assertSeeHtml('wire:id=')
-            ->assertSeeHtml('wire:model.live="email"')
-            ->assertSeeHtml('wire:model.live="password"')
+            ->assertSeeHtml('method="POST"')
+            ->assertSeeHtml('wire:model="email"')
+            ->assertSeeHtml('wire:model="password"')
             ->assertSeeHtml('wire:submit.prevent="authenticate"')
             ->assertSeeHtml('autocomplete="username"')
             ->assertSeeHtml('autocomplete="current-password"');
@@ -33,6 +34,7 @@ class LoginPageTest extends TestCase
     {
         $this->get('/login')
             ->assertOk()
+            ->assertSeeHtml('method="POST"')
             ->assertSeeHtml('wire:submit.prevent="authenticate"')
             ->assertDontSeeHtml('method="GET"')
             ->assertDontSeeHtml('action="/login"')

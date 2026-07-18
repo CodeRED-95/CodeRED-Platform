@@ -50,6 +50,7 @@ El importador solo permite:
 - No guardar secretos en el repositorio
 - No exponer trazas en producción
 - Mantener la lógica de autorización en Gates y Policies, nunca en overrides de métodos del framework
+- No volver a importar `alpinejs` ni llamar `Alpine.start()` cuando el layout ya usa `@livewireScripts`; duplicar Alpine rompe la hidratación y puede exponer credenciales en la URL al degradar los formularios Livewire.
 
 ## Agencies Shalom
 

@@ -17,9 +17,8 @@
 
     <section class="flex items-center justify-center px-4 py-8 lg:px-10">
         <form
+            method="POST"
             wire:submit.prevent="authenticate"
-            x-data
-            x-init="setTimeout(() => { $refs.email?.dispatchEvent(new Event('input', { bubbles: true })); $refs.email?.dispatchEvent(new Event('change', { bubbles: true })); $refs.password?.dispatchEvent(new Event('input', { bubbles: true })); $refs.password?.dispatchEvent(new Event('change', { bubbles: true })); }, 300)"
             class="w-full max-w-md rounded-[var(--radius-modal)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/95 p-6 shadow-2xl backdrop-blur"
         >
             <div class="mb-8 space-y-3 lg:hidden">

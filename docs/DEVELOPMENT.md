@@ -76,6 +76,7 @@ docker compose exec app php artisan make:migration nombre
 - Evitar estilos locales que dupliquen patrones ya resueltos en el sistema visual.
 - Los componentes de formulario deben propagar atributos como `wire:model`, `name`, `id`, `autocomplete` y `aria-*` hasta el elemento HTML real.
 - No agregar `\$wire.set()` ni sincronización Alpine duplicada a campos que ya usan `wire:model`; Livewire debe ser la única fuente de verdad.
+- Livewire 3 ya incluye Alpine cuando se usan `@livewireStyles` y `@livewireScripts`; no volver a importar `alpinejs`, no asignar `window.Alpine` y no ejecutar `Alpine.start()` desde `resources/js/app.js` en esa configuración.
 
 ## Autorización
 

@@ -100,6 +100,7 @@ El CodeRED Design System estandariza la interfaz del proyecto con componentes Bl
 - No instalar Bootstrap o frameworks visuales alternativos.
 - No copiar identidades ajenas.
 - No crear componentes redundantes.
+- No añadir inicialización manual de Alpine en `resources/js/app.js` si la página ya se apoya en `@livewireScripts`; los componentes deben seguir siendo compatibles con la instancia de Alpine que Livewire 3 expone.
 
 ## Crear un componente nuevo
 

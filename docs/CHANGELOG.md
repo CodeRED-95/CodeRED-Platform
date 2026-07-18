@@ -42,6 +42,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Corrección técnica de la migración `000009` para eliminar la restricción UNIQUE como constraint y crear un índice único parcial
 - Flujo frontend documentado para generar `package-lock.json` con `npm install` en el primer inicio y usar `npm ci` en instalaciones posteriores
 - Redis configurado sin `AUTH` cuando el servidor no utiliza contraseña
+- Eliminada la duplicación de Alpine al dejar que Livewire 3 cargue la única instancia activa
 - Estrategia de autorización reorientada a Gates y Policies sin sobrescribir `User::can()`
 - Corrección del acceso al módulo Agencies mediante `Gate::before` con bypass de `super-admin`
 - Mapeo de abilities del módulo Agencies a permisos reales para que `viewAny`, `create`, `update` e importación respeten Policies y accesos operativos
