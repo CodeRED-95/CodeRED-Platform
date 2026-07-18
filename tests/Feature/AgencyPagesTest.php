@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AgencyPagesTest extends TestCase
@@ -65,6 +66,15 @@ class AgencyPagesTest extends TestCase
             ->assertSee('Nueva agencia')
             ->assertSee('Centro de Operaciones')
             ->assertSee('Traslado');
+    }
+
+    public function test_agency_form_renders_livewire_submit_and_submit_button(): void
+    {
+        $this->actingAs($this->actingAsAgencyManager());
+
+        Livewire::test(\App\Livewire\Admin\Agencies\Form::class)
+            ->assertSeeHtml('wire:submit.prevent="save"')
+            ->assertSeeHtml('<button type="submit"');
     }
 
     public function test_admin_agency_detail_loads(): void

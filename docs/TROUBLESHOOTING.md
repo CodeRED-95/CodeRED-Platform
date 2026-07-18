@@ -51,6 +51,7 @@
 |---|---|---|
 | Vistas no cargan | Assets no compilados | Ejecutar `npm run build` |
 | `ViteManifestNotFoundException` | `public/build/manifest.json` no existe | Ejecutar `npm run build` y verificar que el directorio `public/build/` se generó |
+| El formulario hace GET en vez de `POST /livewire/update` | El HTML final no está siendo hidratado por Livewire o el botón `submit` está siendo sobrescrito | Verificar `wire:id`, `wire:submit.prevent`, `@livewireScripts` y el HTML final del botón |
 | `validation.required` aparece visible | Faltan traducciones en `lang/es/validation.php` o el input no está propagando `wire:model` | Revisar el componente `Login`, los inputs Blade y la localización |
 | El login muestra campos llenos pero Livewire los toma vacíos | El navegador autocompletó sin sincronizar el estado del componente | Confirmar `name`, `id`, `autocomplete`, `wire:model.live` y la sincronización al enviar |
 | `No composer.lock file present` | El lockfile no existe o no se persistió | Verificar que `composer.lock` exista en el host y dentro del contenedor |

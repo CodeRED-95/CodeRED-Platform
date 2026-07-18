@@ -46,6 +46,7 @@ docker compose exec app php artisan test
 
 - Verificar que `/login` responda 200.
 - Verificar que el login renderice `wire:model.live` en los inputs reales.
+- Verificar que el HTML final contenga `wire:id` y `wire:submit.prevent="authenticate"`.
 - Verificar que el login use mensajes en español para validación y credenciales inválidas.
 - Verificar que `/admin/design-system` cargue dentro del layout administrativo y no como HTML aislado.
 - Verificar que el manifest de Vite existe y que los assets actuales referenciados por el manifest estén presentes.

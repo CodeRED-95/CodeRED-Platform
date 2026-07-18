@@ -21,10 +21,21 @@ class LoginPageTest extends TestCase
     public function test_login_component_renders_livewire_bindings_and_autocomplete(): void
     {
         Livewire::test(Login::class)
+            ->assertSeeHtml('wire:id=')
             ->assertSeeHtml('wire:model.live="email"')
             ->assertSeeHtml('wire:model.live="password"')
+            ->assertSeeHtml('wire:submit.prevent="authenticate"')
             ->assertSeeHtml('autocomplete="username"')
             ->assertSeeHtml('autocomplete="current-password"');
+    }
+
+    public function test_login_form_does_not_use_get_or_action(): void
+    {
+        $this->get('/login')
+            ->assertOk()
+            ->assertSeeHtml('wire:submit.prevent="authenticate"')
+            ->assertDontSeeHtml('method="GET"')
+            ->assertDontSeeHtml('action="/login"');
     }
 
     public function test_login_validation_messages_are_in_spanish(): void
@@ -52,6 +63,13 @@ class LoginPageTest extends TestCase
             ->assertRedirect(route('dashboard'));
 
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_login_button_is_submit(): void
+    {
+        $html = Livewire::test(Login::class)->html();
+
+        $this->assertStringContainsString('<button type="submit"', $html);
     }
 
     public function test_invalid_login_shows_spanish_failed_message(): void

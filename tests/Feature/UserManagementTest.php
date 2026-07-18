@@ -45,6 +45,20 @@ class UserManagementTest extends TestCase
         $this->actingAs($user)->get('/admin/users')->assertOk();
     }
 
+    public function test_user_form_renders_livewire_submit_and_submit_button(): void
+    {
+        $this->seedUserPermissions();
+
+        $actor = User::factory()->create(['status' => 'active']);
+        $actor->roles()->attach(Role::query()->where('slug', 'super-admin')->value('id'));
+
+        $this->actingAs($actor);
+
+        Livewire::test(\App\Livewire\Admin\Users\Form::class)
+            ->assertSeeHtml('wire:submit.prevent="save"')
+            ->assertSeeHtml('<button type="submit"');
+    }
+
     public function test_user_without_permission_gets_forbidden(): void
     {
         $user = User::factory()->create();
@@ -79,6 +93,38 @@ class UserManagementTest extends TestCase
         $created = User::query()->where('email', 'test@example.test')->firstOrFail();
 
         $this->assertTrue(Hash::check('PasswordSeguro123!', $created->password));
+    }
+
+    public function test_edit_user_persists_changes(): void
+    {
+        $this->seedUserPermissions();
+
+        $actor = User::factory()->create(['status' => 'active']);
+        $actor->roles()->attach(Role::query()->where('slug', 'super-admin')->value('id'));
+
+        $target = User::factory()->create([
+            'name' => 'Usuario Original',
+            'email' => 'original@example.test',
+            'status' => 'active',
+        ]);
+        $target->roles()->attach(Role::query()->where('slug', 'viewer')->value('id'));
+
+        $this->actingAs($actor);
+
+        Livewire::test(\App\Livewire\Admin\Users\Form::class, ['user' => $target->id])
+            ->set('name', 'Usuario Editado')
+            ->set('email', 'editado@example.test')
+            ->set('roles', ['admin'])
+            ->set('status', 'active')
+            ->set('must_change_password', true)
+            ->call('save');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+            'name' => 'Usuario Editado',
+            'email' => 'editado@example.test',
+            'must_change_password' => true,
+        ]);
     }
 
     public function test_inactive_user_cannot_log_in(): void

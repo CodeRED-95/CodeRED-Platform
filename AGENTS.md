@@ -123,3 +123,4 @@ No introducir colores hexadecimales sueltos cuando exista un token semántico eq
 - No permitir la gestión de roles críticos sin autorización explícita en servidor.
 - Proteger al último superadministrador activo como cuenta crítica.
 - Bloquear en el backend cualquier cuenta suspendida o inactiva antes del acceso.
+- Todo formulario Livewire debe verificarse con pruebas que confirmen `wire:id`, `wire:submit` y persistencia real en base de datos.

@@ -10,7 +10,7 @@ class Login extends Component
 {
     public string $email = '';
     public string $password = '';
-    public bool $remember = true;
+    public bool $remember = false;
 
     public function authenticate(): void
     {

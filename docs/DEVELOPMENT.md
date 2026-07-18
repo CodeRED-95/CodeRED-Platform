@@ -120,3 +120,4 @@ docker compose exec app php artisan make:migration nombre
 - No permitir que un operador sin permiso gestione roles superiores.
 - Bloquear en servidor cualquier cuenta `suspended` o `inactive` antes de autorizar acceso.
 - No mostrar contraseñas ni hashes en formularios, tablas o auditoría.
+- Todo formulario Livewire debe declarar `wire:submit.prevent` o `wire:click` explícito, no depender de envío HTML convencional.
