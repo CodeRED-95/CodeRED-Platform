@@ -117,6 +117,6 @@ class Import extends Component
 
     public function render()
     {
-        return view('livewire.admin.agencies.import')->layout('layouts.app');
+        return view('livewire.admin.agencies.import')->layout('layouts.app', ['pageTitle' => 'Importar agencias']);
     }
 }

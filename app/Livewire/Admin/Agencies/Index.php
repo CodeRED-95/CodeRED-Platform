@@ -123,6 +123,6 @@ class Index extends Component
             'districts' => Agency::query()->select('district')->distinct()->orderBy('district')->pluck('district'),
             'sizes' => ['' => 'Todos'] + \App\Modules\Agencies\Enums\AgencySize::options(),
             'statuses' => ['' => 'Todos'] + \App\Modules\Agencies\Enums\AgencyStatus::options(),
-        ])->layout('layouts.app');
+        ])->layout('layouts.app', ['pageTitle' => 'Agencias Shalom']);
     }
 }

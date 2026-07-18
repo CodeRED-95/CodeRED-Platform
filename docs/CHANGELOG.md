@@ -12,6 +12,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Módulo `Agencias Shalom` con panel administrativo, vista pública, detalle e importación
 - Snapshot compacto para extensión y API pública de agencias
 - Dashboard con estadísticas básicas del módulo
+- CodeRED Design System con componentes Blade, tokens y página interna de referencia
 
 ### Changed
 
@@ -41,6 +42,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Roles, permisos y asignación del administrador reorganizados con `RolesAndPermissionsSeeder`
 - Factories modulares explicadas con `newFactory()` y seeders separados por responsabilidad
 - Bootstrap automático del contenedor aplicado al arranque para evitar pasos manuales de Artisan
+- Rediseño del layout administrativo, login, dashboard y vistas clave con el CodeRED Design System
 
 ### Removed
 

@@ -7,6 +7,22 @@ La aplicación se organiza por dominios en:
 - `app/Core`
 - `app/Modules`
 - `app/Modules/Agencies`
+- `resources/views/components/ui`
+
+## Design System
+
+```mermaid
+flowchart LR
+    Design[CodeRED Design System] --> Tokens[Tokens semánticos]
+    Design --> Components[Blade Components]
+    Tokens --> Layout[Layout admin]
+    Tokens --> Login[Login]
+    Tokens --> Dashboard[Dashboard]
+    Components --> Agencies[Módulo Agencies]
+    Components --> Public[Vista pública]
+```
+
+El diseño visual se centraliza en tokens CSS y componentes Blade compartidos para evitar estilos dispersos.
 
 ## Diagrama general
 

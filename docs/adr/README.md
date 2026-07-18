@@ -73,3 +73,4 @@ Cada ADR debe incluir:
 | 0022 | Autorización vía Gates y Policies sin sobrescribir `User::can()` |
 | 0024 | Bootstrap automático en el entrypoint |
 | 0025 | Panel Agencies con Livewire y Actions centralizadas |
+| 0026 | CodeRED Design System con tokens y Blade Components |

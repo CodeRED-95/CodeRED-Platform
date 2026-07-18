@@ -69,6 +69,12 @@ docker compose exec app php artisan make:migration nombre
 - Formateo con Pint.
 - Análisis estático con PHPStan.
 
+## Design System
+
+- Reutilizar siempre los componentes Blade del CodeRED Design System antes de crear estilos nuevos.
+- Agregar nuevos tokens o componentes solo cuando exista una necesidad real y documentada.
+- Evitar estilos locales que dupliquen patrones ya resueltos en el sistema visual.
+
 ## Autorización
 
 - No sobrescribir métodos internos de `Authenticatable`.

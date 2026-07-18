@@ -1,52 +1,65 @@
-<div class="mx-auto max-w-7xl px-4 py-8">
-    <div class="rounded-3xl border border-white/10 bg-white/80 p-6 shadow-xl backdrop-blur dark:bg-slate-900/80">
-        <h1 class="text-3xl font-semibold">Agencias Shalom</h1>
-        <p class="mt-2 text-sm text-slate-500">Consulta pública de agencias activas.</p>
-        <div class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <input type="search" wire:model.live.debounce.400ms="search" placeholder="Buscar por código, nombre o ubicación" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
-            <select wire:model.live="department" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
-                <option value="">Departamento</option>
+<div class="space-y-8">
+    <x-ui.page-header
+        title="Agencias Shalom"
+        subtitle="Consulta pública de agencias activas con búsqueda, filtros y acceso rápido a contacto."
+    />
+
+    <x-ui.card>
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <x-ui.input wire:model.live.debounce.400ms="search" type="search" label="Buscar" placeholder="Código, nombre o ubicación..." />
+            <x-ui.select wire:model.live="department" label="Departamento">
+                <option value="">Todos</option>
                 @foreach($departments as $item)
                     <option value="{{ $item }}">{{ $item }}</option>
                 @endforeach
-            </select>
-            <select wire:model.live="province" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
-                <option value="">Provincia</option>
+            </x-ui.select>
+            <x-ui.select wire:model.live="province" label="Provincia">
+                <option value="">Todas</option>
                 @foreach($provinces as $item)
                     <option value="{{ $item }}">{{ $item }}</option>
                 @endforeach
-            </select>
-            <select wire:model.live="district" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
-                <option value="">Distrito</option>
+            </x-ui.select>
+            <x-ui.select wire:model.live="district" label="Distrito">
+                <option value="">Todos</option>
                 @foreach($districts as $item)
                     <option value="{{ $item }}">{{ $item }}</option>
                 @endforeach
-            </select>
+            </x-ui.select>
         </div>
-    </div>
+    </x-ui.card>
 
-    <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @forelse ($agencies as $agency)
-            <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div class="flex items-start justify-between gap-4">
+            <article class="rounded-[var(--radius-card)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] p-5 transition hover:bg-[color:var(--color-surface-hover)]">
+                <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 class="text-xl font-semibold">{{ $agency->name }}</h2>
-                        <p class="text-sm text-slate-500">{{ $agency->code }} · {{ $agency->district }}</p>
+                        <p class="text-xs uppercase tracking-[0.24em] text-[color:var(--color-text-muted)]">{{ $agency->code }}</p>
+                        <h2 class="mt-1 text-xl font-semibold">{{ $agency->name }}</h2>
+                        <p class="mt-2 text-sm text-[color:var(--color-text-secondary)]">{{ $agency->department }} / {{ $agency->province }} / {{ $agency->district }}</p>
                     </div>
-                    <span class="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-600">Activa</span>
+                    <div class="flex flex-col items-end gap-2">
+                        <x-ui.badge tone="success">Activa</x-ui.badge>
+                        @if($agency->is_operations_center)
+                            <x-ui.badge tone="brand">Centro de Operaciones</x-ui.badge>
+                        @endif
+                    </div>
                 </div>
-                <p class="mt-4 text-sm text-slate-500">{{ $agency->address }}</p>
-                <div class="mt-4 flex gap-3">
-                    <a href="{{ route('public.agencies.show', $agency->code) }}" class="text-sm underline">Ver detalle</a>
+
+                <p class="mt-4 text-sm text-[color:var(--color-text-secondary)]">{{ $agency->address }}</p>
+
+                <div class="mt-5 flex flex-wrap gap-2">
+                    <x-ui.button href="{{ route('public.agencies.show', $agency->code) }}" variant="secondary" size="sm">Ver detalle</x-ui.button>
                     @if($agency->map_url)
-                        <a href="{{ $agency->map_url }}" target="_blank" class="text-sm underline">Google Maps</a>
+                        <x-ui.button href="{{ $agency->map_url }}" target="_blank" variant="outline" size="sm">Google Maps</x-ui.button>
                     @endif
                 </div>
             </article>
         @empty
-            <div class="rounded-3xl border border-slate-200 bg-white p-8 text-slate-500 dark:border-slate-800 dark:bg-slate-900">No se encontraron agencias.</div>
+            <div class="md:col-span-2 xl:col-span-3">
+                <x-ui.empty-state title="No se encontraron agencias" description="Prueba con otro filtro o una búsqueda más amplia." icon="⌁" />
+            </div>
         @endforelse
     </div>
 
-    <div class="mt-6">{{ $agencies->links() }}</div>
+    <x-ui.pagination :paginator="$agencies" />
 </div>

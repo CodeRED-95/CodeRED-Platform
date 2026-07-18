@@ -46,6 +46,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - Mantener `IMPORTER.md` si cambia el origen o transformación del Gist.
 - Mantener `INSTALL.md` si cambia el flujo de arranque, build o validación.
 - Mantener `AUTHORIZATION.md` si cambia el flujo de Gates, Policies o helpers de autorización.
+- Mantener `DESIGN_SYSTEM.md` si cambian tokens, branding o componentes Blade compartidos.
 - Mantener `SEEDERS.md` si cambia la orquestación o estructura de seeders.
 - Mantener la lógica de bootstrap del entrypoint documentada si cambia la inicialización automática.
 - No duplicar lógica entre panel, API e importador.
@@ -65,6 +66,8 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - No olvidar `safe.directory` para Git cuando el repo esté montado como bind mount dentro del contenedor.
 - No olvidar que `composer.lock` debe persistir y versionarse; no usar `composer update` sin una razón comprobada.
 - No olvidar que `package-lock.json` debe persistir y versionarse; la primera instalación puede usar `npm install`, pero las siguientes deben usar `npm ci`.
+- No crear colores hexadecimales dispersos si existe un token semántico del CodeRED Design System.
+- No crear interfaces nuevas sin reutilizar primero el CodeRED Design System.
 - No usar `REDIS_PASSWORD=null`; si Redis no tiene contraseña, el valor debe ir vacío.
 - No sobrescribir `User::can()` ni otros métodos internos de `Authenticatable`.
 - No mover el bootstrap inicial a comandos manuales si el entrypoint ya lo resuelve.
@@ -108,3 +111,8 @@ Toda modificación importante en arquitectura, API, importación, configuración
 - No romper el contrato de API pública ni el snapshot de la extensión.
 - No reimportar el Gist sobreescribiendo campos manuales de traslado.
 - Si el módulo vuelve a devolver 403, revisar `RolesAndPermissionsSeeder`, `AdminSeeder`, `Gate::before` y `AgencyPolicy` antes de tocar Livewire.
+
+## Design System
+
+Toda nueva interfaz debe reutilizar el CodeRED Design System antes de crear estilos personalizados.
+No introducir colores hexadecimales sueltos cuando exista un token semántico equivalente.

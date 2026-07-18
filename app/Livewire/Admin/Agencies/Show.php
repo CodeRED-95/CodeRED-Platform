@@ -28,6 +28,6 @@ class Show extends Component
 
         return view('livewire.admin.agencies.show', [
             'history' => $history,
-        ])->layout('layouts.app');
+        ])->layout('layouts.app', ['pageTitle' => $this->agency->name]);
     }
 }

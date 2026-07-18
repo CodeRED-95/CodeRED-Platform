@@ -39,6 +39,6 @@ class Index extends Component
             'departments' => \App\Modules\Agencies\Models\Agency::query()->select('department')->distinct()->orderBy('department')->pluck('department'),
             'provinces' => \App\Modules\Agencies\Models\Agency::query()->select('province')->distinct()->orderBy('province')->pluck('province'),
             'districts' => \App\Modules\Agencies\Models\Agency::query()->select('district')->distinct()->orderBy('district')->pluck('district'),
-        ])->layout('layouts.guest');
+        ])->layout('layouts.guest', ['pageTitle' => 'Agencias Shalom']);
     }
 }

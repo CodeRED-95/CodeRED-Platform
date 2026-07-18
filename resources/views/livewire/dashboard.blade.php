@@ -4,31 +4,83 @@
     $review = \App\Modules\Agencies\Models\Agency::query()->where('status', 'under_review')->count();
     $moved = \App\Modules\Agencies\Models\Agency::query()->where('has_moved', true)->count();
     $co = \App\Modules\Agencies\Models\Agency::query()->where('is_operations_center', true)->count();
-    $cards = [
-        ['label' => 'Total de agencias', 'value' => $total, 'class' => 'text-slate-500'],
-        ['label' => 'Activas', 'value' => $active, 'class' => 'text-emerald-500'],
-        ['label' => 'En revisión', 'value' => $review, 'class' => 'text-amber-500'],
-        ['label' => 'Trasladadas', 'value' => $moved, 'class' => 'text-sky-500'],
-        ['label' => 'Centros de operaciones', 'value' => $co, 'class' => 'text-violet-500'],
-    ];
+    $withoutCoordinates = \App\Modules\Agencies\Models\Agency::query()->whereNull('latitude')->whereNull('longitude')->count();
+    $lastImport = \App\Modules\Agencies\Models\AgencyImport::query()->latest()->first();
+    $needsReview = \App\Modules\Agencies\Models\Agency::query()->where('status', 'under_review')->latest('updated_at')->limit(5)->get();
+    $recent = \App\Modules\Agencies\Models\Agency::query()->latest('updated_at')->limit(6)->get();
 @endphp
 
-<div class="space-y-6">
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        @foreach ($cards as $card)
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                <div class="text-sm text-slate-500">{{ $card['label'] }}</div>
-                <div class="mt-2 text-3xl font-semibold {{ $card['class'] }}">{{ $card['value'] }}</div>
-            </div>
-        @endforeach
+<div class="space-y-8">
+    <x-ui.page-header
+        title="Bienvenido a CodeRED Platform"
+        subtitle="Administra agencias, importaciones y servicios desde un solo lugar."
+    >
+        <x-slot:actions>
+            @can('viewAny', \App\Modules\Agencies\Models\Agency::class)
+                <x-ui.button href="{{ route('admin.agencies.index') }}" variant="primary">Administrar agencias</x-ui.button>
+            @endcan
+            @can('import', \App\Modules\Agencies\Models\Agency::class)
+                <x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Importar</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <x-ui.stat-card label="Total de agencias" :value="$total" tone="brand" href="{{ route('admin.agencies.index') }}" />
+        <x-ui.stat-card label="Activas" :value="$active" tone="success" />
+        <x-ui.stat-card label="Centros de Operaciones" :value="$co" tone="ivory" />
+        <x-ui.stat-card label="En revisión" :value="$review" tone="info" />
+        <x-ui.stat-card label="Trasladadas" :value="$moved" tone="warning" />
+        <x-ui.stat-card label="Sin coordenadas" :value="$withoutCoordinates" tone="danger" />
     </div>
 
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h2 class="text-2xl font-semibold">Dashboard</h2>
-        <p class="mt-2 text-slate-500">Base inicial lista para los módulos de CodeRED Platform.</p>
-        <div class="mt-6 flex flex-wrap gap-3">
-            <a href="{{ route('admin.agencies.index') }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-slate-900">Administrar agencias</a>
-            <a href="{{ route('public.agencies.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">Vista pública</a>
+    <div class="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+        <x-ui.card>
+            <x-ui.section-header title="Actividad reciente" description="Agencias actualizadas más recientemente." />
+            <div class="mt-5 space-y-3">
+                @forelse ($recent as $agency)
+                    <div class="flex items-center justify-between rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/5 px-4 py-3">
+                        <div>
+                            <p class="font-medium">{{ $agency->name }}</p>
+                            <p class="text-sm text-[color:var(--color-text-secondary)]">{{ $agency->code }} · {{ $agency->department }} / {{ $agency->province }}</p>
+                        </div>
+                        <x-ui.badge :tone="$agency->status?->value === 'active' ? 'success' : ($agency->status?->value === 'under_review' ? 'info' : ($agency->status?->value === 'moved' ? 'warning' : 'neutral'))">
+                            {{ $agency->statusLabel() }}
+                        </x-ui.badge>
+                    </div>
+                @empty
+                    <x-ui.empty-state title="Aún no hay actividad" description="Cuando existan agencias o importaciones aparecerán aquí." icon="⌁" />
+                @endforelse
+            </div>
+        </x-ui.card>
+
+        <div class="space-y-6">
+            <x-ui.card>
+                <x-ui.section-header title="Última importación" />
+                @if ($lastImport)
+                    <div class="mt-4 space-y-2 text-sm text-[color:var(--color-text-secondary)]">
+                        <p>Archivo: {{ $lastImport->original_filename }}</p>
+                        <p>Estado: {{ $lastImport->status?->value ?? $lastImport->status }}</p>
+                        <p>Procesadas: {{ $lastImport->imported_rows + $lastImport->updated_rows + $lastImport->skipped_rows }}</p>
+                    </div>
+                @else
+                    <x-ui.empty-state title="Sin importaciones" description="La primera importación aparecerá aquí." icon="⇪" />
+                @endif
+            </x-ui.card>
+
+            <x-ui.card>
+                <x-ui.section-header title="Agencias que requieren revisión" />
+                <div class="mt-4 space-y-2">
+                    @forelse ($needsReview as $agency)
+                        <a href="{{ route('admin.agencies.show', $agency) }}" class="block rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] px-4 py-3 transition hover:bg-white/5">
+                            <p class="font-medium">{{ $agency->name }}</p>
+                            <p class="text-sm text-[color:var(--color-text-secondary)]">{{ $agency->code }} · {{ $agency->district }}</p>
+                        </a>
+                    @empty
+                        <x-ui.empty-state title="Todo en orden" description="No hay agencias en revisión por ahora." icon="✓" />
+                    @endforelse
+                </div>
+            </x-ui.card>
         </div>
     </div>
 </div>

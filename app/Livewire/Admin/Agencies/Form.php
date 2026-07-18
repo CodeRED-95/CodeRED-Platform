@@ -229,6 +229,6 @@ class Form extends Component
             'statuses' => AgencyStatus::options(),
             'sizes' => AgencySize::options(),
             'destinations' => $this->destinationOptions,
-        ])->layout('layouts.app');
+        ])->layout('layouts.app', ['pageTitle' => $this->mode === 'edit' ? 'Editar agencia' : 'Nueva agencia']);
     }
 }

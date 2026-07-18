@@ -11,6 +11,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 - Livewire, TailwindCSS y AlpineJS para la interfaz.
 - Docker Compose con servicios separados para aplicación, web, base de datos, caché, cola y scheduler.
 - Módulo `Agencies` con soporte para importación desde GitHub Gist, snapshot público y agencias trasladadas.
+- CodeRED Design System con componentes Blade, tokens semánticos y branding unificado.
 - PHP-FPM ejecuta el master como root y los workers como `www`.
 - Git Safe Directory se configura automáticamente para `/var/www/html`.
 - `composer.lock` debe existir y versionarse para instalaciones reproducibles.
@@ -65,6 +66,7 @@ PENDIENTE DE CONFIGURAR
 - [Importador](docs/IMPORTER.md)
 - [Redis](docs/REDIS.md)
 - [Autorización](docs/AUTHORIZATION.md)
+- [Design System](docs/DESIGN_SYSTEM.md)
 - [Arquitectura](docs/ARCHITECTURE.md)
 - [Desarrollo](docs/DEVELOPMENT.md)
 - [Testing](docs/TESTING.md)

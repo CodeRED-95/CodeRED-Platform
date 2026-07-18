@@ -18,6 +18,6 @@ class Show extends Component
 
     public function render()
     {
-        return view('livewire.public.agencies.show')->layout('layouts.guest');
+        return view('livewire.public.agencies.show')->layout('layouts.guest', ['pageTitle' => $this->agency->name]);
     }
 }
