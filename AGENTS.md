@@ -107,3 +107,4 @@ Toda modificación importante en arquitectura, API, importación, configuración
 - No sobrescribir la lógica interna de Laravel para autorización.
 - No romper el contrato de API pública ni el snapshot de la extensión.
 - No reimportar el Gist sobreescribiendo campos manuales de traslado.
+- Si el módulo vuelve a devolver 403, revisar `RolesAndPermissionsSeeder`, `AdminSeeder`, `Gate::before` y `AgencyPolicy` antes de tocar Livewire.

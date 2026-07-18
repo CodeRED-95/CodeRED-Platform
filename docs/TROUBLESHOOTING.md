@@ -92,3 +92,5 @@
 | El panel de agencias carga vacío | No existen registros o el filtro está restringiendo demasiado | Revisar filtros y seeders |
 | El importador marca conflictos | Hay coincidencias por `source_reference` o código | Elegir estrategia adecuada |
 | El detalle público no muestra traslado | La agencia no tiene `has_moved = true` o no se guardó el destino | Revisar la Action de traslado |
+| `/admin/agencies` devuelve 403 | El usuario no tiene `agencies.view` o no fue asignado como `super-admin` | Ejecutar `php artisan db:seed` y revisar el rol del administrador |
+| El superadministrador no entra | `RolesAndPermissionsSeeder` no se ejecutó o el usuario quedó sin rol | Re-seed con el orden correcto |

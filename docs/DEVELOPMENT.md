@@ -92,6 +92,7 @@ docker compose exec app php artisan make:migration nombre
 - `DatabaseSeeder` debe orquestar, no contener toda la lógica.
 - Separar roles, permisos, administrador, settings y datos demo cuando sea posible.
 - Usar `updateOrCreate()` para datos que deben poder ejecutarse varias veces sin duplicar.
+- `RolesAndPermissionsSeeder` debe correr antes de `AdminSeeder`.
 
 ## Bootstrap automático
 
@@ -104,3 +105,4 @@ docker compose exec app php artisan make:migration nombre
 - Los componentes Livewire de Agencias deben delegar persistencia en Actions.
 - La importación del Gist no debe sobrescribir campos manuales de traslado.
 - El snapshot y la API pública deben mantenerse en sincronía con `AgencyVersion`.
+- La autorización debe resolverse con Policies y `Gate::before`, nunca con overrides de `User::can()`.

@@ -113,6 +113,13 @@ Permisos del módulo:
 - `agencies.view_history`
 - `agencies.manage_status`
 
+## Autorización
+
+- `AgencyPolicy` gobierna el acceso al módulo.
+- `Gate::before` permite el acceso total al rol `super-admin`.
+- El rol `admin` obtiene los permisos operativos del módulo a través de seeders idempotentes.
+- Las rutas administrativas siguen protegidas por `auth` y autorización nativa de Laravel.
+
 ## Flujo de trabajo
 
 1. Se importa o crea una agencia.

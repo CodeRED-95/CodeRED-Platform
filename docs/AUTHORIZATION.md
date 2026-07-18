@@ -10,13 +10,13 @@ En CodeRED Platform no debe sobrescribirse `User::can()`.
 | Capa | Uso |
 |---|---|
 | `User` | Helpers explícitos como `hasPermission()`, `hasRole()`, `hasAnyRole()` y `hasAllPermissions()` |
-| `Gate::before` | Resolver permisos almacenados en PostgreSQL |
+| `Gate::before` | Resolver superadministrador y permisos almacenados en PostgreSQL |
 | Policies | Autorizar acciones específicas por modelo |
 
 ## Flujo
 
 1. Laravel llama a `can()`.
-2. `Gate::before` revisa si el usuario tiene el permiso requerido.
+2. `Gate::before` revisa si el usuario es `super-admin` o si tiene el permiso requerido.
 3. Si devuelve `true`, la acción se autoriza.
 4. Si devuelve `null`, Laravel continúa con Policies o Gates definidos.
 5. Si no hay coincidencia, se niega la acción.
@@ -39,6 +39,29 @@ $user->hasAllPermissions(['agencies.view', 'agencies.create']);
 ## Políticas
 
 Las Policies deben delegar en `hasPermission()` o en la regla de negocio específica del modelo.
+
+### `AgencyPolicy`
+
+| Ability | Permiso |
+|---|---|
+| `viewAny` | `agencies.view` |
+| `view` | `agencies.view` |
+| `create` | `agencies.create` |
+| `update` | `agencies.update` |
+| `delete` | `agencies.delete` |
+| `restore` | `agencies.restore` |
+| `import` | `agencies.import` |
+| `export` | `agencies.export` |
+| `viewHistory` | `agencies.view_history` |
+| `manageStatus` | `agencies.manage_status` |
+
+## Recuperación de acceso
+
+Si el administrador de desarrollo pierde el rol o permisos:
+
+1. Ejecutar `php artisan db:seed`.
+2. Verificar que `RolesAndPermissionsSeeder` y `AdminSeeder` se ejecuten en ese orden.
+3. Confirmar que el usuario definido en `.env` reciba el rol `super-admin`.
 
 ## Blade y Livewire
 

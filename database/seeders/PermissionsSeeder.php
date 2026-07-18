@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
 
 class PermissionsSeeder extends Seeder
@@ -25,5 +26,26 @@ class PermissionsSeeder extends Seeder
             ['slug' => $item['slug']],
             ['name' => $item['name'], 'description' => null]
         ));
+
+        $allPermissionIds = Permission::query()->pluck('id')->all();
+        $operationalPermissionIds = Permission::query()
+            ->whereIn('slug', [
+                'dashboard.view',
+                'agencies.view',
+                'agencies.manage',
+                'agencies.create',
+                'agencies.update',
+                'agencies.delete',
+                'agencies.restore',
+                'agencies.import',
+                'agencies.export',
+                'agencies.view_history',
+                'agencies.manage_status',
+            ])
+            ->pluck('id')
+            ->all();
+
+        Role::query()->where('slug', 'super-admin')->first()?->permissions()->syncWithoutDetaching($allPermissionIds);
+        Role::query()->where('slug', 'admin')->first()?->permissions()->syncWithoutDetaching($operationalPermissionIds);
     }
 }

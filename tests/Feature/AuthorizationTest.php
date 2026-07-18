@@ -42,6 +42,26 @@ class AuthorizationTest extends TestCase
         $this->assertTrue($user->hasAllPermissions(['agencies.view']));
     }
 
+    public function test_super_admin_bypasses_policies_via_gate_before(): void
+    {
+        $role = Role::query()->create([
+            'name' => 'Super Administrador',
+            'slug' => 'super-admin',
+            'description' => null,
+            'is_system' => true,
+        ]);
+
+        $user = User::factory()->create();
+        $user->roles()->attach($role->id);
+
+        $agency = Agency::factory()->create();
+
+        $this->assertTrue($user->hasRole('super-admin'));
+        $this->assertTrue(Gate::forUser($user)->allows('viewAny', Agency::class));
+        $this->assertTrue(Gate::forUser($user)->allows('create', Agency::class));
+        $this->assertTrue(Gate::forUser($user)->allows('view', $agency));
+    }
+
     public function test_gate_before_allows_database_permissions_without_overriding_user_can(): void
     {
         $permission = Permission::query()->create([
@@ -143,5 +163,14 @@ class AuthorizationTest extends TestCase
             ->get('/authorization-test')
             ->assertOk()
             ->assertSee('ok');
+    }
+
+    public function test_user_without_permission_is_denied(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/admin/agencies')
+            ->assertForbidden();
     }
 }

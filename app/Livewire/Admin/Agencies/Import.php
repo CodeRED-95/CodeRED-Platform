@@ -5,6 +5,7 @@ namespace App\Livewire\Admin\Agencies;
 use App\Modules\Agencies\Actions\ImportAgenciesAction;
 use App\Modules\Agencies\Enums\AgencyImportStatus;
 use App\Modules\Agencies\Enums\AgencyImportStrategy;
+use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
 use App\Modules\Agencies\Services\AgencyImportPreviewService;
 use Illuminate\Http\UploadedFile;
@@ -30,7 +31,7 @@ class Import extends Component
 
     public function mount(): void
     {
-        Gate::authorize('import', AgencyImport::class);
+        Gate::authorize('import', Agency::class);
     }
 
     public function preview(AgencyImportPreviewService $service): void

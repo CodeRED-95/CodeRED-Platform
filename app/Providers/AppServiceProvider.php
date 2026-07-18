@@ -18,7 +18,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
-            return $user->hasPermission($ability) ? true : null;
+            if ($user->hasRole('super-admin')) {
+                return true;
+            }
+
+            if ($user->hasPermission($ability)) {
+                return true;
+            }
+
+            return null;
         });
 
         RateLimiter::for('api', function (Request $request) {
