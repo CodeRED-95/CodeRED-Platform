@@ -44,6 +44,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - Mantener la API documentada si cambian rutas, respuestas o permisos.
 - Mantener `ENVIRONMENT.md` si aparece o cambia una variable de entorno.
 - Mantener `IMPORTER.md` si cambia el origen o transformación del Gist.
+- Mantener `INSTALL.md` si cambia el flujo de arranque, build o validación.
 - No duplicar lógica entre panel, API e importador.
 
 ## Qué NO debe hacer una IA
@@ -60,6 +61,7 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - No forzar PHP-FPM completo como usuario no privilegiado; el master debe poder iniciar como root y delegar workers al pool.
 - No olvidar `safe.directory` para Git cuando el repo esté montado como bind mount dentro del contenedor.
 - No olvidar que `composer.lock` debe persistir y versionarse; no usar `composer update` sin una razón comprobada.
+- No dejar credenciales de ejemplo en seeders ni variables reales en `.env.example`.
 
 ## Qué debe ejecutar antes de finalizar
 

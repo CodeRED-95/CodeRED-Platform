@@ -31,9 +31,9 @@ Todas las variables listadas provienen de `.env.example`.
 | `DB_CONNECTION` | Driver de base de datos. | `pgsql` | `pgsql` | Sí | Cambia el motor usado por Laravel. | `DB_HOST`, `DB_PORT` |
 | `DB_HOST` | Host de PostgreSQL. | `postgres` en Docker | `postgres` | Sí | Rompe la conexión si no resuelve. | `DB_PORT` |
 | `DB_PORT` | Puerto PostgreSQL. | `5432` | `5432` | Sí | Cambia el puerto de conexión. | `DB_HOST` |
-| `DB_DATABASE` | Nombre de la base. | `codered` | `codered` | Sí | Apunta a otra base. | `DB_USERNAME` |
-| `DB_USERNAME` | Usuario PostgreSQL. | `codered` | `codered` | Sí | Cambia permisos y acceso. | `DB_PASSWORD` |
-| `DB_PASSWORD` | Contraseña PostgreSQL. | Definir en secreto seguro | `PENDIENTE DE CONFIGURAR` | Sí | Si cambia, deben coincidir credenciales. | `DB_USERNAME` |
+| `DB_DATABASE` | Nombre de la base. | `codered` | `codered` | Sí | Apunta a otra base. Es la fuente usada por Docker Compose para inicializar PostgreSQL. | `DB_USERNAME` |
+| `DB_USERNAME` | Usuario PostgreSQL. | `codered` | `codered` | Sí | Cambia permisos y acceso. Es la fuente usada por Docker Compose para inicializar PostgreSQL. | `DB_PASSWORD` |
+| `DB_PASSWORD` | Contraseña PostgreSQL. | Definir en secreto seguro | `PENDIENTE DE CONFIGURAR` | Sí | Si cambia, deben coincidir credenciales. Docker Compose la reutiliza para el servicio `postgres`. | `DB_USERNAME` |
 
 ## Cache
 
@@ -80,7 +80,7 @@ Todas las variables listadas provienen de `.env.example`.
 
 | Variable | Descripción | Recomendado | Ejemplo | Obligatoria | Consecuencias de cambiarla | Relacionadas |
 |---|---|---|---|---|---|---|
-| `SANCTUM_STATEFUL_DOMAINS` | Dominios que usan autenticación con cookies. | `localhost:8090,127.0.0.1:8090` | `localhost:8090,127.0.0.1:8090` | Sí | Si falta el dominio correcto, falla la sesión SPA. Debe coincidir con `APP_URL`. | `APP_URL`, `SESSION_DOMAIN` |
+| `SANCTUM_STATEFUL_DOMAINS` | Dominios que usan autenticación con cookies. | `localhost:8090,127.0.0.1:8090` | `localhost:8090,127.0.0.1:8090` | Sí | Si falta el dominio correcto, falla la sesión SPA. Para acceso por LAN puede agregarse la IP del host, por ejemplo `192.168.18.124:8090`. | `APP_URL`, `SESSION_DOMAIN` |
 
 ## Variables propias del proyecto
 
@@ -88,7 +88,7 @@ Todas las variables listadas provienen de `.env.example`.
 |---|---|---|---|---|---|---|
 | `DEV_ADMIN_NAME` | Nombre del usuario administrador de desarrollo. Debe escribirse entre comillas si contiene espacios. | `"Administrador Dev"` | `"Administrador Dev"` | Sí | Cambia el seed del usuario inicial. Si contiene espacios y no va entre comillas, Dotenv falla al interpretar el archivo. | `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` |
 | `DEV_ADMIN_EMAIL` | Correo del usuario administrador de desarrollo. | `admin@codered.local` | `admin@codered.local` | Sí | Define el correo del usuario sembrado. | `DEV_ADMIN_PASSWORD` |
-| `DEV_ADMIN_PASSWORD` | Contraseña del usuario administrador de desarrollo. | Cambiar en entornos reales | `ChangeMe123!` | Sí | Si es débil, compromete el seed inicial. | `DEV_ADMIN_EMAIL` |
+| `DEV_ADMIN_PASSWORD` | Contraseña del usuario administrador de desarrollo. | Cambiar en entornos reales | `CHANGE_THIS_BEFORE_SEEDING` | Sí | Si es débil o es un valor de ejemplo, compromete el seed inicial. | `DEV_ADMIN_EMAIL` |
 | `VITE_APP_NAME` | Nombre visible en frontend. | `"CodeRED Platform"` | `"CodeRED Platform"` | Sí | Cambia el título del frontend. | `APP_NAME` |
 
 ## No utilizadas o parcialmente utilizadas
@@ -101,7 +101,7 @@ Todas las variables listadas provienen de `.env.example`.
 
 - Mail real: `PENDIENTE DE CONFIGURAR`
 - Importador específico vía URL configurable: `PENDIENTE DE CONFIGURAR`
-- `composer.lock`: no existe en el estado actual del repositorio. Debe versionarse cuando se genere correctamente.
+- `composer.lock`: debe existir y versionarse para instalaciones reproducibles.
 
 ## Regla de sintaxis Dotenv
 
@@ -113,3 +113,8 @@ Ejemplos válidos:
 APP_NAME="CodeRED Platform"
 DEV_ADMIN_NAME="Administrador Dev"
 ```
+
+## Nota sobre PostgreSQL y volúmenes persistentes
+
+Las variables `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` se usan para inicializar el servicio `postgres` en Docker Compose.  
+Si el volumen de PostgreSQL ya fue creado con otras credenciales, modificar `.env` no cambia automáticamente la contraseña interna del rol. En ese caso debe sincronizarse el rol dentro de PostgreSQL sin borrar el volumen.

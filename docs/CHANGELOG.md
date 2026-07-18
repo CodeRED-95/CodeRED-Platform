@@ -26,6 +26,9 @@ Todas las versiones siguen `Keep a Changelog`.
 - Corrección documental sobre la persistencia de `composer.lock`
 - Flujo documentado para generar `public/build/manifest.json` con `npm run build`
 - Corrección del prefijo API para evitar `api/api/v1`
+- Estrategia documentada para usar `DB_*` como fuente de PostgreSQL
+- Explicación de cómo sincronizar credenciales de PostgreSQL cuando existe un volumen inicializado
+- Inclusión del comando `health:redis` para verificar Redis sin Tinker
 
 ### Removed
 

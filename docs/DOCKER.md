@@ -153,8 +153,7 @@ PENDIENTE DE CONFIGURAR
 ```bash
 docker compose exec app php -m | grep -i redis
 docker compose exec app php --ri redis
-docker compose exec app php artisan tinker --execute="dump(\Illuminate\Support\Facades\Redis::connection()->ping());"
-docker compose exec app php artisan tinker --execute="cache()->put('codered_test', 'ok', 60); dump(cache()->get('codered_test'));"
+docker compose exec app php artisan health:redis
 ```
 
 ## Verificación de PHP-FPM

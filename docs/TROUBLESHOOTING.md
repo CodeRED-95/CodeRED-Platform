@@ -13,6 +13,7 @@
 |---|---|---|
 | `php artisan` no funciona | Contenedor `app` detenido | Levantar contenedores |
 | `APP_KEY` vacío | No se generó clave | Ejecutar `key:generate` |
+| PostgreSQL rechaza la contraseña | Las credenciales de Laravel no coinciden con el volumen ya inicializado | Sincronizar el rol dentro de PostgreSQL o recrear la base solo si el volumen está vacío |
 | `bootstrap/cache` no es escribible | Permisos de bind mount o usuario incorrecto | Verificar entrypoint y propietario `www:www` |
 | `storage/logs/laravel.log` no es escribible | Archivo o carpeta sin permisos | Verificar `storage/logs` con permisos `775` y `664` |
 | `FPM initialization failed` | PHP-FPM master no está arrancando como root | Revisar `docker/php/entrypoint.sh` y `docker/php/fpm/www.conf` |
@@ -48,6 +49,7 @@
 |---|---|---|
 | Vistas no cargan | Assets no compilados | Ejecutar `npm run build` |
 | `ViteManifestNotFoundException` | `public/build/manifest.json` no existe | Ejecutar `npm run build` y verificar que el directorio `public/build/` se generó |
+| `No composer.lock file present` | El lockfile no existe o no se persistió | Verificar que `composer.lock` exista en el host y dentro del contenedor |
 
 ## Importador
 
@@ -66,7 +68,7 @@
 
 | Problema | Causa probable | Solución |
 |---|---|---|
-| `fatal: detected dubious ownership in repository at '/var/www/html'` | Git no considera seguro el directorio montado | Registrar `/var/www/html` como `safe.directory` en la imagen o el entrypoint |
+| `fatal: detected dubious ownership in repository at '/var/www/html'` | Git no considera seguro el directorio montado | Registrar `/var/www/html` como `safe.directory` en la imagen o el entrypoint. La solución actual lo hace automáticamente con `git config --global --add safe.directory /var/www/html`. |
 
 ## Composer
 

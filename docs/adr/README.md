@@ -64,3 +64,7 @@ Cada ADR debe incluir:
 | 0013 | Reutilización de una sola imagen PHP para app, queue y scheduler |
 | 0014 | PHP-FPM master como root y workers como `www` |
 | 0015 | Git Safe Directory para `/var/www/html` |
+| 0016 | `DB_*` como fuente única para PostgreSQL |
+| 0017 | Compilación obligatoria de Vite para generar el manifest |
+| 0018 | Credenciales de administrador de desarrollo desde `.env` |
+| 0019 | Persistencia de `APP_KEY` |
