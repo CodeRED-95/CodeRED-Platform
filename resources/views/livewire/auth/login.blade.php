@@ -18,6 +18,8 @@
     <section class="flex items-center justify-center px-4 py-8 lg:px-10">
         <form
             wire:submit.prevent="authenticate"
+            x-data
+            x-init="setTimeout(() => { $refs.email?.dispatchEvent(new Event('input', { bubbles: true })); $refs.email?.dispatchEvent(new Event('change', { bubbles: true })); $refs.password?.dispatchEvent(new Event('input', { bubbles: true })); $refs.password?.dispatchEvent(new Event('change', { bubbles: true })); }, 300)"
             class="w-full max-w-md rounded-[var(--radius-modal)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/95 p-6 shadow-2xl backdrop-blur"
         >
             <div class="mb-8 space-y-3 lg:hidden">
@@ -39,6 +41,7 @@
                     spellcheck="false"
                     placeholder="admin@codered.local"
                     :error="$errors->first('email')"
+                    x-ref="email"
                 />
                 <div x-data="{ show: false }" class="space-y-1">
                     <label class="block text-sm font-medium text-[color:var(--color-text-primary)]" for="password">Contraseña</label>
@@ -50,6 +53,7 @@
                             name="password"
                             autocomplete="current-password"
                             class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 pr-12 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring"
+                            x-ref="password"
                         >
                         <button type="button" x-on:click="show = !show" class="absolute inset-y-0 right-0 px-4 text-xs text-[color:var(--color-text-secondary)]">Ver</button>
                     </div>
