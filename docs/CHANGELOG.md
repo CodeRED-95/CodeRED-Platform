@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-18 — Selector accesible de estados
+
+- Se reemplazó el selector nativo de estado del formulario de agencias por un
+  combobox Blade, Alpine y Livewire accesible, con panel oscuro, iconos y navegación
+  completa por teclado.
+
 Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]

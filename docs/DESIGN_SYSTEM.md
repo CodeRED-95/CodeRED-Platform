@@ -41,6 +41,7 @@ El CodeRED Design System estandariza la interfaz del proyecto con componentes Bl
 - `x-ui.input`
 - `x-ui.textarea`
 - `x-ui.select`
+- `x-ui.status-select`
 - `x-ui.checkbox`
 - `x-ui.toggle`
 - `x-ui.card`
@@ -73,6 +74,18 @@ Sí usar:
 - `x-ui.breadcrumb`
 - `x-ui.page-header`
 - `x-ui.section-header`
+
+## Selector de estados de agencias
+
+`x-ui.status-select` reemplaza el `select` nativo cuando se edita el catálogo completo
+de estados de agencias. Conserva los valores de `AgencyStatus`, sincroniza el campo
+con Livewire y ofrece lista oscura, iconos semánticos, selección visible y navegación
+mediante teclado. No debe reutilizarse para estados de usuarios ni para catálogos
+parciales con valores diferentes.
+
+El botón expone el patrón ARIA `combobox`/`listbox`, cierra con Escape o clic exterior,
+y permite recorrer las opciones con flechas y confirmar con Enter. La selección se
+sincroniza mediante un input oculto que conserva el `wire:model` original.
 
 ## Variantes semánticas
 

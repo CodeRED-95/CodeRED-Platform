@@ -78,6 +78,43 @@ class AgencyPagesTest extends TestCase
             ->assertSeeHtml('<button type="submit"');
     }
 
+    public function test_agency_status_selector_is_dark_accessible_and_uses_real_values(): void
+    {
+        $this->actingAs($this->actingAsAgencyManager());
+
+        Livewire::test(Form::class)
+            ->assertSet('status', AgencyStatus::UnderReview->value)
+            ->assertSeeHtml('id="agency-status"')
+            ->assertSeeHtml('role="combobox"')
+            ->assertSeeHtml('aria-haspopup="listbox"')
+            ->assertSeeHtml('aria-controls="agency-status-listbox"')
+            ->assertSeeHtml('role="listbox"')
+            ->assertSeeHtml('role="option"')
+            ->assertSeeHtml('x-on:keydown.arrow-down.prevent="move(1)"')
+            ->assertSeeHtml('x-on:keydown.arrow-up.prevent="move(-1)"')
+            ->assertSeeHtml('x-on:keydown.escape.stop="closeList(); $refs.trigger.focus()"')
+            ->assertSeeHtml('bg-[color:var(--color-background-elevated)]')
+            ->assertSeeHtml("'bg-blue-600 text-white'")
+            ->assertSeeHtml('wire:model="status"')
+            ->assertSee('Activa')
+            ->assertSee('Inactiva')
+            ->assertSee('Cerrada temporalmente')
+            ->assertSee('En revisión')
+            ->assertSee('Trasladada')
+            ->assertDontSeeHtml('<select wire:model="status"');
+    }
+
+    public function test_agency_status_selector_loads_stored_value_when_editing(): void
+    {
+        $agency = Agency::factory()->create(['status' => AgencyStatus::TemporarilyClosed]);
+
+        $this->actingAs($this->actingAsAgencyManager());
+
+        Livewire::test(Form::class, ['agency' => $agency])
+            ->assertSet('status', AgencyStatus::TemporarilyClosed->value)
+            ->assertSeeHtml('value="temporarily_closed"');
+    }
+
     public function test_agency_destination_selector_renders_single_combobox_without_select_listbox(): void
     {
         $destination = Agency::factory()->create(['status' => AgencyStatus::Active, 'has_moved' => false]);

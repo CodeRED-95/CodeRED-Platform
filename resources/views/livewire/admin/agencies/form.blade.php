@@ -53,11 +53,22 @@
                                         <input type="checkbox" wire:model.live="has_moved" class="rounded border-slate-300">
                                         <span class="text-sm font-medium">La agencia se trasladó</span>
                                     </label>
-                                @elseif (in_array($field, ['status', 'size'], true))
+                                @elseif ($field === 'status')
+                                    <x-ui.status-select
+                                        id="agency-status"
+                                        name="status"
+                                        wire:model="status"
+                                        label="Estado"
+                                        :value="$status"
+                                        :options="$statuses"
+                                        :error="$errors->first('status')"
+                                        required
+                                    />
+                                @elseif ($field === 'size')
                                     <label>
-                                        <span class="text-sm font-medium">{{ $field === 'status' ? 'Estado' : 'Tamaño' }}</span>
-                                        <select wire:model="{{ $field }}" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                                            @foreach(($field === 'status' ? $statuses : $sizes) as $value => $label)
+                                        <span class="text-sm font-medium">Tamaño</span>
+                                        <select wire:model="size" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
+                                            @foreach($sizes as $value => $label)
                                                 <option value="{{ $value }}">{{ $label }}</option>
                                             @endforeach
                                         </select>
