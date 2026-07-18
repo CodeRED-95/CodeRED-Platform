@@ -1,10 +1,30 @@
 # CodeRED Platform
 
-Base técnica inicial de una plataforma modular Laravel para administrar y consultar agencias de Shalom y futuros módulos.
+Base técnica modular en Laravel para administración y consulta de agencias de Shalom.
 
-## Stack
+## Características principales
 
-- Laravel 12.x
+- Arquitectura modular preparada para nuevos dominios.
+- Autenticación web y API versionada.
+- PostgreSQL como base de datos principal.
+- Redis para caché, colas y versión global.
+- Livewire, TailwindCSS y AlpineJS para la interfaz.
+- Docker Compose con servicios separados para aplicación, web, base de datos, caché, cola y scheduler.
+- Módulo `Agencies` con soporte para importación desde GitHub Gist, snapshot público y agencias trasladadas.
+
+## Arquitectura resumida
+
+- `app/Core`: utilidades transversales.
+- `app/Modules`: módulos de negocio.
+- `app/Modules/Agencies`: módulo principal de agencias.
+- `routes/api.php`: API base y rutas versionadas.
+- `routes/web.php`: panel y web pública.
+- `database/migrations`: esquema relacional.
+- `docker/`: configuración de contenedores.
+
+## Tecnologías utilizadas
+
+- Laravel 12
 - PHP 8.2+
 - PostgreSQL 16
 - Redis 7
@@ -14,86 +34,45 @@ Base técnica inicial de una plataforma modular Laravel para administrar y consu
 - AlpineJS 3
 - Laravel Sanctum 4
 
-## Arquitectura
+## Instalación rápida
 
-La estructura está preparada para crecer por dominios:
+1. Revisa [docs/INSTALL.md](docs/INSTALL.md).
+2. Configura variables en [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
+3. Levanta Docker según [docs/DOCKER.md](docs/DOCKER.md).
+4. Revisa el modelo de datos en [docs/DATABASE.md](docs/DATABASE.md).
 
-- `app/Core`
-- `app/Modules`
-- `app/Modules/Agencies`
+## Capturas
 
-La primera fase solo deja la infraestructura transversal y el módulo base de administración.
+PENDIENTE DE CONFIGURAR
 
-## Requisitos
+## Documentación
 
-- Docker
-- Docker Compose
-- Node.js 20+
+- [Instalación](docs/INSTALL.md)
+- [Entorno](docs/ENVIRONMENT.md)
+- [Docker](docs/DOCKER.md)
+- [Base de datos](docs/DATABASE.md)
+- [API](docs/API.md)
+- [Agencies](docs/AGENCIES.md)
+- [Importador](docs/IMPORTER.md)
+- [Arquitectura](docs/ARCHITECTURE.md)
+- [Desarrollo](docs/DEVELOPMENT.md)
+- [Testing](docs/TESTING.md)
+- [Seguridad](docs/SECURITY.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Contribución](docs/CONTRIBUTING.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Changelog](docs/CHANGELOG.md)
+- [FAQ](docs/FAQ.md)
 
-## Desarrollo
+## Roadmap resumido
 
-1. Copia `.env.example` a `.env`.
-2. Ajusta credenciales si lo necesitas.
-3. Levanta los contenedores:
+- Core y autenticación base.
+- Módulo `Agencies`.
+- Importación desde GitHub Gist.
+- Web pública y panel administrativo.
+- Exportación, caché y snapshot compacto.
+- Próximos módulos: DNI, RUC, Clientes, Trabajadores, Reportes, Estadísticas, Chrome Extension y App móvil.
 
-```bash
-docker compose up -d --build
-```
+## Licencia
 
-4. Instala dependencias dentro del contenedor si corresponde:
-
-```bash
-docker compose exec app composer install
-docker compose exec app npm install
-docker compose exec app php artisan key:generate
-```
-
-5. Ejecuta migraciones y seeders:
-
-```bash
-docker compose exec app php artisan migrate --seed
-```
-
-6. Compila assets:
-
-```bash
-docker compose exec app npm run build
-```
-
-## Producción
-
-- Usar secretos reales fuera del repositorio.
-- Desactivar `APP_DEBUG`.
-- Configurar HTTPS delante de Nginx.
-- Mantener `SESSION_DRIVER=redis` y `QUEUE_CONNECTION=redis`.
-
-## Comandos útiles
-
-- `php artisan migrate`
-- `php artisan db:seed`
-- `php artisan test`
-- `php artisan schedule:run`
-- `php artisan queue:work`
-- `vendor/bin/pint`
-- `vendor/bin/phpstan analyse`
-
-## Estructura
-
-- `app/Core`: utilidades transversales.
-- `app/Modules`: módulos de negocio.
-- `routes/api.php`: API versionada.
-- `routes/web.php`: interfaz web.
-- `database/migrations`: esquema base.
-- `database/seeders`: datos iniciales.
-
-## Health check
-
-`GET /api/v1/health`
-
-Respuesta esperada:
-
-- estado general
-- conexión a PostgreSQL
-- conexión a Redis
-- versión de la app
-- fecha y hora del servidor
+Proprietary

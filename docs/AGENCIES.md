@@ -1,0 +1,124 @@
+# Módulo Agencies
+
+## Resumen
+
+El módulo `Agencies` administra agencias de Shalom con soporte para:
+
+- listado administrativo
+- vista pública
+- importación desde GitHub Gist
+- snapshot público
+- agencias trasladadas
+- centro de operaciones
+
+## Modelo
+
+Modelo principal:
+
+- `App\Modules\Agencies\Models\Agency`
+
+## Campos
+
+Campos detectados en `agencies`:
+
+| Campo | Descripción |
+|---|---|
+| `code` | Código único tipo `SHA-000003` |
+| `name` | Nombre de la agencia |
+| `short_name` | Nombre corto |
+| `slug` | Slug único |
+| `department` | Departamento |
+| `province` | Provincia |
+| `district` | Distrito |
+| `address` | Dirección |
+| `reference` | Referencia |
+| `phone` | Teléfono |
+| `secondary_phone` | Teléfono secundario |
+| `email` | Correo |
+| `schedule` | Horario |
+| `latitude` | Latitud |
+| `longitude` | Longitud |
+| `services` | Servicios JSON |
+| `observations` | Observaciones |
+| `status` | Estado |
+| `source` | Fuente |
+| `source_reference` | Referencia original de la fuente |
+| `source_text` | Texto original del Gist |
+| `map_url` | URL de mapa |
+| `size` | Tamaño normalizado |
+| `is_operations_center` | Indica centro de operaciones |
+| `has_moved` | Indica traslado |
+| `moved_to_agency_id` | Agencia destino |
+| `moved_to_address` | Dirección destino manual |
+| `move_notice` | Aviso público de traslado |
+| `moved_at` | Fecha de traslado |
+| `data_version` | Versión pública de datos |
+| `last_verified_at` | Última verificación |
+| `created_by` | Usuario creador |
+| `updated_by` | Usuario actualizador |
+| `deleted_at` | Soft delete |
+
+## Estados
+
+| Estado | Etiqueta |
+|---|---|
+| `active` | Activa |
+| `inactive` | Inactiva |
+| `temporarily_closed` | Cerrada temporalmente |
+| `under_review` | En revisión |
+| `moved` | Trasladada |
+
+## Centro de Operaciones
+
+El campo `co` del Gist se transforma en `is_operations_center`.
+
+En interfaz:
+
+- `Sí`
+- `No`
+
+En listado y detalle se muestra la insignia:
+
+- `Centro de Operaciones`
+
+## Agencias trasladadas
+
+Una agencia trasladada:
+
+- tiene `has_moved = true`
+- tiene `status = moved`
+- sale del listado operativo público
+- continúa disponible por su código
+- puede apuntar a una agencia destino o a una dirección manual
+
+## Relaciones
+
+| Relación | Tipo |
+|---|---|
+| `createdBy` | `belongsTo(User::class)` |
+| `updatedBy` | `belongsTo(User::class)` |
+| `movedToAgency` | `belongsTo(Agency::class)` |
+
+## Permisos
+
+Permisos del módulo:
+
+- `agencies.view`
+- `agencies.create`
+- `agencies.update`
+- `agencies.delete`
+- `agencies.restore`
+- `agencies.import`
+- `agencies.export`
+- `agencies.view_history`
+- `agencies.manage_status`
+
+## Flujo de trabajo
+
+1. Se importa o crea una agencia.
+2. Se valida y normaliza.
+3. Si se marca traslado, se usa la Action central.
+4. Se registra auditoría.
+5. Se incrementa `data_version`.
+6. Se actualiza snapshot y API pública.
+
