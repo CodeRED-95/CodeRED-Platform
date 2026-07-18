@@ -13,7 +13,7 @@
 ## Clonar proyecto
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
+git clone https://github.com/CodeRED-95/CodeRED-Platform.git
 cd CodeRED-Platform
 ```
 
