@@ -346,3 +346,7 @@ El Dashboard ejecutivo usa una jerarquía compacta y datos reales:
 - última importación compacta con estados traducidos y contadores persistidos en `agency_imports`.
 
 En escritorio, gráficos y paneles recientes usan proporciones 65/35 aproximadas; en móvil se apilan sin scroll horizontal. Los SVG declaran siempre `fill="none"` en ejes y trazos abiertos para evitar rellenos negros implícitos. Incluyen resumen textual y no requieren una segunda librería de gráficos.
+
+## Documentación API interactiva
+
+La ruta `/docs/api` usa tarjetas oscuras del Design System como experiencia principal. Las categorías y operaciones se derivan del contrato OpenAPI; la configuración visual solo define orden, título amable y ability. Los formularios no usan selects nativos, los paneles expandibles conservan foco y scroll, y todo contenido de respuesta se representa como texto seguro. Swagger UI se carga una única vez y solo al abrir “OpenAPI avanzada”. El token de prueba debe permanecer exclusivamente en memoria y nunca aparecer en ejemplos, URLs, storage o consola.

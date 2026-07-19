@@ -1,3 +1,4 @@
+- API UI: nueva guía API basada en tarjetas, tester same-origin, autorización efímera y Swagger bajo demanda como referencia avanzada.
 - API: sincronización incremental append-only con cursor HMAC, ETag/304, metadata de revisión, retención de cambios y Gzip en Nginx.
 - API: Swagger UI renderiza el contrato OpenAPI con Authorize Sanctum, Try it out, duración y snippets; la copia de tokens usa Clipboard API con selección manual segura como fallback.
 # Changelog

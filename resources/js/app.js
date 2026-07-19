@@ -2,6 +2,7 @@ import "./bootstrap";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { codeRedTokenCopy } from "./api-token-copy";
+import { codeRedApiDocs } from "./api-docs";
 
 document.addEventListener("alpine:init", () => {
   window.codeRedFloating = (config = {}) => ({
@@ -305,58 +306,7 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
-  window.Alpine.data("codeRedSwaggerDocs", (config) => ({
-    ui: null,
-    ready: false,
-
-    init() {
-      this.$nextTick(() => this.mount());
-    },
-
-    async mount() {
-      if (this.ui || !this.$refs.swagger) return;
-
-      const [{ default: SwaggerUIBundle }, { default: SwaggerUIStandalonePreset }] = await Promise.all([
-        import("swagger-ui-dist/swagger-ui-es-bundle.js"),
-        import("swagger-ui-dist/swagger-ui-standalone-preset.js"),
-        import("swagger-ui-dist/swagger-ui.css"),
-      ]);
-
-      this.ui = SwaggerUIBundle({
-        url: config.specUrl,
-        domNode: this.$refs.swagger,
-        deepLinking: true,
-        displayRequestDuration: true,
-        docExpansion: "list",
-        filter: true,
-        persistAuthorization: false,
-        requestSnippetsEnabled: true,
-        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-        requestInterceptor: (request) => {
-          const authorization = request.headers?.Authorization;
-          if (typeof authorization === "string") {
-            request.headers.Authorization = authorization.replace(
-              /^Bearer\s+Bearer\s+/i,
-              "Bearer ",
-            );
-          }
-
-          return request;
-        },
-        supportedSubmitMethods: ["get"],
-        tryItOutEnabled: true,
-        onComplete: () => {
-          this.ready = true;
-        },
-      });
-    },
-
-    destroy() {
-      this.ui = null;
-      this.ready = false;
-      if (this.$refs.swagger) this.$refs.swagger.replaceChildren();
-    },
-  }));
+  window.Alpine.data("codeRedApiDocs", codeRedApiDocs);
 
   window.Alpine.data("codeRedMap", (config) => ({
     map: null,

@@ -21,7 +21,7 @@ class ApiTokenManagementTest extends TestCase
         $viewer = User::factory()->create();
 
         $this->actingAs($super)->get(route('admin.api-tokens.index'))->assertOk()->assertSee('API y Tokens');
-        $this->actingAs($super)->get(route('api.docs'))->assertOk()->assertSee('API CodeRED v1');
+        $this->actingAs($super)->get(route('api.docs'))->assertOk()->assertSee('API CodeRED Platform');
         $this->actingAs($super)->get(route('api.docs.spec'))->assertOk()->assertHeader('content-type', 'application/yaml; charset=UTF-8');
         $this->actingAs($viewer)->get(route('admin.api-tokens.index'))->assertForbidden();
         $this->actingAs($viewer)->get(route('api.docs'))->assertForbidden();
@@ -151,22 +151,30 @@ class ApiTokenManagementTest extends TestCase
         $this->assertStringNotContainsString('console.', $script);
     }
 
-    public function test_interactive_documentation_mounts_swagger_with_non_persistent_bearer_authorization(): void
+    public function test_interactive_documentation_renders_cards_and_keeps_swagger_as_a_lazy_advanced_view(): void
     {
         $super = $this->superAdmin();
         $response = $this->actingAs($super)->get(route('api.docs'));
 
         $response->assertOk()
-            ->assertSee('codered-swagger-ui', false)
-            ->assertSee('Authorize')
-            ->assertSee('Try it out');
+            ->assertSee('API CodeRED Platform')
+            ->assertSee('Guía interactiva')
+            ->assertSee('OpenAPI avanzada')
+            ->assertSee('Autenticación')
+            ->assertSee('Buscar endpoint')
+            ->assertSee('codeRedApiDocs', false)
+            ->assertSee('autocomplete="off"', false);
 
-        $script = file_get_contents(resource_path('js/app.js'));
+        $script = file_get_contents(resource_path('js/api-docs.js'));
         $this->assertIsString($script);
-        $this->assertStringContainsString('SwaggerUIBundle', $script);
+        $this->assertStringContainsString('async mountSwagger()', $script);
+        $this->assertStringContainsString('if (this.swagger || !this.$refs.swagger) return;', $script);
         $this->assertStringContainsString('persistAuthorization: false', $script);
         $this->assertStringContainsString('tryItOutEnabled: true', $script);
-        $this->assertStringContainsString('requestSnippetsEnabled: true', $script);
+        $this->assertStringContainsString('Authorization: Bearer TU_TOKEN', $script);
+        $this->assertStringNotContainsString('localStorage', $script);
+        $this->assertStringNotContainsString('sessionStorage', $script);
+        $this->assertStringNotContainsString('innerHTML', $script);
     }
 
     private function superAdmin(): User

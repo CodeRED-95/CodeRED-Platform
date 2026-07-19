@@ -31,4 +31,4 @@ La respuesta dedicada expone únicamente `internal_id`, `id` externo, `code`, no
 - Errores JSON sin trazas o configuración interna.
 - HTTPS obligatorio en producción.
 
-La administración y documentación Swagger UI interactiva son exclusivas de Super Administrador en `/admin/api-tokens` y `/docs/api`. La UI consume `docs/openapi.yaml`, ofrece `Authorize`, `Try it out`, respuestas reales, duración y snippets cURL. La autorización no persiste tras recargar.
+La administración y documentación interactiva son exclusivas de Super Administrador en `/admin/api-tokens` y `/docs/api`. La guía principal genera categorías, tarjetas, parámetros y ejecución segura desde `docs/openapi.yaml`; el token Bearer vive solo en memoria y los ejemplos siempre muestran `TU_TOKEN`. Swagger UI se conserva bajo demanda como referencia OpenAPI avanzada con Authorize y Try it out.

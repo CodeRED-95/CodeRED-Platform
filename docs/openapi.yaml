@@ -69,6 +69,51 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /agencies/search:
+    get:
+      tags: [Agencias]
+      summary: Buscar agencias
+      description: Búsqueda rápida heredada que devuelve hasta 20 coincidencias del catálogo.
+      operationId: searchAgencies
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Texto a buscar en Code, agencia o ubicación.
+          schema: { type: string }
+      responses:
+        '200': { description: Coincidencias de agencias }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /agencies/snapshot:
+    get:
+      tags: [Agencias]
+      summary: Descargar snapshot completo
+      description: Catálogo activo completo para sincronización inicial o recuperación después de full_sync_required.
+      operationId: agencySnapshot
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Snapshot completo de agencias activas }
+        '304': { description: El snapshot no cambió para el ETag enviado }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /agencies/version:
+    get:
+      tags: [Agencias]
+      summary: Consultar versión heredada del catálogo
+      description: Versión pública conservada por compatibilidad con clientes existentes.
+      operationId: agencyVersion
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: 'Versión, fecha y total de agencias activas' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /agencies/changes:
     get:
       tags: [Agencias]
