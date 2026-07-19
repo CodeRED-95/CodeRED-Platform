@@ -44,6 +44,8 @@ test("the interactive client uses same-origin relative request targets", () => {
   const source = fs.readFileSync("resources/js/api-docs.js", "utf8");
   assert.match(source, /fetch\("\/api\/v1\/me"/);
   assert.match(source, /fetch\(requestTarget/);
+  assert.match(source, /credentials: "omit"/);
+  assert.match(source, /headers\.Authorization = authorization\.replace/);
   assert.doesNotMatch(source, /192\.168\.18\.124|http:\/\/platform\.codered\.host/);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
 });

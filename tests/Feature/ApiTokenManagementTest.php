@@ -178,6 +178,8 @@ class ApiTokenManagementTest extends TestCase
         $this->assertStringContainsString('fetch("/api/v1/me"', $script);
         $this->assertStringContainsString('fetch(requestTarget', $script);
         $this->assertStringContainsString('normalizeBearerToken', $script);
+        $this->assertStringContainsString('credentials: "omit"', $script);
+        $this->assertStringContainsString('request.credentials = "omit"', $script);
         $this->assertStringNotContainsString('localStorage', $script);
         $this->assertStringNotContainsString('sessionStorage', $script);
         $this->assertStringNotContainsString('innerHTML', $script);

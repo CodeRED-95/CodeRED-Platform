@@ -11,7 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
+use Laravel\Sanctum\TransientToken;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -36,10 +38,23 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('api', function (Request $request): Limit {
-            $tokenId = $request->user()?->currentAccessToken()?->getKey();
+            $limit = max((int) config('api.rate_limit_per_minute'), 1);
+            $user = $request->user();
+            $token = $user?->currentAccessToken();
 
-            return Limit::perMinute(max((int) config('api.rate_limit_per_minute'), 1))
-                ->by($tokenId !== null ? 'token:'.$tokenId : 'ip:'.$request->ip());
+            if ($token instanceof PersonalAccessToken) {
+                return Limit::perMinute($limit)->by('token:'.$token->getKey());
+            }
+
+            if ($token instanceof TransientToken && $user !== null) {
+                return Limit::perMinute($limit)->by('user:'.$user->getAuthIdentifier());
+            }
+
+            if ($user !== null) {
+                return Limit::perMinute($limit)->by('user:'.$user->getAuthIdentifier());
+            }
+
+            return Limit::perMinute($limit)->by('ip:'.$request->ip());
         });
     }
 }

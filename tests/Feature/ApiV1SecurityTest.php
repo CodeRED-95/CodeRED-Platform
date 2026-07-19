@@ -6,7 +6,9 @@ use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Laravel\Sanctum\TransientToken;
 use Tests\TestCase;
 
 class ApiV1SecurityTest extends TestCase
@@ -95,6 +97,71 @@ class ApiV1SecurityTest extends TestCase
             ->assertJsonPath('message', 'Los datos proporcionados no son válidos.');
         $this->withToken($token)->getJson('/api/v1/agencies/NO-EXISTE')->assertNotFound()
             ->assertExactJson(['message' => 'Agencia no encontrada.']);
+    }
+
+    public function test_session_authentication_uses_transient_token_without_server_error(): void
+    {
+        config()->set('api.rate_limit_per_minute', 2);
+        $user = User::factory()->create(['name' => 'Usuario de sesión']);
+        RateLimiter::clear('user:'.$user->id);
+
+        $this->actingAs($user)->getJson('/api/v1/me')->assertOk()
+            ->assertJsonPath('name', 'Usuario de sesión')
+            ->assertJsonPath('token_name', 'Sesión web')
+            ->assertJsonPath('abilities.0', '*');
+    }
+
+    public function test_api_limiter_uses_token_user_and_ip_keys_without_exposing_secrets(): void
+    {
+        config()->set('api.rate_limit_per_minute', 7);
+        $user = User::factory()->create();
+        $created = $user->createToken('Bucket persistente', ['profile:read']);
+        $limiter = RateLimiter::limiter('api');
+        $this->assertIsCallable($limiter);
+
+        $tokenRequest = Request::create('/api/v1/me');
+        $tokenRequest->setUserResolver(fn (): User => $user->withAccessToken($created->accessToken));
+        $tokenLimit = $limiter($tokenRequest);
+        $this->assertSame('token:'.$created->accessToken->getKey(), $tokenLimit->key);
+        $this->assertSame(7, $tokenLimit->maxAttempts);
+
+        $sessionIdentity = new class($user->id)
+        {
+            public function __construct(private readonly int $id) {}
+
+            public function currentAccessToken(): TransientToken
+            {
+                return new TransientToken;
+            }
+
+            public function getAuthIdentifier(): int
+            {
+                return $this->id;
+            }
+        };
+        $sessionRequest = Request::create('/api/v1/me');
+        $sessionRequest->setUserResolver(fn () => $sessionIdentity);
+        $this->assertSame('user:'.$user->id, $limiter($sessionRequest)->key);
+
+        $anonymousRequest = Request::create('/api/v1/me', server: ['REMOTE_ADDR' => '203.0.113.20']);
+        $anonymousRequest->setUserResolver(fn (): null => null);
+        $this->assertSame('ip:203.0.113.20', $limiter($anonymousRequest)->key);
+    }
+
+    public function test_two_personal_tokens_from_same_user_have_independent_rate_limit_buckets(): void
+    {
+        config()->set('api.rate_limit_per_minute', 1);
+        $user = User::factory()->create();
+        $first = $user->createToken('Primero', ['profile:read']);
+        $second = $user->createToken('Segundo', ['profile:read']);
+        RateLimiter::clear('token:'.$first->accessToken->getKey());
+        RateLimiter::clear('token:'.$second->accessToken->getKey());
+
+        $this->withToken($first->plainTextToken)->getJson('/api/v1/me')->assertOk();
+        auth()->forgetGuards();
+        $this->withToken($first->plainTextToken)->getJson('/api/v1/me')->assertTooManyRequests();
+        auth()->forgetGuards();
+        $this->withToken($second->plainTextToken)->getJson('/api/v1/me')->assertOk();
     }
 
     public function test_rate_limit_is_applied_per_token(): void

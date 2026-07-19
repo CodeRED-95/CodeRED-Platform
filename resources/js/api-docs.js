@@ -185,6 +185,10 @@ export function codeRedApiDocs(config) {
         requestInterceptor: (request) => {
           const authorization = request.headers?.Authorization;
           if (typeof authorization === "string") request.headers.Authorization = authorization.replace(/^Bearer\s+Bearer\s+/i, "Bearer ");
+          const requestUrl = new URL(request.url, window.location.origin);
+          if (requestUrl.origin === window.location.origin && requestUrl.pathname.startsWith("/api/v1/")) {
+            request.credentials = "omit";
+          }
           return request;
         },
         onComplete: () => { this.swaggerReady = true; },
@@ -201,6 +205,7 @@ export function codeRedApiDocs(config) {
       this.authStatus = "loading";
       try {
         const response = await fetch("/api/v1/me", {
+          credentials: "omit",
           headers: { Accept: "application/json", Authorization: `Bearer ${this.token}` },
         });
         const data = await response.json().catch(() => ({}));
@@ -249,7 +254,7 @@ export function codeRedApiDocs(config) {
         const headers = { Accept: "application/json" };
         if (endpoint.protected) headers.Authorization = `Bearer ${this.token.trim()}`;
         const requestTarget = url.pathname + url.search;
-        const response = await fetch(requestTarget, { method: "GET", headers });
+        const response = await fetch(requestTarget, { method: "GET", credentials: "omit", headers });
         const text = await response.text();
         let body = text;
         try { body = text ? JSON.parse(text) : null; } catch (_error) { /* conserva texto seguro */ }

@@ -32,3 +32,7 @@ La respuesta dedicada expone únicamente `internal_id`, `id` externo, `code`, no
 - HTTPS obligatorio en producción.
 
 La administración y documentación interactiva son exclusivas de Super Administrador en `/admin/api-tokens` y `/docs/api`. La guía principal genera categorías, tarjetas, parámetros y ejecución segura desde `docs/openapi.yaml`; el token Bearer vive solo en memoria y los ejemplos siempre muestran `TU_TOKEN`. Swagger UI se conserva bajo demanda como referencia OpenAPI avanzada con Authorize y Try it out. La guía usa exclusivamente las rutas relativas `/api/v1` y `/docs/api/openapi.yaml`: el navegador conserva automáticamente el origen y protocolo actuales, tanto por HTTP local como detrás de Cloudflare Tunnel.
+
+## Autenticación y rate limiting
+
+Sanctum representa una sesión web como `TransientToken` y un Bearer persistente como `PersonalAccessToken`. El limiter usa un bucket `user:{id}` para sesión, `token:{id}` para integraciones y `ip:{address}` cuando no existe usuario; nunca usa el secreto ni el header Authorization. El probador interactivo omite cookies únicamente al ejecutar `/api/v1`, de modo que el Bearer pegado sea la credencial realmente validada. Swagger aplica la misma regla a Try it out, pero conserva la sesión para cargar el contrato protegido. En DevTools debe observarse `Authorization: Bearer …` en la petición API, sin copiar su valor en capturas o logs.
