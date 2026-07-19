@@ -163,7 +163,10 @@ class ApiTokenManagementTest extends TestCase
             ->assertSee('Autenticación')
             ->assertSee('Buscar endpoint')
             ->assertSee('codeRedApiDocs', false)
-            ->assertSee('autocomplete="off"', false);
+            ->assertSee("basePath: '/api/v1'", false)
+            ->assertSee('autocomplete="off"', false)
+            ->assertDontSee('http://192.168.18.124:8090', false)
+            ->assertDontSee('http://platform.codered.host', false);
 
         $script = file_get_contents(resource_path('js/api-docs.js'));
         $this->assertIsString($script);
@@ -172,9 +175,31 @@ class ApiTokenManagementTest extends TestCase
         $this->assertStringContainsString('persistAuthorization: false', $script);
         $this->assertStringContainsString('tryItOutEnabled: true', $script);
         $this->assertStringContainsString('Authorization: Bearer TU_TOKEN', $script);
+        $this->assertStringContainsString('fetch("/api/v1/me"', $script);
+        $this->assertStringContainsString('fetch(requestTarget', $script);
+        $this->assertStringContainsString('normalizeBearerToken', $script);
         $this->assertStringNotContainsString('localStorage', $script);
         $this->assertStringNotContainsString('sessionStorage', $script);
         $this->assertStringNotContainsString('innerHTML', $script);
+    }
+
+    public function test_documentation_uses_relative_openapi_and_api_urls_behind_https_proxy(): void
+    {
+        $super = $this->superAdmin();
+        $response = $this->actingAs($super)->withServerVariables([
+            'REMOTE_ADDR' => '10.0.0.10',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+            'HTTP_X_FORWARDED_HOST' => 'platform.codered.host',
+            'HTTP_X_FORWARDED_PORT' => '443',
+        ])->get('/docs/api');
+
+        $response->assertOk()
+            ->assertSee('/docs/api/openapi.yaml', false)
+            ->assertSee("basePath: '/api/v1'", false)
+            ->assertDontSee('http://platform.codered.host', false)
+            ->assertDontSee('192.168.18.124', false);
+
+        $this->assertStringContainsString('url: /api/v1', (string) file_get_contents(base_path('docs/openapi.yaml')));
     }
 
     private function superAdmin(): User

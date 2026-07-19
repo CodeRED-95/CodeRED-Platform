@@ -3,6 +3,8 @@
 - API: Swagger UI renderiza el contrato OpenAPI con Authorize Sanctum, Try it out, duración y snippets; la copia de tokens usa Clipboard API con selección manual segura como fallback.
 # Changelog
 
+- Corregida la documentación API para usar rutas relativas, respetar HTTPS detrás de Cloudflare, normalizar Bearer Token y distinguir errores de red, autenticación, abilities y servidor.
+
 ## 2026-07-19 — API Sanctum y administración de tokens
 
 - Se protegió la API oficial v1 con Sanctum, abilities, expiración, rate limit y CORS explícito.

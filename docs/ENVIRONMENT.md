@@ -145,3 +145,7 @@ Las variables `DEV_ADMIN_*` se leen exclusivamente desde `config/codered.php` du
 | `API_LAST_MODIFIED_ENABLED` | Activa Last-Modified fiable |
 
 En producción, `API_ALLOWED_ORIGINS` debe incluir únicamente dominios necesarios y el origen `chrome-extension://ID_DEFINITIVO`.
+
+## Proxy inverso y Cloudflare Tunnel
+
+Laravel confía en los encabezados `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Port`, `X-Forwarded-Proto` y `X-Forwarded-Prefix` que Nginx reenvía desde el proxy frontal. Las interfaces del mismo origen deben usar rutas relativas; no se debe corregir HTTPS mediante `URL::forceScheme()` porque el acceso local continúa usando HTTP. El servicio PHP no debe exponerse directamente fuera de la red Docker.

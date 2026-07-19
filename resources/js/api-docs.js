@@ -19,7 +19,7 @@ const categories = {
   Catálogo: "Revisión, esquema y cursores del catálogo.",
 };
 
-export function buildRequestUrl(baseUrl, path, parameters = [], values = {}) {
+export function buildRequestUrl(basePath, path, parameters = [], values = {}) {
   let resolvedPath = path;
   const query = new URLSearchParams();
 
@@ -33,7 +33,7 @@ export function buildRequestUrl(baseUrl, path, parameters = [], values = {}) {
     if (parameter.in === "query") query.set(parameter.name, String(value).trim());
   });
 
-  const url = new URL(baseUrl.replace(/\/$/, "") + "/" + resolvedPath.replace(/^\//, ""), window.location.origin);
+  const url = new URL(basePath.replace(/\/$/, "") + "/" + resolvedPath.replace(/^\//, ""), window.location.origin);
   query.forEach((value, key) => url.searchParams.set(key, value));
   return url;
 }
@@ -48,16 +48,21 @@ export function generateFetch(url, isProtected) {
   return `const response = await fetch('${url}', {\n  headers: {\n    Accept: 'application/json',${authorization}\n  },\n});\n\nconst data = await response.json();`;
 }
 
+export function normalizeBearerToken(value) {
+  return String(value ?? "").trim().replace(/^Bearer\s+/i, "");
+}
+
 export function apiErrorMessage(status) {
   return ({
     401: "Token inválido, expirado o revocado.",
-    403: "El token no tiene la ability requerida.",
-    404: "El recurso solicitado no existe.",
-    409: "El cursor ya no es válido; realiza una sincronización completa.",
-    410: "El cursor ya no es válido; realiza una sincronización completa.",
-    422: "Revisa los parámetros enviados.",
-    429: "Se alcanzó el límite de solicitudes.",
-  })[status] ?? (status >= 500 ? "La API encontró un error inesperado." : null);
+    403: "El token no tiene la ability necesaria para realizar esta consulta.",
+    404: "El endpoint o recurso solicitado no existe.",
+    409: "El cursor dejó de ser válido. Se requiere una sincronización completa.",
+    410: "El cursor dejó de ser válido. Se requiere una sincronización completa.",
+    422: "Los parámetros enviados no son válidos.",
+    429: "Se alcanzó el límite de solicitudes. Inténtalo nuevamente más tarde.",
+    500: "La API encontró un error interno.",
+  })[status] ?? (status >= 500 ? "La API encontró un error interno." : null);
 }
 
 function defaultValue(parameter) {
@@ -86,6 +91,10 @@ export function codeRedApiDocs(config) {
     authDetails: null,
     swagger: null,
     swaggerReady: false,
+
+    get apiBaseUrl() {
+      return window.location.origin + config.basePath;
+    },
 
     async init() {
       try {
@@ -183,7 +192,7 @@ export function codeRedApiDocs(config) {
     },
 
     async authorize() {
-      this.token = this.token.trim();
+      this.token = normalizeBearerToken(this.token);
       if (!this.token) {
         this.authStatus = "invalid";
         this.authMessage = "Ingresa un token para autorizar.";
@@ -191,13 +200,15 @@ export function codeRedApiDocs(config) {
       }
       this.authStatus = "loading";
       try {
-        const response = await fetch(new URL("/api/v1/me", window.location.origin), {
+        const response = await fetch("/api/v1/me", {
           headers: { Accept: "application/json", Authorization: `Bearer ${this.token}` },
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           this.authStatus = response.status === 403 ? "forbidden" : "invalid";
-          this.authMessage = apiErrorMessage(response.status) ?? "No fue posible validar el token.";
+          this.authMessage = response.status === 403
+            ? "Token válido, pero sin permiso profile:read."
+            : apiErrorMessage(response.status) ?? "No fue posible validar el token.";
           this.authDetails = null;
           return;
         }
@@ -206,7 +217,7 @@ export function codeRedApiDocs(config) {
         this.authDetails = data;
       } catch (_error) {
         this.authStatus = "invalid";
-        this.authMessage = "No fue posible conectar con la API.";
+        this.authMessage = "No fue posible conectar con la API. Comprueba que la documentación y la API utilicen el mismo protocolo y dominio.";
       }
     },
 
@@ -233,11 +244,12 @@ export function codeRedApiDocs(config) {
       endpoint.expanded = true;
       const started = performance.now();
       try {
-        const url = buildRequestUrl(config.baseUrl, endpoint.path, endpoint.parameters, endpoint.values);
+        const url = buildRequestUrl(config.basePath, endpoint.path, endpoint.parameters, endpoint.values);
         if (url.origin !== window.location.origin || endpoint.method !== "GET") throw new Error("Endpoint no permitido");
         const headers = { Accept: "application/json" };
         if (endpoint.protected) headers.Authorization = `Bearer ${this.token.trim()}`;
-        const response = await fetch(url, { method: "GET", headers });
+        const requestTarget = url.pathname + url.search;
+        const response = await fetch(requestTarget, { method: "GET", headers });
         const text = await response.text();
         let body = text;
         try { body = text ? JSON.parse(text) : null; } catch (_error) { /* conserva texto seguro */ }
@@ -261,7 +273,7 @@ export function codeRedApiDocs(config) {
           error: response.ok ? null : apiErrorMessage(response.status),
         };
       } catch (_error) {
-        endpoint.response = { status: 0, error: "No fue posible conectar con la API.", bodyText: "", headersText: "{}" };
+        endpoint.response = { status: 0, error: "No fue posible conectar con la API. Comprueba que la documentación y la API utilicen el mismo protocolo y dominio.", bodyText: "", headersText: "{}" };
       } finally {
         endpoint.loading = false;
       }

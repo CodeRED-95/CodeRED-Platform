@@ -1,11 +1,11 @@
 <div
     class="space-y-6"
-    x-data="codeRedApiDocs({ specUrl: @js(route('api.docs.spec')), baseUrl: @js(url('/api/v1')) })"
+    x-data="codeRedApiDocs({ specUrl: @js(route('api.docs.spec', absolute: false)), basePath: '/api/v1' })"
 >
     <x-ui.page-header title="API CodeRED Platform" subtitle="Consulta y sincroniza el catálogo oficial de agencias mediante tokens seguros.">
         <x-slot:actions>
             <x-ui.button href="{{ route('admin.api-tokens.index') }}" variant="secondary" size="sm">Administrar tokens</x-ui.button>
-            <x-ui.button href="{{ route('api.docs.spec') }}" variant="outline" size="sm">Descargar OpenAPI</x-ui.button>
+            <x-ui.button href="{{ route('api.docs.spec', absolute: false) }}" variant="outline" size="sm">Descargar OpenAPI</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -16,7 +16,7 @@
         <x-ui.badge tone="neutral">Laravel Sanctum</x-ui.badge>
         <x-ui.badge tone="neutral">{{ $rateLimit }}/minuto/token</x-ui.badge>
         <x-ui.badge tone="neutral">Máximo {{ $maxPerPage }} por página</x-ui.badge>
-        <span class="ml-auto text-xs text-[color:var(--color-text-muted)]">Base URL: <code>{{ url('/api/v1') }}</code></span>
+        <span class="ml-auto text-xs text-[color:var(--color-text-muted)]">Base URL: <code x-text="apiBaseUrl"></code></span>
     </section>
 
     <nav aria-label="Vistas de documentación" role="tablist" class="flex flex-wrap gap-2 border-b border-[color:var(--color-border)] pb-3">
