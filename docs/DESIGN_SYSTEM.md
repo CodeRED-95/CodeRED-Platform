@@ -315,6 +315,12 @@ Los nuevos dropdowns deben reutilizar ese posicionador. No deben volver a crear 
 
 `x-ui.modal` y `x-ui.confirm-dialog` también se teletransportan a `body`, bloquean el scroll y usan la capa modal. `x-ui.toast-stack` se monta una sola vez como hijo directo de `body`, fuera del shell con sidebar, en `#global-toast-region`; permanece fijo, permite interacción solo en cada toast y se anuncia con `aria-live`.
 
+## Dropdowns sin salto y paginación oscura
+
+Los listboxes teletransportados conservan el foco en el trigger al abrirse. `codeRedFloating.focusTrigger()` usa `focus({ preventScroll: true })` y las opciones se desplazan únicamente dentro de su panel mediante `scrollTop`; está prohibido usar `scrollIntoView()` al abrir un overlay situado al final de `body`.
+
+`x-ui.pagination` renderiza `vendor.pagination.codered` y no delega en la vista clara predeterminada de Livewire. El contrato incluye resumen, anterior/siguiente, página activa con `aria-current`, estados disabled y controles compactos móviles. Cada listado entrega un selector real mediante `scroll-to` para desplazar suavemente al comienzo del resultado, nunca al final del documento.
+
 ## Vista cartográfica integrada
 
 `x-ui.map-preview` usa Leaflet 1.9 y tiles de OpenStreetMap sin API key. La instancia se integra con Alpine y Livewire mediante `wire:ignore`, se destruye antes de `wire:navigate`, recalcula su tamaño y muestra zoom, attribution, popup seguro, enlace externo y marcador CodeRED. El mapa no sustituye ni transforma los campos de latitud y longitud.

@@ -2,7 +2,7 @@
 
 <div
     x-data="codeRedFloating({ maxHeight: 320, matchWidth: false, width: 224, align: 'end' })"
-    x-on:keydown.escape.stop="closePanel(); $refs.trigger.focus()"
+    x-on:keydown.escape.stop="closePanel(); focusTrigger()"
     class="relative"
 >
     <button
@@ -23,7 +23,7 @@
             x-show="open"
             x-bind:style="panelStyle"
             x-bind:data-placement="placement"
-            x-on:keydown.escape.stop="closePanel(); $refs.trigger.focus()"
+            x-on:keydown.escape.stop="closePanel(); focusTrigger()"
             x-transition:enter="transition ease-out duration-100"
             x-transition:enter-start="opacity-0 scale-[0.98]"
             x-transition:enter-end="opacity-100 scale-100"

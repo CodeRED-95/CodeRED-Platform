@@ -95,5 +95,7 @@ $this->authorize('update', $agency);
 |---|---|---|
 | Activar seleccionadas | `agencies.manage_status` | Solo `under_review` → `active` |
 | Eliminar seleccionadas | `agencies.delete` | Soft Delete hacia papelera |
+| Restaurar seleccionadas | `agencies.restore` | Solo registros presentes en papelera; prevalidación de identidad |
+| Eliminar definitivamente seleccionadas | `agencies.delete` + `agencies.restore` | Solo papelera, confirmación exacta `ELIMINAR` y auditoría independiente |
 
-Ocultar botones no constituye autorización: las Actions vuelven a consultar cada ID y ejecutan la Policy correspondiente antes de iniciar cambios.
+Ocultar botones no constituye autorización: las Actions vuelven a consultar cada ID y ejecutan la Policy correspondiente antes de iniciar cambios. La selección se limita a la página visible, se limpia al paginar o filtrar y admite como máximo 100 IDs únicos por operación. La eliminación definitiva se ejecuta en transacción, solo consulta `onlyTrashed()` y conserva un evento `force_deleted` en `activity_logs` antes de eliminar el historial dependiente.

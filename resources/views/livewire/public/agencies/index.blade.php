@@ -17,7 +17,7 @@
         <x-ui.skeleton variant="card" />
     </div>
 
-    <div class="grid gap-4 transition md:grid-cols-2 xl:grid-cols-3" wire:loading.class="opacity-50" wire:target="search,department,province,district">
+    <div id="public-agencies-list" class="scroll-mt-4 grid gap-4 transition md:grid-cols-2 xl:grid-cols-3" wire:loading.class="opacity-50" wire:target="search,department,province,district">
         @forelse ($agencies as $agency)
             <article class="rounded-[var(--radius-card)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] p-5 transition hover:bg-[color:var(--color-surface-hover)]">
                 <div class="flex items-start justify-between gap-3">
@@ -50,5 +50,5 @@
         @endforelse
     </div>
 
-    <x-ui.pagination :paginator="$agencies" />
+    <x-ui.pagination :paginator="$agencies" scroll-to="#public-agencies-list" />
 </div>

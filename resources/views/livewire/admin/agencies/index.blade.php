@@ -40,31 +40,58 @@
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <p class="font-semibold">{{ $bulkSummary['selected'] }} {{ $bulkSummary['selected'] === 1 ? 'agencia seleccionada' : 'agencias seleccionadas' }}</p>
-                    <p class="text-sm text-[color:var(--color-text-secondary)]">La selección corresponde a registros visibles y se limita a 100 por operación.</p>
+                    <p class="text-sm text-[color:var(--color-text-secondary)]">Selección limitada a las agencias visibles de esta página y a 100 registros por operación.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    @if ($canBulkActivate)
-                        <x-ui.confirm-dialog
-                            id="bulk-activate-agencies"
-                            title="Activar agencias seleccionadas"
-                            :message="'Se seleccionaron '.$bulkSummary['selected'].' agencias. '.$bulkSummary['reviewable'].' están En revisión y se activarán; '.($bulkSummary['selected'] - $bulkSummary['reviewable']).' serán ignoradas.'"
-                            confirm-label="Activar agencias"
-                            confirm-action="activateSelected"
-                            tone="primary"
-                        >
-                            <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('activate')" variant="primary" loading-target="activateSelected">Activar seleccionadas</x-ui.button></x-slot:trigger>
-                        </x-ui.confirm-dialog>
-                    @endif
-                    @if ($canBulkDelete)
-                        <x-ui.confirm-dialog
-                            id="bulk-delete-agencies"
-                            title="Enviar agencias a la papelera"
-                            :message="'Se enviarán '.$bulkSummary['selected'].' agencias a la papelera y podrán restaurarse. Vista previa: '.implode(', ', $bulkSummary['preview_names']).($bulkSummary['selected'] > count($bulkSummary['preview_names']) ? ' y otras.' : '.')"
-                            confirm-label="Eliminar agencias"
-                            confirm-action="deleteSelected"
-                        >
-                            <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('delete')" variant="danger" loading-target="deleteSelected">Eliminar seleccionadas</x-ui.button></x-slot:trigger>
-                        </x-ui.confirm-dialog>
+                    @if ($trashView)
+                        @if ($canBulkRestore)
+                            <x-ui.confirm-dialog
+                                id="bulk-restore-agencies"
+                                title="Restaurar agencias seleccionadas"
+                                :message="'Se restaurarán '.$bulkSummary['selected'].' agencias y volverán al listado principal. Los conflictos de Code, ID externo o slug se omitirán de forma segura.'"
+                                confirm-label="Restaurar agencias"
+                                confirm-action="restoreSelected"
+                                tone="primary"
+                            >
+                                <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('restore')" variant="primary" loading-target="restoreSelected">Restaurar seleccionadas</x-ui.button></x-slot:trigger>
+                            </x-ui.confirm-dialog>
+                        @endif
+                        @if ($canBulkForceDelete)
+                            <x-ui.confirm-dialog
+                                id="bulk-force-delete-agencies"
+                                title="Eliminar agencias definitivamente"
+                                :message="'Esta acción no se puede deshacer. Se eliminarán permanentemente '.$bulkSummary['selected'].' agencias y sus historiales dependientes. Vista previa: '.implode(', ', $bulkSummary['preview_names']).($bulkSummary['selected'] > count($bulkSummary['preview_names']) ? ' y otras.' : '.')"
+                                confirm-label="Eliminar definitivamente"
+                                confirm-action="forceDeleteSelected"
+                                confirmation-text="ELIMINAR"
+                            >
+                                <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('force-delete')" variant="danger" loading-target="forceDeleteSelected">Eliminar definitivamente</x-ui.button></x-slot:trigger>
+                            </x-ui.confirm-dialog>
+                        @endif
+                    @else
+                        @if ($canBulkActivate)
+                            <x-ui.confirm-dialog
+                                id="bulk-activate-agencies"
+                                title="Activar agencias seleccionadas"
+                                :message="'Se seleccionaron '.$bulkSummary['selected'].' agencias. '.$bulkSummary['reviewable'].' están En revisión y se activarán; '.($bulkSummary['selected'] - $bulkSummary['reviewable']).' serán ignoradas.'"
+                                confirm-label="Activar agencias"
+                                confirm-action="activateSelected"
+                                tone="primary"
+                            >
+                                <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('activate')" variant="primary" loading-target="activateSelected">Activar seleccionadas</x-ui.button></x-slot:trigger>
+                            </x-ui.confirm-dialog>
+                        @endif
+                        @if ($canBulkDelete)
+                            <x-ui.confirm-dialog
+                                id="bulk-delete-agencies"
+                                title="Enviar agencias a la papelera"
+                                :message="'Se enviarán '.$bulkSummary['selected'].' agencias a la papelera y podrán restaurarse. Vista previa: '.implode(', ', $bulkSummary['preview_names']).($bulkSummary['selected'] > count($bulkSummary['preview_names']) ? ' y otras.' : '.')"
+                                confirm-label="Eliminar agencias"
+                                confirm-action="deleteSelected"
+                            >
+                                <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('delete')" variant="danger" loading-target="deleteSelected">Eliminar seleccionadas</x-ui.button></x-slot:trigger>
+                            </x-ui.confirm-dialog>
+                        @endif
                     @endif
                     <x-ui.button type="button" wire:click="clearSelection" variant="secondary">Limpiar selección</x-ui.button>
                 </div>
@@ -77,7 +104,7 @@
         <x-ui.skeleton variant="table" :rows="5" />
     </div>
 
-    <x-ui.table wire:loading.class="opacity-50" wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
+    <x-ui.table id="agencies-list" wire:loading.class="opacity-50" wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
         <thead class="bg-white/5 text-xs uppercase tracking-[0.2em] text-[color:var(--color-text-secondary)]">
             <tr>
                 <th class="w-12 px-5 py-4">
@@ -191,5 +218,5 @@
         </tbody>
     </x-ui.table>
 
-    <x-ui.pagination :paginator="$agencies" />
+    <x-ui.pagination :paginator="$agencies" scroll-to="#agencies-list" />
 </div>

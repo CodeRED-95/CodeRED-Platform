@@ -56,6 +56,10 @@ document.addEventListener('alpine:init', () => {
             this.open = false;
         },
 
+        focusTrigger() {
+            this.$refs.trigger?.focus({ preventScroll: true });
+        },
+
         togglePanel() {
             this.open ? this.closePanel() : this.openPanel();
         },

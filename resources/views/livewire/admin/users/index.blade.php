@@ -26,7 +26,7 @@
         <x-ui.skeleton variant="table" :rows="5" />
     </div>
 
-    <x-ui.table wire:loading.class="opacity-50" wire:target="search,status,role,verified,access,trash,perPage">
+    <x-ui.table id="users-list" wire:loading.class="opacity-50" wire:target="search,status,role,verified,access,trash,perPage">
         <thead class="bg-white/5 text-xs uppercase tracking-[0.2em] text-[color:var(--color-text-secondary)]">
             <tr>
                 <th class="px-5 py-4">Usuario</th>
@@ -80,5 +80,5 @@
         </tbody>
     </x-ui.table>
 
-    <x-ui.pagination :paginator="$users" />
+    <x-ui.pagination :paginator="$users" scroll-to="#users-list" />
 </div>

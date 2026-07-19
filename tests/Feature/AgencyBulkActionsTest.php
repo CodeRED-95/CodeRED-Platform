@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Livewire\Admin\Agencies\Index;
+use App\Models\ActivityLog;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Actions\BulkActivateAgenciesAction;
+use App\Modules\Agencies\Actions\BulkForceDeleteAgenciesAction;
+use App\Modules\Agencies\Actions\BulkRestoreAgenciesAction;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -137,6 +140,142 @@ class AgencyBulkActionsTest extends TestCase
         Livewire::actingAs($this->actor(['agencies.view', 'agencies.manage_status']))->test(Index::class)
             ->set('selectedAgencyIds', $ids)->call('prepareBulkAction', 'activate')
             ->assertHasErrors(['selectedAgencyIds']);
+    }
+
+    public function test_trash_bulk_restore_restores_only_trashed_records_and_clears_selection(): void
+    {
+        $actor = $this->actor(['agencies.view', 'agencies.restore']);
+        $first = Agency::factory()->create();
+        $second = Agency::factory()->create();
+        $active = Agency::factory()->create();
+        $first->delete();
+        $second->delete();
+
+        Livewire::actingAs($actor)->test(Index::class)
+            ->set('withTrashed', 'only')
+            ->set('selectedAgencyIds', [$first->id, $second->id, $active->id, 999999, $first->id])
+            ->assertSee('Restaurar seleccionadas')
+            ->assertDontSee('Activar seleccionadas')
+            ->call('prepareBulkAction', 'restore')
+            ->call('restoreSelected')
+            ->assertSet('selectedAgencyIds', [])
+            ->assertDispatched('toast');
+
+        $this->assertNotSoftDeleted($first);
+        $this->assertNotSoftDeleted($second);
+        $this->assertNotSoftDeleted($active);
+        $this->assertDatabaseHas('agency_change_logs', ['agency_id' => $first->id, 'user_id' => $actor->id, 'action' => 'restored']);
+    }
+
+    public function test_bulk_force_delete_requires_exact_confirmation_and_only_deletes_trashed_records(): void
+    {
+        $actor = $this->actor(['agencies.view', 'agencies.delete', 'agencies.restore']);
+        $trashed = Agency::factory()->create();
+        $active = Agency::factory()->create();
+        $trashed->delete();
+
+        $component = Livewire::actingAs($actor)->test(Index::class)
+            ->set('withTrashed', 'only')
+            ->set('selectedAgencyIds', [$trashed->id, $active->id, 999999])
+            ->assertSee('ELIMINAR')
+            ->call('prepareBulkAction', 'force-delete')
+            ->call('forceDeleteSelected', 'eliminar')
+            ->assertHasErrors(['selectedAgencyIds']);
+
+        $this->assertDatabaseHas('agencies', ['id' => $trashed->id]);
+
+        $component->call('forceDeleteSelected', 'ELIMINAR')
+            ->assertSet('selectedAgencyIds', [])
+            ->assertDispatched('toast');
+
+        $this->assertDatabaseMissing('agencies', ['id' => $trashed->id]);
+        $this->assertDatabaseHas('agencies', ['id' => $active->id]);
+        $this->assertTrue(ActivityLog::query()->where('action', 'force_deleted')->where('auditable_id', $trashed->id)->exists());
+    }
+
+    public function test_bulk_trash_actions_are_authorized_on_server(): void
+    {
+        $agency = Agency::factory()->create();
+        $agency->delete();
+
+        Livewire::actingAs($this->actor(['agencies.view']))->test(Index::class)
+            ->set('withTrashed', 'only')
+            ->set('selectedAgencyIds', [$agency->id])
+            ->call('prepareBulkAction', 'restore')
+            ->call('restoreSelected')
+            ->assertForbidden();
+
+        $this->assertSoftDeleted($agency);
+
+        Livewire::actingAs($this->actor(['agencies.view', 'agencies.restore']))->test(Index::class)
+            ->set('withTrashed', 'only')
+            ->set('selectedAgencyIds', [$agency->id])
+            ->call('prepareBulkAction', 'force-delete')
+            ->call('forceDeleteSelected', 'ELIMINAR')
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('agencies', ['id' => $agency->id]);
+    }
+
+    public function test_bulk_restore_transaction_rolls_back_on_error(): void
+    {
+        $actor = $this->actor(['agencies.view', 'agencies.restore']);
+        $first = Agency::factory()->create(['code' => 'RESTORE-ROLLBACK-1']);
+        $second = Agency::factory()->create(['code' => 'RESTORE-ROLLBACK-2']);
+        $first->delete();
+        $second->delete();
+        $this->actingAs($actor);
+        Agency::restored(function (Agency $agency): void {
+            if ($agency->code === 'RESTORE-ROLLBACK-2') {
+                throw new \RuntimeException('Fallo de restauración controlado');
+            }
+        });
+
+        try {
+            app(BulkRestoreAgenciesAction::class)->execute([$first->id, $second->id]);
+            $this->fail('La restauración debía revertirse.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Fallo de restauración controlado', $exception->getMessage());
+        }
+
+        $this->assertSoftDeleted($first);
+        $this->assertSoftDeleted($second);
+    }
+
+    public function test_bulk_force_delete_transaction_rolls_back_records_and_global_audit_on_error(): void
+    {
+        $actor = $this->actor(['agencies.view', 'agencies.delete', 'agencies.restore']);
+        $first = Agency::factory()->create(['code' => 'FORCE-ROLLBACK-1']);
+        $second = Agency::factory()->create(['code' => 'FORCE-ROLLBACK-2']);
+        $first->delete();
+        $second->delete();
+        $this->actingAs($actor);
+        Agency::forceDeleted(function (Agency $agency): void {
+            if ($agency->code === 'FORCE-ROLLBACK-2') {
+                throw new \RuntimeException('Fallo de borrado controlado');
+            }
+        });
+
+        try {
+            app(BulkForceDeleteAgenciesAction::class)->execute([$first->id, $second->id]);
+            $this->fail('La eliminación debía revertirse.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Fallo de borrado controlado', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('agencies', ['id' => $first->id]);
+        $this->assertDatabaseHas('agencies', ['id' => $second->id]);
+        $this->assertDatabaseMissing('activity_logs', ['action' => 'force_deleted', 'auditable_id' => $first->id]);
+    }
+
+    public function test_changing_page_clears_bulk_selection(): void
+    {
+        Agency::factory()->count(18)->create();
+
+        Livewire::actingAs($this->actor(['agencies.view']))->test(Index::class)
+            ->set('selectedAgencyIds', [Agency::query()->value('id')])
+            ->call('gotoPage', 2)
+            ->assertSet('selectedAgencyIds', []);
     }
 
     private function actor(array $permissions): User

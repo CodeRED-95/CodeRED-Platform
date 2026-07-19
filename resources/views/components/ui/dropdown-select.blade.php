@@ -38,7 +38,7 @@
             this.openPanel();
             const selectedIndex = this.options.findIndex((option) => option.value === this.value);
             this.activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
-            this.$nextTick(() => this.scrollActiveOption());
+            this.$nextTick(() => this.keepActiveOptionVisible());
         },
         toggleList() {
             this.open ? this.closeList() : this.openList();
@@ -53,7 +53,7 @@
             }
 
             this.activeIndex = (this.activeIndex + delta + this.options.length) % this.options.length;
-            this.$nextTick(() => this.scrollActiveOption());
+            this.$nextTick(() => this.keepActiveOptionVisible());
         },
         selectActive() {
             if (!this.open) {
@@ -73,18 +73,26 @@
             this.$refs.input.dispatchEvent(new Event('input', { bubbles: true }));
             this.$refs.input.dispatchEvent(new Event('change', { bubbles: true }));
             this.closeList();
-            this.$nextTick(() => this.$refs.trigger.focus());
+            this.$nextTick(() => this.focusTrigger());
         },
-        scrollActiveOption() {
-            this.$refs.panel
-                ?.querySelector(`[data-option-index='${this.activeIndex}']`)
-                ?.scrollIntoView({ block: 'nearest' });
+        keepActiveOptionVisible() {
+            const panel = this.$refs.panel;
+            const option = panel?.querySelector(`[data-option-index='${this.activeIndex}']`);
+            if (!panel || !option) return;
+
+            const optionTop = option.offsetTop;
+            const optionBottom = optionTop + option.offsetHeight;
+            if (optionTop < panel.scrollTop) {
+                panel.scrollTop = optionTop;
+            } else if (optionBottom > panel.scrollTop + panel.clientHeight) {
+                panel.scrollTop = optionBottom - panel.clientHeight;
+            }
         },
         selectedLabel() {
             return this.options.find((option) => option.value === this.value)?.label ?? @js($placeholder);
         },
     }"
-    x-on:keydown.escape.stop="closeList(); $refs.trigger.focus()"
+    x-on:keydown.escape.stop="closeList(); focusTrigger()"
 >
     <label id="{{ $labelId }}" for="{{ $controlId }}" class="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
         {{ $label }}
@@ -152,7 +160,7 @@
             x-show="open"
             x-bind:style="panelStyle"
             x-bind:data-placement="placement"
-            x-on:keydown.escape.stop="closeList(); $refs.trigger.focus()"
+            x-on:keydown.escape.stop="closeList(); focusTrigger()"
             x-transition:enter="transition ease-out duration-150"
             x-transition:enter-start="opacity-0 scale-[0.98]"
             x-transition:enter-end="opacity-100 scale-100"

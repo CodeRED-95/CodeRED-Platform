@@ -6,14 +6,17 @@
     'cancelLabel' => 'Cancelar',
     'confirmAction' => null,
     'tone' => 'danger',
+    'confirmationText' => null,
 ])
 
 <div
     x-data="{
         open: false,
+        confirmation: '',
         close() {
             this.open = false;
-            this.$nextTick(() => this.$refs.trigger.querySelector('button, a')?.focus());
+            this.confirmation = '';
+            this.$nextTick(() => this.$refs.trigger.querySelector('button, a')?.focus({ preventScroll: true }));
         },
         destroy() {
             document.body.classList.remove('overflow-hidden');
@@ -25,17 +28,17 @@
 
             if (event.shiftKey && document.activeElement === first) {
                 event.preventDefault();
-                last?.focus();
+                last?.focus({ preventScroll: true });
             } else if (!event.shiftKey && document.activeElement === last) {
                 event.preventDefault();
-                first?.focus();
+                first?.focus({ preventScroll: true });
             }
         },
     }"
     x-effect="document.body.classList.toggle('overflow-hidden', open)"
     x-on:keydown.escape.window="if (open) close()"
 >
-    <span x-ref="trigger" x-on:click="open = true; $nextTick(() => $refs.cancel.focus())">
+    <span x-ref="trigger" x-on:click="open = true; confirmation = ''; $nextTick(() => $refs.cancel.focus({ preventScroll: true }))">
         {{ $trigger }}
     </span>
 
@@ -62,9 +65,40 @@
                         </div>
                     </div>
 
+                    @if ($confirmationText)
+                        <div class="mt-6">
+                            <label for="{{ $id }}-confirmation" class="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                                Escribe <strong>{{ $confirmationText }}</strong> para confirmar
+                            </label>
+                            <input
+                                x-ref="confirmation"
+                                x-model="confirmation"
+                                id="{{ $id }}-confirmation"
+                                type="text"
+                                autocomplete="off"
+                                x-on:keydown.enter.prevent
+                                class="focus-ring min-h-12 w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-background)] px-4 py-3 text-[color:var(--color-text-primary)]"
+                                aria-describedby="{{ $id }}-description"
+                            >
+                        </div>
+                    @endif
+
                     <div class="mt-6 flex justify-end gap-3">
                         <x-ui.button x-ref="cancel" type="button" variant="secondary" x-on:click="close()">{{ $cancelLabel }}</x-ui.button>
-                        @if ($confirmAction)
+                        @if ($confirmAction && $confirmationText)
+                            <x-ui.button
+                                type="button"
+                                :variant="$tone === 'danger' ? 'danger' : 'primary'"
+                                x-on:click="$wire.{{ $confirmAction }}(confirmation); close()"
+                                x-bind:disabled="confirmation !== @js($confirmationText)"
+                                loading-target="{{ $confirmAction }}"
+                                loading-label="Procesando…"
+                                wire:loading.attr="disabled"
+                                wire:target="{{ $confirmAction }}"
+                            >
+                                {{ $confirmLabel }}
+                            </x-ui.button>
+                        @elseif ($confirmAction)
                             <x-ui.button
                                 type="button"
                                 :variant="$tone === 'danger' ? 'danger' : 'primary'"
@@ -78,11 +112,7 @@
                                 {{ $confirmLabel }}
                             </x-ui.button>
                         @else
-                            <x-ui.button
-                                type="button"
-                                :variant="$tone === 'danger' ? 'danger' : 'primary'"
-                                x-on:click="close()"
-                            >
+                            <x-ui.button type="button" :variant="$tone === 'danger' ? 'danger' : 'primary'" x-on:click="close()">
                                 {{ $confirmLabel }}
                             </x-ui.button>
                         @endif

@@ -4,6 +4,8 @@ namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Actions\BulkActivateAgenciesAction;
 use App\Modules\Agencies\Actions\BulkDeleteAgenciesAction;
+use App\Modules\Agencies\Actions\BulkForceDeleteAgenciesAction;
+use App\Modules\Agencies\Actions\BulkRestoreAgenciesAction;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
@@ -87,6 +89,11 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatingPaginators(): void
+    {
+        $this->clearSelection();
+    }
+
     public function sortBy(string $field): void
     {
         $this->clearSelection();
@@ -119,7 +126,9 @@ class Index extends Component
 
     public function prepareBulkAction(string $action): void
     {
-        abort_unless(in_array($action, ['activate', 'delete'], true), 404);
+        abort_unless(in_array($action, ['activate', 'delete', 'restore', 'force-delete'], true), 404);
+        $trashAction = in_array($action, ['restore', 'force-delete'], true);
+        abort_unless($trashAction === ($this->withTrashed === 'only'), 404);
         if ($this->selectedIds(true) === []) {
             $this->dispatch('toast', type: 'warning', message: 'Selecciona al menos una agencia.');
 
@@ -152,6 +161,42 @@ class Index extends Component
         $result = $action->execute($this->selectedIds(true));
         $this->clearSelection();
         $this->dispatch('toast', type: 'success', message: 'Se enviaron '.$result['deleted'].' agencias a la papelera. Se ignoraron '.$result['ignored'].' registros no disponibles.');
+    }
+
+    public function restoreSelected(BulkRestoreAgenciesAction $action): void
+    {
+        if ($this->pendingBulkAction !== 'restore') {
+            $this->dispatch('toast', type: 'danger', message: 'Confirma la restauración antes de continuar.');
+
+            return;
+        }
+
+        $result = $action->execute($this->selectedIds(true));
+        $this->clearSelection();
+        $message = 'Se restauraron '.$result['restored'].' agencias.';
+        if ($result['conflicts'] > 0 || $result['ignored'] > 0) {
+            $message .= ' '.$result['conflicts'].' presentaron conflictos de identidad y '.$result['ignored'].' ya no estaban en papelera.';
+        }
+        $this->dispatch('toast', type: $result['conflicts'] > 0 ? 'warning' : 'success', message: $message);
+    }
+
+    public function forceDeleteSelected(string $confirmation, BulkForceDeleteAgenciesAction $action): void
+    {
+        if ($this->pendingBulkAction !== 'force-delete') {
+            $this->dispatch('toast', type: 'danger', message: 'Confirma la eliminación permanente antes de continuar.');
+
+            return;
+        }
+
+        if ($confirmation !== 'ELIMINAR') {
+            throw ValidationException::withMessages([
+                'selectedAgencyIds' => 'Escribe ELIMINAR exactamente para confirmar.',
+            ]);
+        }
+
+        $result = $action->execute($this->selectedIds(true));
+        $this->clearSelection();
+        $this->dispatch('toast', type: 'success', message: 'Se eliminaron definitivamente '.$result['deleted'].' agencias. Se ignoraron '.$result['ignored'].' registros que ya no estaban en papelera.');
     }
 
     public function deleteAgency(int $agencyId): void
@@ -195,8 +240,15 @@ class Index extends Component
             ->paginate($this->perPage);
 
         $selectedIds = $this->selectedIds();
-        $selectedAgencies = Agency::query()->whereIn('id', $selectedIds);
+        $trashView = $this->withTrashed === 'only';
+        $selectedAgencies = $trashView
+            ? Agency::onlyTrashed()->whereIn('id', $selectedIds)
+            : Agency::query()->whereIn('id', $selectedIds);
         $pageIds = $agencies->getCollection()->pluck('id')->map(fn (int $id): int => $id)->all();
+        $user = auth()->user();
+        $canManageStatus = $user !== null && $user->hasPermission('agencies.manage_status');
+        $canDelete = $user !== null && $user->hasPermission('agencies.delete');
+        $canRestore = $user !== null && $user->hasPermission('agencies.restore');
 
         return view('livewire.admin.agencies.index', [
             'agencies' => $agencies,
@@ -207,8 +259,11 @@ class Index extends Component
                 'reviewable' => (clone $selectedAgencies)->where('status', AgencyStatus::UnderReview->value)->count(),
                 'preview_names' => (clone $selectedAgencies)->limit(5)->pluck('name')->all(),
             ],
-            'canBulkActivate' => auth()->user()?->hasPermission('agencies.manage_status') ?? false,
-            'canBulkDelete' => auth()->user()?->hasPermission('agencies.delete') ?? false,
+            'trashView' => $trashView,
+            'canBulkActivate' => ! $trashView && $canManageStatus,
+            'canBulkDelete' => ! $trashView && $canDelete,
+            'canBulkRestore' => $trashView && $canRestore,
+            'canBulkForceDelete' => $trashView && $canDelete && $canRestore,
             'stats' => [
                 'total' => Agency::query()->count(),
                 'active' => Agency::query()->where('status', AgencyStatus::Active)->count(),

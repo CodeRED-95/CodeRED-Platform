@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-19 — Paginación y operaciones masivas de papelera
+
+- Se eliminó el salto al final al abrir listboxes teletransportados, limitando el desplazamiento a su panel y restaurando foco sin scroll.
+- Se incorporó paginación oscura accesible y responsive con destino de scroll explícito por listado.
+- La papelera de Agencias permite restaurar y eliminar definitivamente la selección visible, con autorización, transacciones, límite, confirmación reforzada y resumen.
+- La eliminación permanente registra `force_deleted` en la auditoría global antes de borrar el registro y sus logs dependientes.
+
 ## 2026-07-19 — Importación desde Gist, fase 7
 
 - Se convirtió el importador en un asistente de cinco pasos obligatorio.

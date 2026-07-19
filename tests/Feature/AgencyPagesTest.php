@@ -92,7 +92,7 @@ class AgencyPagesTest extends TestCase
             ->assertSeeHtml('role="option"')
             ->assertSeeHtml('x-on:keydown.arrow-down.prevent="move(1)"')
             ->assertSeeHtml('x-on:keydown.arrow-up.prevent="move(-1)"')
-            ->assertSeeHtml('x-on:keydown.escape.stop="closeList(); $refs.trigger.focus()"')
+            ->assertSeeHtml('x-on:keydown.escape.stop="closeList(); focusTrigger()"')
             ->assertSeeHtml('bg-[color:var(--color-background-elevated)]')
             ->assertSeeHtml("'bg-blue-600 text-white'")
             ->assertSeeHtml('wire:model="status"')
