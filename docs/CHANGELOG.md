@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-19 — API Sanctum y administración de tokens
+
+- Se protegió la API oficial v1 con Sanctum, abilities, expiración, rate limit y CORS explícito.
+- Se añadió un Resource mínimo de agencias, metadata, identidad del token y health público seguro.
+- Super Administrador dispone de creación, visualización segura, rotación y revocación individual/masiva de tokens auditados.
+- Se publicó OpenAPI 3 y documentación interactiva interna sin persistir credenciales.
+
 ## 2026-07-19 — Mapa, perfil y matriz de roles
 
 - El mapa administrativo ahora usa Leaflet, tiles reales de OpenStreetMap, marcadores CodeRED, agrupación dinámica y ciclo de vida seguro con Livewire.

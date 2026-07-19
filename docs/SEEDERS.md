@@ -38,3 +38,5 @@ Las seeders que crean datos demo deben usar factories del proyecto. En módulos 
 ## Roles y permisos
 
 `RolesSeeder` conserva únicamente `super-admin`, `viewer` y `editor`. `PermissionsSeeder` sincroniza la matriz exacta: Super Administrador recibe todos los permisos, Consulta solo `agencies.view` y Editor recibe Dashboard y gestión no destructiva de Agencias. Los usuarios heredados con `admin` pasan a Editor salvo que ya sean Super Administrador.
+
+Los permisos `api-tokens.*` se crean idempotentemente y solo quedan asociados a Super Administrador mediante la sincronización total; Editor y Consulta conservan sus matrices cerradas.

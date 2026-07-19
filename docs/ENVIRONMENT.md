@@ -124,3 +124,18 @@ Las variables `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` se usan para iniciali
 Si el volumen de PostgreSQL ya fue creado con otras credenciales, modificar `.env` no cambia automáticamente la contraseña interna del rol. En ese caso debe sincronizarse el rol dentro de PostgreSQL sin borrar el volumen.
 
 Las variables `DEV_ADMIN_*` se leen exclusivamente desde `config/codered.php` durante el bootstrap normal. El seeder consume `config()` para seguir funcionando con la configuración cacheada.
+
+## API v1
+
+| Variable | Uso |
+|---|---|
+| `API_ENABLED` | Habilita configuración de API |
+| `API_VERSION` | Versión informada |
+| `API_DOCS_ENABLED` | Habilita documentación interna |
+| `API_DOCS_REQUIRE_AUTH` | Reserva documental para autenticados |
+| `API_RATE_LIMIT_PER_MINUTE` | Límite por token |
+| `API_ALLOWED_ORIGINS` | Orígenes CORS explícitos separados por coma |
+| `API_DEFAULT_TOKEN_EXPIRATION_DAYS` | Expiración propuesta en panel |
+| `API_MAX_PER_PAGE` | Máximo de paginación |
+
+En producción, `API_ALLOWED_ORIGINS` debe incluir únicamente dominios necesarios y el origen `chrome-extension://ID_DEFINITIVO`.

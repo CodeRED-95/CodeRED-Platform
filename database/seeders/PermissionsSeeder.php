@@ -31,6 +31,12 @@ class PermissionsSeeder extends Seeder
             ['slug' => 'users.reset_password', 'name' => 'Restablecer contraseñas'],
             ['slug' => 'users.manage_status', 'name' => 'Gestionar estado de usuarios'],
             ['slug' => 'users.view_activity', 'name' => 'Ver actividad de usuarios'],
+            ['slug' => 'api-tokens.view-own', 'name' => 'Ver tokens propios'],
+            ['slug' => 'api-tokens.create-own', 'name' => 'Crear tokens propios'],
+            ['slug' => 'api-tokens.revoke-own', 'name' => 'Revocar tokens propios'],
+            ['slug' => 'api-tokens.view-any', 'name' => 'Ver todos los tokens'],
+            ['slug' => 'api-tokens.create-for-users', 'name' => 'Crear tokens para usuarios'],
+            ['slug' => 'api-tokens.revoke-any', 'name' => 'Revocar cualquier token'],
         ])->each(fn (array $item) => Permission::query()->updateOrCreate(
             ['slug' => $item['slug']],
             ['name' => $item['name'], 'description' => null]

@@ -2,8 +2,10 @@
 
 return [
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
-    'allowed_methods' => ['*'],
-    'allowed_origins' => ['http://localhost:8080', 'http://127.0.0.1:8080'],
-    'allowed_headers' => ['*'],
-    'supports_credentials' => true,
+    'allowed_methods' => ['GET', 'OPTIONS'],
+    'allowed_origins' => config('api.allowed_origins', []),
+    'allowed_headers' => ['Accept', 'Authorization', 'Content-Type', 'Origin'],
+    'exposed_headers' => ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'Retry-After'],
+    'max_age' => 3600,
+    'supports_credentials' => false,
 ];

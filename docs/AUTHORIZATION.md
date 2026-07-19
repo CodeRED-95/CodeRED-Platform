@@ -69,3 +69,7 @@ El último Super Administrador activo no puede eliminarse, desactivarse ni perde
 ## Recuperación de desarrollo
 
 Ejecutar `php artisan db:seed` recrea permisos, sincroniza exactamente los tres roles y asigna `super-admin` únicamente a la cuenta de desarrollo configurada.
+
+## API y tokens
+
+Solo Super Administrador recibe `api-tokens.view-any`, `api-tokens.create-for-users` y `api-tokens.revoke-any`. Editor y Consulta no administran tokens. Cada solicitud privada debe superar autenticación Sanctum y la ability del token; los permisos web del propietario no sustituyen la ability.

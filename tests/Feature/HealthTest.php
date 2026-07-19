@@ -11,14 +11,7 @@ class HealthTest extends TestCase
         $response = $this->getJson('/api/v1/health');
 
         $response->assertOk()
-            ->assertJsonStructure([
-                'status',
-                'database',
-                'redis',
-                'cache',
-                'queue',
-                'version',
-                'server_time',
-            ]);
+            ->assertJsonStructure(['status', 'api_version', 'timestamp'])
+            ->assertJsonMissing(['database' => true]);
     }
 }

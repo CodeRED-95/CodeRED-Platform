@@ -38,8 +38,8 @@ class MapPreviewComponentTest extends TestCase
     {
         $javascript = File::get(resource_path('js/app.js'));
 
-        $this->assertStringContainsString("import L from 'leaflet'", $javascript);
-        $this->assertStringContainsString("import 'leaflet/dist/leaflet.css'", $javascript);
+        $this->assertMatchesRegularExpression('/import L from [\"\']leaflet[\"\']/', $javascript);
+        $this->assertMatchesRegularExpression('/import [\"\']leaflet\/dist\/leaflet\.css[\"\']/', $javascript);
         $this->assertStringContainsString('tile.openstreetmap.org', $javascript);
         $this->assertStringContainsString('codered-map-marker', $javascript);
         $this->assertStringContainsString('bindPopup', $javascript);

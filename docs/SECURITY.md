@@ -73,3 +73,7 @@ El importador solo permite:
   de Agencias únicamente con `agencies.view_history`.
 - No permitir que un usuario se elimine o se suspenda a sí mismo.
 - Proteger al último superadministrador activo como cuenta crítica.
+
+## Tokens de integración
+
+Sanctum almacena únicamente hashes SHA-256. El secreto completo se muestra una vez, no se registra y se mantiene solo en memoria al probar documentación. Los eventos de creación, rotación y revocación guardan propietario, abilities y expiración, nunca token, hash o Authorization. Ante filtración: revocar, emitir uno nuevo, verificarlo y actualizar el cliente.

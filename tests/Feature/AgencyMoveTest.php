@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
@@ -97,11 +98,11 @@ class AgencyMoveTest extends TestCase
         $this->assertSame(AgencyStatus::UnderReview, $updated->status);
     }
 
-    public function test_moved_agency_excluded_from_public_list(): void
+    public function test_active_filter_excludes_moved_agency_from_official_catalog(): void
     {
         Agency::factory()->create(['status' => AgencyStatus::Moved, 'has_moved' => true]);
 
-        $response = $this->getJson('/api/v1/agencies');
+        $response = $this->withToken($this->apiToken())->getJson('/api/v1/agencies?status=active');
 
         $response->assertOk();
         $this->assertSame(0, $response->json('meta.total'));
@@ -111,7 +112,7 @@ class AgencyMoveTest extends TestCase
     {
         $agency = Agency::factory()->create(['status' => AgencyStatus::Moved, 'has_moved' => true, 'code' => 'SHA-000010']);
 
-        $response = $this->getJson('/api/v1/agencies/SHA-000010');
+        $response = $this->withToken($this->apiToken())->getJson('/api/v1/agencies/SHA-000010');
 
         $response->assertOk()->assertJsonPath('data.code', $agency->code);
     }
@@ -126,7 +127,7 @@ class AgencyMoveTest extends TestCase
             'move_notice' => 'Esta agencia se trasladó.',
         ]);
 
-        $response = $this->getJson('/api/v1/agencies/snapshot');
+        $response = $this->withToken($this->apiToken())->getJson('/api/v1/agencies/snapshot');
 
         $response->assertOk();
         $this->assertNotEmpty($response->json('moved_agencies'));
@@ -144,5 +145,10 @@ class AgencyMoveTest extends TestCase
 
         $after = AgencyVersion::current();
         $this->assertGreaterThanOrEqual($before, $after);
+    }
+
+    private function apiToken(): string
+    {
+        return User::factory()->create()->createToken('Prueba', ['agencies:read'])->plainTextToken;
     }
 }

@@ -1,0 +1,186 @@
+openapi: 3.0.3
+info:
+  title: CodeRED Platform API
+  version: 1.0.0
+  description: API de solo lectura para el catálogo de agencias de CodeRED Platform.
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      summary: Estado básico del servicio
+      operationId: health
+      responses:
+        '200':
+          description: Servicio disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: Base de datos no disponible
+  /agencies:
+    get:
+      summary: Listar agencias
+      operationId: listAgencies
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 150 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/AgencyStatus' } }
+        - { name: department, in: query, schema: { type: string } }
+        - { name: province, in: query, schema: { type: string } }
+        - { name: district, in: query, schema: { type: string } }
+        - { name: size, in: query, schema: { type: string, enum: [small, medium, large] } }
+        - { name: has_terrestrial, in: query, schema: { type: boolean } }
+        - { name: has_air, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [code, name, external_id, department, updated_at] } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Página de agencias
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyPage'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /agencies/{code}:
+    get:
+      summary: Obtener agencia por Code
+      operationId: getAgencyByCode
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Agencia
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Agency' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /catalog/metadata:
+    get:
+      summary: Metadatos del catálogo
+      operationId: catalogMetadata
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Metadatos actuales
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Metadata'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /me:
+    get:
+      summary: Propietario del token
+      operationId: tokenOwner
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Identidad mínima
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  schemas:
+    AgencyStatus:
+      type: string
+      enum: [active, inactive, temporarily_closed, under_review, moved]
+    Agency:
+      type: object
+      additionalProperties: false
+      required: [internal_id, id, code, agencia, departamento, provincia, distrito, direccion, link_mapa, tamano, texto_chosen_terrestre, texto_chosen_aereo]
+      properties:
+        internal_id: { type: integer, format: int64, example: 25 }
+        id: { type: integer, format: int64, nullable: true, example: 610 }
+        code: { type: string, example: SHA-000610 }
+        agencia: { type: string, example: Yarinacocha Av Universitaria }
+        departamento: { type: string, example: Ucayali }
+        provincia: { type: string, example: Coronel Portillo }
+        distrito: { type: string, example: Pucallpa Yarinacocha }
+        direccion: { type: string }
+        link_mapa: { type: string, format: uri, nullable: true }
+        tamano: { type: string, nullable: true, example: Pequeño }
+        texto_chosen_terrestre: { type: string, nullable: true }
+        texto_chosen_aereo: { type: string, nullable: true }
+    AgencyPage:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Agency' } }
+        links: { type: object }
+        meta: { type: object }
+    Metadata:
+      type: object
+      required: [schema_version, generated_at, total_agencies, last_agency_update, available_statuses, available_channels]
+      properties:
+        schema_version: { type: integer, example: 1 }
+        generated_at: { type: string, format: date-time }
+        total_agencies: { type: integer }
+        last_agency_update: { type: string, format: date-time, nullable: true }
+        available_statuses: { type: array, items: { $ref: '#/components/schemas/AgencyStatus' } }
+        available_channels: { type: array, items: { type: string, enum: [terrestrial, air] } }
+    Me:
+      type: object
+      required: [id, name, email, token_name, abilities]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        token_name: { type: string, nullable: true }
+        abilities: { type: array, items: { type: string } }
+    Health:
+      type: object
+      required: [status, api_version, timestamp]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        api_version: { type: string, example: v1 }
+        timestamp: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+  responses:
+    Unauthenticated:
+      description: Token ausente, inválido, revocado o expirado
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: Ability insuficiente
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Agencia no encontrada
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    ValidationError:
+      description: Filtros inválidos
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    RateLimited:
+      description: Límite excedido
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }

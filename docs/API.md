@@ -1,164 +1,31 @@
-# API
+# API oficial CodeRED v1
 
-## Convención de respuesta
+La API de integración vive bajo `/api/v1`, usa tokens personales de Laravel Sanctum y es de solo lectura. El contrato canónico es [OpenAPI 3](openapi.yaml) y la guía operativa está en [docs/api](api/README.md).
 
-Éxito:
+## Endpoints
 
-```json
-{
-  "success": true,
-  "data": {},
-  "meta": {}
-}
-```
-
-Error:
-
-```json
-{
-  "success": false,
-  "message": "Mensaje entendible",
-  "errors": {}
-}
-```
-
-## Endpoints existentes
-
-| Método | Ruta | Descripción | Permisos |
-|---|---|---|---|
-| `GET` | `/api/v1/health` | Estado general de la aplicación | Público |
-| `GET` | `/api/v1/agencies` | Listado público de agencias activas | Público |
-| `GET` | `/api/v1/agencies/search` | Búsqueda rápida pública | Público |
-| `GET` | `/api/v1/agencies/version` | Versión global pública de agencias | Público |
-| `GET` | `/api/v1/agencies/snapshot` | Snapshot compacto para extensión | Público |
-| `GET` | `/api/v1/agencies/{code}` | Detalle por código | Público |
-
-## `GET /api/v1/health`
-
-### Descripción
-
-Devuelve estado de la aplicación, conexión a PostgreSQL, conexión a Redis, versión y hora del servidor.
-
-### Ejemplo curl
-
-```bash
-curl http://localhost:8090/api/v1/health
-```
-
-## `GET /api/v1/agencies`
-
-### Descripción
-
-Lista agencias activas para consumo público.
-
-### Parámetros
-
-| Parámetro | Tipo | Descripción |
+| Método | Ruta | Ability |
 |---|---|---|
-| `page` | entero | Página |
-| `per_page` | entero | Tamaño de página |
-| `department` | string | Filtro por departamento |
-| `province` | string | Filtro por provincia |
-| `district` | string | Filtro por distrito |
-| `status` | string | Filtro por estado |
-| `updated_after` | fecha | Filtro por fecha |
-| `version` | entero | Versión de datos |
-| `search` | string | Búsqueda |
+| GET | `/api/v1/health` | Público |
+| GET | `/api/v1/agencies` | `agencies:read` |
+| GET | `/api/v1/agencies/{code}` | `agencies:read` |
+| GET | `/api/v1/catalog/metadata` | `agencies:read` |
+| GET | `/api/v1/me` | `profile:read` |
 
-### Ejemplo curl
+Los endpoints heredados `search`, `version` y `snapshot` se conservan temporalmente bajo autenticación y `agencies:read` para compatibilidad de transición.
 
-```bash
-curl "http://localhost:8090/api/v1/agencies?search=chachapoyas"
-```
+## Contrato de agencia
 
-## `GET /api/v1/agencies/search`
+La respuesta dedicada expone únicamente `internal_id`, `id` externo, `code`, nombre y ubicación en español, enlace de mapa, tamaño y los textos chosen terrestre/aéreo. No serializa el modelo Eloquent completo, eliminadas, auditoría ni procedencia interna.
 
-### Descripción
+## Seguridad
 
-Búsqueda rápida por código, nombre, ubicación y dirección.
+- Bearer token; nunca query string.
+- 60 solicitudes/minuto/token por defecto.
+- Máximo 100 registros/página por defecto.
+- Expiración y revocación nativas de Sanctum.
+- CORS por lista explícita; sin wildcard ni cookies.
+- Errores JSON sin trazas o configuración interna.
+- HTTPS obligatorio en producción.
 
-### Ejemplo curl
-
-```bash
-curl "http://localhost:8090/api/v1/agencies/search?q=tacna"
-```
-
-## `GET /api/v1/agencies/version`
-
-### Descripción
-
-Devuelve la versión global de agencias y métricas básicas.
-
-### Ejemplo curl
-
-```bash
-curl http://localhost:8090/api/v1/agencies/version
-```
-
-## `GET /api/v1/agencies/snapshot`
-
-### Descripción
-
-Snapshot compacto para extensión o integraciones ligeras. Incluye agencias activas y referencia compacta de trasladadas.
-
-### Ejemplo curl
-
-```bash
-curl -i http://localhost:8090/api/v1/agencies/snapshot
-```
-
-## `GET /api/v1/agencies/{code}`
-
-### Descripción
-
-Devuelve el detalle de una agencia por código.
-
-### Ejemplo curl
-
-```bash
-curl http://localhost:8090/api/v1/agencies/SHA-000003
-```
-
-## Rutas administrativas
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/admin/agencies` | Panel administrativo de agencias |
-| `GET` | `/admin/agencies/create` | Alta de agencia |
-| `GET` | `/admin/agencies/{agency}` | Detalle administrativo |
-| `GET` | `/admin/agencies/{agency}/edit` | Edición de agencia |
-| `GET` | `/admin/agencies/import` | Importador de agencias |
-| `POST` | `/admin/agencies/import/preview` | Vista previa de importación |
-| `POST` | `/admin/agencies/{agency}/move` | Gestión de traslado |
-
-## Errores
-
-Los errores detallados en producción deben evitar exponer trazas.
-
-PENDIENTE DE CONFIGURAR
-
-## Identificadores de agencias
-
-Los recursos de agencias exponen `internal_id` (PK técnica), `id` (ID externo nullable), `code`, `texto_chosen_terrestre` y `texto_chosen_aereo`. `texto_chosen` permanece temporalmente como deprecated y devuelve, por orden, terrestre, aéreo o null. El snapshot para la extensión usa `id` como ID externo y mantiene el mismo fallback heredado. Las rutas continúan enlazando por Code; no se modificó el contrato de URLs.
-
-## Contrato JSON definitivo de agencia
-
-```json
-{
-  "internal_id": 25,
-  "id": 610,
-  "code": "SHA-000610",
-  "agencia": "Yarinacocha Av Universitaria",
-  "departamento": "Ucayali",
-  "provincia": "Coronel Portillo",
-  "distrito": "Pucallpa Yarinacocha",
-  "direccion": "av. universitaria mza a lote 6",
-  "link_mapa": "https://www.google.com/maps/dir/?api=1&destination=-8.38,-74.56",
-  "tamano": "Pequeña",
-  "texto_chosen_terrestre": "610 - ... - TERRESTRE",
-  "texto_chosen_aereo": null,
-  "texto_chosen": "610 - ... - TERRESTRE"
-}
-```
-
-Las claves inglesas preexistentes permanecen temporalmente para compatibilidad hacia atrás. `texto_chosen` está deprecated: terrestre, después aéreo y finalmente null. Las rutas siguen usando Code.
+La administración y documentación interactiva son exclusivas de Super Administrador en `/admin/api-tokens` y `/docs/api`.
