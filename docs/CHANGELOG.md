@@ -151,3 +151,5 @@ Todas las versiones siguen `Keep a Changelog`.
 
 - Agencies: selección por fila y página visible, activación masiva de registros En revisión y eliminación masiva mediante Soft Delete.
 - API: contrato español de agencia con `internal_id`, `id`, Code, ubicación, tamaño e identificadores terrestre/aéreo, preservando aliases anteriores.
+
+- UI: dropdowns, selects y confirmaciones usan un portal global con posicionamiento adaptativo; la escala de capas y la región única de toasts quedan centralizadas.

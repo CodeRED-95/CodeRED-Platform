@@ -39,6 +39,15 @@
     --control-height: 3rem;
     --icon-size-control: 1.25rem;
     --space-section: 1.5rem;
+    --layer-content: 0;
+    --layer-raised: 10;
+    --layer-header: 30;
+    --layer-sidebar: 40;
+    --layer-popover: 50;
+    --layer-backdrop: 60;
+    --layer-modal: 70;
+    --layer-toast: 80;
+    --layer-critical: 90;
   }
 
   html { font-family: var(--font-sans); }
@@ -66,6 +75,16 @@
   .focus-ring {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-background)];
   }
+
+  .layer-content { z-index: var(--layer-content); }
+  .layer-raised { z-index: var(--layer-raised); }
+  .layer-header { z-index: var(--layer-header); }
+  .layer-sidebar { z-index: var(--layer-sidebar); }
+  .layer-popover { z-index: var(--layer-popover); }
+  .layer-backdrop { z-index: var(--layer-backdrop); }
+  .layer-modal { z-index: var(--layer-modal); }
+  .layer-toast { z-index: var(--layer-toast); }
+  .layer-critical { z-index: var(--layer-critical); }
 
   [x-cloak] { display: none !important; }
 }

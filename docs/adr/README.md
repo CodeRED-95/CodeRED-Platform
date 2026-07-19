@@ -76,3 +76,4 @@ Cada ADR debe incluir:
 | 0026 | CodeRED Design System con tokens y Blade Components |
 | 0027 | Identidad externa y transición de textos Chosen |
 | 0028 | Acciones masivas de agencias auditables |
+| 0029 | Portal global para overlays visuales |

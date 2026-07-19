@@ -16,7 +16,7 @@
     ]" />
     <div class="min-h-screen code-red-shell">
         <div class="flex min-h-screen">
-            <aside class="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-[color:var(--color-border-subtle)] bg-[color:var(--color-sidebar)]/95 backdrop-blur lg:flex lg:flex-col">
+            <aside class="layer-sidebar fixed inset-y-0 left-0 hidden w-72 border-r border-[color:var(--color-border-subtle)] bg-[color:var(--color-sidebar)]/95 backdrop-blur lg:flex lg:flex-col">
                 <div class="border-b border-white/5 px-6 py-6">
                     <x-ui.logo variant="symbol" class="h-11 w-11 rounded-2xl" />
                     <div class="mt-4">
@@ -73,7 +73,7 @@
             </aside>
 
             <div class="flex min-h-screen flex-1 flex-col lg:pl-72">
-                <header class="sticky top-0 z-30 border-b border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/90 backdrop-blur">
+                <header class="layer-header sticky top-0 border-b border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/90 backdrop-blur">
                     <div class="flex items-center justify-between gap-4 px-4 py-4 lg:px-8">
                         <div class="flex items-center gap-3">
                             <x-ui.icon-button class="h-11 w-11 lg:hidden" x-on:click="sidebarOpen = true" label="Abrir menú">
@@ -103,7 +103,7 @@
             </div>
         </div>
 
-        <div x-cloak x-show="sidebarOpen" class="fixed inset-0 z-50 lg:hidden">
+        <div x-cloak x-show="sidebarOpen" class="layer-popover fixed inset-0 lg:hidden">
             <div class="absolute inset-0 bg-black/70" x-on:click="sidebarOpen = false"></div>
             <aside class="absolute inset-y-0 left-0 w-[86vw] max-w-sm border-r border-white/10 bg-[color:var(--color-sidebar)] p-5 shadow-2xl">
                 <div class="flex items-center justify-between">

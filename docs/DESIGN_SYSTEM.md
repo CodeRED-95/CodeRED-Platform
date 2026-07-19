@@ -291,19 +291,29 @@ Los attribute bags propagan `wire:model`, sus modificadores, atributos Alpine, `
 
 No deben duplicarse controles, variantes puramente cosméticas, inicialización de Alpine, colores hexadecimales en vistas ni lógica de estados de negocio.
 
-## Capas flotantes
+## Jerarquía de capas y overlays
 
-La jerarquía evita que controles interactivos queden detrás del sidebar o de tarjetas:
+La escala se centraliza en `resources/css/app.css`. Las vistas consumen clases semánticas y no números aislados:
 
-| Capa | Nivel |
-|---|---|
-| Contenido | `z-10` cuando necesita posicionamiento |
-| Sidebar | `z-40` |
-| Dropdowns y popovers | `z-50` |
-| Modales y confirmaciones | `z-[60]` |
-| Toasts globales | `z-[80]` |
+| Capa | Token / clase | Nivel |
+|---|---|---|
+| Contenido | `--layer-content` / `.layer-content` | 0 |
+| Elevación local | `--layer-raised` / `.layer-raised` | 10 |
+| Header | `--layer-header` / `.layer-header` | 30 |
+| Sidebar | `--layer-sidebar` / `.layer-sidebar` | 40 |
+| Dropdowns y popovers | `--layer-popover` / `.layer-popover` | 50 |
+| Backdrop | `--layer-backdrop` / `.layer-backdrop` | 60 |
+| Modales y confirmaciones | `--layer-modal` / `.layer-modal` | 70 |
+| Toasts globales | `--layer-toast` / `.layer-toast` | 80 |
+| Mensajes críticos | `--layer-critical` / `.layer-critical` | 90 |
 
-`x-ui.toast-stack` se monta como hijo directo de `body`, fuera del shell con sidebar, y permanece fijo en la esquina superior derecha.
+`backdrop-filter`, `transform`, `opacity`, `isolation` y un elemento posicionado con `z-index` pueden crear contextos de apilamiento. Un hijo no escapa de ese contexto aumentando su `z-index`. Del mismo modo, `overflow-hidden`, `overflow-clip` y los contenedores con scroll recortan descendientes flotantes.
+
+`x-ui.dropdown-select`, `x-ui.status-select` y `x-ui.dropdown` conservan el trigger en el flujo del documento, pero teletransportan el panel a `body` mediante `x-teleport`. El posicionador Alpine compartido `codeRedFloating` usa `position: fixed`, `getBoundingClientRect()`, límites del viewport y apertura superior cuando falta espacio inferior. Recalcula en scroll y resize y elimina todos sus listeners en `destroy()`, incluido el cierre por `livewire:navigating`.
+
+Los nuevos dropdowns deben reutilizar ese posicionador. No deben volver a crear un panel `absolute` dentro de una card. Se puede usar `overflow-visible` cuando el contenedor no necesita recorte; tablas responsivas, mapas, imágenes y zonas con scroll deben conservar su overflow y resolver overlays mediante portal.
+
+`x-ui.modal` y `x-ui.confirm-dialog` también se teletransportan a `body`, bloquean el scroll y usan la capa modal. `x-ui.toast-stack` se monta una sola vez como hijo directo de `body`, fuera del shell con sidebar, en `#global-toast-region`; permanece fijo, permite interacción solo en cada toast y se anuncia con `aria-live`.
 
 ## Vista cartográfica integrada
 

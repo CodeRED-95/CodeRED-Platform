@@ -51,9 +51,22 @@ class MapPreviewComponentTest extends TestCase
     #[Test]
     public function floating_components_follow_the_documented_layer_scale(): void
     {
-        $this->assertStringContainsString('z-50', File::get(resource_path('views/components/ui/dropdown.blade.php')));
-        $this->assertStringContainsString('z-[60]', File::get(resource_path('views/components/ui/modal.blade.php')));
-        $this->assertStringContainsString('z-[60]', File::get(resource_path('views/components/ui/confirm-dialog.blade.php')));
-        $this->assertStringContainsString('z-[80]', File::get(resource_path('views/components/ui/toast-stack.blade.php')));
+        $styles = File::get(resource_path('css/app.css'));
+        $dropdown = File::get(resource_path('views/components/ui/dropdown.blade.php'));
+        $modal = File::get(resource_path('views/components/ui/modal.blade.php'));
+        $confirmation = File::get(resource_path('views/components/ui/confirm-dialog.blade.php'));
+        $toasts = File::get(resource_path('views/components/ui/toast-stack.blade.php'));
+
+        $this->assertStringContainsString('--layer-popover: 50', $styles);
+        $this->assertStringContainsString('--layer-modal: 70', $styles);
+        $this->assertStringContainsString('--layer-toast: 80', $styles);
+        $this->assertStringContainsString('layer-popover', $dropdown);
+        $this->assertStringContainsString('x-teleport="body"', $dropdown);
+        $this->assertStringContainsString('layer-modal', $modal);
+        $this->assertStringContainsString('x-teleport="body"', $modal);
+        $this->assertStringContainsString('layer-modal', $confirmation);
+        $this->assertStringContainsString('x-teleport="body"', $confirmation);
+        $this->assertStringContainsString('id="global-toast-region"', $toasts);
+        $this->assertStringContainsString('layer-toast', $toasts);
     }
 }

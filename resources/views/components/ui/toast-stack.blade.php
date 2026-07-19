@@ -37,7 +37,8 @@
         },
     }"
     x-on:toast.window="add($event.detail)"
-    class="pointer-events-none fixed right-4 top-4 z-[80] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3"
+    id="global-toast-region"
+    class="layer-toast pointer-events-none fixed right-4 top-4 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3"
     aria-live="polite"
     aria-atomic="false"
 >

@@ -29,13 +29,13 @@
     wire:key="{{ $controlId }}-{{ sha1((string) $value) }}"
     class="relative"
     x-data="{
-        open: false,
+        ...codeRedFloating({ maxHeight: 288 }),
         value: @js((string) $value),
         activeIndex: 0,
         options: @js($optionItems),
         openList() {
             if (@js($disabled)) return;
-            this.open = true;
+            this.openPanel();
             const selectedIndex = this.options.findIndex((option) => option.value === this.value);
             this.activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
             this.$nextTick(() => this.scrollActiveOption());
@@ -44,7 +44,7 @@
             this.open ? this.closeList() : this.openList();
         },
         closeList() {
-            this.open = false;
+            this.closePanel();
         },
         move(delta) {
             if (!this.open) {
@@ -76,7 +76,7 @@
             this.$nextTick(() => this.$refs.trigger.focus());
         },
         scrollActiveOption() {
-            this.$refs.listbox
+            this.$refs.panel
                 ?.querySelector(`[data-option-index='${this.activeIndex}']`)
                 ?.scrollIntoView({ block: 'nearest' });
         },
@@ -84,8 +84,6 @@
             return this.options.find((option) => option.value === this.value)?.label ?? @js($placeholder);
         },
     }"
-    x-on:click.outside="closeList()"
-    x-on:focusout="if (!$el.contains($event.relatedTarget)) closeList()"
     x-on:keydown.escape.stop="closeList(); $refs.trigger.focus()"
 >
     <label id="{{ $labelId }}" for="{{ $controlId }}" class="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
@@ -134,7 +132,7 @@
         x-bind:class="open && '!border-blue-500 ring-2 ring-blue-500/30'"
     >
         <span class="flex min-w-0 items-center gap-3">
-            @foreach ($options as $optionValue => $optionLabel)
+                @foreach ($options as $optionValue => $optionLabel)
                 <span x-cloak x-show="value === @js($optionValue)" class="contents">
                     <x-ui.select-icon :value="$optionValue" :context="$iconSet" class="h-5 w-5 shrink-0" />
                 </span>
@@ -147,22 +145,26 @@
         </svg>
     </button>
 
-    <div
-        x-ref="listbox"
-        x-cloak
-        x-show="open"
-        x-transition:enter="transition ease-out duration-150"
-        x-transition:enter-start="translate-y-1 opacity-0"
-        x-transition:enter-end="translate-y-0 opacity-100"
-        x-transition:leave="transition ease-in duration-100"
-        x-transition:leave-start="translate-y-0 opacity-100"
-        x-transition:leave-end="translate-y-1 opacity-0"
-        id="{{ $listboxId }}"
-        role="listbox"
-        aria-labelledby="{{ $labelId }}"
-        class="absolute z-50 mt-2 max-h-72 w-full overflow-y-auto rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] p-1.5 text-[color:var(--color-text-primary)] shadow-xl shadow-black/30"
-    >
-        @foreach ($options as $optionValue => $optionLabel)
+    <template x-teleport="body">
+        <div
+            x-ref="panel"
+            x-cloak
+            x-show="open"
+            x-bind:style="panelStyle"
+            x-bind:data-placement="placement"
+            x-on:keydown.escape.stop="closeList(); $refs.trigger.focus()"
+            x-transition:enter="transition ease-out duration-150"
+            x-transition:enter-start="opacity-0 scale-[0.98]"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-100"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-[0.98]"
+            id="{{ $listboxId }}"
+            role="listbox"
+            aria-labelledby="{{ $labelId }}"
+            class="layer-popover origin-top overflow-y-auto data-[placement=top]:origin-bottom rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] p-1.5 text-[color:var(--color-text-primary)] shadow-xl shadow-black/30"
+        >
+            @foreach ($options as $optionValue => $optionLabel)
             <button
                 id="{{ $controlId }}-option-{{ $loop->index }}"
                 type="button"
@@ -187,8 +189,9 @@
                     <path d="m5 10 3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
-        @endforeach
-    </div>
+            @endforeach
+        </div>
+    </template>
 
     @if ($error)
         <x-ui.form-error :id="$errorId" :message="$error" />
