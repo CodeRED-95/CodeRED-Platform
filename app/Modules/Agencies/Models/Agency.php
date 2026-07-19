@@ -140,7 +140,7 @@ class Agency extends Model
 
     public function legacyChosenText(): ?string
     {
-        return $this->texto_chosen_terrestre ?? $this->texto_chosen_aereo ?? $this->source_text;
+        return $this->texto_chosen_terrestre ?? $this->texto_chosen_aereo;
     }
 
     public function statusLabel(): string

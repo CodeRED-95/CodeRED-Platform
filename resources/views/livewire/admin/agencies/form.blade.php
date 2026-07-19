@@ -127,7 +127,7 @@
                                         wire:model.blur="{{ $field }}"
                                         rows="3"
                                         :label="$field === 'texto_chosen_terrestre' ? 'Texto Chosen Terrestre' : 'Texto Chosen Aéreo'"
-                                        :description="$field === 'texto_chosen_terrestre' ? 'Identificador utilizado por la extensión para operaciones terrestres.' : 'Identificador utilizado por la extensión para operaciones aéreas.'"
+                                        :description="$field === 'texto_chosen_terrestre' ? 'Identificador que utilizará la extensión en operaciones terrestres.' : 'Identificador que utilizará la extensión en operaciones aéreas.'"
                                         :error="$errors->first($field)"
                                     />
                                 @elseif ($field === 'observations')
@@ -138,7 +138,7 @@
                                         step="any"
                                         wire:model.blur="{{ $field }}"
                                         :label="$field === 'external_id' ? 'ID' : ($field === 'code' ? 'Code' : str_replace('_', ' ', ucfirst($field)))"
-                                        :description="$field === 'external_id' ? 'Identificador numérico recibido desde la fuente externa.' : ($field === 'code' ? 'Código interno utilizado por CodeRED Platform.' : null)"
+                                        :description="$field === 'external_id' ? 'Identificador numérico proveniente de la fuente externa.' : ($field === 'code' ? 'Código interno utilizado por CodeRED Platform.' : null)"
                                         :error="$errors->first($field)"
                                     />
                                 @endif

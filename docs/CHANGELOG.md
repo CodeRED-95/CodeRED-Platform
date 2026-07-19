@@ -148,3 +148,6 @@ Todas las versiones siguen `Keep a Changelog`.
 
 - Agencies: se añadió `external_id` sin reemplazar la PK, se separaron los textos Chosen terrestre/aéreo y se mantuvo compatibilidad temporal con `texto_chosen`.
 - Importador/API: nuevo formato de identificadores, clasificación segura del formato heredado y detección de conflictos entre ID externo, Code y referencia.
+
+- Agencies: selección por fila y página visible, activación masiva de registros En revisión y eliminación masiva mediante Soft Delete.
+- API: contrato español de agencia con `internal_id`, `id`, Code, ubicación, tamaño e identificadores terrestre/aéreo, preservando aliases anteriores.

@@ -120,6 +120,13 @@ class AgencyImportNormalizerTest extends TestCase
         $this->assertSame('610 - AEREO', $row->normalized['texto_chosen_aereo']);
     }
 
+    public function test_new_format_preserves_explicit_code(): void
+    {
+        $row = AgencyImportNormalizer::transform(['id' => 610, 'code' => ' custom-610 ', 'agencia' => 'Yarinacocha']);
+
+        $this->assertSame('CUSTOM-610', $row->normalized['code']);
+    }
+
     public function test_legacy_chosen_is_classified_without_overwriting_new_values(): void
     {
         $aereo = AgencyImportNormalizer::transform(['id' => 611, 'agencia' => 'A', 'texto_chosen' => '611 - AÉREO']);

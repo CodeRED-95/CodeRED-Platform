@@ -105,9 +105,17 @@ final class AgencyImportNormalizer
             $errors[] = 'El registro no contiene agencia.';
         }
 
-        $code = $externalId !== false && $externalId !== null
-            ? self::generateCode($externalId)
-            : null;
+        $providedCode = is_string($row['code'] ?? null) ? self::normalizeText($row['code']) : null;
+        if (array_key_exists('code', $row) && $row['code'] !== null && ! is_string($row['code'])) {
+            $errors[] = 'El code debe ser una cadena de texto.';
+        }
+        if ($providedCode !== null && mb_strlen($providedCode) > 50) {
+            $errors[] = 'El code no puede superar 50 caracteres.';
+        }
+
+        $code = $providedCode !== null
+            ? strtoupper($providedCode)
+            : ($externalId !== false && $externalId !== null ? self::generateCode($externalId) : null);
 
         $name = self::normalizeText($row['agencia'] ?? null);
         $department = self::normalizeText($row['departamento'] ?? null);

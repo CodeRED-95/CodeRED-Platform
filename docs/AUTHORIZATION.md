@@ -88,3 +88,12 @@ $this->authorize('update', $agency);
 - Policies del módulo
 - Bloques Blade `@can`
 - Acciones Livewire con `authorize()`
+
+## Acciones masivas de agencias
+
+| Acción | Permiso | Efecto |
+|---|---|---|
+| Activar seleccionadas | `agencies.manage_status` | Solo `under_review` → `active` |
+| Eliminar seleccionadas | `agencies.delete` | Soft Delete hacia papelera |
+
+Ocultar botones no constituye autorización: las Actions vuelven a consultar cada ID y ejecutan la Policy correspondiente antes de iniciar cambios.

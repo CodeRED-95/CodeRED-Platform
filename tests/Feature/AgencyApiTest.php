@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AgencyApiTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_agencies_index_returns_success_shape(): void
     {
         Agency::factory()->create(['status' => AgencyStatus::Active]);
@@ -30,7 +33,14 @@ class AgencyApiTest extends TestCase
             ->assertJsonPath('data.internal_id', $agency->id)->assertJsonPath('data.code', $agency->code)
             ->assertJsonPath('data.texto_chosen_terrestre', '610 - TERRESTRE')
             ->assertJsonPath('data.texto_chosen_aereo', '610 - AEREO')
-            ->assertJsonPath('data.texto_chosen', '610 - TERRESTRE');
+            ->assertJsonPath('data.texto_chosen', '610 - TERRESTRE')
+            ->assertJsonPath('data.agencia', $agency->name)
+            ->assertJsonPath('data.departamento', trim($agency->department))
+            ->assertJsonPath('data.provincia', trim($agency->province))
+            ->assertJsonPath('data.distrito', trim($agency->district))
+            ->assertJsonPath('data.direccion', trim($agency->address))
+            ->assertJsonPath('data.link_mapa', $agency->map_url)
+            ->assertJsonPath('data.tamano', $agency->size?->label());
     }
 
     public function test_snapshot_uses_external_id_and_keeps_deprecated_chosen_fallback(): void

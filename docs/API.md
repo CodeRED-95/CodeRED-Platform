@@ -139,4 +139,26 @@ PENDIENTE DE CONFIGURAR
 
 ## Identificadores de agencias
 
-Los recursos de agencias exponen `internal_id` (PK técnica), `id` (ID externo nullable), `code`, `texto_chosen_terrestre` y `texto_chosen_aereo`. `texto_chosen` permanece temporalmente como deprecated y devuelve, por orden, terrestre, aéreo o `source_text`. El snapshot para la extensión usa `id` como ID externo y mantiene el mismo fallback heredado. Las rutas continúan enlazando por Code; no se modificó el contrato de URLs.
+Los recursos de agencias exponen `internal_id` (PK técnica), `id` (ID externo nullable), `code`, `texto_chosen_terrestre` y `texto_chosen_aereo`. `texto_chosen` permanece temporalmente como deprecated y devuelve, por orden, terrestre, aéreo o null. El snapshot para la extensión usa `id` como ID externo y mantiene el mismo fallback heredado. Las rutas continúan enlazando por Code; no se modificó el contrato de URLs.
+
+## Contrato JSON definitivo de agencia
+
+```json
+{
+  "internal_id": 25,
+  "id": 610,
+  "code": "SHA-000610",
+  "agencia": "Yarinacocha Av Universitaria",
+  "departamento": "Ucayali",
+  "provincia": "Coronel Portillo",
+  "distrito": "Pucallpa Yarinacocha",
+  "direccion": "av. universitaria mza a lote 6",
+  "link_mapa": "https://www.google.com/maps/dir/?api=1&destination=-8.38,-74.56",
+  "tamano": "Pequeña",
+  "texto_chosen_terrestre": "610 - ... - TERRESTRE",
+  "texto_chosen_aereo": null,
+  "texto_chosen": "610 - ... - TERRESTRE"
+}
+```
+
+Las claves inglesas preexistentes permanecen temporalmente para compatibilidad hacia atrás. `texto_chosen` está deprecated: terrestre, después aéreo y finalmente null. Las rutas siguen usando Code.

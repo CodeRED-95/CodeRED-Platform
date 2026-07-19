@@ -35,6 +35,44 @@
         </div>
     </x-ui.card>
 
+    @if (($bulkSummary['selected'] ?? 0) > 0)
+        <x-ui.card class="sticky bottom-4 z-30 border-[color:var(--color-brand)]/40" padding="p-4">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="font-semibold">{{ $bulkSummary['selected'] }} {{ $bulkSummary['selected'] === 1 ? 'agencia seleccionada' : 'agencias seleccionadas' }}</p>
+                    <p class="text-sm text-[color:var(--color-text-secondary)]">La selección corresponde a registros visibles y se limita a 100 por operación.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    @if ($canBulkActivate)
+                        <x-ui.confirm-dialog
+                            id="bulk-activate-agencies"
+                            title="Activar agencias seleccionadas"
+                            :message="'Se seleccionaron '.$bulkSummary['selected'].' agencias. '.$bulkSummary['reviewable'].' están En revisión y se activarán; '.($bulkSummary['selected'] - $bulkSummary['reviewable']).' serán ignoradas.'"
+                            confirm-label="Activar agencias"
+                            confirm-action="activateSelected"
+                            tone="primary"
+                        >
+                            <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('activate')" variant="primary" loading-target="activateSelected">Activar seleccionadas</x-ui.button></x-slot:trigger>
+                        </x-ui.confirm-dialog>
+                    @endif
+                    @if ($canBulkDelete)
+                        <x-ui.confirm-dialog
+                            id="bulk-delete-agencies"
+                            title="Enviar agencias a la papelera"
+                            :message="'Se enviarán '.$bulkSummary['selected'].' agencias a la papelera y podrán restaurarse. Vista previa: '.implode(', ', $bulkSummary['preview_names']).($bulkSummary['selected'] > count($bulkSummary['preview_names']) ? ' y otras.' : '.')"
+                            confirm-label="Eliminar agencias"
+                            confirm-action="deleteSelected"
+                        >
+                            <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('delete')" variant="danger" loading-target="deleteSelected">Eliminar seleccionadas</x-ui.button></x-slot:trigger>
+                        </x-ui.confirm-dialog>
+                    @endif
+                    <x-ui.button type="button" wire:click="clearSelection" variant="secondary">Limpiar selección</x-ui.button>
+                </div>
+            </div>
+            <x-ui.form-error :message="$errors->first('selectedAgencyIds')" />
+        </x-ui.card>
+    @endif
+
     <div wire:loading.delay wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
         <x-ui.skeleton variant="table" :rows="5" />
     </div>
@@ -42,6 +80,20 @@
     <x-ui.table wire:loading.class="opacity-50" wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
         <thead class="bg-white/5 text-xs uppercase tracking-[0.2em] text-[color:var(--color-text-secondary)]">
             <tr>
+                <th class="w-12 px-5 py-4">
+                    <label class="inline-flex items-center">
+                        <span class="sr-only">Seleccionar todas las agencias de esta página</span>
+                        <input
+                            type="checkbox"
+                            wire:click="togglePageSelection"
+                            @checked($allPageSelected)
+                            x-data
+                            x-effect="$el.indeterminate = @js(($bulkSummary['selected'] ?? 0) > 0 && ! $allPageSelected)"
+                            aria-label="Seleccionar todas las agencias de esta página"
+                            class="size-4 rounded border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-brand)] focus-ring"
+                        >
+                    </label>
+                </th>
                 <th class="px-5 py-4">ID</th>
                 <th class="cursor-pointer px-5 py-4" wire:click="sortBy('code')">Code</th>
                 <th class="cursor-pointer px-5 py-4" wire:click="sortBy('name')">Nombre</th>
@@ -57,6 +109,12 @@
         <tbody class="divide-y divide-white/5">
             @forelse ($agencies as $agency)
                 <tr @class(['transition hover:bg-white/5', 'opacity-70' => $agency->trashed()])>
+                    <td class="px-5 py-4">
+                        <label class="inline-flex items-center">
+                            <span class="sr-only">Seleccionar agencia {{ $agency->name }}</span>
+                            <input type="checkbox" wire:model.live="selectedAgencyIds" value="{{ $agency->id }}" aria-label="Seleccionar agencia {{ $agency->name }}" class="size-4 rounded border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-brand)] focus-ring">
+                        </label>
+                    </td>
                     <td class="px-5 py-4 font-mono text-sm">{{ $agency->external_id ?? '—' }}</td>
                     <td class="px-5 py-4 font-mono text-sm text-[color:var(--color-accent-ivory)]">{{ $agency->code }}</td>
                     <td class="px-5 py-4">
@@ -116,7 +174,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="10" class="px-5 py-12">
+                    <td colspan="11" class="px-5 py-12">
                         <x-ui.empty-state
                             title="No hay agencias registradas"
                             description="Crea una agencia nueva o importa el JSON del Gist para empezar."

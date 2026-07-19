@@ -224,3 +224,12 @@ Las vistas de detalle administrativa y pública reutilizan `x-ui.map-preview` cu
 - `source_text`: conserva el `texto_chosen` original durante la transición. No debe eliminarse antes de actualizar la extensión.
 
 La búsqueda administrativa reconoce ID externo, Code, agencia y ambos textos Chosen.
+
+## Selección y acciones masivas
+
+El listado permite seleccionar filas individualmente o todas las agencias de la página visible. Cambiar filtros, orden o página limpia la selección para evitar operar sobre registros ocultos. El límite es 100 agencias por operación.
+
+- **Activar seleccionadas** requiere `agencies.manage_status`; solo cambia `under_review` a `active` y contabiliza el resto como ignorado.
+- **Eliminar seleccionadas** requiere `agencies.delete`; aplica exclusivamente Soft Delete y conserva los registros en la papelera.
+- Ambas acciones exigen confirmación previa, revalidan IDs y Policies en servidor, usan transacción y procesan chunks de 25.
+- `AgencyObserver` registra actor, cambios, IP y agente por cada registro afectado. Un error revierte toda la operación.
