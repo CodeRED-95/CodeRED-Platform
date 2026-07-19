@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-19 — Dashboard profesional, fase 4
+
+- Se trasladaron las consultas del dashboard desde Blade al componente Livewire.
+- Se incorporaron métricas de usuarios y de todos los estados de agencias.
+- Se añadieron una tendencia accesible de altas de siete días, distribución por
+  estado, agencias recientes y resumen de la última importación.
+- Las métricas administrativas se muestran únicamente cuando la cuenta dispone de
+  los permisos correspondientes.
+
 ## 2026-07-19 — Experiencia de usuario, fase 3
 
 - Se añadieron toasts globales, spinner accesible y skeletons con variantes.

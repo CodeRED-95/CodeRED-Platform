@@ -192,3 +192,16 @@ Usar `x-ui.spinner` dentro de acciones cortas. Para tablas, tarjetas o texto que
 están disponibles, usar `x-ui.skeleton`. `x-ui.loading` se mantiene como fachada
 compatible sobre skeleton. Los botones Livewire aceptan `loadingTarget` y
 `loadingLabel` para evitar duplicar estados de carga.
+
+## Dashboard
+
+El dashboard combina `x-ui.stat-card`, `x-ui.card`, `x-ui.section-header`, badges e
+iconos de estado. Las consultas y agregaciones pertenecen al componente Livewire;
+las vistas Blade solo presentan los datos recibidos.
+
+- Las tarjetas admiten `description`, icono, tono semántico y enlace opcional.
+- Los conteos de usuarios requieren autorización de `UserPolicy`.
+- Los datos de agencias requieren `viewAny` sobre `Agency`.
+- Los gráficos sin librerías externas deben conservar valores textuales, etiquetas
+  accesibles y significado independiente del color.
+- “Usuarios nuevos” representa los últimos 30 días y la tendencia de agencias los
