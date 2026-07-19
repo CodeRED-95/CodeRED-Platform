@@ -86,7 +86,7 @@
                                                 <span class="text-[color:var(--color-text-secondary)]">⌄</span>
                                             </button>
                                             <div x-show="open" x-cloak x-on:click.outside="open = false" class="border-t border-[color:var(--color-border-subtle)] p-3">
-                                                <x-ui.input type="search" wire:model.live.debounce.350ms="destinationSearch" placeholder="Buscar por código, nombre o ubicación" />
+                                                <x-ui.search-box wire:model.live.debounce.350ms="destinationSearch" label="Buscar agencia destino" placeholder="Código, nombre o ubicación" />
                                                 <div class="mt-3 max-h-72 overflow-y-auto rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]">
                                                     @forelse ($destinations as $destination)
                                                         <button

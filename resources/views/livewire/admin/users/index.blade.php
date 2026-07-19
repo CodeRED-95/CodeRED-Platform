@@ -11,7 +11,7 @@
 
     <x-ui.card>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <x-ui.input wire:model.live.debounce.400ms="search" type="search" label="Buscar" placeholder="Nombre o correo..." />
+            <x-ui.search-box wire:model.live.debounce.400ms="search" label="Buscar" placeholder="Nombre o correo..." />
             <x-ui.dropdown-select id="users-status-filter" wire:model.live="status" label="Estado" :value="$status" :options="['' => 'Todos', 'active' => 'Activo', 'suspended' => 'Suspendido', 'inactive' => 'Inactivo']" icon-set="user-status" />
             <x-ui.dropdown-select id="users-role-filter" wire:model.live="role" label="Rol" :value="$role" :options="['' => 'Todos'] + $roles->pluck('name', 'slug')->all()" />
             <x-ui.dropdown-select id="users-verified-filter" wire:model.live="verified" label="Correo verificado" :value="$verified" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />

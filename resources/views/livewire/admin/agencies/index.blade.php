@@ -17,7 +17,7 @@
 
     <x-ui.card>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <x-ui.input wire:model.live.debounce.400ms="search" type="search" label="Buscar" placeholder="Código, nombre o ubicación..." />
+            <x-ui.search-box wire:model.live.debounce.400ms="search" label="Buscar" placeholder="Código, nombre o ubicación..." />
             <x-ui.status-select id="agencies-status-filter" wire:model.live="status" label="Estado" :value="$status" :options="$statuses" />
             <x-ui.dropdown-select id="agencies-department-filter" wire:model.live="department" label="Departamento" :value="$department" :options="['' => 'Todos'] + $departments->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-province-filter" wire:model.live="province" label="Provincia" :value="$province" :options="['' => 'Todas'] + $provinces->mapWithKeys(fn ($item) => [$item => $item])->all()" />

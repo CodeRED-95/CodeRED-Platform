@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-19 — Design System, fase 2
+
+- Se amplió `x-ui.input` con slots reutilizables de prefijo y sufijo.
+- Se añadieron `x-ui.search-box` y `x-ui.confirm-dialog`, compatibles con Livewire y Alpine.
+- Se migraron búsquedas, visibilidad de contraseña y confirmación de restablecimiento.
+- Se documentaron contratos, responsabilidades y propagación de atributos HTML/Livewire.
+
 ## 2026-07-19 — Unificación visual, fase 1
 
 - Se migraron formularios de agencias, importación, usuarios, login, layout y página

@@ -59,26 +59,27 @@
                     :value="old('email')"
                     :error="$errors->first('email')"
                 />
-                <div class="space-y-1" x-data="{ showPassword: false }">
-                    <x-ui.form-label for="password">Contraseña</x-ui.form-label>
-                    <div class="relative">
-                        <input
-                            x-bind:type="showPassword ? 'text' : 'password'"
-                            id="password"
-                            name="password"
-                            autocomplete="current-password"
-                            class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 pr-12 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring"
-                            required
-                        >
+                <div x-data="{ showPassword: false }">
+                    <x-ui.input
+                        type="password"
+                        x-bind:type="showPassword ? 'text' : 'password'"
+                        id="password"
+                        name="password"
+                        label="Contraseña"
+                        autocomplete="current-password"
+                        :error="$errors->first('password')"
+                        required
+                    >
+                        <x-slot:suffix>
                         <button
                             type="button"
                             x-on:click="showPassword = ! showPassword"
                             x-bind:aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-                            class="absolute inset-y-0 right-0 px-4 text-xs text-[color:var(--color-text-secondary)]"
+                            class="rounded-md px-2 py-1 text-xs text-[color:var(--color-text-secondary)] transition hover:bg-white/5 hover:text-white focus-ring"
                             x-text="showPassword ? 'Ocultar' : 'Ver'"
                         ></button>
-                    </div>
-                    <x-ui.form-error :message="$errors->first('password')" />
+                        </x-slot:suffix>
+                    </x-ui.input>
                 </div>
                 <x-ui.checkbox name="remember" value="1" :checked="(bool) old('remember')">Recordarme</x-ui.checkbox>
             </div>

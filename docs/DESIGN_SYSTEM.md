@@ -39,6 +39,7 @@ El CodeRED Design System estandariza la interfaz del proyecto con componentes Bl
 - `x-ui.logo`
 - `x-ui.button`
 - `x-ui.input`
+- `x-ui.search-box`
 - `x-ui.textarea`
 - `x-ui.dropdown-select`
 - `x-ui.status-select`
@@ -46,6 +47,25 @@ El CodeRED Design System estandariza la interfaz del proyecto con componentes Bl
 - `x-ui.toggle`
 - `x-ui.card`
 - `x-ui.stat-card`
+- `x-ui.confirm-dialog`
+
+## Contratos de componentes
+
+| Componente | Propiedades principales | Uso |
+|---|---|---|
+| `x-ui.input` | `label`, `type`, `error`, `wrapperClass`, slots `prefix` y `suffix` | Entrada simple o con acciones internas |
+| `x-ui.search-box` | `label`, `placeholder`, `error`, atributos `wire:model*` | Búsquedas y filtros de texto |
+| `x-ui.dropdown-select` | `id`, `name`, `label`, `value`, `options`, `required`, `disabled`, `error` | Selección simple accesible |
+| `x-ui.status-select` | API de dropdown más iconos de estado | Estados de agencias |
+| `x-ui.confirm-dialog` | `id`, `title`, `message`, `confirmLabel`, `confirmAction`, `tone`, slot `trigger` | Confirmar acciones sensibles |
+| `x-ui.button` | `variant`, `size`, `type`, `href`, `disabled`, `loading` | Acciones y navegación |
+| `x-ui.alert` | `tone` | Mensajes persistentes de sistema o validación |
+
+Los atributos no declarados se propagan al elemento interactivo. Esto permite usar
+`wire:model`, `wire:click`, `wire:loading`, ARIA y atributos HTML sin duplicar APIs.
+
+`x-ui.dropdown` es un menú de acciones arbitrarias. `x-ui.dropdown-select` representa
+un único valor de formulario con patrón listbox; no son componentes intercambiables.
 
 ## Combobox para relaciones grandes
 
@@ -154,3 +174,4 @@ simples deben proporcionar un arreglo `valor => etiqueta` a `x-ui.dropdown-selec
 - No usar manejadores JavaScript inline; las interacciones de vista se implementan con Alpine.js.
 
 La consistencia se protege con `DesignSystemConsistencyTest` y `NativeSelectRemovalTest`.
+Los contratos reutilizables se verifican en `DesignSystemComponentsTest`.

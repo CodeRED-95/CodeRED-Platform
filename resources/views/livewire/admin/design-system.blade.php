@@ -51,6 +51,7 @@
             <x-ui.section-header title="Formularios" />
             <div class="mt-5 space-y-4">
                 <x-ui.input label="Correo" placeholder="admin@codered.local" />
+                <x-ui.search-box label="Buscar" placeholder="Buscar agencia o usuario..." />
                 <x-ui.status-select label="Estado" value="active" :options="['active' => 'Activa', 'under_review' => 'En revisión']" />
                 <x-ui.textarea label="Observaciones" rows="3" placeholder="Notas internas..." />
                 <x-ui.toggle>Centro de Operaciones</x-ui.toggle>
@@ -85,4 +86,19 @@
             </div>
         </x-ui.card>
     </div>
+
+    <x-ui.card>
+        <x-ui.section-header title="Confirmaciones" description="Acciones sensibles sin alertas nativas del navegador." />
+        <div class="mt-5">
+            <x-ui.confirm-dialog
+                id="design-system-confirmation"
+                title="Confirmar acción"
+                message="Verifica la información antes de continuar."
+            >
+                <x-slot:trigger>
+                    <x-ui.button variant="danger">Abrir confirmación</x-ui.button>
+                </x-slot:trigger>
+            </x-ui.confirm-dialog>
+        </div>
+    </x-ui.card>
 </div>
