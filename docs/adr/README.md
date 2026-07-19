@@ -74,3 +74,4 @@ Cada ADR debe incluir:
 | 0024 | Bootstrap automático en el entrypoint |
 | 0025 | Panel Agencies con Livewire y Actions centralizadas |
 | 0026 | CodeRED Design System con tokens y Blade Components |
+| 0027 | Identidad externa y transición de textos Chosen |

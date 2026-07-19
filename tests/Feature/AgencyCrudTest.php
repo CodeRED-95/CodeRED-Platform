@@ -229,6 +229,56 @@ class AgencyCrudTest extends TestCase
         $this->assertNotSame('', $agency->slug);
     }
 
+    public function test_external_id_and_chosen_identifiers_persist_independently(): void
+    {
+        $this->actingAs($this->superAdmin());
+
+        $this->validCreateForm()
+            ->set('external_id', 610)
+            ->set('texto_chosen_terrestre', ' 610 - TERRESTRE ')
+            ->set('texto_chosen_aereo', ' 610 - AEREO ')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $agency = Agency::query()->where('external_id', 610)->firstOrFail();
+        $this->assertSame('AG-NEW-001', $agency->code);
+        $this->assertSame('610 - TERRESTRE', $agency->texto_chosen_terrestre);
+        $this->assertSame('610 - AEREO', $agency->texto_chosen_aereo);
+
+        Livewire::test(Form::class, ['agency' => $agency])
+            ->set('texto_chosen_terrestre', null)
+            ->set('texto_chosen_aereo', '610 - AEREO EDITADO')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $agency->refresh();
+        $this->assertNull($agency->texto_chosen_terrestre);
+        $this->assertSame('610 - AEREO EDITADO', $agency->texto_chosen_aereo);
+    }
+
+    public function test_external_id_is_unique_but_edit_ignores_current_agency(): void
+    {
+        $this->actingAs($this->superAdmin());
+        $agency = Agency::factory()->create(['external_id' => 611]);
+
+        Livewire::test(Form::class, ['agency' => $agency])->call('save')->assertHasNoErrors();
+        $this->validCreateForm()->set('external_id', 611)->call('save')->assertHasErrors(['external_id' => 'unique']);
+    }
+
+    public function test_listing_searches_external_id_and_both_chosen_identifiers(): void
+    {
+        $this->actingAs($this->superAdmin());
+        $agency = Agency::factory()->create([
+            'external_id' => 612,
+            'texto_chosen_terrestre' => 'IDENTIFICADOR TIERRA UNICO',
+            'texto_chosen_aereo' => 'IDENTIFICADOR AIRE UNICO',
+        ]);
+
+        foreach (['612', 'tierra unico', 'aire unico'] as $search) {
+            Livewire::test(Index::class)->set('search', $search)->assertSee($agency->code);
+        }
+    }
+
     private function validCreateForm(): Testable
     {
         return Livewire::test(Form::class)

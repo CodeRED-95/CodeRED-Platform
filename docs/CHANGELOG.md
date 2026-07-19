@@ -145,3 +145,6 @@ Todas las versiones siguen `Keep a Changelog`.
 ### Removed
 
 - Ninguno
+
+- Agencies: se añadió `external_id` sin reemplazar la PK, se separaron los textos Chosen terrestre/aéreo y se mantuvo compatibilidad temporal con `texto_chosen`.
+- Importador/API: nuevo formato de identificadores, clasificación segura del formato heredado y detección de conflictos entre ID externo, Code y referencia.

@@ -9,6 +9,24 @@
         </x-slot:actions>
     </x-ui.page-header>
 
+    <div class="grid gap-6 xl:grid-cols-2">
+        <x-ui.card>
+            <x-ui.section-header title="Identificación" />
+            <dl class="mt-5 grid gap-4 sm:grid-cols-3">
+                <div><dt class="text-sm text-[color:var(--color-text-secondary)]">ID</dt><dd class="mt-1 font-mono">{{ $agency->external_id ?? 'No registrado' }}</dd></div>
+                <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Code</dt><dd class="mt-1 font-mono">{{ $agency->code }}</dd></div>
+                <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Agencia</dt><dd class="mt-1">{{ $agency->name }}</dd></div>
+            </dl>
+        </x-ui.card>
+        <x-ui.card>
+            <x-ui.section-header title="Identificadores de extensión" />
+            <dl class="mt-5 space-y-4">
+                <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Texto Chosen Terrestre</dt><dd class="mt-1 break-words text-sm">{{ $agency->texto_chosen_terrestre ?? 'No registrado' }}</dd></div>
+                <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Texto Chosen Aéreo</dt><dd class="mt-1 break-words text-sm">{{ $agency->texto_chosen_aereo ?? 'No registrado' }}</dd></div>
+            </dl>
+        </x-ui.card>
+    </div>
+
     @if ($agency->has_moved)
         <x-ui.alert tone="warning">
             <div class="font-semibold">Esta agencia se trasladó.</div>

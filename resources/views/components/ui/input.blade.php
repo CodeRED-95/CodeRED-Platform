@@ -1,6 +1,7 @@
 @props([
     'label' => null,
     'error' => null,
+    'description' => null,
     'icon' => null,
     'type' => 'text',
     'wrapperClass' => '',
@@ -13,7 +14,8 @@
     $fieldName = $attributes->get('name') ?: ($wireModel ? $attributes->get($wireModel) : null);
     $controlId = $attributes->get('id') ?: ($fieldName ? 'field-'.str_replace(['.', '_'], '-', (string) $fieldName) : 'field-'.uniqid());
     $errorId = $controlId.'-error';
-    $describedBy = collect([$attributes->get('aria-describedby'), $error ? $errorId : null])->filter()->join(' ');
+    $descriptionId = $controlId.'-description';
+    $describedBy = collect([$attributes->get('aria-describedby'), $description ? $descriptionId : null, $error ? $errorId : null])->filter()->join(' ');
 @endphp
 
 <div class="block {{ $wrapperClass }}">
@@ -41,5 +43,8 @@
             <span class="absolute inset-y-0 right-0 flex items-center pr-2">{{ $suffix }}</span>
         @endisset
     </div>
+    @if ($description)
+        <p id="{{ $descriptionId }}" class="mt-1.5 text-xs text-[color:var(--color-text-secondary)]">{{ $description }}</p>
+    @endif
     <x-ui.form-error :id="$errorId" :message="$error" />
 </div>

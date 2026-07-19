@@ -107,6 +107,38 @@ class AgencyImportNormalizerTest extends TestCase
         $this->assertSame('under_review', $row->normalized['status']);
     }
 
+    public function test_new_format_maps_external_id_and_both_chosen_values(): void
+    {
+        $row = AgencyImportNormalizer::transform([
+            'id' => 610, 'agencia' => 'Yarinacocha',
+            'texto_chosen_terrestre' => ' 610 - TERRESTRE ',
+            'texto_chosen_aereo' => ' 610 - AEREO ',
+        ]);
+
+        $this->assertSame(610, $row->normalized['external_id']);
+        $this->assertSame('610 - TERRESTRE', $row->normalized['texto_chosen_terrestre']);
+        $this->assertSame('610 - AEREO', $row->normalized['texto_chosen_aereo']);
+    }
+
+    public function test_legacy_chosen_is_classified_without_overwriting_new_values(): void
+    {
+        $aereo = AgencyImportNormalizer::transform(['id' => 611, 'agencia' => 'A', 'texto_chosen' => '611 - AÉREO']);
+        $terrestre = AgencyImportNormalizer::transform(['id' => 612, 'agencia' => 'T', 'texto_chosen' => '612 - TERRESTRE', 'texto_chosen_terrestre' => 'NUEVO']);
+
+        $this->assertSame('611 - AÉREO', $aereo->normalized['texto_chosen_aereo']);
+        $this->assertSame('NUEVO', $terrestre->normalized['texto_chosen_terrestre']);
+    }
+
+    public function test_ambiguous_legacy_chosen_is_preserved_and_warned(): void
+    {
+        $row = AgencyImportNormalizer::transform(['id' => 613, 'agencia' => 'Ambigua', 'texto_chosen' => 'IDENTIFICADOR SIN CANAL']);
+
+        $this->assertSame('IDENTIFICADOR SIN CANAL', $row->normalized['source_text']);
+        $this->assertNull($row->normalized['texto_chosen_terrestre']);
+        $this->assertNull($row->normalized['texto_chosen_aereo']);
+        $this->assertNotEmpty($row->warnings);
+    }
+
     public function test_missing_id_is_invalid(): void
     {
         $row = AgencyImportNormalizer::transform([

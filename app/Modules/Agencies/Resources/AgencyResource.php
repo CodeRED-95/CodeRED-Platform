@@ -34,7 +34,12 @@ class AgencyResource extends JsonResource
         }
 
         return [
+            'internal_id' => $agency->id,
+            'id' => $agency->external_id,
             'code' => $agency->code,
+            'texto_chosen_terrestre' => $agency->texto_chosen_terrestre,
+            'texto_chosen_aereo' => $agency->texto_chosen_aereo,
+            'texto_chosen' => $agency->legacyChosenText(),
             'name' => $agency->name,
             'short_name' => $agency->short_name,
             'slug' => $agency->slug,

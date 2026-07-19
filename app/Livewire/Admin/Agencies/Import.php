@@ -226,21 +226,37 @@ class Import extends Component
             'warning_rows' => 0,
             'invalid_rows' => 0,
             'duplicate_rows' => 0,
+            'legacy_classified' => 0,
+            'legacy_unclassified' => 0,
+            'identity_conflicts' => 0,
         ];
+
+        $seenExternalIds = [];
 
         foreach ($payload as $index => $row) {
             $transformed = AgencyImportNormalizer::transform($row);
-            $duplicate = $transformed->valid && $duplicateFinder->find($transformed->normalized) !== null;
+            $resolution = $transformed->valid ? $duplicateFinder->resolve($transformed->normalized) : ['agency' => null, 'conflict' => null];
+            $duplicate = $resolution['agency'] !== null;
+            $externalId = $transformed->normalized['external_id'] ?? null;
+            $duplicateInFile = is_int($externalId) && isset($seenExternalIds[$externalId]);
+            if (is_int($externalId)) {
+                $seenExternalIds[$externalId] = true;
+            }
+            $identityConflict = $resolution['conflict'] !== null || $duplicateInFile;
             $summary['valid_rows'] += $transformed->valid ? 1 : 0;
             $summary['warning_rows'] += $transformed->warnings !== [] ? 1 : 0;
             $summary['invalid_rows'] += $transformed->valid ? 0 : 1;
             $summary['duplicate_rows'] += $duplicate ? 1 : 0;
+            $summary['identity_conflicts'] += $identityConflict ? 1 : 0;
+            $summary['legacy_classified'] += collect($transformed->warnings)->contains(fn (string $warning): bool => str_contains($warning, 'heredado clasificado')) ? 1 : 0;
+            $summary['legacy_unclassified'] += collect($transformed->warnings)->contains(fn (string $warning): bool => str_contains($warning, 'no pudo clasificarse')) ? 1 : 0;
 
             if ($index < 20) {
                 $preview[] = [
                     ...$transformed->toArray(),
                     'row_number' => $index + 1,
                     'duplicate' => $duplicate,
+                    'identity_conflict' => $identityConflict,
                 ];
             }
         }

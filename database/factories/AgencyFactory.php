@@ -19,7 +19,10 @@ class AgencyFactory extends Factory
         $district = fake()->citySuffix();
         $name = fake()->company().' Shalom';
 
+        $externalId = fake()->unique()->numberBetween(1, 999999999);
+
         return [
+            'external_id' => $externalId,
             'code' => strtoupper('AG'.fake()->unique()->numerify('#####')),
             'name' => $name,
             'short_name' => Str::limit($name, 30, ''),
@@ -39,9 +42,35 @@ class AgencyFactory extends Factory
             'observations' => fake()->optional()->paragraph(),
             'status' => fake()->randomElement(AgencyStatus::cases())->value,
             'source' => 'seed',
-            'source_reference' => fake()->optional()->uuid(),
+            'source_reference' => (string) $externalId,
+            'texto_chosen_terrestre' => fake()->boolean() ? fake()->sentence().' - TERRESTRE' : null,
+            'texto_chosen_aereo' => fake()->boolean() ? fake()->sentence().' - AEREO' : null,
             'data_version' => 1,
             'last_verified_at' => now()->subDays(fake()->numberBetween(1, 365)),
         ];
+    }
+
+    public function terrestre(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'texto_chosen_terrestre' => $attributes['external_id'].' - TERRESTRE',
+            'texto_chosen_aereo' => null,
+        ]);
+    }
+
+    public function aereo(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'texto_chosen_terrestre' => null,
+            'texto_chosen_aereo' => $attributes['external_id'].' - AEREO',
+        ]);
+    }
+
+    public function sinIdentificadorExtension(): static
+    {
+        return $this->state(fn (): array => [
+            'texto_chosen_terrestre' => null,
+            'texto_chosen_aereo' => null,
+        ]);
     }
 }

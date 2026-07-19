@@ -214,3 +214,13 @@ La representación geográfica es orientativa. Los enlaces a Google Maps se gene
 ### Mapa integrado en ubicación
 
 Las vistas de detalle administrativa y pública reutilizan `x-ui.map-preview` cuando la agencia tiene latitud y longitud válidas. El mapa utiliza Leaflet 1.9 con tiles de OpenStreetMap, mantiene las coordenadas como fuente autoritativa y presenta un marcador CodeRED. Google Maps permanece como enlace secundario sin API key.
+
+## Identidad externa e identificadores Chosen
+
+- `agencies.id`: PK interna bigint; relaciones y route model binding continúan usándola.
+- `external_id`: ID numérico de la fuente, nullable para registros manuales o heredados y único cuando existe. En UI se etiqueta como **ID**.
+- `code`: código estable de CodeRED; continúa siendo independiente y conserva las rutas públicas.
+- `texto_chosen_terrestre` y `texto_chosen_aereo`: textos editables e independientes; cualquiera puede ser null.
+- `source_text`: conserva el `texto_chosen` original durante la transición. No debe eliminarse antes de actualizar la extensión.
+
+La búsqueda administrativa reconoce ID externo, Code, agencia y ambos textos Chosen.

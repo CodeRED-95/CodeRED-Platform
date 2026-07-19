@@ -74,6 +74,19 @@ final class AgencyImportNormalizer
         return 'SHA-'.str_pad((string) $id, 6, '0', STR_PAD_LEFT);
     }
 
+    public static function classifyLegacyChosen(?string $value): ?string
+    {
+        $normalized = Str::ascii(mb_strtoupper((string) self::normalizeText($value)));
+        $terrestre = str_contains($normalized, 'TERRESTRE');
+        $aereo = str_contains($normalized, 'AEREO');
+
+        return match (true) {
+            $terrestre && ! $aereo => 'terrestre',
+            $aereo && ! $terrestre => 'aereo',
+            default => null,
+        };
+    }
+
     public static function transform(array $row): AgencyImportRowData
     {
         $warnings = [];
@@ -83,12 +96,17 @@ final class AgencyImportNormalizer
             $errors[] = 'El registro no contiene id.';
         }
 
+        $externalId = filter_var($row['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if (array_key_exists('id', $row) && $row['id'] !== null && $row['id'] !== '' && $externalId === false) {
+            $errors[] = 'El id debe ser un entero mayor que cero.';
+        }
+
         if (! array_key_exists('agencia', $row) || self::normalizeText($row['agencia'] ?? null) === null) {
             $errors[] = 'El registro no contiene agencia.';
         }
 
-        $code = isset($row['id']) && $row['id'] !== ''
-            ? self::generateCode($row['id'])
+        $code = $externalId !== false && $externalId !== null
+            ? self::generateCode($externalId)
             : null;
 
         $name = self::normalizeText($row['agencia'] ?? null);
@@ -97,6 +115,19 @@ final class AgencyImportNormalizer
         $district = self::normalizeText($row['distrito'] ?? null);
         $address = self::normalizeText($row['direccion'] ?? null);
         $sourceText = self::normalizeText($row['texto_chosen'] ?? null);
+        $chosenTerrestre = self::normalizeText($row['texto_chosen_terrestre'] ?? null);
+        $chosenAereo = self::normalizeText($row['texto_chosen_aereo'] ?? null);
+        $legacyClassification = self::classifyLegacyChosen($sourceText);
+
+        if ($sourceText !== null && $legacyClassification === 'terrestre' && $chosenTerrestre === null) {
+            $chosenTerrestre = $sourceText;
+            $warnings[] = 'texto_chosen heredado clasificado como terrestre.';
+        } elseif ($sourceText !== null && $legacyClassification === 'aereo' && $chosenAereo === null) {
+            $chosenAereo = $sourceText;
+            $warnings[] = 'texto_chosen heredado clasificado como aéreo.';
+        } elseif ($sourceText !== null && $legacyClassification === null) {
+            $warnings[] = 'texto_chosen heredado no pudo clasificarse; se conservó en source_text.';
+        }
         $mapUrl = self::normalizeText($row['link_mapa'] ?? null);
         $size = self::normalizeSize($row['tamano'] ?? null);
         $isOperationsCenter = self::parseOperationsCenter($row['co'] ?? false, $warnings);
@@ -111,6 +142,7 @@ final class AgencyImportNormalizer
         }
 
         $normalized = [
+            'external_id' => $externalId === false ? null : $externalId,
             'code' => $code,
             'name' => $name,
             'department' => $department,
@@ -118,13 +150,15 @@ final class AgencyImportNormalizer
             'district' => $district,
             'address' => $address,
             'source_text' => $sourceText,
+            'texto_chosen_terrestre' => $chosenTerrestre,
+            'texto_chosen_aereo' => $chosenAereo,
             'map_url' => $mapUrl,
             'latitude' => $latitude,
             'longitude' => $longitude,
             'size' => $size,
             'is_operations_center' => $isOperationsCenter,
             'source' => 'github_gist',
-            'source_reference' => isset($row['id']) ? (string) $row['id'] : null,
+            'source_reference' => $externalId === false || $externalId === null ? null : (string) $externalId,
             'status' => AgencyStatus::UnderReview->value,
             'slug' => $name ? self::slugifyUnique($name, (string) ($row['id'] ?? '')) : null,
             'has_moved' => false,

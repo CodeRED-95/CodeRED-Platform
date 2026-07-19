@@ -25,10 +25,10 @@ class Agency extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'code', 'name', 'short_name', 'slug', 'department', 'province', 'district',
+        'external_id', 'code', 'name', 'short_name', 'slug', 'department', 'province', 'district',
         'address', 'reference', 'phone', 'secondary_phone', 'email', 'schedule',
         'latitude', 'longitude', 'services', 'observations', 'status', 'source',
-        'source_reference', 'source_text', 'map_url', 'size', 'is_operations_center',
+        'source_reference', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size', 'is_operations_center',
         'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at',
         'data_version', 'last_verified_at', 'created_by', 'updated_by',
     ];
@@ -37,6 +37,7 @@ class Agency extends Model
     {
         return [
             'services' => 'array',
+            'external_id' => 'integer',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'last_verified_at' => 'datetime',
@@ -127,10 +128,19 @@ class Agency extends Model
         $term = mb_strtolower($term);
 
         return $query->where(function (Builder $sub) use ($term): void {
-            foreach (['code', 'name', 'short_name', 'department', 'province', 'district', 'address', 'reference'] as $field) {
+            if (ctype_digit($term)) {
+                $sub->orWhere('external_id', (int) $term);
+            }
+
+            foreach (['code', 'name', 'short_name', 'department', 'province', 'district', 'address', 'reference', 'texto_chosen_terrestre', 'texto_chosen_aereo'] as $field) {
                 $sub->orWhereRaw("unaccent(lower($field)) ILIKE unaccent(?)", ['%'.$term.'%']);
             }
         });
+    }
+
+    public function legacyChosenText(): ?string
+    {
+        return $this->texto_chosen_terrestre ?? $this->texto_chosen_aereo ?? $this->source_text;
     }
 
     public function statusLabel(): string

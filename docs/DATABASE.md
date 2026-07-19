@@ -113,3 +113,7 @@ anteriores y nuevos permanecen en JSON y excluyen credenciales y tokens.
 ## Restauración
 
 PENDIENTE DE CONFIGURAR
+
+## ID externo y textos Chosen
+
+La migración `2026_07_19_055312_add_external_identifiers_to_agencies_table.php` añade `external_id bigint nullable`, con índice único parcial para no nulos, y dos columnas `text` nullable. La PK `id` no cambia. La migración rellena external_id desde referencias numéricas no duplicadas y clasifica `source_text` sin alterar su contenido. Los valores ambiguos permanecen únicamente en `source_text`. El rollback elimina las columnas nuevas y, por tanto, puede perder ediciones realizadas en ellas; no modifica los datos heredados.

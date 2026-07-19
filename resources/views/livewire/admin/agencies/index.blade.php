@@ -18,7 +18,7 @@
 
     <x-ui.card>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <x-ui.search-box wire:model.live.debounce.400ms="search" label="Buscar" placeholder="Código, nombre o ubicación..." />
+            <x-ui.search-box wire:model.live.debounce.400ms="search" label="Buscar" placeholder="ID, Code, agencia o identificador chosen..." />
             <x-ui.status-select id="agencies-status-filter" wire:model.live="status" label="Estado" :value="$status" :options="$statuses" />
             <x-ui.dropdown-select id="agencies-department-filter" wire:model.live="department" label="Departamento" :value="$department" :options="['' => 'Todos'] + $departments->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-province-filter" wire:model.live="province" label="Provincia" :value="$province" :options="['' => 'Todas'] + $provinces->mapWithKeys(fn ($item) => [$item => $item])->all()" />
@@ -42,7 +42,8 @@
     <x-ui.table wire:loading.class="opacity-50" wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
         <thead class="bg-white/5 text-xs uppercase tracking-[0.2em] text-[color:var(--color-text-secondary)]">
             <tr>
-                <th class="cursor-pointer px-5 py-4" wire:click="sortBy('code')">Código</th>
+                <th class="px-5 py-4">ID</th>
+                <th class="cursor-pointer px-5 py-4" wire:click="sortBy('code')">Code</th>
                 <th class="cursor-pointer px-5 py-4" wire:click="sortBy('name')">Nombre</th>
                 <th class="px-5 py-4">Departamento</th>
                 <th class="px-5 py-4">Provincia</th>
@@ -56,12 +57,20 @@
         <tbody class="divide-y divide-white/5">
             @forelse ($agencies as $agency)
                 <tr @class(['transition hover:bg-white/5', 'opacity-70' => $agency->trashed()])>
+                    <td class="px-5 py-4 font-mono text-sm">{{ $agency->external_id ?? '—' }}</td>
                     <td class="px-5 py-4 font-mono text-sm text-[color:var(--color-accent-ivory)]">{{ $agency->code }}</td>
                     <td class="px-5 py-4">
                         <div class="font-medium">{{ $agency->name }}</div>
                         <div class="text-xs text-[color:var(--color-text-secondary)]">{{ $agency->short_name ?? $agency->source_reference ?? '—' }}</div>
                     </td>
-                    <td class="px-5 py-4">{{ $agency->department }}</td>
+                    <td class="px-5 py-4">
+                        <div>{{ $agency->department }}</div>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                            @if ($agency->texto_chosen_terrestre)<x-ui.badge tone="success">Terrestre</x-ui.badge>@endif
+                            @if ($agency->texto_chosen_aereo)<x-ui.badge tone="info">Aéreo</x-ui.badge>@endif
+                            @if (! $agency->texto_chosen_terrestre && ! $agency->texto_chosen_aereo)<x-ui.badge tone="neutral">Sin canal</x-ui.badge>@endif
+                        </div>
+                    </td>
                     <td class="px-5 py-4">{{ $agency->province }}</td>
                     <td class="px-5 py-4">{{ $agency->district }}</td>
                     <td class="px-5 py-4">
@@ -107,7 +116,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" class="px-5 py-12">
+                    <td colspan="10" class="px-5 py-12">
                         <x-ui.empty-state
                             title="No hay agencias registradas"
                             description="Crea una agencia nueva o importa el JSON del Gist para empezar."

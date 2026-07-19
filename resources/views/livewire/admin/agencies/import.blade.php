@@ -72,6 +72,9 @@
                         <x-ui.stat-card label="Con advertencias" :value="$summary['warning_rows'] ?? 0" tone="warning" />
                         <x-ui.stat-card label="Inválidas" :value="$summary['invalid_rows'] ?? 0" tone="danger" />
                         <x-ui.stat-card label="Duplicadas" :value="$summary['duplicate_rows'] ?? 0" tone="info" />
+                        <x-ui.stat-card label="Heredados clasificados" :value="$summary['legacy_classified'] ?? 0" tone="success" />
+                        <x-ui.stat-card label="Heredados sin clasificar" :value="$summary['legacy_unclassified'] ?? 0" tone="warning" />
+                        <x-ui.stat-card label="Conflictos de identidad" :value="$summary['identity_conflicts'] ?? 0" tone="danger" />
                     </div>
                 </x-ui.card>
 
@@ -97,6 +100,7 @@
                                 <div class="flex gap-2">
                                     <x-ui.badge :tone="($item['valid'] ?? false) ? 'success' : 'danger'">{{ ($item['valid'] ?? false) ? 'Válida' : 'Inválida' }}</x-ui.badge>
                                     @if ($item['duplicate'] ?? false)<x-ui.badge tone="info">Duplicada</x-ui.badge>@endif
+                                    @if ($item['identity_conflict'] ?? false)<x-ui.badge tone="danger">Conflicto de identidad</x-ui.badge>@endif
                                 </div>
                             </div>
                             @if (! empty($item['errors']))
@@ -140,6 +144,10 @@
                     <x-ui.stat-card label="Actualizadas" :value="$summary['updated'] ?? 0" tone="info" />
                     <x-ui.stat-card label="Omitidas" :value="$summary['skipped'] ?? 0" tone="warning" />
                     <x-ui.stat-card label="Fallidas" :value="$summary['failed'] ?? 0" tone="danger" />
+                    <x-ui.stat-card label="Advertencias" :value="$summary['warnings'] ?? 0" tone="warning" />
+                    <x-ui.stat-card label="Heredados clasificados" :value="$summary['legacy_classified'] ?? 0" tone="success" />
+                    <x-ui.stat-card label="Heredados sin clasificar" :value="$summary['legacy_unclassified'] ?? 0" tone="warning" />
+                    <x-ui.stat-card label="Conflictos de identidad" :value="$summary['identity_conflicts'] ?? 0" tone="danger" />
                 </div>
 
                 @if ($failures !== [])

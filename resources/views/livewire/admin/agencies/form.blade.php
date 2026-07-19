@@ -16,7 +16,8 @@
         <div class="grid gap-6 xl:grid-cols-2">
             @php
                 $sections = [
-                    'Identificación' => ['code','name','short_name','slug'],
+                    'Identificación' => ['external_id','code','name','short_name','slug'],
+                    'Identificadores de extensión' => ['texto_chosen_terrestre','texto_chosen_aereo'],
                     'Ubicación' => ['department','province','district','address','reference'],
                     'Contacto' => ['phone','secondary_phone','email'],
                     'Horario' => ['schedule'],
@@ -120,14 +121,24 @@
                                             @endif
                                         </div>
                                     @endif
+                                @elseif (in_array($field, ['texto_chosen_terrestre', 'texto_chosen_aereo'], true))
+                                    <x-ui.textarea
+                                        wrapper-class="md:col-span-2"
+                                        wire:model.blur="{{ $field }}"
+                                        rows="3"
+                                        :label="$field === 'texto_chosen_terrestre' ? 'Texto Chosen Terrestre' : 'Texto Chosen Aéreo'"
+                                        :description="$field === 'texto_chosen_terrestre' ? 'Identificador utilizado por la extensión para operaciones terrestres.' : 'Identificador utilizado por la extensión para operaciones aéreas.'"
+                                        :error="$errors->first($field)"
+                                    />
                                 @elseif ($field === 'observations')
                                     <x-ui.textarea wrapper-class="md:col-span-2" wire:model.blur="observations" rows="4" label="Observaciones" :error="$errors->first('observations')" />
                                 @else
                                     <x-ui.input
-                                        type="{{ in_array($field, ['latitude','longitude'], true) ? 'number' : ($field === 'email' ? 'email' : 'text') }}"
+                                        type="{{ in_array($field, ['external_id','latitude','longitude'], true) ? 'number' : ($field === 'email' ? 'email' : 'text') }}"
                                         step="any"
                                         wire:model.blur="{{ $field }}"
-                                        :label="str_replace('_', ' ', ucfirst($field))"
+                                        :label="$field === 'external_id' ? 'ID' : ($field === 'code' ? 'Code' : str_replace('_', ' ', ucfirst($field)))"
+                                        :description="$field === 'external_id' ? 'Identificador numérico recibido desde la fuente externa.' : ($field === 'code' ? 'Código interno utilizado por CodeRED Platform.' : null)"
                                         :error="$errors->first($field)"
                                     />
                                 @endif

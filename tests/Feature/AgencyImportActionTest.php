@@ -54,6 +54,47 @@ class AgencyImportActionTest extends TestCase
         $this->assertSame('Dirección actualizada', $existing->fresh()->address);
     }
 
+    public function test_import_persists_new_chosen_format_and_external_id(): void
+    {
+        $row = $this->row(610, 'Dirección');
+        unset($row['texto_chosen']);
+        $row['texto_chosen_terrestre'] = '610 - TERRESTRE';
+        $row['texto_chosen_aereo'] = '610 - AEREO';
+
+        $summary = app(ImportAgenciesAction::class)->execute($this->import(AgencyImportStrategy::IgnoreExisting), [$row]);
+
+        $this->assertSame(1, $summary['imported']);
+        $this->assertDatabaseHas('agencies', [
+            'external_id' => 610,
+            'code' => 'SHA-000610',
+            'texto_chosen_terrestre' => '610 - TERRESTRE',
+            'texto_chosen_aereo' => '610 - AEREO',
+        ]);
+    }
+
+    public function test_import_rejects_duplicate_external_id_inside_file(): void
+    {
+        $summary = app(ImportAgenciesAction::class)->execute($this->import(AgencyImportStrategy::UpdateExisting), [
+            $this->row(620, 'Primera'),
+            $this->row(620, 'Segunda'),
+        ]);
+
+        $this->assertSame(1, $summary['imported']);
+        $this->assertSame(1, $summary['failed']);
+    }
+
+    public function test_import_rejects_external_id_and_code_identity_conflict(): void
+    {
+        Agency::factory()->create(['external_id' => 630, 'code' => 'OTHER-630', 'source_reference' => '630']);
+        Agency::factory()->create(['external_id' => 631, 'code' => 'SHA-000630', 'source_reference' => '631']);
+
+        $summary = app(ImportAgenciesAction::class)->execute($this->import(AgencyImportStrategy::UpdateExisting), [$this->row(630, 'Conflicto')]);
+
+        $this->assertSame(1, $summary['failed']);
+        $this->assertSame(1, $summary['identity_conflicts']);
+        $this->assertDatabaseMissing('agencies', ['address' => 'Conflicto']);
+    }
+
     private function import(AgencyImportStrategy $strategy): AgencyImport
     {
         return AgencyImport::query()->create([

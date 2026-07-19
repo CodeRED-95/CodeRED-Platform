@@ -97,3 +97,18 @@ La reimportación nunca sobrescribe campos manuales de traslado.
 - El resumen conserva importadas, actualizadas, omitidas y fallidas.
 - Las agencias nuevas usan `source = github_gist`, `has_moved = false` y el estado
   inicial confirmado en el asistente.
+
+## Formato de identificadores 2026-07
+
+```json
+{
+  "id": 610,
+  "agencia": "Yarinacocha Av Universitaria",
+  "texto_chosen_terrestre": "610 - UCAYALI - YARINACOCHA - TERRESTRE",
+  "texto_chosen_aereo": null
+}
+```
+
+Mapeo: `id` → `external_id`; los dos campos Chosen conservan su nombre. El formato antiguo `texto_chosen` sigue admitido: se clasifica solo cuando contiene inequívocamente TERRESTRE o AEREO/AÉREO. Un texto ambiguo permanece en `source_text` y genera advertencia. Los campos nuevos tienen prioridad y nunca son sobrescritos por el heredado.
+
+`external_id`, Code y `(source, source_reference)` se comparan antes de actualizar. Si identifican filas distintas, la fila se rechaza como conflicto de identidad. Los ID repetidos dentro del archivo también fallan.

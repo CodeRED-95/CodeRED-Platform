@@ -8,6 +8,7 @@ class UpdateAgencyRequest extends StoreAgencyRequest
     {
         $rules = parent::rules();
         $rules['code'][3] = 'unique:agencies,code,'.$this->route('agency')?->id;
+        $rules['external_id'][3] = 'unique:agencies,external_id,'.$this->route('agency')?->id;
 
         return $rules;
     }

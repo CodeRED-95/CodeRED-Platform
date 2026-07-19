@@ -136,3 +136,7 @@ curl http://localhost:8090/api/v1/agencies/SHA-000003
 Los errores detallados en producción deben evitar exponer trazas.
 
 PENDIENTE DE CONFIGURAR
+
+## Identificadores de agencias
+
+Los recursos de agencias exponen `internal_id` (PK técnica), `id` (ID externo nullable), `code`, `texto_chosen_terrestre` y `texto_chosen_aereo`. `texto_chosen` permanece temporalmente como deprecated y devuelve, por orden, terrestre, aéreo o `source_text`. El snapshot para la extensión usa `id` como ID externo y mantiene el mismo fallback heredado. Las rutas continúan enlazando por Code; no se modificó el contrato de URLs.

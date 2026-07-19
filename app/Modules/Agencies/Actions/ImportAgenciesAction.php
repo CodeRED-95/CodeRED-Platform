@@ -23,10 +23,38 @@ class ImportAgenciesAction
             'updated' => 0,
             'skipped' => 0,
             'failed' => 0,
+            'warnings' => 0,
+            'legacy_classified' => 0,
+            'legacy_unclassified' => 0,
+            'identity_conflicts' => 0,
         ];
+
+        $seenExternalIds = [];
 
         foreach ($rows as $index => $row) {
             $transformed = AgencyImportNormalizer::transform($row);
+
+            $externalId = $transformed->normalized['external_id'] ?? null;
+            if (is_int($externalId) && isset($seenExternalIds[$externalId])) {
+                $summary['failed']++;
+                AgencyImportFailure::query()->create([
+                    'agency_import_id' => $import->id,
+                    'row_number' => $index + 1,
+                    'raw_data' => $row,
+                    'errors' => ['El ID externo está duplicado dentro del archivo.'],
+                    'created_at' => now(),
+                ]);
+
+                continue;
+            }
+            if (is_int($externalId)) {
+                $seenExternalIds[$externalId] = true;
+            }
+
+            $summary['warnings'] += count($transformed->warnings);
+            foreach ($transformed->warnings as $warning) {
+                $summary[str_contains($warning, 'no pudo clasificarse') ? 'legacy_unclassified' : (str_contains($warning, 'heredado clasificado') ? 'legacy_classified' : 'warnings')] += str_contains($warning, 'texto_chosen heredado') ? 1 : 0;
+            }
 
             if (! $transformed->valid) {
                 $summary['failed']++;
@@ -41,9 +69,23 @@ class ImportAgenciesAction
                 continue;
             }
 
-            DB::transaction(function () use ($transformed, $import, &$summary, $defaultStatus): void {
+            DB::transaction(function () use ($transformed, $import, &$summary, $defaultStatus, $index): void {
                 $data = $transformed->normalized;
-                $existing = $this->duplicateFinder->find($data);
+                $resolution = $this->duplicateFinder->resolve($data);
+                if ($resolution['conflict'] !== null) {
+                    AgencyImportFailure::query()->create([
+                        'agency_import_id' => $import->id,
+                        'row_number' => $index + 1,
+                        'raw_data' => $transformed->raw,
+                        'errors' => [$resolution['conflict']],
+                        'created_at' => now(),
+                    ]);
+                    $summary['failed']++;
+                    $summary['identity_conflicts']++;
+
+                    return;
+                }
+                $existing = $resolution['agency'];
 
                 if (! $existing) {
                     $version = AgencyVersion::bump();
@@ -78,7 +120,7 @@ class ImportAgenciesAction
                 }
 
                 $changes = [];
-                foreach (['name', 'department', 'province', 'district', 'address', 'source_text', 'map_url', 'size'] as $field) {
+                foreach (['external_id', 'name', 'department', 'province', 'district', 'address', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size'] as $field) {
                     $value = $data[$field] ?? null;
                     if ($value === null || $value === '') {
                         continue;

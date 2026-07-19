@@ -17,6 +17,7 @@ class StoreAgencyRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'external_id' => ['nullable', 'integer', 'min:1', 'unique:agencies,external_id'],
             'code' => ['required', 'string', 'max:50', 'unique:agencies,code'],
             'name' => ['required', 'string', 'max:255'],
             'short_name' => ['nullable', 'string', 'max:255'],
@@ -37,6 +38,8 @@ class StoreAgencyRequest extends FormRequest
             'status' => ['required', Rule::enum(AgencyStatus::class)],
             'source' => ['required', 'string', 'max:255'],
             'source_reference' => ['nullable', 'string', 'max:255'],
+            'texto_chosen_terrestre' => ['nullable', 'string', 'max:10000'],
+            'texto_chosen_aereo' => ['nullable', 'string', 'max:10000'],
             'last_verified_at' => ['nullable', 'date'],
         ];
     }

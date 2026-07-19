@@ -183,6 +183,9 @@ class AgencyPagesTest extends TestCase
             ->assertOk()
             ->assertSee($agency->name)
             ->assertSee($agency->code)
+            ->assertSee((string) $agency->external_id)
+            ->assertSee('Texto Chosen Terrestre')
+            ->assertSee('Texto Chosen Aéreo')
             ->assertSee('data-codered-map', false);
     }
 

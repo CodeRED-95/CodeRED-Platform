@@ -19,6 +19,8 @@ class Form extends Component
 
     public string $mode = 'create';
 
+    public ?int $external_id = null;
+
     public string $code = '';
 
     public string $name = '';
@@ -67,6 +69,10 @@ class Form extends Component
 
     public ?string $source_text = null;
 
+    public ?string $texto_chosen_terrestre = null;
+
+    public ?string $texto_chosen_aereo = null;
+
     public string $servicesInput = '';
 
     public bool $has_moved = false;
@@ -94,6 +100,7 @@ class Form extends Component
 
         if ($agency) {
             $this->fill([
+                'external_id' => $agency->external_id,
                 'code' => $agency->code,
                 'name' => $agency->name,
                 'short_name' => $agency->short_name,
@@ -118,6 +125,8 @@ class Form extends Component
                 'source' => $agency->source,
                 'source_reference' => $agency->source_reference,
                 'source_text' => $agency->source_text,
+                'texto_chosen_terrestre' => $agency->texto_chosen_terrestre,
+                'texto_chosen_aereo' => $agency->texto_chosen_aereo,
                 'has_moved' => (bool) $agency->has_moved,
                 'moved_to_agency_id' => $agency->moved_to_agency_id,
                 'moved_to_address' => $agency->moved_to_address,
@@ -212,6 +221,12 @@ class Form extends Component
     public function rules(): array
     {
         return [
+            'external_id' => [
+                'nullable',
+                'integer',
+                'min:1',
+                Rule::unique('agencies', 'external_id')->ignore($this->agency?->id),
+            ],
             'code' => [
                 'required',
                 'string',
@@ -252,6 +267,8 @@ class Form extends Component
             'source' => ['required', 'string', 'max:100'],
             'source_reference' => ['nullable', 'string', 'max:255'],
             'source_text' => ['nullable', 'string'],
+            'texto_chosen_terrestre' => ['nullable', 'string', 'max:10000'],
+            'texto_chosen_aereo' => ['nullable', 'string', 'max:10000'],
             'has_moved' => ['boolean'],
             'moved_to_agency_id' => [
                 Rule::requiredIf($this->has_moved && blank($this->moved_to_address)),
@@ -280,7 +297,7 @@ class Form extends Component
     private function normalizePayload(array $data): array
     {
         $payload = $data;
-        foreach (['code', 'name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'map_url', 'observations', 'source_text', 'moved_to_address', 'move_notice'] as $field) {
+        foreach (['code', 'name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice'] as $field) {
             if (array_key_exists($field, $payload) && is_string($payload[$field])) {
                 $payload[$field] = trim(preg_replace('/\s+/u', ' ', $payload[$field]));
                 $payload[$field] = $payload[$field] === '' ? null : $payload[$field];
