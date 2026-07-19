@@ -13,7 +13,11 @@
         </div>
     </x-ui.card>
 
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div wire:loading.delay wire:target="search,department,province,district">
+        <x-ui.skeleton variant="card" />
+    </div>
+
+    <div class="grid gap-4 transition md:grid-cols-2 xl:grid-cols-3" wire:loading.class="opacity-50" wire:target="search,department,province,district">
         @forelse ($agencies as $agency)
             <article class="rounded-[var(--radius-card)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] p-5 transition hover:bg-[color:var(--color-surface-hover)]">
                 <div class="flex items-start justify-between gap-3">

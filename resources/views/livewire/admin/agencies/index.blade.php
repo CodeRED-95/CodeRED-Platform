@@ -34,7 +34,11 @@
         </div>
     </x-ui.card>
 
-    <x-ui.table>
+    <div wire:loading.delay wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
+        <x-ui.skeleton variant="table" :rows="5" />
+    </div>
+
+    <x-ui.table wire:loading.class="opacity-50" wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
         <thead class="bg-white/5 text-xs uppercase tracking-[0.2em] text-[color:var(--color-text-secondary)]">
             <tr>
                 <th class="cursor-pointer px-5 py-4" wire:click="sortBy('code')">Código</th>

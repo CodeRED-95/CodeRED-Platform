@@ -54,5 +54,31 @@ class DesignSystemComponentsTest extends TestCase
         $this->assertStringContainsString('aria-labelledby="delete-record-title"', $html);
         $this->assertStringContainsString('wire:click="deleteRecord"', $html);
         $this->assertStringContainsString('x-on:keydown.escape.window', $html);
+        $this->assertStringContainsString('x-on:keydown.tab="trapFocus($event)"', $html);
+    }
+
+    #[Test]
+    public function spinner_and_skeleton_expose_accessible_loading_states(): void
+    {
+        $spinner = Blade::render('<x-ui.spinner size="sm" label="Guardando" />');
+        $skeleton = Blade::render('<x-ui.skeleton variant="table" :rows="2" />');
+
+        $this->assertStringContainsString('role="status"', $spinner);
+        $this->assertStringContainsString('Guardando', $spinner);
+        $this->assertStringContainsString('aria-label="Cargando contenido"', $skeleton);
+        $this->assertStringContainsString('animate-pulse', $skeleton);
+    }
+
+    #[Test]
+    public function toast_stack_accepts_initial_messages_and_browser_events(): void
+    {
+        $html = Blade::render(
+            '<x-ui.toast-stack :messages="[[\'tone\' => \'success\', \'message\' => \'Guardado correctamente\']]" />'
+        );
+
+        $this->assertStringContainsString('x-on:toast.window', $html);
+        $this->assertStringContainsString('aria-live="polite"', $html);
+        $this->assertStringContainsString('Guardado correctamente', $html);
+        $this->assertStringContainsString('Cerrar notificación', $html);
     }
 }

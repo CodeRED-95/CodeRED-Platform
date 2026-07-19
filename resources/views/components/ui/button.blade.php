@@ -5,6 +5,8 @@
     'href' => null,
     'disabled' => false,
     'loading' => false,
+    'loadingTarget' => null,
+    'loadingLabel' => 'Procesando…',
 ])
 
 @php
@@ -32,9 +34,17 @@
     </a>
 @else
     <button type="{{ $attributes->get('type', $type) }}" @disabled($disabled || $loading) {{ $attributes->except('type')->merge(['class' => $classes]) }}>
-        @if ($loading)
-            <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity=".2"/><path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+        @if ($loadingTarget)
+            <span wire:loading.remove wire:target="{{ $loadingTarget }}">{{ $slot }}</span>
+            <span wire:loading wire:target="{{ $loadingTarget }}" class="items-center gap-2">
+                <x-ui.spinner size="sm" :label="$loadingLabel" />
+                {{ $loadingLabel }}
+            </span>
+        @else
+            @if ($loading)
+                <x-ui.spinner size="sm" :label="$loadingLabel" />
+            @endif
+            {{ $slot }}
         @endif
-        {{ $slot }}
     </button>
 @endif

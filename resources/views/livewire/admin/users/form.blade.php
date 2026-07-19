@@ -55,10 +55,7 @@
         </x-ui.card>
 
         <div class="lg:col-span-2 flex justify-end">
-            <x-ui.button type="submit" variant="primary" wire:loading.attr="disabled" wire:target="save">
-                <span wire:loading.remove wire:target="save">Guardar usuario</span>
-                <span wire:loading wire:target="save">Guardando…</span>
-            </x-ui.button>
+            <x-ui.button type="submit" variant="primary" loading-target="save" loading-label="Guardando…" wire:loading.attr="disabled" wire:target="save">Guardar usuario</x-ui.button>
         </div>
     </form>
 </div>

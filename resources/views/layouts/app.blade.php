@@ -10,6 +10,10 @@
     @livewireStyles
 </head>
 <body class="h-full bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]">
+    <x-ui.toast-stack :messages="[
+        ['tone' => 'success', 'message' => session('success')],
+        ['tone' => 'danger', 'message' => session('error')],
+    ]" />
     <div class="min-h-screen code-red-shell">
         <div class="flex min-h-screen">
             <aside class="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-[color:var(--color-border-subtle)] bg-[color:var(--color-sidebar)]/95 backdrop-blur lg:flex lg:flex-col">
@@ -93,16 +97,6 @@
                 </header>
 
                 <main class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
-                    @if (session('success') || session('error'))
-                        <div class="mb-6 space-y-3">
-                            @if (session('success'))
-                                <x-ui.alert tone="success">{{ session('success') }}</x-ui.alert>
-                            @endif
-                            @if (session('error'))
-                                <x-ui.alert tone="danger">{{ session('error') }}</x-ui.alert>
-                            @endif
-                        </div>
-                    @endif
                     {{ $slot }}
                 </main>
             </div>

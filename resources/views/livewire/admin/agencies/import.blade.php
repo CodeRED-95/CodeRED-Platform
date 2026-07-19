@@ -41,8 +41,8 @@
                     :options="['under_review' => 'En revisión', 'active' => 'Activa']"
                 />
                 <div class="flex gap-3">
-                    <x-ui.button type="button" wire:click="preview" variant="secondary" wire:loading.attr="disabled" wire:target="preview">Vista previa</x-ui.button>
-                    <x-ui.button type="button" wire:click="import" variant="primary" wire:loading.attr="disabled" wire:target="import">Importar</x-ui.button>
+                    <x-ui.button type="button" wire:click="preview" variant="secondary" loading-target="preview" loading-label="Validando…" wire:loading.attr="disabled" wire:target="preview">Vista previa</x-ui.button>
+                    <x-ui.button type="button" wire:click="import" variant="primary" loading-target="import" loading-label="Importando…" wire:loading.attr="disabled" wire:target="import">Importar</x-ui.button>
                 </div>
                 @if($message)
                     <x-ui.alert tone="success">{{ $message }}</x-ui.alert>

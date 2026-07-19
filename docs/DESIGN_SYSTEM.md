@@ -48,6 +48,9 @@ El CodeRED Design System estandariza la interfaz del proyecto con componentes Bl
 - `x-ui.card`
 - `x-ui.stat-card`
 - `x-ui.confirm-dialog`
+- `x-ui.toast-stack`
+- `x-ui.spinner`
+- `x-ui.skeleton`
 
 ## Contratos de componentes
 
@@ -58,6 +61,9 @@ El CodeRED Design System estandariza la interfaz del proyecto con componentes Bl
 | `x-ui.dropdown-select` | `id`, `name`, `label`, `value`, `options`, `required`, `disabled`, `error` | Selección simple accesible |
 | `x-ui.status-select` | API de dropdown más iconos de estado | Estados de agencias |
 | `x-ui.confirm-dialog` | `id`, `title`, `message`, `confirmLabel`, `confirmAction`, `tone`, slot `trigger` | Confirmar acciones sensibles |
+| `x-ui.toast-stack` | `messages`, `duration`; evento global `toast` | Feedback temporal global |
+| `x-ui.spinner` | `size`, `label` | Operaciones breves en curso |
+| `x-ui.skeleton` | `variant`, `rows` | Reserva visual mientras carga contenido |
 | `x-ui.button` | `variant`, `size`, `type`, `href`, `disabled`, `loading` | Acciones y navegación |
 | `x-ui.alert` | `tone` | Mensajes persistentes de sistema o validación |
 
@@ -175,3 +181,14 @@ simples deben proporcionar un arreglo `valor => etiqueta` a `x-ui.dropdown-selec
 
 La consistencia se protege con `DesignSystemConsistencyTest` y `NativeSelectRemovalTest`.
 Los contratos reutilizables se verifican en `DesignSystemComponentsTest`.
+
+## Feedback y carga
+
+El layout contiene una sola instancia de `x-ui.toast-stack`. Acepta flashes `success`
+y `error`, además del evento Livewire/DOM `toast` con `tone` o `type` y `message`.
+Los toasts se anuncian mediante `aria-live`, pueden cerrarse y expiran automáticamente.
+
+Usar `x-ui.spinner` dentro de acciones cortas. Para tablas, tarjetas o texto que aún no
+están disponibles, usar `x-ui.skeleton`. `x-ui.loading` se mantiene como fachada
+compatible sobre skeleton. Los botones Livewire aceptan `loadingTarget` y
+`loadingLabel` para evitar duplicar estados de carga.

@@ -101,4 +101,20 @@
             </x-ui.confirm-dialog>
         </div>
     </x-ui.card>
+
+    <div class="grid gap-6 xl:grid-cols-2">
+        <x-ui.card>
+            <x-ui.section-header title="Carga y skeletons" description="Feedback para operaciones y contenido asíncrono." />
+            <div class="mt-5 space-y-4">
+                <div class="flex items-center gap-3"><x-ui.spinner /> <span class="text-sm text-[color:var(--color-text-secondary)]">Procesando datos…</span></div>
+                <x-ui.skeleton variant="text" :rows="3" />
+            </div>
+        </x-ui.card>
+        <x-ui.card>
+            <x-ui.section-header title="Toasts" description="Mensajes temporales globales y accesibles." />
+            <div class="mt-5">
+                <x-ui.button variant="secondary" x-on:click="window.dispatchEvent(new CustomEvent('toast', { detail: { tone: 'success', message: 'Operación completada.' } }))">Mostrar toast</x-ui.button>
+            </div>
+        </x-ui.card>
+    </div>
 </div>

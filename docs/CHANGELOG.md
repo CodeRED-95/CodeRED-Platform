@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-19 — Experiencia de usuario, fase 3
+
+- Se añadieron toasts globales, spinner accesible y skeletons con variantes.
+- Se conectaron flashes de sesión y eventos Livewire al sistema de notificaciones.
+- Se normalizaron estados de carga en formularios, importación y listados filtrables.
+- Se añadió atrapado y restauración de foco en confirmaciones.
+
 ## 2026-07-19 — Design System, fase 2
 
 - Se amplió `x-ui.input` con slots reutilizables de prefijo y sufijo.
