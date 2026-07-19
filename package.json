@@ -4,10 +4,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --test tests/Frontend/*.test.js"
   },
   "devDependencies": {
     "@alpinejs/collapse": "^3.14.1",
+    "@apidevtools/swagger-parser": "^12.1.0",
     "@tailwindcss/forms": "^0.5.10",
     "alpinejs": "^3.14.1",
     "autoprefixer": "^10.4.21",
@@ -19,6 +21,7 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "swagger-ui-dist": "^5.32.9"
   }
 }

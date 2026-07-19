@@ -153,3 +153,97 @@
 
   [x-cloak] { display: none !important; }
 }
+
+
+/* Swagger UI integrado al tema oscuro de CodeRED. */
+.codered-swagger-ui .swagger-ui,
+.codered-swagger-ui .swagger-ui .info .title,
+.codered-swagger-ui .swagger-ui .opblock-tag,
+.codered-swagger-ui .swagger-ui .opblock-summary-description,
+.codered-swagger-ui .swagger-ui .parameter__name,
+.codered-swagger-ui .swagger-ui .response-col_status,
+.codered-swagger-ui .swagger-ui .response-col_description,
+.codered-swagger-ui .swagger-ui table thead tr td,
+.codered-swagger-ui .swagger-ui table thead tr th,
+.codered-swagger-ui .swagger-ui label,
+.codered-swagger-ui .swagger-ui p {
+  color: var(--color-text-primary);
+}
+
+.codered-swagger-ui .swagger-ui .info a,
+.codered-swagger-ui .swagger-ui .link {
+  color: var(--color-brand-light);
+}
+
+.codered-swagger-ui .swagger-ui .scheme-container,
+.codered-swagger-ui .swagger-ui .opblock,
+.codered-swagger-ui .swagger-ui .model-container,
+.codered-swagger-ui .swagger-ui section.models {
+  background: var(--color-background-elevated);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+.codered-swagger-ui .swagger-ui .opblock .opblock-section-header,
+.codered-swagger-ui .swagger-ui .responses-inner,
+.codered-swagger-ui .swagger-ui .opblock-body {
+  background: color-mix(in srgb, var(--color-background-elevated) 92%, transparent);
+}
+
+.codered-swagger-ui .swagger-ui input,
+.codered-swagger-ui .swagger-ui select,
+.codered-swagger-ui .swagger-ui textarea {
+  border-color: var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.codered-swagger-ui .swagger-ui input:focus,
+.codered-swagger-ui .swagger-ui select:focus,
+.codered-swagger-ui .swagger-ui textarea:focus,
+.codered-swagger-ui .swagger-ui button:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.codered-swagger-ui .swagger-ui .btn {
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.codered-swagger-ui .swagger-ui .btn.authorize,
+.codered-swagger-ui .swagger-ui .btn.execute {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+  color: white;
+}
+
+.codered-swagger-ui .swagger-ui .btn.authorize svg {
+  fill: currentColor;
+}
+
+.codered-swagger-ui .swagger-ui pre,
+.codered-swagger-ui .swagger-ui code,
+.codered-swagger-ui .swagger-ui .highlight-code {
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.codered-swagger-ui .swagger-ui .dialog-ux .modal-ux {
+  border-color: var(--color-border);
+  background: var(--color-background-elevated);
+  color: var(--color-text-primary);
+}
+
+.codered-swagger-ui .swagger-ui .dialog-ux .backdrop-ux {
+  background: rgba(2, 6, 23, 0.78);
+}
+
+.codered-swagger-ui .swagger-ui svg {
+  fill: var(--color-text-secondary);
+}
+
+.codered-swagger-ui .swagger-ui .topbar,
+.codered-swagger-ui .swagger-ui .information-container .info > hgroup.main a {
+  display: none;
+}

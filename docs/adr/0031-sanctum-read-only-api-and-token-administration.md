@@ -10,7 +10,7 @@ La extensión necesita migrar progresivamente desde Gist a un catálogo oficial 
 
 La API v1 usa tokens personales Sanctum, abilities mínimas, expiración, revocación, límites por token y CORS explícito. El contrato se publica mediante Resource dedicado y OpenAPI 3. La administración pertenece únicamente a Super Administrador.
 
-La documentación interactiva es propia del Design System para evitar una dependencia adicional; el bearer escrito para probar se conserva solo en memoria del navegador. Los endpoints heredados permanecen temporalmente autenticados durante la transición.
+La documentación interactiva renderiza el contrato canónico con Swagger UI dentro del Design System. Permite Authorize y Try it out, pero configura persistAuthorization en false para que el bearer permanezca solo en memoria. Los endpoints heredados permanecen temporalmente autenticados durante la transición.
 
 ## Consecuencias
 

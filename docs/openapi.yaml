@@ -2,12 +2,26 @@ openapi: 3.0.3
 info:
   title: CodeRED Platform API
   version: 1.0.0
-  description: API de solo lectura para el catálogo de agencias de CodeRED Platform.
+  description: |
+    API REST de solo lectura para el catálogo de agencias de CodeRED Platform.
+    Crea y revoca credenciales desde API y Tokens. En Authorize pega un token Sanctum
+    con agencies:read para el catálogo o profile:read para /me. Nunca incluyas tokens reales
+    en URLs, capturas, código fuente o documentación.
+tags:
+  - name: Sistema
+    description: Estado público del servicio.
+  - name: Agencias
+    description: Consulta del catálogo oficial; requiere la ability agencies:read.
+  - name: Catálogo
+    description: Metadatos del catálogo; requiere agencies:read.
+  - name: Perfil
+    description: Identidad del token; requiere profile:read.
 servers:
   - url: /api/v1
 paths:
   /health:
     get:
+      tags: [Sistema]
       summary: Estado básico del servicio
       operationId: health
       responses:
@@ -17,10 +31,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                api_version: v1
+                timestamp: '2026-07-19T12:00:00Z'
         '503':
           description: Base de datos no disponible
   /agencies:
     get:
+      tags: [Agencias]
+      description: Devuelve agencias paginadas. Usa Try it out para combinar búsqueda, filtros, orden y paginación.
       summary: Listar agencias
       operationId: listAgencies
       security:
@@ -51,6 +71,8 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
   /agencies/{code}:
     get:
+      tags: [Agencias]
+      description: Usa el Code estable de CodeRED, no el ID interno ni el ID externo.
       summary: Obtener agencia por Code
       operationId: getAgencyByCode
       security:
@@ -75,6 +97,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
   /catalog/metadata:
     get:
+      tags: [Catálogo]
       summary: Metadatos del catálogo
       operationId: catalogMetadata
       security:
@@ -90,6 +113,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
   /me:
     get:
+      tags: [Perfil]
       summary: Propietario del token
       operationId: tokenOwner
       security:
@@ -125,11 +149,11 @@ components:
         departamento: { type: string, example: Ucayali }
         provincia: { type: string, example: Coronel Portillo }
         distrito: { type: string, example: Pucallpa Yarinacocha }
-        direccion: { type: string }
-        link_mapa: { type: string, format: uri, nullable: true }
+        direccion: { type: string, example: av. universitaria mza a lote 6 }
+        link_mapa: { type: string, format: uri, nullable: true, example: 'https://www.google.com/maps/dir/?api=1&destination=-8.380017,-74.568467' }
         tamano: { type: string, nullable: true, example: Pequeño }
-        texto_chosen_terrestre: { type: string, nullable: true }
-        texto_chosen_aereo: { type: string, nullable: true }
+        texto_chosen_terrestre: { type: string, nullable: true, example: 610 - UCAYALI - YARINACOCHA - TERRESTRE }
+        texto_chosen_aereo: { type: string, nullable: true, example: null }
     AgencyPage:
       type: object
       required: [data, links, meta]

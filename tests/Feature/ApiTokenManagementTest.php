@@ -133,6 +133,42 @@ class ApiTokenManagementTest extends TestCase
         ])->options('/api/v1/agencies')->assertHeader('Access-Control-Allow-Origin', 'chrome-extension://extension-id');
     }
 
+    public function test_token_copy_control_uses_safe_frontend_component_and_fallback(): void
+    {
+        $view = file_get_contents(resource_path('views/livewire/admin/api-tokens/index.blade.php'));
+        $script = file_get_contents(resource_path('js/api-token-copy.js'));
+
+        $this->assertIsString($view);
+        $this->assertIsString($script);
+        $this->assertStringContainsString('codeRedTokenCopy(@js($plainTextToken))', $view);
+        $this->assertStringContainsString('x-on:click="copy"', $view);
+        $this->assertStringContainsString('x-on:click="select"', $view);
+        $this->assertStringContainsString('clipboard.writeText(token)', $script);
+        $this->assertStringContainsString('selectNodeContents(element)', $script);
+        $this->assertStringContainsString('Token copiado correctamente.', $script);
+        $this->assertStringNotContainsString('localStorage', $script);
+        $this->assertStringNotContainsString('sessionStorage', $script);
+        $this->assertStringNotContainsString('console.', $script);
+    }
+
+    public function test_interactive_documentation_mounts_swagger_with_non_persistent_bearer_authorization(): void
+    {
+        $super = $this->superAdmin();
+        $response = $this->actingAs($super)->get(route('api.docs'));
+
+        $response->assertOk()
+            ->assertSee('codered-swagger-ui', false)
+            ->assertSee('Authorize')
+            ->assertSee('Try it out');
+
+        $script = file_get_contents(resource_path('js/app.js'));
+        $this->assertIsString($script);
+        $this->assertStringContainsString('SwaggerUIBundle', $script);
+        $this->assertStringContainsString('persistAuthorization: false', $script);
+        $this->assertStringContainsString('tryItOutEnabled: true', $script);
+        $this->assertStringContainsString('requestSnippetsEnabled: true', $script);
+    }
+
     private function superAdmin(): User
     {
         $role = Role::query()->firstOrCreate(['slug' => 'super-admin'], ['name' => 'Super Administrador', 'is_system' => true]);

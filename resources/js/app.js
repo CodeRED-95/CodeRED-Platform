@@ -1,6 +1,7 @@
 import "./bootstrap";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { codeRedTokenCopy } from "./api-token-copy";
 
 document.addEventListener("alpine:init", () => {
   window.codeRedFloating = (config = {}) => ({
@@ -129,6 +130,7 @@ document.addEventListener("alpine:init", () => {
     },
   });
   window.Alpine.data("codeRedFloating", window.codeRedFloating);
+  window.Alpine.data("codeRedTokenCopy", codeRedTokenCopy);
 
   window.Alpine.data("codeRedAgencyMap", (config) => ({
     map: null,
@@ -303,34 +305,56 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
-  window.Alpine.data("codeRedApiDocs", (config) => ({
-    token: "",
-    endpoint: "agencies?per_page=5",
-    output: "Selecciona un endpoint y ejecuta la consulta.",
-    status: "",
-    loading: false,
+  window.Alpine.data("codeRedSwaggerDocs", (config) => ({
+    ui: null,
+    ready: false,
 
-    async execute() {
-      this.loading = true;
-      this.status = "";
-      const headers = { Accept: "application/json" };
-      if (this.token.trim() !== "") headers.Authorization = "Bearer " + this.token.trim();
+    init() {
+      this.$nextTick(() => this.mount());
+    },
 
-      try {
-        const response = await fetch(config.baseUrl + "/" + this.endpoint, { headers });
-        const payload = await response.json();
-        this.output = JSON.stringify(payload, null, 2);
-        this.status = "HTTP " + response.status + " " + (response.ok ? "Correcto" : "Error");
-      } catch {
-        this.output = JSON.stringify({ message: "No fue posible conectar con la API." }, null, 2);
-        this.status = "Error de red";
-      } finally {
-        this.loading = false;
-      }
+    async mount() {
+      if (this.ui || !this.$refs.swagger) return;
+
+      const [{ default: SwaggerUIBundle }, { default: SwaggerUIStandalonePreset }] = await Promise.all([
+        import("swagger-ui-dist/swagger-ui-es-bundle.js"),
+        import("swagger-ui-dist/swagger-ui-standalone-preset.js"),
+        import("swagger-ui-dist/swagger-ui.css"),
+      ]);
+
+      this.ui = SwaggerUIBundle({
+        url: config.specUrl,
+        domNode: this.$refs.swagger,
+        deepLinking: true,
+        displayRequestDuration: true,
+        docExpansion: "list",
+        filter: true,
+        persistAuthorization: false,
+        requestSnippetsEnabled: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        requestInterceptor: (request) => {
+          const authorization = request.headers?.Authorization;
+          if (typeof authorization === "string") {
+            request.headers.Authorization = authorization.replace(
+              /^Bearer\s+Bearer\s+/i,
+              "Bearer ",
+            );
+          }
+
+          return request;
+        },
+        supportedSubmitMethods: ["get"],
+        tryItOutEnabled: true,
+        onComplete: () => {
+          this.ready = true;
+        },
+      });
     },
 
     destroy() {
-      this.token = "";
+      this.ui = null;
+      this.ready = false;
+      if (this.$refs.swagger) this.$refs.swagger.replaceChildren();
     },
   }));
 

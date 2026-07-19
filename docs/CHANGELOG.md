@@ -1,3 +1,4 @@
+- API: Swagger UI renderiza el contrato OpenAPI con Authorize Sanctum, Try it out, duración y snippets; la copia de tokens usa Clipboard API con selección manual segura como fallback.
 # Changelog
 
 ## 2026-07-19 — API Sanctum y administración de tokens
