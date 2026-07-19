@@ -41,17 +41,16 @@
         </x-ui.card>
     </div>
 
-    <x-ui.card>
-        <x-ui.section-header title="Actividad reciente" subtitle="Eventos asociados a la cuenta." />
-        <div class="mt-4 space-y-3">
-            @forelse ($activity as $item)
-                <div class="rounded-2xl border border-[color:var(--color-border)] bg-white/5 p-4">
-                    <p class="font-medium">{{ $item->action }}</p>
-                    <p class="text-sm text-[color:var(--color-text-secondary)]">{{ $item->created_at?->format('d/m/Y H:i') }}</p>
-                </div>
-            @empty
-                <x-ui.empty-state title="Sin actividad" description="Todavía no hay eventos registrados para esta cuenta." icon="◌" />
-            @endforelse
-        </div>
-    </x-ui.card>
+    @if ($canViewActivity)
+        <x-ui.card>
+            <x-ui.section-header title="Historial de auditoría" subtitle="Responsables, cambios y contexto de seguridad de la cuenta." />
+            <div class="mt-4 space-y-3">
+                @forelse ($activity as $item)
+                    <x-ui.audit-entry :entry="$item" />
+                @empty
+                    <x-ui.empty-state title="Sin actividad" description="Todavía no hay eventos registrados para esta cuenta." icon="◌" />
+                @endforelse
+            </div>
+        </x-ui.card>
+    @endif
 </div>

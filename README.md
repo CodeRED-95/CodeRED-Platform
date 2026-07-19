@@ -71,6 +71,7 @@ PENDIENTE DE CONFIGURAR
 - [Agencies](docs/AGENCIES.md)
 - [Users](docs/USERS.md)
 - [Importador](docs/IMPORTER.md)
+- [Auditoría](docs/AUDIT.md)
 - [Redis](docs/REDIS.md)
 - [Autorización](docs/AUTHORIZATION.md)
 - [Design System](docs/DESIGN_SYSTEM.md)

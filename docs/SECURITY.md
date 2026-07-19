@@ -68,5 +68,8 @@ El importador solo permite:
 - Usar `Gate::before` solo para superadministrador, devolviendo `null` para el resto.
 - El campo `status` es la fuente autoritativa para bloquear cuentas `suspended` o `inactive`; `is_active` se conserva como campo legado sincronizado.
 - No registrar contraseñas, hashes, tokens ni `remember_token` en auditoría.
+- Registrar los cambios de credenciales solo mediante el marcador `credentials`.
+- Consultar actividad de Usuarios únicamente con `users.view_activity` e historial
+  de Agencias únicamente con `agencies.view_history`.
 - No permitir que un usuario se elimine o se suspenda a sí mismo.
 - Proteger al último superadministrador activo como cuenta crítica.

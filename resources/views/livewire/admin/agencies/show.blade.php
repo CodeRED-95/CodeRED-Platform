@@ -93,21 +93,17 @@
             </div>
         </x-ui.card>
 
-        <x-ui.card>
-            <x-ui.section-header title="Historial reciente" />
-            <div class="mt-4 space-y-3">
-                @forelse ($history as $item)
-                    <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] p-4">
-                        <div class="flex items-center justify-between gap-3">
-                            <p class="font-medium">{{ $item->action }}</p>
-                            <span class="text-xs text-[color:var(--color-text-secondary)]">{{ $item->created_at?->format('d/m/Y H:i') }}</span>
-                        </div>
-                        <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">{{ $item->user_agent }}</p>
-                    </div>
-                @empty
-                    <x-ui.empty-state title="Sin historial" description="Todavía no hay cambios registrados para esta agencia." icon="⌁" />
-                @endforelse
-            </div>
-        </x-ui.card>
+        @if ($canViewHistory)
+            <x-ui.card>
+                <x-ui.section-header title="Historial de auditoría" description="Responsables, cambios y contexto de cada evento." />
+                <div class="mt-4 space-y-3">
+                    @forelse ($history as $item)
+                        <x-ui.audit-entry :entry="$item" />
+                    @empty
+                        <x-ui.empty-state title="Sin historial" description="Todavía no hay cambios registrados para esta agencia." icon="⌁" />
+                    @endforelse
+                </div>
+            </x-ui.card>
+        @endif
     </div>
 </div>

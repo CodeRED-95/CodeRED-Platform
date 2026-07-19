@@ -91,11 +91,18 @@ Si antes de la migración existen duplicados, el proceso se detiene con un error
 | `roles` ↔ `permissions` | Muchos a muchos |
 | `agencies.created_by` | Usuario creador |
 | `agencies.updated_by` | Usuario actualizador |
+| `activity_logs.user_id` | Responsable del evento de Usuario |
+| `agency_change_logs.user_id` | Responsable del evento de Agencia |
 | `agencies.moved_to_agency_id` | Agencia destino del traslado |
 
 ## Soft Deletes
 
-La tabla `agencies` usa `softDeletes()`.
+Las tablas `agencies` y `users` usan `softDeletes()`.
+
+## Auditoría
+
+`activity_logs.changed_fields` conserva la lista de campos modificados. Los valores
+anteriores y nuevos permanecen en JSON y excluyen credenciales y tokens.
 
 ## Backups
 

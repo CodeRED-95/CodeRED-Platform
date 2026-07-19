@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-19 — Auditoría, fase 6
+
+- Se añadió auditoría automática de Usuarios mediante observer y registrador seguro.
+- Se normalizó la autoría `created_by` y `updated_by` en Usuarios y Agencias.
+- Se registran responsable, fecha, IP, agente, valores y campos modificados.
+- Se añadieron eventos explícitos para cambios de roles sin almacenar contraseñas,
+  hashes ni tokens.
+- Los historiales usan un componente común y solo se consultan con
+  `users.view_activity` o `agencies.view_history`.
+
 ## 2026-07-19 — Papelera y soft delete, fase 5
 
 - Se añadió soft delete aditivo al modelo Usuario.

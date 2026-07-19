@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\Users;
 
+use App\Core\Audit\AuditLogger;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Users\Services\UserSecurityService;
@@ -57,12 +58,13 @@ class Form extends Component
         }
     }
 
-    public function save(UserSecurityService $security): void
+    public function save(UserSecurityService $security, AuditLogger $auditLogger): void
     {
         $validated = $this->validate($this->rules());
         $actor = auth()->user();
 
-        DB::transaction(function () use ($actor, $security, $validated): void {
+        DB::transaction(function () use ($actor, $auditLogger, $security, $validated): void {
+            $previousRoles = $this->managedUser?->roles()->pluck('slug')->sort()->values()->all() ?? [];
             $payload = [
                 'name' => trim(preg_replace('/\s+/u', ' ', $validated['name'])),
                 'email' => mb_strtolower(trim($validated['email'])),
@@ -89,6 +91,17 @@ class Form extends Component
 
             $security->canAssignRoles($actor, $this->managedUser, $validated['roles']);
             $this->managedUser->roles()->sync(Role::query()->whereIn('slug', $validated['roles'])->pluck('id')->all());
+
+            $newRoles = collect($validated['roles'])->sort()->values()->all();
+            if ($previousRoles !== $newRoles) {
+                $auditLogger->log(
+                    $this->managedUser,
+                    'roles_updated',
+                    ['roles' => $previousRoles],
+                    ['roles' => $newRoles],
+                    ['roles'],
+                );
+            }
         });
 
         session()->flash('success', $this->mode === 'edit' ? 'Usuario actualizado correctamente.' : 'Usuario creado correctamente.');

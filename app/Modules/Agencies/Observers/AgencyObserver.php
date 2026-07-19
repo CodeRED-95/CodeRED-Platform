@@ -8,10 +8,25 @@ use App\Modules\Agencies\Support\AgencyVersion;
 
 class AgencyObserver
 {
+    public function creating(Agency $agency): void
+    {
+        if (auth()->id() !== null) {
+            $agency->created_by ??= auth()->id();
+            $agency->updated_by ??= auth()->id();
+        }
+    }
+
     public function created(Agency $agency): void
     {
         $this->log($agency, 'created');
         $this->bump($agency);
+    }
+
+    public function updating(Agency $agency): void
+    {
+        if (auth()->id() !== null) {
+            $agency->updated_by = auth()->id();
+        }
     }
 
     public function updated(Agency $agency): void

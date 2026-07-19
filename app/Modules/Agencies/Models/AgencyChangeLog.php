@@ -2,8 +2,15 @@
 
 namespace App\Modules\Agencies\Models;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property array<string, mixed>|null $old_values
+ * @property array<string, mixed>|null $new_values
+ * @property list<string>|null $changed_fields
+ */
 class AgencyChangeLog extends Model
 {
     public $timestamps = false;
@@ -20,5 +27,10 @@ class AgencyChangeLog extends Model
             'changed_fields' => 'array',
             'created_at' => 'datetime',
         ];
+    }
+
+    public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id')->withTrashed();
     }
 }

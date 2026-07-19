@@ -4,6 +4,8 @@ namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyChangeLog;
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 
@@ -18,16 +20,21 @@ class Show extends Component
         $this->agency = $agency->load(['createdBy', 'updatedBy', 'movedToAgency']);
     }
 
-    public function render()
+    public function render(): View
     {
-        $history = AgencyChangeLog::query()
-            ->where('agency_id', $this->agency->id)
-            ->latest('created_at')
-            ->limit(10)
-            ->get();
+        $canViewHistory = Gate::allows('viewHistory', $this->agency);
+        $history = $canViewHistory
+            ? AgencyChangeLog::query()
+                ->with('actor')
+                ->where('agency_id', $this->agency->id)
+                ->latest('created_at')
+                ->limit(25)
+                ->get()
+            : new Collection;
 
         return view('livewire.admin.agencies.show', [
             'history' => $history,
+            'canViewHistory' => $canViewHistory,
         ])->layout('layouts.app', ['pageTitle' => $this->agency->name]);
     }
 }
