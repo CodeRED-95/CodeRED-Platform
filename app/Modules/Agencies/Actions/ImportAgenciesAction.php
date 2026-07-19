@@ -7,12 +7,15 @@ use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
 use App\Modules\Agencies\Models\AgencyImportFailure;
+use App\Modules\Agencies\Services\AgencyDuplicateFinder;
 use App\Modules\Agencies\Support\AgencyImportNormalizer;
 use App\Modules\Agencies\Support\AgencyVersion;
 use Illuminate\Support\Facades\DB;
 
 class ImportAgenciesAction
 {
+    public function __construct(private readonly AgencyDuplicateFinder $duplicateFinder) {}
+
     public function execute(AgencyImport $import, array $rows, ?string $defaultStatus = null): array
     {
         $summary = [
@@ -40,23 +43,7 @@ class ImportAgenciesAction
 
             DB::transaction(function () use ($transformed, $import, &$summary, $defaultStatus): void {
                 $data = $transformed->normalized;
-                $existing = Agency::query()
-                    ->where('source', 'github_gist')
-                    ->where('source_reference', $data['source_reference'])
-                    ->first();
-
-                if (! $existing) {
-                    $existing = Agency::query()->where('code', $data['code'])->first();
-                }
-
-                if (! $existing) {
-                    $existing = Agency::query()
-                        ->whereRaw('lower(unaccent(name)) = lower(unaccent(?))', [$data['name']])
-                        ->whereRaw('lower(unaccent(department)) = lower(unaccent(?))', [$data['department']])
-                        ->whereRaw('lower(unaccent(province)) = lower(unaccent(?))', [$data['province']])
-                        ->whereRaw('lower(unaccent(district)) = lower(unaccent(?))', [$data['district']])
-                        ->first();
-                }
+                $existing = $this->duplicateFinder->find($data);
 
                 if (! $existing) {
                     $version = AgencyVersion::bump();

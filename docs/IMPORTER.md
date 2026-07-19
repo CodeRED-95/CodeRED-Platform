@@ -2,25 +2,46 @@
 
 ## Formatos soportados
 
-- JSON
-- URL raw de GitHub Gist
+- URL raw de GitHub Gist o GitHub
+- JSON pegado
+- Archivo JSON de hasta 5 MB
 
-PENDIENTE DE CONFIGURAR
+## Asistente
+
+La importación administrativa exige cinco pasos:
+
+1. seleccionar o ingresar el origen;
+2. validar la fuente completa;
+3. revisar estadísticas, duplicados y una muestra de hasta 20 filas;
+4. confirmar estrategia y estado inicial;
+5. revisar el resumen persistido.
+
+No se puede invocar la importación sin completar validación y confirmación. Al
+validar se guarda un snapshot JSON en `storage/app/private/imports/agencies/previews`.
+La Action procesa exactamente ese archivo y nunca vuelve a descargar la URL.
+
+Las estadísticas de válidos, inválidos, advertencias y duplicados se calculan sobre
+todas las filas, aunque la interfaz solo muestre las primeras 20.
+
+## Seguridad de URL
+
+Solo se aceptan HTTPS y los hosts `gist.githubusercontent.com` y
+`raw.githubusercontent.com`. La descarga aplica timeout y límite de 5 MB.
 
 ## GitHub Gist
 
-Estructura real observada:
+Estructura esperada:
 
 ```json
 {
   "id": 3,
   "agencia": "Chachapoyas Co Dos De Mayo",
-  "departamento": "Amazonas ",
+  "departamento": "Amazonas",
   "provincia": "Chachapoyas",
   "distrito": "Chachapoyas",
-  "direccion": "jr. dos de mayo cdra. 15 s/n chachapoyas, referencia: junto a terminal de combis etsa",
-  "texto_chosen": "3 - AMAZONAS - CHACHAPOYAS - CHACHAPOYAS - CHACHAPOYAS CO DOS DE MAYO - TERRESTRE",
-  "link_mapa": "https://www.google.com/maps/dir/?api=1&destination=-6.238673290149498,-77.86800826533634",
+  "direccion": "Jr. Dos de Mayo",
+  "texto_chosen": "Texto original",
+  "link_mapa": "https://www.google.com/maps/dir/?api=1&destination=-6.23,-77.86",
   "tamano": "Grande",
   "co": true
 }
@@ -37,77 +58,42 @@ Estructura real observada:
 | `distrito` | `district` |
 | `direccion` | `address` |
 | `texto_chosen` | `source_text` |
-| `link_mapa` | `map_url` |
+| `link_mapa` | `map_url` y coordenadas |
 | `tamano` | `size` |
 | `co` | `is_operations_center` |
 
-## Generación de código
+## Normalización
 
-Formato:
-
-```php
-$code = 'SHA-' . str_pad((string) $row['id'], 6, '0', STR_PAD_LEFT);
-```
-
-## Limpieza de texto
-
-Se aplica limpieza de espacios repetidos y `trim` sin eliminar tildes, eñes ni caracteres válidos.
-
-## Coordenadas
-
-Se extraen desde `link_mapa` con expresión regular.
-
-## Centro de Operaciones
-
-Valores aceptados para `co`:
-
-- `true`
-- `false`
-- `1`
-- `0`
-- `"true"`
-- `"false"`
-- `"1"`
-- `"0"`
-
-Si no puede interpretarse:
-
-- se guarda `false`
-- se registra advertencia
+- El código se genera como `SHA-` más el `id` con seis dígitos.
+- Se limpian espacios sin eliminar tildes, eñes ni caracteres válidos.
+- Las coordenadas se extraen de `link_mapa` cuando son válidas.
+- `co` acepta booleanos, `1`, `0` y sus equivalentes de texto.
+- Un tamaño desconocido queda nulo y genera una advertencia.
 
 ## Duplicados
 
-Orden actual de detección:
+`AgencyDuplicateFinder` centraliza el mismo orden para preview y Action:
 
-1. `source = github_gist` y `source_reference = id`
-2. `code`
-3. coincidencia normalizada por nombre y ubicación
+1. `source = github_gist` y `source_reference = id`;
+2. `code`;
+3. nombre y ubicación normalizados.
 
-## Vista previa
+## Estrategias
 
-La vista previa no escribe en base de datos.
+- `ignore_existing`: omite existentes.
+- `update_existing`: actualiza únicamente campos importables no vacíos.
+- `create_only_new`: crea solo registros nuevos.
+- `mark_conflicts`: registra duplicados como incidencias.
 
-## Reimportación
+La reimportación nunca sobrescribe campos manuales de traslado.
 
-La reimportación desde el Gist no debe borrar campos de traslado manuales.
+## Persistencia y resultado
 
-## Estado inicial
-
-Para registros del Gist:
-
-- `source = github_gist`
-- `status = under_review`
-- `has_moved = false`
-
-## Estrategias de duplicados
-
-- `ignore_existing`
-- `update_existing`
-- `create_only_new`
-- `mark_conflicts`
-
-## Vista previa y procesamiento
-
-- La vista previa no escribe en base de datos.
-- La importación real se procesa mediante una Action.
+- La vista previa no escribe agencias en base de datos.
+- La importación real se procesa mediante `ImportAgenciesAction`.
 - El JSON raíz debe ser un array de objetos.
+- Los errores se guardan en `agency_import_failures`.
+- El estado final es `completed`, `completed_with_errors` o `failed`.
+- El resumen conserva importadas, actualizadas, omitidas y fallidas.
+- Las agencias nuevas usan `source = github_gist`, `has_moved = false` y el estado
+  inicial confirmado en el asistente.

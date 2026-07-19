@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-19 — Importación desde Gist, fase 7
+
+- Se convirtió el importador en un asistente de cinco pasos obligatorio.
+- La validación analiza todas las filas y presenta válidos, advertencias, inválidos
+  y duplicados antes de escribir en base de datos.
+- Se centralizó la detección de duplicados para preview y Action.
+- La importación utiliza un snapshot persistido del contenido validado y no vuelve a
+  descargar la URL.
+- Se añadió resumen final con importadas, actualizadas, omitidas, fallidas e
+  incidencias persistidas.
+
 ## 2026-07-19 — Auditoría, fase 6
 
 - Se añadió auditoría automática de Usuarios mediante observer y registrador seguro.
