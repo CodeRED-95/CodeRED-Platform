@@ -1,7 +1,7 @@
 <div class="space-y-8">
     <x-ui.page-header :title="$mode === 'edit' ? 'Editar usuario' : 'Nuevo usuario'" subtitle="Gestiona cuentas, roles y estado.">
         <x-slot:actions>
-            <x-ui.button href="{{ route('admin.users.index') }}" variant="secondary">Volver</x-ui.button>
+            <x-ui.button href="{{ route('admin.users.index') }}" variant="secondary"><svg class="size-4" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m12.5 5-5 5 5 5M8 10h8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>Volver</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -55,7 +55,7 @@
         </x-ui.card>
 
         <div class="lg:col-span-2 flex justify-end">
-            <x-ui.button type="submit" variant="primary" loading-target="save" loading-label="Guardando…" wire:loading.attr="disabled" wire:target="save">Guardar usuario</x-ui.button>
+            <x-ui.button type="submit" variant="primary" loading-target="save" loading-label="Guardando…" wire:loading.attr="disabled" wire:target="save"><svg class="size-4" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 3h10l2 2v12H4V3Zm3 0v5h6V3m-6 14v-5h6v5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Guardar cambios</x-ui.button>
         </div>
     </form>
 </div>

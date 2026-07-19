@@ -61,7 +61,10 @@ class UserManagementTest extends TestCase
 
         Livewire::test(Form::class)
             ->assertSeeHtml('wire:submit.prevent="save"')
-            ->assertSeeHtml('<button type="submit"');
+            ->assertSeeHtml('<button type="submit"')
+            ->assertSee('Guardar cambios')
+            ->assertSee('Volver')
+            ->assertDontSee('Guardar usuario');
     }
 
     public function test_user_without_permission_gets_forbidden(): void

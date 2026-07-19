@@ -176,13 +176,14 @@ class AgencyPagesTest extends TestCase
 
     public function test_admin_agency_detail_loads(): void
     {
-        $agency = Agency::factory()->create();
+        $agency = Agency::factory()->create(['latitude' => '-12.0463740', 'longitude' => '-77.0427930']);
 
         $this->actingAs($this->actingAsAgencyManager())
             ->get('/admin/agencies/'.$agency->id)
             ->assertOk()
             ->assertSee($agency->name)
-            ->assertSee($agency->code);
+            ->assertSee($agency->code)
+            ->assertSee('https://www.openstreetmap.org/export/embed.html?', false);
     }
 
     public function test_public_agencies_page_loads(): void
@@ -197,12 +198,13 @@ class AgencyPagesTest extends TestCase
 
     public function test_public_agency_detail_loads(): void
     {
-        $agency = Agency::factory()->create(['status' => AgencyStatus::Active, 'has_moved' => false]);
+        $agency = Agency::factory()->create(['status' => AgencyStatus::Active, 'has_moved' => false, 'latitude' => '-12.0463740', 'longitude' => '-77.0427930']);
 
         $this->get('/agencies/'.$agency->code)
             ->assertOk()
             ->assertSee($agency->name)
-            ->assertSee($agency->code);
+            ->assertSee($agency->code)
+            ->assertSee('https://www.openstreetmap.org/export/embed.html?', false);
     }
 
     public function test_import_page_loads_for_authorized_user(): void

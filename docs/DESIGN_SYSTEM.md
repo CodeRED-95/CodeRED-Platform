@@ -290,3 +290,29 @@ Los attribute bags propagan `wire:model`, sus modificadores, atributos Alpine, `
 5. Documentar el componente y migrar una sola pantalla piloto antes de extenderlo.
 
 No deben duplicarse controles, variantes puramente cosméticas, inicialización de Alpine, colores hexadecimales en vistas ni lógica de estados de negocio.
+
+## Capas flotantes
+
+La jerarquía evita que controles interactivos queden detrás del sidebar o de tarjetas:
+
+| Capa | Nivel |
+|---|---|
+| Contenido | `z-10` cuando necesita posicionamiento |
+| Sidebar | `z-40` |
+| Dropdowns y popovers | `z-50` |
+| Modales y confirmaciones | `z-[60]` |
+| Toasts globales | `z-[80]` |
+
+`x-ui.toast-stack` se monta como hijo directo de `body`, fuera del shell con sidebar, y permanece fijo en la esquina superior derecha.
+
+## Vista cartográfica integrada
+
+`x-ui.map-preview` muestra coordenadas persistidas mediante el embed de OpenStreetMap, sin SDK, API key ni dependencia JavaScript nueva. Añade un marcador visual CodeRED, carga diferida, título accesible y fallback cuando faltan coordenadas. El mapa no sustituye ni transforma los campos de latitud y longitud.
+
+```blade
+<x-ui.map-preview
+    :latitude="$agency->latitude"
+    :longitude="$agency->longitude"
+    :label="'Ubicación de '.$agency->name"
+/>
+```

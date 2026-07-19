@@ -39,7 +39,7 @@
         x-cloak
         x-show="open"
         x-transition.opacity.duration.150ms
-        class="fixed inset-0 z-50"
+        class="fixed inset-0 z-[60]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="{{ $id }}-title"

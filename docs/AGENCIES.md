@@ -210,3 +210,7 @@ La ruta `/admin/agencies/map` proyecta las coordenadas existentes sin depender d
 - requiere el permiso existente `agencies.view`.
 
 La representación geográfica es orientativa. Los enlaces a Google Maps se generan con las coordenadas persistidas y se abren con `noopener noreferrer`.
+
+### Mapa integrado en ubicación
+
+Las vistas de detalle administrativa y pública reutilizan `x-ui.map-preview` cuando la agencia tiene latitud y longitud válidas. El mapa utiliza OpenStreetMap, mantiene las coordenadas como fuente autoritativa y presenta un marcador CodeRED sin instalar librerías ni requerir Google Maps.

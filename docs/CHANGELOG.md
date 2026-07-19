@@ -76,6 +76,8 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Vista cartográfica integrada con OpenStreetMap y marcador CodeRED, además de una jerarquía consistente para dropdowns, modales y toasts.
+
 - Contratos accesibles y tokens base del CodeRED Design System, validados en la pantalla piloto de cambio de contraseña.
 
 - Mapa administrativo de agencias con búsqueda, filtros, agrupación de coordenadas y enlaces seguros a Google Maps, sin dependencias cartográficas nuevas.

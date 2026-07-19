@@ -31,6 +31,9 @@
                 @if($agency->reference)
                     <p class="text-[color:var(--color-text-secondary)]">{{ $agency->reference }}</p>
                 @endif
+                @if ($agency->latitude && $agency->longitude)
+                    <x-ui.map-preview class="mt-4" :latitude="$agency->latitude" :longitude="$agency->longitude" :label="'Ubicación de '.$agency->name" />
+                @endif
                 @if($agency->map_url)
                     <x-ui.button href="{{ $agency->map_url }}" target="_blank" variant="outline">Abrir en Google Maps</x-ui.button>
                 @endif

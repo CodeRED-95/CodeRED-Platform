@@ -87,6 +87,9 @@
             <div class="mt-4 space-y-3 text-sm">
                 <p>{{ $agency->department }} / {{ $agency->province }} / {{ $agency->district }}</p>
                 <p class="text-[color:var(--color-text-secondary)]">{{ $agency->latitude && $agency->longitude ? $agency->latitude.', '.$agency->longitude : 'Sin coordenadas' }}</p>
+                @if ($agency->latitude && $agency->longitude)
+                    <x-ui.map-preview class="mt-4" :latitude="$agency->latitude" :longitude="$agency->longitude" :label="'Ubicación de '.$agency->name" />
+                @endif
                 @if ($agency->map_url)
                     <x-ui.button href="{{ $agency->map_url }}" target="_blank" variant="outline">Abrir en Google Maps</x-ui.button>
                 @endif
