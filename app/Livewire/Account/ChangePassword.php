@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Account;
 
+use App\Core\Auth\AuthenticatedHome;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -20,7 +22,7 @@ class ChangePassword extends Component
         abort_unless(Auth::check(), 403);
     }
 
-    public function updatePassword(): void
+    public function updatePassword(AuthenticatedHome $home): void
     {
         $validated = $this->validate([
             'current_password' => ['required', 'current_password'],
@@ -33,6 +35,7 @@ class ChangePassword extends Component
         ]);
 
         $user = Auth::user();
+        abort_unless($user instanceof User, 403);
 
         $user->forceFill([
             'password' => Hash::make($validated['password']),
@@ -41,7 +44,7 @@ class ChangePassword extends Component
 
         $this->reset(['current_password', 'password', 'password_confirmation']);
 
-        $this->redirectRoute('dashboard', navigate: true);
+        $this->redirect($home->route($user), navigate: true);
     }
 
     public function render()

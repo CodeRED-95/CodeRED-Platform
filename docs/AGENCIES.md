@@ -233,3 +233,7 @@ El listado permite seleccionar filas individualmente o todas las agencias de la 
 - **Eliminar seleccionadas** requiere `agencies.delete`; aplica exclusivamente Soft Delete y conserva los registros en la papelera.
 - Ambas acciones exigen confirmación previa, revalidan IDs y Policies en servidor, usan transacción y procesan chunks de 25.
 - `AgencyObserver` registra actor, cambios, IP y agente por cada registro afectado. Un error revierte toda la operación.
+
+## Mapa administrativo
+
+El mapa usa Leaflet 1.9, tiles de OpenStreetMap con attribution y clustering visual propio sin dependencias adicionales. Solo genera marcadores para coordenadas numéricas dentro de los rangos geográficos válidos. El contenedor usa `wire:ignore`, actualiza marcadores al filtrar y destruye mapa, observers y listeners al navegar para evitar instancias duplicadas. Las agencias sin coordenadas permanecen en un estado vacío separado y nunca se ubican en `0,0`.

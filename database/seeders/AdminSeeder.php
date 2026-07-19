@@ -37,10 +37,7 @@ class AdminSeeder extends Seeder
         );
 
         $devUser->roles()->syncWithoutDetaching(
-            array_filter([
-                $roles->get('super-admin'),
-                $roles->get('admin'),
-            ])
+            array_filter([$roles->get('super-admin')])
         );
     }
 }

@@ -48,12 +48,12 @@ class UserSecurityService
     {
         $this->canManage($actor, $target);
 
-        if (! $actor->hasRole('super-admin') && in_array('super-admin', $roleSlugs, true)) {
-            throw new AuthorizationException('No puedes asignar el rol super-admin.');
+        if (! $actor->hasRole('super-admin')) {
+            throw new AuthorizationException('Solo un superadministrador puede asignar roles.');
         }
 
-        if ($actor->is($target) && ! in_array('super-admin', $roleSlugs, true) && $target->hasRole('super-admin')) {
-            throw new AuthorizationException('No puedes quitarte tu propio rol super-admin.');
+        if ($target->hasRole('super-admin') && ! in_array('super-admin', $roleSlugs, true) && $this->isLastSuperAdmin($target)) {
+            throw new AuthorizationException('No puedes quitar el rol al último superadministrador activo.');
         }
     }
 

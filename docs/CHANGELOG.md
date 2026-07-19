@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-19 — Mapa, perfil y matriz de roles
+
+- El mapa administrativo ahora usa Leaflet, tiles reales de OpenStreetMap, marcadores CodeRED, agrupación dinámica y ciclo de vida seguro con Livewire.
+- El header quedó reducido al contexto de página y perfil, sin búsqueda global ni selector visible de tema.
+- Se añadió Mi perfil para nombre, correo y contraseña de la cuenta autenticada, sin exponer campos administrativos.
+- Los roles se redujeron de forma segura a Super Administrador, Consulta y Editor con una matriz exacta, rutas protegidas y redirección posterior al login por capacidad.
+
 ## 2026-07-19 — Paginación y operaciones masivas de papelera
 
 - Se eliminó el salto al final al abrir listboxes teletransportados, limitando el desplazamiento a su panel y restaurando foco sin scroll.

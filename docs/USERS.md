@@ -59,3 +59,7 @@ papelera o todos los registros.
 | `users.reset_password` | Restablecer contraseñas |
 | `users.manage_status` | Suspender o activar cuentas |
 | `users.view_activity` | Ver IP y actividad sensible |
+
+## Mi perfil
+
+La ruta autenticada `/profile` permite que cada persona actualice exclusivamente su nombre, correo y contraseña. La cuenta se obtiene de la sesión, el correo conserva unicidad y la contraseña actual es obligatoria. Rol, permisos, estado y datos administrativos son de solo lectura o no se envían. El bloque de identidad del sidebar enlaza a esta pantalla y Cerrar sesión permanece como acción separada.

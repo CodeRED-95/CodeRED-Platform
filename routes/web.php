@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Livewire\Account\ChangePassword;
+use App\Livewire\Account\Profile;
 use App\Livewire\Admin\Agencies\Form as AgencyForm;
 use App\Livewire\Admin\Agencies\Import as AgencyImport;
 use App\Livewire\Admin\Agencies\Index as AgenciesIndex;
@@ -40,6 +41,7 @@ Route::get('/admin/design-system', DesignSystem::class)
     ->name('admin.design-system');
 Route::get('/agencies', PublicAgenciesIndex::class)->name('public.agencies.index');
 Route::get('/agencies/{code}', PublicAgencyShow::class)->name('public.agencies.show');
+Route::get('/profile', Profile::class)->middleware(['auth'])->name('profile.show');
 Route::get('/account/change-password', ChangePassword::class)->middleware(['auth'])->name('account.change-password');
 Route::post('/admin/agencies/import/preview', AgencyImportPreviewController::class)->middleware(['auth'])->name('admin.agencies.import.preview');
 Route::post('/admin/agencies/{agency}/move', AgencyMoveController::class)->middleware(['auth'])->name('admin.agencies.move');

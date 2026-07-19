@@ -30,12 +30,10 @@ class UserManagementTest extends TestCase
         ])->each(fn (array $item) => Permission::query()->updateOrCreate(['slug' => $item['slug']], $item));
 
         $super = Role::query()->updateOrCreate(['slug' => 'super-admin'], ['name' => 'Super Administrador', 'is_system' => true]);
-        $admin = Role::query()->updateOrCreate(['slug' => 'admin'], ['name' => 'Administrador', 'is_system' => true]);
         $editor = Role::query()->updateOrCreate(['slug' => 'editor'], ['name' => 'Editor', 'is_system' => false]);
         $viewer = Role::query()->updateOrCreate(['slug' => 'viewer'], ['name' => 'Consulta', 'is_system' => false]);
 
         $super->permissions()->sync(Permission::query()->pluck('id')->all());
-        $admin->permissions()->sync(Permission::query()->whereIn('slug', ['users.view', 'users.create', 'users.update', 'users.manage_roles', 'users.reset_password', 'users.manage_status', 'users.view_activity'])->pluck('id')->all());
         $editor->permissions()->sync([]);
         $viewer->permissions()->sync([]);
     }
@@ -130,7 +128,7 @@ class UserManagementTest extends TestCase
         Livewire::test(Form::class, ['user' => $target->id])
             ->set('name', 'Usuario Editado')
             ->set('email', 'editado@example.test')
-            ->set('roles', ['admin'])
+            ->set('roles', ['editor'])
             ->set('status', 'active')
             ->set('email_verified', true)
             ->set('must_change_password', true)

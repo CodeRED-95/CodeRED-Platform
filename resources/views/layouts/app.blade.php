@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full scroll-smooth" x-data="{ sidebarOpen: false, theme: localStorage.theme ?? 'dark' }" x-init="$nextTick(() => { document.documentElement.classList.toggle('dark', theme === 'dark') })" x-effect="document.documentElement.classList.toggle('dark', theme === 'dark')">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark h-full scroll-smooth" x-data="{ sidebarOpen: false }">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -28,11 +28,11 @@
                 <nav class="flex-1 space-y-1 px-4 py-5 text-sm">
                     @php
                         $nav = [
-                            ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => true],
+                            ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => auth()->user()->hasPermission('dashboard.view')],
                             ['label' => 'Agencias', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Mapa de agencias', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Importaciones', 'route' => 'admin.agencies.import', 'icon' => '⇪', 'can' => \Illuminate\Support\Facades\Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
-                            ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => app()->environment('local') || \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
+                            ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => auth()->user()->isSuperAdmin()],
                             ['label' => 'Usuarios', 'route' => 'admin.users.index', 'icon' => '◔', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Models\User::class)],
                             ['label' => 'Roles y permisos', 'route' => null, 'icon' => '◌', 'can' => false],
                             ['label' => 'Auditoría', 'route' => null, 'icon' => '▤', 'can' => false],
@@ -57,13 +57,14 @@
 
                 @auth
                     <div class="border-t border-white/5 p-4">
-                        <div class="flex items-center gap-3 rounded-2xl bg-white/5 p-3">
+                        <a href="{{ route('profile.show') }}" aria-label="Abrir mi perfil" class="focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3 transition hover:bg-white/10">
                             <x-ui.avatar :name="auth()->user()->name" size="sm" />
                             <div class="min-w-0 flex-1">
                                 <p class="truncate text-sm font-medium">{{ auth()->user()->name }}</p>
                                 <p class="truncate text-xs text-[color:var(--color-text-secondary)]">{{ auth()->user()->email }}</p>
                             </div>
-                        </div>
+                            <svg class="size-4 shrink-0 text-[color:var(--color-text-muted)]" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </a>
                         <form method="post" action="{{ route('logout') }}" class="mt-3">
                             @csrf
                             <x-ui.button variant="secondary" size="sm" type="submit" class="w-full">Cerrar sesión</x-ui.button>
@@ -86,12 +87,8 @@
                         </div>
 
                         <div class="flex items-center gap-2">
-                            <x-ui.button class="hidden lg:inline-flex" variant="secondary" size="sm">Búsqueda global</x-ui.button>
-                            <x-ui.button variant="secondary" size="sm" x-on:click="theme = theme === 'dark' ? 'light' : 'dark'; localStorage.theme = theme">
-                                Tema
-                            </x-ui.button>
                             @auth
-                                <x-ui.avatar :name="auth()->user()->name" size="sm" />
+                                <a href="{{ route('profile.show') }}" aria-label="Abrir mi perfil" class="focus-ring rounded-full"><x-ui.avatar :name="auth()->user()->name" size="sm" /></a>
                             @endauth
                         </div>
                     </div>
@@ -110,8 +107,16 @@
                     <x-ui.logo variant="symbol" class="h-10 w-10 rounded-xl" />
                     <x-ui.icon-button x-on:click="sidebarOpen = false" label="Cerrar menú">✕</x-ui.icon-button>
                 </div>
+                <div class="mt-5 border-b border-white/5 pb-4">
+                    <a href="{{ route('profile.show') }}" class="focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3">
+                        <x-ui.avatar :name="auth()->user()->name" size="sm" />
+                        <div class="min-w-0"><p class="truncate text-sm font-medium">{{ auth()->user()->name }}</p><p class="truncate text-xs text-[color:var(--color-text-secondary)]">Mi perfil</p></div>
+                    </a>
+                </div>
                 <div class="mt-5 space-y-2">
-                    <a href="{{ route('dashboard') }}" class="block rounded-2xl bg-white/5 px-4 py-3">Dashboard</a>
+                    @if (auth()->user()->hasPermission('dashboard.view'))
+                        <a href="{{ route('dashboard') }}" class="block rounded-2xl bg-white/5 px-4 py-3">Dashboard</a>
+                    @endif
                     @can('viewAny', \App\Modules\Agencies\Models\Agency::class)
                         <a href="{{ route('admin.agencies.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Agencias</a>
                         <a href="{{ route('admin.agencies.map') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Mapa de agencias</a>
@@ -122,6 +127,13 @@
                     @can('viewAny', \App\Models\User::class)
                         <a href="{{ route('admin.users.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Usuarios</a>
                     @endcan
+                    @if (auth()->user()->isSuperAdmin())
+                        <a href="{{ route('admin.design-system') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Design System</a>
+                    @endif
+                    <form method="post" action="{{ route('logout') }}" class="pt-3">
+                        @csrf
+                        <x-ui.button variant="secondary" size="sm" type="submit" class="w-full">Cerrar sesión</x-ui.button>
+                    </form>
                 </div>
             </aside>
         </div>

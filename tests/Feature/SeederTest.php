@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
 use Database\Seeders\DatabaseSeeder;
@@ -45,7 +46,8 @@ class SeederTest extends TestCase
 
         $this->assertTrue($admin->is_active);
         $this->assertTrue($admin->hasRole('super-admin'));
-        $this->assertTrue($admin->hasRole('admin'));
+        $this->assertFalse($admin->hasRole('admin'));
+        $this->assertCount(3, Role::query()->get());
         $this->assertGreaterThan(0, Agency::query()->count());
     }
 }

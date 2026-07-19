@@ -4,8 +4,12 @@
         subtitle="Administración y consulta del módulo Agencies."
     >
         <x-slot:actions>
-            <x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Nueva agencia</x-ui.button>
-            <x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Importar</x-ui.button>
+            @can('create', \App\Modules\Agencies\Models\Agency::class)
+                <x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Nueva agencia</x-ui.button>
+            @endcan
+            @can('import', \App\Modules\Agencies\Models\Agency::class)
+                <x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Importar</x-ui.button>
+            @endcan
             <x-ui.button href="{{ route('admin.agencies.map') }}" variant="secondary">Ver mapa</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
@@ -208,8 +212,8 @@
                             icon="⌁"
                         >
                             <div class="flex justify-center gap-3">
-                                <x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Crear agencia</x-ui.button>
-                                <x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Importar</x-ui.button>
+                                @can('create', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Crear agencia</x-ui.button>@endcan
+                                @can('import', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Importar</x-ui.button>@endcan
                             </div>
                         </x-ui.empty-state>
                     </td>

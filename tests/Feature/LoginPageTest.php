@@ -45,7 +45,7 @@ class LoginPageTest extends TestCase
         $this->assertContains('POST', $routes);
     }
 
-    public function test_valid_login_redirects_to_dashboard(): void
+    public function test_valid_login_without_module_permissions_redirects_to_profile(): void
     {
         $token = 'csrf-login-valido';
         $user = User::factory()->create([
@@ -60,7 +60,7 @@ class LoginPageTest extends TestCase
             'email' => 'admin@example.test',
             'password' => 'Secret123!',
             'remember' => 1,
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('profile.show'));
 
         $this->assertAuthenticatedAs($user);
     }

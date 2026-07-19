@@ -19,6 +19,11 @@ class Dashboard extends Component
     #[Url]
     public int $period = 30;
 
+    public function mount(): void
+    {
+        Gate::authorize('dashboard.view');
+    }
+
     public function render(): View
     {
         if (! in_array($this->period, [7, 30, 90], true)) {

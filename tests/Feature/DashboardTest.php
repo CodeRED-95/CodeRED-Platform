@@ -150,18 +150,13 @@ class DashboardTest extends TestCase
             ->assertSee('Completada con errores');
     }
 
-    public function test_dashboard_does_not_expose_administrative_metrics_without_permissions(): void
+    public function test_user_without_dashboard_permission_cannot_access_dashboard(): void
     {
         $user = User::factory()->create();
-        Agency::factory()->create(['name' => 'Agencia confidencial']);
 
         Livewire::actingAs($user)
             ->test(Dashboard::class)
-            ->assertViewHas('canViewAgencies', false)
-            ->assertViewHas('canViewUsers', false)
-            ->assertSee('No tienes indicadores disponibles')
-            ->assertDontSee('Agencia confidencial')
-            ->assertDontSee('Total usuarios');
+            ->assertForbidden();
     }
 
     public function test_dashboard_handles_zero_agencies_and_missing_imports_without_invalid_percentages(): void

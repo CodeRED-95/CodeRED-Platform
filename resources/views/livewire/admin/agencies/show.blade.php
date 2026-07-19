@@ -4,7 +4,9 @@
         :subtitle="$agency->code.' · '.$agency->department.' / '.$agency->province.' / '.$agency->district"
     >
         <x-slot:actions>
-            <x-ui.button href="{{ route('admin.agencies.edit', $agency) }}" variant="secondary">Editar</x-ui.button>
+            @can('update', $agency)
+                <x-ui.button href="{{ route('admin.agencies.edit', $agency) }}" variant="secondary">Editar</x-ui.button>
+            @endcan
             <x-ui.button href="{{ route('admin.agencies.index') }}" variant="outline">Volver</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>

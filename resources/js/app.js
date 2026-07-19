@@ -103,6 +103,142 @@ document.addEventListener('alpine:init', () => {
     });
     window.Alpine.data('codeRedFloating', window.codeRedFloating);
 
+    window.Alpine.data('codeRedAgencyMap', (config) => ({
+        map: null,
+        markerLayer: null,
+        resizeObserver: null,
+        markers: [],
+
+        init() {
+            this.markers = (config.markers ?? []).filter((marker) => {
+                const latitude = Number(marker.latitude);
+                const longitude = Number(marker.longitude);
+
+                return Number.isFinite(latitude) && latitude >= -90 && latitude <= 90
+                    && Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+            });
+            this.$nextTick(() => this.mount());
+        },
+
+        mount() {
+            if (this.map || !this.$refs.map || this.markers.length === 0) return;
+
+            this.map = L.map(this.$refs.map, { scrollWheelZoom: false, zoomControl: true });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            }).addTo(this.map);
+            this.markerLayer = L.layerGroup().addTo(this.map);
+            this.map.on('zoomend moveend', () => this.renderClusters());
+
+            const bounds = L.latLngBounds(this.markers.map((marker) => [Number(marker.latitude), Number(marker.longitude)]));
+            this.map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
+            this.renderClusters();
+
+            window.setTimeout(() => this.map?.invalidateSize(), 0);
+            this.resizeObserver = new ResizeObserver(() => this.map?.invalidateSize());
+            this.resizeObserver.observe(this.$refs.map);
+        },
+
+        renderClusters() {
+            if (!this.map || !this.markerLayer) return;
+
+            this.markerLayer.clearLayers();
+            const cellSize = this.map.getZoom() >= 13 ? 54 : 72;
+            const groups = new Map();
+            this.markers.forEach((marker) => {
+                const point = this.map.project([Number(marker.latitude), Number(marker.longitude)], this.map.getZoom());
+                const key = Math.floor(point.x / cellSize) + ':' + Math.floor(point.y / cellSize);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(marker);
+            });
+
+            groups.forEach((group) => {
+                if (group.length === 1) {
+                    const agency = group[0];
+                    L.marker([Number(agency.latitude), Number(agency.longitude)], {
+                        icon: L.icon({
+                            iconUrl: config.markerUrl,
+                            iconSize: [38, 38],
+                            iconAnchor: [19, 38],
+                            popupAnchor: [0, -36],
+                            className: 'codered-map-marker',
+                        }),
+                        title: agency.name,
+                    }).bindPopup(this.popupContent(agency)).addTo(this.markerLayer);
+
+                    return;
+                }
+
+                const bounds = L.latLngBounds(group.map((agency) => [Number(agency.latitude), Number(agency.longitude)]));
+                const cluster = L.marker(bounds.getCenter(), {
+                    icon: L.divIcon({
+                        className: 'codered-cluster-icon',
+                        html: '<span aria-hidden="true">' + group.length + '</span>',
+                        iconSize: [44, 44],
+                        iconAnchor: [22, 22],
+                    }),
+                    title: group.length + ' agencias agrupadas',
+                    keyboard: true,
+                });
+                cluster.on('click', () => this.map?.fitBounds(bounds, { padding: [48, 48], maxZoom: 17 }));
+                cluster.addTo(this.markerLayer);
+            });
+        },
+
+        popupContent(agency) {
+            const content = document.createElement('div');
+            content.className = 'codered-map-popup';
+            const code = document.createElement('span');
+            code.className = 'codered-map-popup__code';
+            code.textContent = agency.code;
+            const title = document.createElement('strong');
+            title.textContent = agency.name;
+            const location = document.createElement('p');
+            location.textContent = agency.location;
+            const address = document.createElement('p');
+            address.textContent = agency.address || 'Dirección no registrada';
+            const status = document.createElement('span');
+            status.className = 'codered-map-popup__status';
+            status.textContent = agency.status_label;
+            const actions = document.createElement('div');
+            actions.className = 'codered-map-popup__actions';
+            const detail = document.createElement('a');
+            detail.href = agency.detail_url;
+            detail.textContent = 'Ver detalle';
+            const maps = document.createElement('a');
+            maps.href = agency.maps_url;
+            maps.target = '_blank';
+            maps.rel = 'noopener noreferrer';
+            maps.textContent = 'Abrir Google Maps';
+            actions.append(detail, maps);
+            content.append(code, title, location, address, status, actions);
+
+            return content;
+        },
+
+        focusAgency(id) {
+            const agency = this.markers.find((marker) => Number(marker.id) === Number(id));
+            if (!agency || !this.map) return;
+
+            const coordinates = [Number(agency.latitude), Number(agency.longitude)];
+            this.map.setView(coordinates, Math.max(this.map.getZoom(), 16), { animate: true });
+            window.setTimeout(() => {
+                this.renderClusters();
+                L.popup().setLatLng(coordinates).setContent(this.popupContent(agency)).openOn(this.map);
+            }, 280);
+        },
+
+        destroy() {
+            this.resizeObserver?.disconnect();
+            this.resizeObserver = null;
+            this.map?.off();
+            this.map?.remove();
+            this.map = null;
+            this.markerLayer = null;
+        },
+    }));
+
     window.Alpine.data('codeRedMap', (config) => ({
         map: null,
         resizeObserver: null,
@@ -172,4 +308,5 @@ document.addEventListener('alpine:init', () => {
 
 document.addEventListener('livewire:navigating', () => {
     window.dispatchEvent(new CustomEvent('codered-map:destroy'));
+    window.dispatchEvent(new CustomEvent('codered-agency-map:destroy'));
 });

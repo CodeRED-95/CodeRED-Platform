@@ -53,14 +53,18 @@ class AgencyMapTest extends TestCase
             ->assertSee($visible->name)->assertDontSee('Agencia Arequipa');
     }
 
-    public function test_nearby_agencies_are_grouped_and_missing_coordinates_are_counted(): void
+    public function test_nearby_agencies_are_sent_to_leaflet_and_missing_coordinates_are_counted(): void
     {
         Agency::factory()->create(['latitude' => '-12.0463700', 'longitude' => '-77.0427900']);
         Agency::factory()->create(['latitude' => '-12.0499900', 'longitude' => '-77.0499900']);
         Agency::factory()->create(['latitude' => null, 'longitude' => null]);
         $this->actingAs($this->agencyViewer());
 
-        Livewire::test(Map::class)->assertViewHas('mappedCount', 2)->assertViewHas('withoutCoordinates', 1)
-            ->assertSee('2 agencias agrupadas')->assertSeeHtml('aria-label="Ver grupo de 2 agencias"');
+        Livewire::test(Map::class)
+            ->assertViewHas('mappedCount', 2)
+            ->assertViewHas('withoutCoordinates', 1)
+            ->assertViewHas('markers', fn (array $markers): bool => count($markers) === 2)
+            ->assertSeeHtml('data-codered-agency-map')
+            ->assertSee('Centrar mapa en');
     }
 }

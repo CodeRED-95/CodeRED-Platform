@@ -81,7 +81,7 @@ class AuthenticationFlowTest extends TestCase
                 '_token' => $token,
                 'email' => '  USUARIO@EXAMPLE.TEST  ',
                 'password' => 'Secret12345!',
-            ])->assertRedirect(route('dashboard'));
+            ])->assertRedirect(route('profile.show'));
 
         $user->refresh();
         $this->assertAuthenticatedAs($user);
@@ -104,7 +104,7 @@ class AuthenticationFlowTest extends TestCase
             '_token' => $token,
             'email' => $user->email,
             'password' => 'Secret12345!',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('profile.show'));
 
         $this->assertAuthenticatedAs($user);
         $this->assertTrue($user->hasRole('viewer'));
@@ -158,12 +158,12 @@ class AuthenticationFlowTest extends TestCase
             ->set('password', 'NuevaClave12345')
             ->set('password_confirmation', 'NuevaClave12345')
             ->call('updatePassword')
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('profile.show'));
 
         $user->refresh();
         $this->assertFalse($user->must_change_password);
         $this->assertTrue(Hash::check('NuevaClave12345', $user->password));
-        $this->actingAs($user)->get(route('dashboard'))->assertOk();
+        $this->actingAs($user)->get(route('profile.show'))->assertOk();
     }
 
     public function test_login_redirects_user_with_forced_password_change(): void

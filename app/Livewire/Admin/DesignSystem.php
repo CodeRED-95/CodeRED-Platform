@@ -2,15 +2,14 @@
 
 namespace App\Livewire\Admin;
 
-use App\Modules\Agencies\Models\Agency;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class DesignSystem extends Component
 {
     public function mount(): void
     {
-        Gate::authorize('viewAny', Agency::class);
+        abort_unless(Auth::user()?->isSuperAdmin(), 403);
     }
 
     public function render()

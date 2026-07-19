@@ -37,33 +37,17 @@ class PermissionsSeeder extends Seeder
         ));
 
         $allPermissionIds = Permission::query()->pluck('id')->all();
-        $operationalPermissionIds = Permission::query()
-            ->whereIn('slug', [
-                'dashboard.view',
-                'agencies.view',
-                'agencies.manage',
-                'agencies.create',
-                'agencies.update',
-                'agencies.delete',
-                'agencies.restore',
-                'agencies.import',
-                'agencies.export',
-                'agencies.view_history',
-                'agencies.manage_status',
-                'users.view',
-                'users.create',
-                'users.update',
-                'users.delete',
-                'users.restore',
-                'users.manage_roles',
-                'users.reset_password',
-                'users.manage_status',
-                'users.view_activity',
-            ])
-            ->pluck('id')
-            ->all();
+        $editorPermissionIds = Permission::query()->whereIn('slug', [
+            'dashboard.view',
+            'agencies.view',
+            'agencies.create',
+            'agencies.update',
+            'agencies.manage_status',
+        ])->pluck('id')->all();
+        $viewerPermissionIds = Permission::query()->where('slug', 'agencies.view')->pluck('id')->all();
 
-        Role::query()->where('slug', 'super-admin')->first()?->permissions()->syncWithoutDetaching($allPermissionIds);
-        Role::query()->where('slug', 'admin')->first()?->permissions()->syncWithoutDetaching($operationalPermissionIds);
+        Role::query()->where('slug', 'super-admin')->first()?->permissions()->sync($allPermissionIds);
+        Role::query()->where('slug', 'editor')->first()?->permissions()->sync($editorPermissionIds);
+        Role::query()->where('slug', 'viewer')->first()?->permissions()->sync($viewerPermissionIds);
     }
 }

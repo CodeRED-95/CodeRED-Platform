@@ -34,3 +34,7 @@ Los seeders del proyecto preparan datos iniciales para desarrollo y pruebas sin 
 ## Factories
 
 Las seeders que crean datos demo deben usar factories del proyecto. En módulos Laravel, si la factory está en `database/factories`, el modelo debe declarar `newFactory()`.
+
+## Roles y permisos
+
+`RolesSeeder` conserva únicamente `super-admin`, `viewer` y `editor`. `PermissionsSeeder` sincroniza la matriz exacta: Super Administrador recibe todos los permisos, Consulta solo `agencies.view` y Editor recibe Dashboard y gestión no destructiva de Agencias. Los usuarios heredados con `admin` pasan a Editor salvo que ya sean Super Administrador.

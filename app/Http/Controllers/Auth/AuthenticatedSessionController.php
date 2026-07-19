@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Core\Auth\AuthenticatedHome;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -19,7 +20,7 @@ class AuthenticatedSessionController
         ]);
     }
 
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request, AuthenticatedHome $home): RedirectResponse
     {
         $credentials = $request->validated();
 
@@ -56,7 +57,7 @@ class AuthenticatedSessionController
             return redirect()->route('account.change-password');
         }
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended($home->route($user));
     }
 
     public function destroy(Request $request): RedirectResponse

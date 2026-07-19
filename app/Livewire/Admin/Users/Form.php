@@ -14,6 +14,8 @@ use Livewire\Component;
 
 class Form extends Component
 {
+    private const ALLOWED_ROLES = ['super-admin', 'viewer', 'editor'];
+
     public ?User $managedUser = null;
 
     public string $mode = 'create';
@@ -117,7 +119,7 @@ class Form extends Component
             'password' => [$this->mode === 'create' ? 'required' : 'nullable', 'confirmed', 'min:12'],
             'password_confirmation' => [$this->mode === 'create' ? 'required' : 'nullable'],
             'roles' => ['array', 'min:1'],
-            'roles.*' => ['string', Rule::exists('roles', 'slug')],
+            'roles.*' => ['string', Rule::in(self::ALLOWED_ROLES)],
             'status' => ['required', Rule::in(['active', 'suspended', 'inactive'])],
             'email_verified' => ['boolean'],
             'must_change_password' => ['boolean'],
@@ -127,7 +129,7 @@ class Form extends Component
     public function render()
     {
         return view('livewire.admin.users.form', [
-            'availableRoles' => Role::query()->orderBy('name')->get(['slug', 'name']),
+            'availableRoles' => Role::query()->whereIn('slug', self::ALLOWED_ROLES)->orderBy('name')->get(['slug', 'name']),
         ])->layout('layouts.app', ['pageTitle' => $this->mode === 'edit' ? 'Editar usuario' : 'Nuevo usuario']);
     }
 }
