@@ -213,4 +213,4 @@ La representación geográfica es orientativa. Los enlaces a Google Maps se gene
 
 ### Mapa integrado en ubicación
 
-Las vistas de detalle administrativa y pública reutilizan `x-ui.map-preview` cuando la agencia tiene latitud y longitud válidas. El mapa utiliza OpenStreetMap, mantiene las coordenadas como fuente autoritativa y presenta un marcador CodeRED sin instalar librerías ni requerir Google Maps.
+Las vistas de detalle administrativa y pública reutilizan `x-ui.map-preview` cuando la agencia tiene latitud y longitud válidas. El mapa utiliza Leaflet 1.9 con tiles de OpenStreetMap, mantiene las coordenadas como fuente autoritativa y presenta un marcador CodeRED. Google Maps permanece como enlace secundario sin API key.

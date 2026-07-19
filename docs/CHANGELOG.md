@@ -76,7 +76,10 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
-- Vista cartográfica integrada con OpenStreetMap y marcador CodeRED, además de una jerarquía consistente para dropdowns, modales y toasts.
+- Dashboard profesional con periodo real, ocho KPIs, gráficos SVG accesibles, actividad auditada y resumen completo de importación.
+- Switches de usuario accesibles con etiquetas, ayuda y persistencia verificada de correo y cambio obligatorio de contraseña.
+
+- Vista cartográfica integrada con Leaflet, tiles de OpenStreetMap, marcador CodeRED y ciclo de vida compatible con Livewire; jerarquía consistente para dropdowns, modales y toasts.
 
 - Contratos accesibles y tokens base del CodeRED Design System, validados en la pantalla piloto de cambio de contraseña.
 

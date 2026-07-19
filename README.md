@@ -40,6 +40,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 - Livewire 3
 - TailwindCSS 3
 - AlpineJS 3
+- Leaflet 1.9 con tiles de OpenStreetMap
 - Laravel Sanctum 4
 
 ## Instalación rápida

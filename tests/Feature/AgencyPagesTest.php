@@ -183,7 +183,7 @@ class AgencyPagesTest extends TestCase
             ->assertOk()
             ->assertSee($agency->name)
             ->assertSee($agency->code)
-            ->assertSee('https://www.openstreetmap.org/export/embed.html?', false);
+            ->assertSee('data-codered-map', false);
     }
 
     public function test_public_agencies_page_loads(): void
@@ -204,7 +204,7 @@ class AgencyPagesTest extends TestCase
             ->assertOk()
             ->assertSee($agency->name)
             ->assertSee($agency->code)
-            ->assertSee('https://www.openstreetmap.org/export/embed.html?', false);
+            ->assertSee('data-codered-map', false);
     }
 
     public function test_import_page_loads_for_authorized_user(): void

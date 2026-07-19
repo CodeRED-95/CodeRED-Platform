@@ -307,7 +307,7 @@ La jerarquía evita que controles interactivos queden detrás del sidebar o de t
 
 ## Vista cartográfica integrada
 
-`x-ui.map-preview` muestra coordenadas persistidas mediante el embed de OpenStreetMap, sin SDK, API key ni dependencia JavaScript nueva. Añade un marcador visual CodeRED, carga diferida, título accesible y fallback cuando faltan coordenadas. El mapa no sustituye ni transforma los campos de latitud y longitud.
+`x-ui.map-preview` usa Leaflet 1.9 y tiles de OpenStreetMap sin API key. La instancia se integra con Alpine y Livewire mediante `wire:ignore`, se destruye antes de `wire:navigate`, recalcula su tamaño y muestra zoom, attribution, popup seguro, enlace externo y marcador CodeRED. El mapa no sustituye ni transforma los campos de latitud y longitud.
 
 ```blade
 <x-ui.map-preview
@@ -316,3 +316,16 @@ La jerarquía evita que controles interactivos queden detrás del sidebar o de t
     :label="'Ubicación de '.$agency->name"
 />
 ```
+
+## Dashboard operativo
+
+El Dashboard consulta datos reales y respeta permisos antes de cargar cada bloque:
+
+- KPIs de usuarios y los cinco estados de agencias;
+- periodo funcional de 7, 30 o 90 días;
+- tendencia calculada mediante agregación SQL y representada en SVG con tooltips nativos;
+- donut SVG con cantidades y porcentajes reales;
+- actividad filtrada por tipo de entidad según permisos y cargada con `actor`/`auditable` mediante eager loading;
+- última importación con los contadores persistidos en `agency_imports`.
+
+Los SVG incluyen resumen textual, títulos por punto o segmento y no requieren una segunda librería de gráficos.

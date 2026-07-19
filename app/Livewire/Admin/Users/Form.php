@@ -79,8 +79,9 @@ class Form extends Component
                 $this->managedUser = User::query()->create($payload);
             } else {
                 $security->canManage($actor, $this->managedUser);
+                $emailChanged = $this->managedUser->email !== $validated['email'];
                 $this->managedUser->fill($payload);
-                if ($this->email !== $validated['email']) {
+                if ($emailChanged || $this->email_verified !== ($this->managedUser->email_verified_at !== null)) {
                     $this->managedUser->email_verified_at = $validated['email_verified'] ? now() : null;
                 }
                 if ($validated['password']) {

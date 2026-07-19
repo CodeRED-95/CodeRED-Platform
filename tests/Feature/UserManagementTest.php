@@ -64,7 +64,14 @@ class UserManagementTest extends TestCase
             ->assertSeeHtml('<button type="submit"')
             ->assertSee('Guardar cambios')
             ->assertSee('Volver')
-            ->assertDontSee('Guardar usuario');
+            ->assertDontSee('Guardar usuario')
+            ->assertSee('Correo verificado')
+            ->assertSee('Indica que la dirección de correo del usuario ya fue confirmada.')
+            ->assertSee('Forzar cambio de contraseña')
+            ->assertSee('El usuario deberá establecer una nueva contraseña en su próximo acceso.')
+            ->assertSeeHtml('role="switch"')
+            ->assertSeeHtml('aria-describedby="user-email-verified-description"')
+            ->assertSeeHtml('aria-describedby="user-must-change-password-description"');
     }
 
     public function test_user_without_permission_gets_forbidden(): void
@@ -114,6 +121,7 @@ class UserManagementTest extends TestCase
             'name' => 'Usuario Original',
             'email' => 'original@example.test',
             'status' => 'active',
+            'email_verified_at' => null,
         ]);
         $target->roles()->attach(Role::query()->where('slug', 'viewer')->value('id'));
 
@@ -124,6 +132,7 @@ class UserManagementTest extends TestCase
             ->set('email', 'editado@example.test')
             ->set('roles', ['admin'])
             ->set('status', 'active')
+            ->set('email_verified', true)
             ->set('must_change_password', true)
             ->call('save');
 
@@ -133,6 +142,8 @@ class UserManagementTest extends TestCase
             'email' => 'editado@example.test',
             'must_change_password' => true,
         ]);
+        $target->refresh();
+        $this->assertNotNull($target->email_verified_at);
     }
 
     public function test_inactive_user_cannot_log_in(): void

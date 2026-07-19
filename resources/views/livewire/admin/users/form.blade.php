@@ -27,8 +27,8 @@
                     icon-set="user-status"
                     :error="$errors->first('status')"
                 />
-                <x-ui.toggle wire:model.live="email_verified" label="Correo verificado" />
-                <x-ui.toggle wire:model.live="must_change_password" label="Forzar cambio de contraseña" />
+                <x-ui.toggle id="user-email-verified" wire:model.live="email_verified" label="Correo verificado" description="Indica que la dirección de correo del usuario ya fue confirmada." />
+                <x-ui.toggle id="user-must-change-password" wire:model.live="must_change_password" label="Forzar cambio de contraseña" description="El usuario deberá establecer una nueva contraseña en su próximo acceso." />
             </div>
         </x-ui.card>
 
