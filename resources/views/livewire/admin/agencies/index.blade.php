@@ -6,6 +6,7 @@
         <x-slot:actions>
             <x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Nueva agencia</x-ui.button>
             <x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Importar</x-ui.button>
+            <x-ui.button href="{{ route('admin.agencies.map') }}" variant="secondary">Ver mapa</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 

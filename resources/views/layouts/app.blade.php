@@ -30,6 +30,7 @@
                         $nav = [
                             ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => true],
                             ['label' => 'Agencias', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
+                            ['label' => 'Mapa de agencias', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Importaciones', 'route' => 'admin.agencies.import', 'icon' => '⇪', 'can' => \Illuminate\Support\Facades\Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => app()->environment('local') || \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Usuarios', 'route' => 'admin.users.index', 'icon' => '◔', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Models\User::class)],
@@ -113,6 +114,7 @@
                     <a href="{{ route('dashboard') }}" class="block rounded-2xl bg-white/5 px-4 py-3">Dashboard</a>
                     @can('viewAny', \App\Modules\Agencies\Models\Agency::class)
                         <a href="{{ route('admin.agencies.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Agencias</a>
+                        <a href="{{ route('admin.agencies.map') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Mapa de agencias</a>
                     @endcan
                     @can('import', \App\Modules\Agencies\Models\Agency::class)
                         <a href="{{ route('admin.agencies.import') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Importaciones</a>

@@ -171,6 +171,7 @@ Permisos del módulo:
 ### Rutas
 
 - `/admin/agencies`
+- `/admin/agencies/map`
 - `/admin/agencies/create`
 - `/admin/agencies/{agency}`
 - `/admin/agencies/{agency}/edit`
@@ -179,6 +180,7 @@ Permisos del módulo:
 ### Componentes Livewire
 
 - `App\Livewire\Admin\Agencies\Index`
+- `App\Livewire\Admin\Agencies\Map`
 - `App\Livewire\Admin\Agencies\Form`
 - `App\Livewire\Admin\Agencies\Show`
 - `App\Livewire\Admin\Agencies\Import`
@@ -195,3 +197,16 @@ Permisos del módulo:
 - `/api/v1/agencies/version`
 - `/api/v1/agencies/snapshot`
 - `/api/v1/agencies/{code}`
+
+## Mapa administrativo
+
+La ruta `/admin/agencies/map` proyecta las coordenadas existentes sin depender de servicios cartográficos, API keys ni librerías JavaScript externas.
+
+- permite buscar y filtrar por estado y departamento;
+- agrupa agencias geográficamente próximas;
+- excluye del mapa los registros sin coordenadas y muestra su total;
+- ofrece detalle administrativo y apertura explícita en Google Maps;
+- limita la carga inicial a 1.000 puntos y avisa cuando conviene acotar los filtros;
+- requiere el permiso existente `agencies.view`.
+
+La representación geográfica es orientativa. Los enlaces a Google Maps se generan con las coordenadas persistidas y se abren con `noopener noreferrer`.

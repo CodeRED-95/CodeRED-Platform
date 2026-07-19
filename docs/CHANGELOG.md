@@ -76,6 +76,8 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Mapa administrativo de agencias con búsqueda, filtros, agrupación de coordenadas y enlaces seguros a Google Maps, sin dependencias cartográficas nuevas.
+
 - Entorno reproducible con Dev Containers, configuración versionada de VS Code y verificadores `verify.sh`/`verify.ps1`.
 - Script Composer `check` para ejecutar Pint, PHPStan y PHPUnit dentro del contenedor PHP.
 
