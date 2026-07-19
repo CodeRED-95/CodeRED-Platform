@@ -15,6 +15,7 @@
     --color-text-primary: #f8fafc;
     --color-text-secondary: #94a3b8;
     --color-text-muted: #64748b;
+    --color-text-disabled: #64748b;
     --color-brand: #e11d48;
     --color-brand-hover: #be123c;
     --color-brand-active: #9f1239;
@@ -34,6 +35,10 @@
     --radius-modal: 16px;
     --radius-panel: 18px;
     --shadow-elevated: 0 24px 80px rgba(2, 6, 23, 0.35);
+    --shadow-control: 0 1px 2px rgba(2, 6, 23, 0.24);
+    --control-height: 3rem;
+    --icon-size-control: 1.25rem;
+    --space-section: 1.5rem;
   }
 
   html { font-family: var(--font-sans); }

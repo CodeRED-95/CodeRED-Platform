@@ -204,4 +204,89 @@ las vistas Blade solo presentan los datos recibidos.
 - Los datos de agencias requieren `viewAny` sobre `Agency`.
 - Los gráficos sin librerías externas deben conservar valores textuales, etiquetas
   accesibles y significado independiente del color.
-- “Usuarios nuevos” representa los últimos 30 días y la tendencia de agencias los
+- “Usuarios nuevos” representa los últimos 30 días; la tendencia de agencias resume los últimos 7 días.
+
+## Base validada en Sprint 01
+
+### Tokens visuales
+
+Los tokens se declaran una sola vez en `resources/css/app.css` y los componentes los consumen mediante clases Tailwind arbitrarias.
+
+| Categoría | Tokens | Contrato |
+|---|---|---|
+| Fondos | `--color-background`, `--color-background-elevated`, `--color-surface` | Página, panel elevado y control/tarjeta |
+| Bordes | `--color-border`, `--color-border-subtle` | Controles y divisores |
+| Texto | `--color-text-primary`, `--color-text-secondary`, `--color-text-muted`, `--color-text-disabled` | Jerarquía y estado deshabilitado |
+| Semántica | `--color-brand`, `--color-success`, `--color-warning`, `--color-danger`, `--color-info` | Acciones y estados; nunca sustituyen texto o iconos |
+| Foco | `.focus-ring` | Ring de marca con separación respecto al fondo |
+| Radios | `--radius-control`, `--radius-card`, `--radius-modal`, `--radius-panel` | Jerarquía coherente de superficies |
+| Sombras | `--shadow-control`, `--shadow-elevated` | Control y panel flotante |
+| Dimensiones | `--control-height`, `--icon-size-control`, `--space-section` | Altura mínima, icono y separación vertical |
+
+El tema oscuro continúa siendo el contrato principal. Este sprint no introduce un segundo sistema temático.
+
+### Convención y composición
+
+Los componentes compartidos viven bajo `resources/views/components/ui` y se consumen con `x-ui.*`. No crear componentes `x-form.*` que dupliquen contratos existentes.
+
+- `x-ui.input` y `x-ui.textarea` componen `x-ui.form-label` y `x-ui.form-error`.
+- `x-ui.card` acepta contenido libre y, opcionalmente, `title`, `description` y el slot `actions`.
+- `x-ui.button` concentra variantes, tamaños y estados de carga.
+- `x-ui.status-select` especializa `x-ui.dropdown-select`; sus valores pertenecen al enum de negocio y no se redefinen en Blade.
+
+### Ejemplos reales
+
+```blade
+<x-ui.input
+    id="email"
+    wire:model.live="email"
+    name="email"
+    type="email"
+    label="Correo electrónico"
+    required
+    :error="$errors->first('email')"
+/>
+
+<x-ui.button
+    type="submit"
+    loading-target="save"
+    loading-label="Guardando…"
+    wire:loading.attr="disabled"
+    wire:target="save"
+>
+    Guardar
+</x-ui.button>
+
+<x-ui.card title="Perfil" description="Datos generales">
+    <x-slot:actions>
+        <x-ui.button variant="secondary" size="sm">Editar</x-ui.button>
+    </x-slot:actions>
+    Contenido del perfil.
+</x-ui.card>
+```
+
+Los attribute bags propagan `wire:model`, sus modificadores, atributos Alpine, `disabled`, `readonly`, `autocomplete`, `placeholder` y atributos ARIA al elemento interactivo.
+
+### Accesibilidad de formularios
+
+- Todo control con etiqueta genera una asociación explícita `for`/`id`.
+- Los errores tienen un ID estable y se conectan mediante `aria-describedby`.
+- `aria-invalid` comunica el estado sin depender del borde rojo.
+- Los campos obligatorios incluyen indicador visual y texto para lector de pantalla.
+- Los iconos decorativos usan `aria-hidden`; los botones de solo icono requieren `aria-label`.
+- El foco visible se implementa con `.focus-ring`.
+- Alpine se obtiene exclusivamente desde Livewire 3; no se importa ni inicializa otra instancia.
+
+### Pantalla piloto
+
+`resources/views/livewire/account/change-password.blade.php` valida la arquitectura base con tres inputs Livewire y un submit. Conserva las propiedades, validaciones, ruta y persistencia originales, y añade errores asociados, instrucciones y loading accesible.
+
+### Incorporar un componente
+
+1. Confirmar que ningún `x-ui.*` existente resuelve el patrón.
+2. Definir un contrato pequeño y compatible con attribute bags.
+3. Componer componentes base antes de copiar clases.
+4. Añadir pruebas de renderizado, accesibilidad y compatibilidad Livewire/Alpine.
+5. Documentar el componente y migrar una sola pantalla piloto antes de extenderlo.
+
+No deben duplicarse controles, variantes puramente cosméticas, inicialización de Alpine, colores hexadecimales en vistas ni lógica de estados de negocio.

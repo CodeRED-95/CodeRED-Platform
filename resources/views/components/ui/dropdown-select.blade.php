@@ -15,6 +15,7 @@
     $controlId = $id ?: 'dropdown-select-'.($name ?: 'field');
     $listboxId = $controlId.'-listbox';
     $labelId = $controlId.'-label';
+    $errorId = $controlId.'-error';
     $optionItems = collect($options)
         ->map(fn ($optionLabel, $optionValue): array => [
             'value' => (string) $optionValue,
@@ -114,6 +115,7 @@
         aria-autocomplete="none"
         aria-required="{{ $required ? 'true' : 'false' }}"
         aria-invalid="{{ $error ? 'true' : 'false' }}"
+        @if ($error) aria-describedby="{{ $errorId }}" @endif
         aria-labelledby="{{ $labelId }}"
         aria-controls="{{ $listboxId }}"
         x-bind:aria-expanded="open.toString()"
@@ -189,6 +191,6 @@
     </div>
 
     @if ($error)
-        <p class="mt-1.5 text-sm text-[color:var(--color-danger)]">{{ $error }}</p>
+        <x-ui.form-error :id="$errorId" :message="$error" />
     @endif
 </div>

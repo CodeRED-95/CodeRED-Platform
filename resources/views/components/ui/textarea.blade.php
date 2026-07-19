@@ -1,11 +1,24 @@
-@props(['label' => null, 'error' => null, 'wrapperClass' => ''])
+@props(['label' => null, 'error' => null, 'wrapperClass' => '', 'required' => false])
 
-<label class="block {{ $wrapperClass }}">
+@php
+    $attributeValues = $attributes->getAttributes();
+    $wireModel = collect(array_keys($attributeValues))->first(fn (string $key): bool => str_starts_with($key, 'wire:model'));
+    $fieldName = $attributes->get('name') ?: ($wireModel ? $attributes->get($wireModel) : null);
+    $controlId = $attributes->get('id') ?: ($fieldName ? 'field-'.str_replace(['.', '_'], '-', (string) $fieldName) : 'field-'.uniqid());
+    $errorId = $controlId.'-error';
+    $describedBy = collect([$attributes->get('aria-describedby'), $error ? $errorId : null])->filter()->join(' ');
+@endphp
+
+<div class="block {{ $wrapperClass }}">
     @if ($label)
-        <span class="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">{{ $label }}</span>
+        <x-ui.form-label :for="$controlId" :required="$required" class="mb-1.5">{{ $label }}</x-ui.form-label>
     @endif
-    <textarea {{ $attributes->merge(['class' => 'w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] shadow-sm transition focus-ring']) }}>{{ $slot }}</textarea>
-    @if ($error)
-        <p class="mt-1.5 text-sm text-[color:var(--color-danger)]">{{ $error }}</p>
-    @endif
-</label>
+    <textarea
+        id="{{ $controlId }}"
+        @if ($required) required @endif
+        aria-invalid="{{ $error ? 'true' : 'false' }}"
+        @if ($describedBy !== '') aria-describedby="{{ $describedBy }}" @endif
+        {{ $attributes->except(['id', 'aria-describedby'])->merge(['class' => trim('min-h-28 w-full rounded-[var(--radius-control)] border bg-[color:var(--color-surface)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-disabled)] shadow-[var(--shadow-control)] transition focus-ring disabled:cursor-not-allowed disabled:opacity-60 '.($error ? 'border-[color:var(--color-danger)]' : 'border-[color:var(--color-border)]'))]) }}
+    >{{ $slot }}</textarea>
+    <x-ui.form-error :id="$errorId" :message="$error" />
+</div>
