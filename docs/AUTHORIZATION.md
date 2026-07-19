@@ -51,10 +51,15 @@ Las Policies deben delegar en `hasPermission()` o en la regla de negocio especí
 | `update` | `agencies.update` |
 | `delete` | `agencies.delete` |
 | `restore` | `agencies.restore` |
+| `forceDelete` | `agencies.delete` + `agencies.restore` |
 | `import` | `agencies.import` |
 | `export` | `agencies.export` |
 | `viewHistory` | `agencies.view_history` |
 | `manageStatus` | `agencies.manage_status` |
+
+Las acciones destructivas de Usuario consultan `UserPolicy` y `UserSecurityService`.
+La eliminación definitiva exige simultáneamente `users.delete` y `users.restore`,
+además de las protecciones de cuenta crítica.
 
 ## Recuperación de acceso
 

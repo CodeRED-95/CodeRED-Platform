@@ -104,6 +104,19 @@ Una agencia trasladada:
 - continúa disponible por su código
 - puede apuntar a una agencia destino o a una dirección manual
 
+## Papelera
+
+El listado administrativo permite consultar agencias activas, solo la papelera o
+todos los registros.
+
+- Eliminar aplica soft delete y requiere `agencies.delete`.
+- Restaurar requiere `agencies.restore`.
+- Eliminar definitivamente requiere `agencies.delete` y `agencies.restore`.
+- Las agencias eliminadas no aparecen en la API, búsqueda pública ni relaciones de
+  destino.
+- La eliminación definitiva borra también el historial relacionado mediante la FK
+  con `cascadeOnDelete`; el observer no intenta crear registros huérfanos.
+
 ## Relaciones
 
 | Relación | Tipo |

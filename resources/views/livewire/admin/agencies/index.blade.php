@@ -28,7 +28,7 @@
             <x-ui.dropdown-select id="agencies-source-filter" wire:model.live="source" label="Fuente" :value="$source" :options="['' => 'Todas', 'github_gist' => 'GitHub Gist', 'manual' => 'Manual', 'seed' => 'Seeder']" />
             <x-ui.dropdown-select id="agencies-coordinates-filter" wire:model.live="withoutCoordinates" label="Coordenadas" :value="$withoutCoordinates" :options="['' => 'Todas', '1' => 'Sin coordenadas']" />
             <x-ui.dropdown-select id="agencies-phone-filter" wire:model.live="withoutPhone" label="Teléfono" :value="$withoutPhone" :options="['' => 'Todos', '1' => 'Sin teléfono']" />
-            <x-ui.dropdown-select id="agencies-deleted-filter" wire:model.live="withTrashed" label="Eliminadas" :value="$withTrashed" :options="['' => 'No incluir', '1' => 'Incluir']" />
+            <x-ui.dropdown-select id="agencies-deleted-filter" wire:model.live="withTrashed" label="Eliminadas" :value="$withTrashed" :options="['' => 'Activas', 'only' => 'Papelera', 'with' => 'Todas']" />
             <x-ui.dropdown-select id="agencies-review-filter" wire:model.live="underReview" label="Revisión" :value="$underReview" :options="['' => 'Todas', '1' => 'Solo en revisión']" />
             <x-ui.dropdown-select id="agencies-per-page" wire:model.live="perPage" label="Por página" :value="$perPage" :options="[15 => '15', 30 => '30', 50 => '50', 100 => '100']" />
         </div>
@@ -54,7 +54,7 @@
         </thead>
         <tbody class="divide-y divide-white/5">
             @forelse ($agencies as $agency)
-                <tr class="transition hover:bg-white/5">
+                <tr @class(['transition hover:bg-white/5', 'opacity-70' => $agency->trashed()])>
                     <td class="px-5 py-4 font-mono text-sm text-[color:var(--color-accent-ivory)]">{{ $agency->code }}</td>
                     <td class="px-5 py-4">
                         <div class="font-medium">{{ $agency->name }}</div>
@@ -69,15 +69,38 @@
                         </x-ui.badge>
                     </td>
                     <td class="px-5 py-4">
-                        <x-ui.badge :tone="$agency->status?->value === 'active' ? 'success' : ($agency->status?->value === 'under_review' ? 'info' : ($agency->status?->value === 'moved' ? 'warning' : 'neutral'))">
-                            {{ $agency->statusLabel() }}
-                        </x-ui.badge>
+                        <div class="flex flex-wrap gap-2">
+                            <x-ui.badge :tone="$agency->status?->value === 'active' ? 'success' : ($agency->status?->value === 'under_review' ? 'info' : ($agency->status?->value === 'moved' ? 'warning' : 'neutral'))">
+                                {{ $agency->statusLabel() }}
+                            </x-ui.badge>
+                            @if ($agency->trashed())
+                                <x-ui.badge tone="danger">En papelera</x-ui.badge>
+                            @endif
+                        </div>
                     </td>
                     <td class="px-5 py-4 text-sm text-[color:var(--color-text-secondary)]">{{ optional($agency->updated_at)->format('d/m/Y H:i') }}</td>
                     <td class="px-5 py-4">
                         <div class="flex flex-wrap gap-2">
-                            <x-ui.button href="{{ route('admin.agencies.show', $agency) }}" size="sm" variant="outline">Ver</x-ui.button>
-                            <x-ui.button href="{{ route('admin.agencies.edit', $agency) }}" size="sm" variant="secondary">Editar</x-ui.button>
+                            @if ($agency->trashed())
+                                @can('restore', $agency)
+                                    <x-ui.confirm-dialog id="restore-agency-{{ $agency->id }}" title="Restaurar agencia" message="La agencia volverá a los listados activos." confirm-label="Restaurar" confirm-action="restoreAgency({{ $agency->id }})" tone="primary">
+                                        <x-slot:trigger><x-ui.button size="sm" variant="primary">Restaurar</x-ui.button></x-slot:trigger>
+                                    </x-ui.confirm-dialog>
+                                @endcan
+                                @can('forceDelete', $agency)
+                                    <x-ui.confirm-dialog id="force-delete-agency-{{ $agency->id }}" title="Eliminar agencia definitivamente" message="Esta acción es irreversible y eliminará permanentemente la agencia." confirm-label="Eliminar definitivamente" confirm-action="forceDeleteAgency({{ $agency->id }})">
+                                        <x-slot:trigger><x-ui.button size="sm" variant="danger">Eliminar definitivamente</x-ui.button></x-slot:trigger>
+                                    </x-ui.confirm-dialog>
+                                @endcan
+                            @else
+                                <x-ui.button href="{{ route('admin.agencies.show', $agency) }}" size="sm" variant="outline">Ver</x-ui.button>
+                                <x-ui.button href="{{ route('admin.agencies.edit', $agency) }}" size="sm" variant="secondary">Editar</x-ui.button>
+                                @can('delete', $agency)
+                                    <x-ui.confirm-dialog id="delete-agency-{{ $agency->id }}" title="Mover agencia a la papelera" message="Podrás restaurarla más adelante desde el filtro Papelera." confirm-label="Mover a papelera" confirm-action="deleteAgency({{ $agency->id }})">
+                                        <x-slot:trigger><x-ui.button size="sm" variant="danger">Eliminar</x-ui.button></x-slot:trigger>
+                                    </x-ui.confirm-dialog>
+                                @endcan
+                            @endif
                         </div>
                     </td>
                 </tr>

@@ -37,6 +37,11 @@ class AgencyPolicy
         return $user->hasPermission('agencies.restore');
     }
 
+    public function forceDelete(User $user, Agency $agency): bool
+    {
+        return $user->hasPermission('agencies.delete') && $user->hasPermission('agencies.restore');
+    }
+
     public function manageStatus(User $user, Agency $agency): bool
     {
         return $user->hasPermission('agencies.manage_status');

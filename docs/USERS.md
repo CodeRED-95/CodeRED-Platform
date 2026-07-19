@@ -23,6 +23,18 @@ El módulo de usuarios administra cuentas internas del panel de CodeRED Platform
 - Una cuenta bloqueada durante una sesión activa es desconectada por middleware.
 - `must_change_password` impide acceder al resto de páginas hasta persistir una contraseña nueva válida.
 
+## Papelera
+
+`User` utiliza `SoftDeletes`. El listado permite mostrar cuentas activas, solo la
+papelera o todos los registros.
+
+- Eliminar mueve la cuenta a la papelera y requiere `users.delete`.
+- Restaurar requiere `users.restore`.
+- Eliminar definitivamente requiere conjuntamente `users.delete` y `users.restore`.
+- Todas las acciones pasan por `UserSecurityService`; nunca se puede eliminar la
+  cuenta propia ni el último superadministrador.
+- Una cuenta en papelera queda excluida de la autenticación y de consultas normales.
+
 ## Campos principales
 
 | Campo | Descripción |

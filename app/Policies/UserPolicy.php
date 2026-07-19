@@ -36,6 +36,11 @@ class UserPolicy
         return $user->hasPermission('users.restore');
     }
 
+    public function forceDelete(User $user, User $model): bool
+    {
+        return $user->hasPermission('users.delete') && $user->hasPermission('users.restore');
+    }
+
     public function manageRoles(User $user, User $model): bool
     {
         return $user->hasPermission('users.manage_roles');

@@ -28,6 +28,13 @@ class AgencySearchService
      */
     public function applyFilters(Builder $query, array $filters): Builder
     {
+        $trash = (string) ($filters['trash'] ?? $filters['with_trashed'] ?? '');
+        if ($trash === 'only') {
+            $query->onlyTrashed();
+        } elseif (in_array($trash, ['1', 'with'], true)) {
+            $query->withTrashed();
+        }
+
         $query->search($filters['search'] ?? null);
         $query->byLocation($filters['department'] ?? null, $filters['province'] ?? null, $filters['district'] ?? null);
 
@@ -47,10 +54,6 @@ class AgencySearchService
 
         if (! empty($filters['updated_after'])) {
             $query->whereDate('updated_at', '>=', $filters['updated_after']);
-        }
-
-        if (! empty($filters['with_trashed'])) {
-            $query->withTrashed();
         }
 
         if (! empty($filters['without_coordinates'])) {

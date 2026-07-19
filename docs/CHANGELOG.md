@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-19 — Papelera y soft delete, fase 5
+
+- Se añadió soft delete aditivo al modelo Usuario.
+- Usuarios y Agencias permiten filtrar activos, papelera o todos los registros.
+- Se incorporaron acciones confirmadas y autorizadas para eliminar, restaurar y
+  eliminar definitivamente.
+- Se preservaron las protecciones de cuenta propia y último superadministrador.
+- Se corrigió el observer de Agencias para respetar la integridad referencial en
+  eliminaciones definitivas.
+
 ## 2026-07-19 — Dashboard profesional, fase 4
 
 - Se trasladaron las consultas del dashboard desde Blade al componente Livewire.

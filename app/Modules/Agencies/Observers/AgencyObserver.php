@@ -22,6 +22,10 @@ class AgencyObserver
 
     public function deleted(Agency $agency): void
     {
+        if ($agency->isForceDeleting()) {
+            return;
+        }
+
         $this->log($agency, 'deleted');
         $this->bump($agency);
     }
