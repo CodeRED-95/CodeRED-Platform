@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-19 — Unificación visual, fase 1
+
+- Se migraron formularios de agencias, importación, usuarios, login, layout y página
+  404 a los componentes y tokens semánticos del CodeRED Design System.
+- Se unificaron controles, validaciones, tarjetas, encabezados, acciones y estados de
+  carga sin modificar contratos Livewire ni lógica de negocio.
+- Se añadieron verificaciones contra estilos claros heredados y JavaScript inline.
+
 ## 2026-07-18 — Selector accesible de estados
 
 - Se reemplazó el selector nativo de estado del formulario de agencias por un

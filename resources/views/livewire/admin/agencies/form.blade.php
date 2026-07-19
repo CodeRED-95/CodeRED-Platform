@@ -1,18 +1,15 @@
 <div class="space-y-6">
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <div class="flex items-center justify-between gap-4">
-            <div>
-                <h2 class="text-2xl font-semibold">{{ $mode === 'edit' ? 'Editar agencia' : 'Nueva agencia' }}</h2>
-                <p class="text-sm text-slate-500">Agencias Shalom</p>
-            </div>
-            <a href="{{ route('admin.agencies.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">Volver</a>
-        </div>
-    </div>
+    <x-ui.page-header :title="$mode === 'edit' ? 'Editar agencia' : 'Nueva agencia'" subtitle="Agencias Shalom">
+        <x-slot:actions>
+            <x-ui.button href="{{ route('admin.agencies.index') }}" variant="secondary">Volver</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <form wire:submit.prevent="save" class="space-y-6">
         @csrf
         @if ($errors->any())
-            <x-ui.alert variant="danger" title="Revisa el formulario">
+            <x-ui.alert tone="danger">
+                <p class="font-medium">Revisa el formulario</p>
                 Se encontraron errores de validación. Corrige los campos marcados antes de guardar.
             </x-ui.alert>
         @endif
@@ -33,26 +30,16 @@
             @endphp
             <div class="space-y-6 xl:col-span-2">
                 @foreach($sections as $title => $fields)
-                    <section class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                        <h3 class="text-lg font-semibold">{{ $title }}</h3>
+                    <x-ui.card padding="p-5">
+                        <x-ui.section-header :title="$title" />
                         <div class="mt-4 grid gap-4 md:grid-cols-2">
                             @foreach ($fields as $field)
                                 @if ($field === 'services')
-                                    <label class="md:col-span-2">
-                                        <span class="text-sm font-medium">Servicios</span>
-                                        <textarea wire:model.blur="servicesInput" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700"></textarea>
-                                        @error('servicesInput') <span class="text-sm text-red-500">{{ $message }}</span> @enderror
-                                    </label>
+                                    <x-ui.textarea wrapper-class="md:col-span-2" wire:model.blur="servicesInput" rows="3" label="Servicios" :error="$errors->first('servicesInput')" />
                                 @elseif ($field === 'is_operations_center')
-                                    <label class="flex items-center gap-3 md:col-span-2">
-                                        <input type="checkbox" wire:model="is_operations_center" class="rounded border-slate-300">
-                                        <span class="text-sm font-medium">Centro de Operaciones</span>
-                                    </label>
+                                    <div class="md:col-span-2"><x-ui.toggle wire:model="is_operations_center">Centro de Operaciones</x-ui.toggle></div>
                                 @elseif ($field === 'has_moved')
-                                    <label class="flex items-center gap-3 md:col-span-2">
-                                        <input type="checkbox" wire:model.live="has_moved" class="rounded border-slate-300">
-                                        <span class="text-sm font-medium">La agencia se trasladó</span>
-                                    </label>
+                                    <div class="md:col-span-2"><x-ui.toggle wire:model.live="has_moved">La agencia se trasladó</x-ui.toggle></div>
                                 @elseif ($field === 'status')
                                     <x-ui.status-select
                                         id="agency-status"
@@ -80,7 +67,7 @@
                                         <div class="flex items-center justify-between gap-3">
                                             <span class="text-sm font-medium">Agencia destino</span>
                                             @if ($moved_to_agency_id)
-                                                <button type="button" wire:click="selectDestination(null)" class="text-xs font-medium text-[color:var(--color-brand-light)] hover:text-white">Limpiar</button>
+                                                <x-ui.button type="button" wire:click="selectDestination(null)" variant="link" size="sm">Limpiar</x-ui.button>
                                             @endif
                                         </div>
                                         <div class="mt-1 rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
@@ -99,7 +86,7 @@
                                                 <span class="text-[color:var(--color-text-secondary)]">⌄</span>
                                             </button>
                                             <div x-show="open" x-cloak x-on:click.outside="open = false" class="border-t border-[color:var(--color-border-subtle)] p-3">
-                                                <input type="search" wire:model.live.debounce.350ms="destinationSearch" placeholder="Buscar por código, nombre o ubicación" class="w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-muted)] focus-ring">
+                                                <x-ui.input type="search" wire:model.live.debounce.350ms="destinationSearch" placeholder="Buscar por código, nombre o ubicación" />
                                                 <div class="mt-3 max-h-72 overflow-y-auto rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]">
                                                     @forelse ($destinations as $destination)
                                                         <button
@@ -120,43 +107,42 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        @error('moved_to_agency_id') <span class="mt-1 block text-sm text-[color:var(--color-danger)]">{{ $message }}</span> @enderror
+                                        <x-ui.form-error :message="$errors->first('moved_to_agency_id')" />
                                     </div>
                                     @endif
                                 @elseif (in_array($field, ['moved_to_address','moved_at','move_notice'], true))
                                     @if ($has_moved)
-                                        <label class="{{ $field === 'move_notice' ? 'md:col-span-2' : '' }}">
-                                            <span class="text-sm font-medium">{{ $field === 'moved_to_address' ? 'Nueva dirección' : ($field === 'moved_at' ? 'Fecha de traslado' : 'Aviso público') }}</span>
+                                        <div class="{{ $field === 'move_notice' ? 'md:col-span-2' : '' }}">
                                             @if ($field === 'moved_at')
-                                                <input type="date" wire:model.blur="moved_at" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
+                                                <x-ui.input type="date" wire:model.blur="moved_at" label="Fecha de traslado" :error="$errors->first('moved_at')" />
                                             @else
-                                                <textarea wire:model.blur="{{ $field }}" rows="{{ $field === 'move_notice' ? 4 : 2 }}" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700"></textarea>
+                                                <x-ui.textarea wire:model.blur="{{ $field }}" rows="{{ $field === 'move_notice' ? 4 : 2 }}" :label="$field === 'moved_to_address' ? 'Nueva dirección' : 'Aviso público'" :error="$errors->first($field)" />
                                             @endif
-                                        </label>
+                                        </div>
                                     @endif
                                 @elseif ($field === 'observations')
-                                    <label class="md:col-span-2">
-                                        <span class="text-sm font-medium">Observaciones</span>
-                                        <textarea wire:model.blur="observations" rows="4" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700"></textarea>
-                                    </label>
+                                    <x-ui.textarea wrapper-class="md:col-span-2" wire:model.blur="observations" rows="4" label="Observaciones" :error="$errors->first('observations')" />
                                 @else
-                                    <label>
-                                        <span class="text-sm font-medium">{{ str_replace('_', ' ', ucfirst($field)) }}</span>
-                                        <input type="{{ in_array($field, ['latitude','longitude'], true) ? 'number' : ($field === 'email' ? 'email' : ($field === 'moved_at' ? 'date' : 'text')) }}" step="any" wire:model.blur="{{ $field }}" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                                    </label>
+                                    <x-ui.input
+                                        type="{{ in_array($field, ['latitude','longitude'], true) ? 'number' : ($field === 'email' ? 'email' : 'text') }}"
+                                        step="any"
+                                        wire:model.blur="{{ $field }}"
+                                        :label="str_replace('_', ' ', ucfirst($field))"
+                                        :error="$errors->first($field)"
+                                    />
                                 @endif
                             @endforeach
                         </div>
-                    </section>
+                    </x-ui.card>
                 @endforeach
             </div>
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" wire:loading.attr="disabled" wire:target="save" class="rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white dark:bg-white dark:text-slate-900">
+            <x-ui.button type="submit" variant="primary" size="lg" wire:loading.attr="disabled" wire:target="save">
                 <span wire:loading.remove wire:target="save">Guardar</span>
                 <span wire:loading wire:target="save">Guardando…</span>
-            </button>
+            </x-ui.button>
         </div>
     </form>
 </div>

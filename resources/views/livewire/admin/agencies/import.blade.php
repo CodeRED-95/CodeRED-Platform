@@ -1,16 +1,13 @@
 <div class="space-y-6">
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <div class="flex items-center justify-between">
-            <div>
-                <h2 class="text-2xl font-semibold">Importar agencias</h2>
-                <p class="text-sm text-slate-500">JSON local o URL raw de GitHub Gist.</p>
-            </div>
-            <a href="{{ route('admin.agencies.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">Volver</a>
-        </div>
-    </div>
+    <x-ui.page-header title="Importar agencias" subtitle="JSON local o URL raw de GitHub Gist.">
+        <x-slot:actions>
+            <x-ui.button href="{{ route('admin.agencies.index') }}" variant="secondary">Volver</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="grid gap-6 xl:grid-cols-2">
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+        <x-ui.card>
+            <x-ui.section-header title="Origen y configuración" subtitle="Selecciona la fuente y revisa la estrategia antes de continuar." />
             <div class="grid gap-4">
                 <x-ui.dropdown-select
                     id="import-source"
@@ -21,20 +18,11 @@
                     :options="['json' => 'JSON pegado', 'url' => 'URL raw', 'file' => 'Archivo JSON']"
                 />
                 @if($sourceType === 'json')
-                    <label>
-                        <span class="text-sm font-medium">Contenido JSON</span>
-                        <textarea wire:model.defer="jsonPayload" rows="10" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700"></textarea>
-                    </label>
+                    <x-ui.textarea wire:model.defer="jsonPayload" rows="10" label="Contenido JSON" :error="$errors->first('jsonPayload')" />
                 @elseif($sourceType === 'url')
-                    <label>
-                        <span class="text-sm font-medium">URL raw</span>
-                        <input type="url" wire:model.defer="url" class="mt-1 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:border-slate-700">
-                    </label>
+                    <x-ui.input type="url" wire:model.defer="url" label="URL raw" :error="$errors->first('url')" />
                 @else
-                    <label>
-                        <span class="text-sm font-medium">Archivo JSON</span>
-                        <input type="file" wire:model="file" accept="application/json" class="mt-1 w-full text-sm">
-                    </label>
+                    <x-ui.input type="file" wire:model="file" accept="application/json" label="Archivo JSON" :error="$errors->first('file')" />
                 @endif
                 <x-ui.dropdown-select
                     id="import-strategy"
@@ -53,29 +41,29 @@
                     :options="['under_review' => 'En revisión', 'active' => 'Activa']"
                 />
                 <div class="flex gap-3">
-                    <button type="button" wire:click="preview" class="rounded-xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">Vista previa</button>
-                    <button type="button" wire:click="import" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-slate-900">Importar</button>
+                    <x-ui.button type="button" wire:click="preview" variant="secondary" wire:loading.attr="disabled" wire:target="preview">Vista previa</x-ui.button>
+                    <x-ui.button type="button" wire:click="import" variant="primary" wire:loading.attr="disabled" wire:target="import">Importar</x-ui.button>
                 </div>
                 @if($message)
-                    <p class="text-sm text-emerald-600">{{ $message }}</p>
+                    <x-ui.alert tone="success">{{ $message }}</x-ui.alert>
                 @endif
             </div>
-        </section>
+        </x-ui.card>
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-            <h3 class="text-lg font-semibold">Resumen</h3>
+        <x-ui.card>
+            <x-ui.section-header title="Resumen" subtitle="Resultado de la validación previa a la importación." />
             <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-                <div class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">Total: {{ $summary['total_rows'] ?? 0 }}</div>
-                <div class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">Válidos: {{ $summary['valid_rows'] ?? 0 }}</div>
-                <div class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">Advertencias: {{ $summary['warning_rows'] ?? 0 }}</div>
-                <div class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">Inválidos: {{ $summary['invalid_rows'] ?? 0 }}</div>
+                <x-ui.stat-card label="Total" :value="$summary['total_rows'] ?? 0" tone="brand" />
+                <x-ui.stat-card label="Válidos" :value="$summary['valid_rows'] ?? 0" tone="success" />
+                <x-ui.stat-card label="Advertencias" :value="$summary['warning_rows'] ?? 0" tone="warning" />
+                <x-ui.stat-card label="Inválidos" :value="$summary['invalid_rows'] ?? 0" tone="danger" />
             </div>
             <div class="mt-6 space-y-3">
                 @forelse($preview as $item)
-                    <article class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                    <article class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/5 p-4">
                         <div class="font-medium">{{ $item['code'] ?? 'SIN CÓDIGO' }} · {{ $item['name'] ?? 'Sin nombre' }}</div>
-                        <div class="text-sm text-slate-500">{{ $item['department'] ?? '—' }} / {{ $item['province'] ?? '—' }} / {{ $item['district'] ?? '—' }}</div>
-                        <div class="text-sm text-slate-500">{{ $item['latitude'] ?? '—' }}, {{ $item['longitude'] ?? '—' }} · {{ $item['size'] ?? '—' }} · CO: {{ !empty($item['is_operations_center']) ? 'Sí' : 'No' }}</div>
+                        <div class="text-sm text-[color:var(--color-text-secondary)]">{{ $item['department'] ?? '—' }} / {{ $item['province'] ?? '—' }} / {{ $item['district'] ?? '—' }}</div>
+                        <div class="text-sm text-[color:var(--color-text-secondary)]">{{ $item['latitude'] ?? '—' }}, {{ $item['longitude'] ?? '—' }} · {{ $item['size'] ?? '—' }} · CO: {{ !empty($item['is_operations_center']) ? 'Sí' : 'No' }}</div>
                         @if(!empty($item['warnings']))
                             <ul class="mt-2 list-disc pl-5 text-xs text-amber-600">
                                 @foreach($item['warnings'] as $warning)
@@ -85,9 +73,9 @@
                         @endif
                     </article>
                 @empty
-                    <p class="text-sm text-slate-500">Genera una vista previa para ver los primeros 20 registros.</p>
+                    <x-ui.empty-state title="Sin vista previa" description="Genera una vista previa para ver los primeros 20 registros." icon="⇪" />
                 @endforelse
             </div>
-        </section>
+        </x-ui.card>
     </div>
 </div>

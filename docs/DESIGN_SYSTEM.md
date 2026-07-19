@@ -142,3 +142,15 @@ simples deben proporcionar un arreglo `valor => etiqueta` a `x-ui.dropdown-selec
 3. Definir una API clara con `props`.
 4. Documentarlo en este archivo.
 5. Reutilizarlo en login, dashboard, módulo Agencies o design system.
+
+## Reglas de consumo en vistas
+
+- Usar `x-ui.input`, `x-ui.textarea`, `x-ui.checkbox` o `x-ui.toggle` para formularios.
+- Usar `x-ui.button` e `x-ui.icon-button` para acciones estándar.
+- Usar `x-ui.card`, `x-ui.page-header` y `x-ui.section-header` para estructura visual.
+- Mostrar validaciones con la propiedad `error` del control o con `x-ui.form-error`.
+- Mostrar resultados globales con `x-ui.alert`; el tono se configura mediante `tone`.
+- Reservar controles HTML manuales para patrones especializados como comboboxes con búsqueda o campos con acciones internas.
+- No usar manejadores JavaScript inline; las interacciones de vista se implementan con Alpine.js.
+
+La consistencia se protege con `DesignSystemConsistencyTest` y `NativeSelectRemovalTest`.

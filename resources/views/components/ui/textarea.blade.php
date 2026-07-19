@@ -1,6 +1,6 @@
-@props(['label' => null, 'error' => null])
+@props(['label' => null, 'error' => null, 'wrapperClass' => ''])
 
-<label class="block">
+<label class="block {{ $wrapperClass }}">
     @if ($label)
         <span class="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">{{ $label }}</span>
     @endif

@@ -71,9 +71,9 @@
                 <header class="sticky top-0 z-30 border-b border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/90 backdrop-blur">
                     <div class="flex items-center justify-between gap-4 px-4 py-4 lg:px-8">
                         <div class="flex items-center gap-3">
-                            <button type="button" class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--color-border)] bg-white/5 lg:hidden focus-ring" x-on:click="sidebarOpen = true" aria-label="Abrir menú">
+                            <x-ui.icon-button class="h-11 w-11 lg:hidden" x-on:click="sidebarOpen = true" label="Abrir menú">
                                 <span class="text-xl">☰</span>
-                            </button>
+                            </x-ui.icon-button>
                             <div>
                                 <p class="text-xs uppercase tracking-[0.24em] text-[color:var(--color-text-muted)]">CodeRED Platform</p>
                                 <h1 class="font-display text-lg font-semibold text-white">{{ $pageTitle ?? config('app.name') }}</h1>
@@ -81,10 +81,10 @@
                         </div>
 
                         <div class="flex items-center gap-2">
-                            <button type="button" class="hidden rounded-2xl border border-[color:var(--color-border)] bg-white/5 px-3 py-2 text-sm text-[color:var(--color-text-secondary)] lg:inline-flex focus-ring">Búsqueda global</button>
-                            <button type="button" class="rounded-2xl border border-[color:var(--color-border)] bg-white/5 px-3 py-2 text-sm focus-ring" x-on:click="theme = theme === 'dark' ? 'light' : 'dark'; localStorage.theme = theme">
+                            <x-ui.button class="hidden lg:inline-flex" variant="secondary" size="sm">Búsqueda global</x-ui.button>
+                            <x-ui.button variant="secondary" size="sm" x-on:click="theme = theme === 'dark' ? 'light' : 'dark'; localStorage.theme = theme">
                                 Tema
-                            </button>
+                            </x-ui.button>
                             @auth
                                 <x-ui.avatar :name="auth()->user()->name" size="sm" />
                             @endauth
@@ -113,7 +113,7 @@
             <aside class="absolute inset-y-0 left-0 w-[86vw] max-w-sm border-r border-white/10 bg-[color:var(--color-sidebar)] p-5 shadow-2xl">
                 <div class="flex items-center justify-between">
                     <x-ui.logo variant="symbol" class="h-10 w-10 rounded-xl" />
-                    <button type="button" class="rounded-xl p-2 focus-ring" x-on:click="sidebarOpen = false" aria-label="Cerrar menú">✕</button>
+                    <x-ui.icon-button x-on:click="sidebarOpen = false" label="Cerrar menú">✕</x-ui.icon-button>
                 </div>
                 <div class="mt-5 space-y-2">
                     <a href="{{ route('dashboard') }}" class="block rounded-2xl bg-white/5 px-4 py-3">Dashboard</a>

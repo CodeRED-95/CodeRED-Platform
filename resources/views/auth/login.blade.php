@@ -41,9 +41,9 @@
             <p class="mt-2 text-sm text-[color:var(--color-text-secondary)]">Acceso administrativo seguro a CodeRED Platform.</p>
 
             @if ($errors->any())
-                <div class="mt-6 rounded-[var(--radius-card)] border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 p-4 text-sm text-[color:var(--color-text-primary)]">
+                <x-ui.alert tone="danger" class="mt-6 text-sm">
                     <p class="font-medium text-[color:var(--color-danger)]">Revisa los campos marcados.</p>
-                </div>
+                </x-ui.alert>
             @endif
 
             <div class="mt-6 space-y-4">
@@ -59,11 +59,11 @@
                     :value="old('email')"
                     :error="$errors->first('email')"
                 />
-                <div class="space-y-1">
-                    <label class="block text-sm font-medium text-[color:var(--color-text-primary)]" for="password">Contraseña</label>
+                <div class="space-y-1" x-data="{ showPassword: false }">
+                    <x-ui.form-label for="password">Contraseña</x-ui.form-label>
                     <div class="relative">
                         <input
-                            type="password"
+                            x-bind:type="showPassword ? 'text' : 'password'"
                             id="password"
                             name="password"
                             autocomplete="current-password"
@@ -72,16 +72,15 @@
                         >
                         <button
                             type="button"
-                            onclick="const input=document.getElementById('password');const show=input.type==='password';input.type=show?'text':'password';this.textContent=show?'Ocultar':'Ver';"
+                            x-on:click="showPassword = ! showPassword"
+                            x-bind:aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
                             class="absolute inset-y-0 right-0 px-4 text-xs text-[color:var(--color-text-secondary)]"
-                        >Ver</button>
+                            x-text="showPassword ? 'Ocultar' : 'Ver'"
+                        ></button>
                     </div>
-                    @error('password') <span class="text-sm text-[color:var(--color-danger)]">{{ $message }}</span> @enderror
+                    <x-ui.form-error :message="$errors->first('password')" />
                 </div>
-                <label class="flex items-center gap-2 text-sm text-[color:var(--color-text-secondary)]">
-                    <input type="checkbox" name="remember" value="1" @checked(old('remember')) class="rounded border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-brand)] focus-ring">
-                    Recordarme
-                </label>
+                <x-ui.checkbox name="remember" value="1" :checked="(bool) old('remember')">Recordarme</x-ui.checkbox>
             </div>
 
             <x-ui.button type="submit" variant="primary" class="mt-6 w-full">

@@ -14,7 +14,7 @@
                         <h3 class="text-xl font-semibold">{{ $title }}</h3>
                     @endif
                 </div>
-                <button type="button" class="rounded-full p-2 text-[color:var(--color-text-secondary)] hover:bg-white/5 focus-ring" x-on:click="open = false" aria-label="{{ $closeLabel }}">✕</button>
+                <x-ui.icon-button x-on:click="open = false" :label="$closeLabel">✕</x-ui.icon-button>
             </div>
             <div class="mt-4">{{ $slot }}</div>
         </div>

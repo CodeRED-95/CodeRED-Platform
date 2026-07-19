@@ -9,7 +9,8 @@
         <x-ui.card class="lg:col-span-2">
             <x-ui.section-header title="Identificación" subtitle="Datos básicos de la cuenta." />
             @if ($errors->any())
-                <x-ui.alert variant="danger" title="Revisa el formulario">
+                <x-ui.alert tone="danger">
+                    <p class="font-medium">Revisa el formulario</p>
                     Se encontraron errores de validación. Corrige los campos marcados antes de guardar.
                 </x-ui.alert>
             @endif
@@ -43,13 +44,12 @@
             <x-ui.section-header title="Roles" subtitle="Asignación por slug técnico." />
             <div class="mt-4 space-y-3">
                 @foreach ($availableRoles as $role)
-                    <label class="flex items-center gap-3 rounded-2xl border border-[color:var(--color-border)] bg-white/5 px-4 py-3">
-                        <input type="checkbox" wire:model.live="roles" value="{{ $role->slug }}" class="rounded border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-brand)] focus-ring">
-                        <span>
+                    <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-white/5 px-4 py-3 transition hover:bg-white/10">
+                        <x-ui.checkbox wire:model.live="roles" value="{{ $role->slug }}">
                             <span class="block font-medium">{{ $role->name }}</span>
                             <span class="block text-sm text-[color:var(--color-text-secondary)]">{{ $role->slug }}</span>
-                        </span>
-                    </label>
+                        </x-ui.checkbox>
+                    </div>
                 @endforeach
             </div>
         </x-ui.card>
