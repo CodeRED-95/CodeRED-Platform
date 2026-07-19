@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AgenciesController;
 use App\Http\Controllers\Api\V1\AgencyCatalogController;
+use App\Http\Controllers\Api\V1\AgencyChangesController;
 use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\MeController;
@@ -10,9 +11,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/health', HealthController::class)->name('health');
 
-    Route::middleware(['auth:sanctum', 'api.token-owner-active', 'throttle:api'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'api.token-owner-active', 'api.private-cache', 'throttle:api'])->group(function (): void {
         Route::middleware('abilities:agencies:read')->group(function (): void {
             Route::get('/agencies', [AgencyCatalogController::class, 'index'])->name('agencies.index');
+            Route::get('/agencies/changes', AgencyChangesController::class)->name('agencies.changes');
             Route::get('/agencies/search', [AgenciesController::class, 'search'])->name('agencies.search');
             Route::get('/agencies/version', [AgenciesController::class, 'version'])->name('agencies.version');
             Route::get('/agencies/snapshot', [AgenciesController::class, 'snapshot'])->name('agencies.snapshot');

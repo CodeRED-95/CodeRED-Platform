@@ -4,10 +4,13 @@ namespace App\Modules\Agencies\Observers;
 
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyChangeLog;
+use App\Modules\Agencies\Services\AgencySyncChangeRecorder;
 use App\Modules\Agencies\Support\AgencyVersion;
 
 class AgencyObserver
 {
+    public function __construct(private readonly AgencySyncChangeRecorder $syncChanges) {}
+
     public function creating(Agency $agency): void
     {
         if (auth()->id() !== null) {
@@ -19,6 +22,7 @@ class AgencyObserver
     public function created(Agency $agency): void
     {
         $this->log($agency, 'created');
+        $this->syncChanges->upsert($agency);
         $this->bump($agency);
     }
 
@@ -32,6 +36,9 @@ class AgencyObserver
     public function updated(Agency $agency): void
     {
         $this->log($agency, 'updated');
+        if (! $agency->wasChanged('deleted_at')) {
+            $this->syncChanges->upsert($agency);
+        }
         $this->bump($agency);
     }
 
@@ -42,13 +49,20 @@ class AgencyObserver
         }
 
         $this->log($agency, 'deleted');
+        $this->syncChanges->delete($agency);
         $this->bump($agency);
     }
 
     public function restored(Agency $agency): void
     {
         $this->log($agency, 'restored');
+        $this->syncChanges->upsert($agency);
         $this->bump($agency);
+    }
+
+    public function forceDeleted(Agency $agency): void
+    {
+        $this->syncChanges->delete($agency);
     }
 
     private function log(Agency $agency, string $action): void

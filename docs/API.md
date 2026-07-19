@@ -8,11 +8,14 @@ La API de integración vive bajo `/api/v1`, usa tokens personales de Laravel San
 |---|---|---|
 | GET | `/api/v1/health` | Público |
 | GET | `/api/v1/agencies` | `agencies:read` |
+| GET | `/api/v1/agencies/changes` | `agencies:read` |
 | GET | `/api/v1/agencies/{code}` | `agencies:read` |
 | GET | `/api/v1/catalog/metadata` | `agencies:read` |
 | GET | `/api/v1/me` | `profile:read` |
 
 Los endpoints heredados `search`, `version` y `snapshot` se conservan temporalmente bajo autenticación y `agencies:read` para compatibilidad de transición.
+
+La estrategia completa de ETag, cursores, retención y recuperación está en [Sincronización del catálogo](api/synchronization.md).
 
 ## Contrato de agencia
 

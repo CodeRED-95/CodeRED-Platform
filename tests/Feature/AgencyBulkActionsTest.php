@@ -67,6 +67,7 @@ class AgencyBulkActionsTest extends TestCase
         $this->assertSame(AgencyStatus::Active, $active->fresh()->status);
         $this->assertSame(AgencyStatus::Inactive, $inactive->fresh()->status);
         $this->assertDatabaseHas('agency_change_logs', ['agency_id' => $review->id, 'user_id' => $actor->id, 'action' => 'updated']);
+        $this->assertDatabaseHas('agency_sync_changes', ['agency_internal_id' => $review->id, 'operation' => 'upsert']);
     }
 
     public function test_bulk_actions_require_confirmation(): void
@@ -94,6 +95,7 @@ class AgencyBulkActionsTest extends TestCase
         $this->assertSoftDeleted($first);
         $this->assertSoftDeleted($second);
         $this->assertDatabaseHas('agency_change_logs', ['agency_id' => $first->id, 'user_id' => $actor->id, 'action' => 'deleted']);
+        $this->assertDatabaseHas('agency_sync_changes', ['agency_internal_id' => $first->id, 'operation' => 'delete']);
     }
 
     public function test_unauthorized_user_cannot_execute_bulk_actions(): void

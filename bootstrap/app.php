@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureApiTokenNotExpired;
 use App\Http\Middleware\EnsureApiTokenOwnerIsActive;
 use App\Http\Middleware\EnsureApiVersion;
 use App\Http\Middleware\EnsurePasswordIsChanged;
+use App\Http\Middleware\EnsurePrivateApiCaching;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\SetApplicationLocale;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api.token.expiration' => EnsureApiTokenNotExpired::class,
             'api.token-owner-active' => EnsureApiTokenOwnerIsActive::class,
+            'api.private-cache' => EnsurePrivateApiCaching::class,
             'abilities' => CheckAbilities::class,
         ]);
 

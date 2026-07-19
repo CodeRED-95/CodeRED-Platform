@@ -6,6 +6,7 @@ Base técnica modular en Laravel para administración y consulta de agencias de 
 
 - Arquitectura modular preparada para nuevos dominios.
 - Autenticación web y API versionada.
+- Catálogo API con ETag, compresión y sincronización incremental mediante cursores firmados.
 - PostgreSQL como base de datos principal.
 - Redis para caché, colas y versión global.
 - Livewire, TailwindCSS y AlpineJS para la interfaz.

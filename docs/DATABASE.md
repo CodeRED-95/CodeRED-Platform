@@ -16,6 +16,8 @@ Tablas principales detectadas en el proyecto actual:
 | `application_settings` | Configuración de aplicación |
 | `agencies` | Agencias |
 | `agency_change_logs` | Historial de cambios de agencias |
+| `agency_sync_changes` | Changelog append-only para sincronización de clientes API |
+| `agency_sync_states` | Watermark de retención del changelog incremental |
 | `agency_imports` | Cabecera de importaciones |
 | `agency_import_failures` | Fallos de importación |
 
@@ -117,3 +119,7 @@ PENDIENTE DE CONFIGURAR
 ## ID externo y textos Chosen
 
 La migración `2026_07_19_055312_add_external_identifiers_to_agencies_table.php` añade `external_id bigint nullable`, con índice único parcial para no nulos, y dos columnas `text` nullable. La PK `id` no cambia. La migración rellena external_id desde referencias numéricas no duplicadas y clasifica `source_text` sin alterar su contenido. Los valores ambiguos permanecen únicamente en `source_text`. El rollback elimina las columnas nuevas y, por tanto, puede perder ediciones realizadas en ellas; no modifica los datos heredados.
+
+## Sincronización incremental
+
+`agency_sync_changes` no tiene clave foránea hacia `agencies`: debe conservar tombstones incluso después de `forceDelete`. Cada fila guarda secuencia, operación, identificadores mínimos, versión de esquema y un snapshot JSON para eventos `upsert`. `agency_sync_states.minimum_sequence` registra la mayor secuencia eliminada por retención, de modo que un cursor anterior responda `full_sync_required` en vez de producir un delta incompleto. La retención se aplica con `agencies:prune-sync-changes` y no sustituye la auditoría administrativa.

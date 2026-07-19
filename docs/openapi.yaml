@@ -69,6 +69,37 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /agencies/changes:
+    get:
+      tags: [Agencias]
+      summary: Obtener cambios incrementales
+      description: Devuelve eventos posteriores a un cursor firmado. Repite con next_cursor mientras has_more sea true.
+      operationId: agencyChanges
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: true
+          description: Cursor opaco obtenido desde metadata o la respuesta anterior.
+          schema: { type: string, maxLength: 1024 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: Página ordenada de cambios
+          headers:
+            Cache-Control: { schema: { type: string }, example: 'private, no-store' }
+            Vary: { schema: { type: string }, example: 'Authorization, Accept-Encoding' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgencyChanges' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/FullSyncRequired' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /agencies/{code}:
     get:
       tags: [Agencias]
@@ -154,6 +185,32 @@ components:
         tamano: { type: string, nullable: true, example: Pequeño }
         texto_chosen_terrestre: { type: string, nullable: true, example: 610 - UCAYALI - YARINACOCHA - TERRESTRE }
         texto_chosen_aereo: { type: string, nullable: true, example: null }
+    AgencyDeleted:
+      type: object
+      required: [internal_id, id, code, deleted_at]
+      properties:
+        internal_id: { type: integer, format: int64, example: 31 }
+        id: { type: integer, format: int64, nullable: true, example: 700 }
+        code: { type: string, example: SHA-000700 }
+        deleted_at: { type: string, format: date-time }
+    AgencyChanges:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [upserted, deleted]
+          properties:
+            upserted: { type: array, items: { $ref: '#/components/schemas/Agency' } }
+            deleted: { type: array, items: { $ref: '#/components/schemas/AgencyDeleted' } }
+        meta:
+          type: object
+          required: [next_cursor, has_more, schema_version, generated_at]
+          properties:
+            next_cursor: { type: string }
+            has_more: { type: boolean }
+            schema_version: { type: integer, example: 1 }
+            generated_at: { type: string, format: date-time }
     AgencyPage:
       type: object
       required: [data, links, meta]
@@ -163,12 +220,18 @@ components:
         meta: { type: object }
     Metadata:
       type: object
-      required: [schema_version, generated_at, total_agencies, last_agency_update, available_statuses, available_channels]
+      required: [schema_version, catalog_revision, generated_at, total_agencies, last_agency_update, last_agency_deletion, current_cursor, supports_incremental_sync, changes_endpoint, full_sync_required_after_days, available_statuses, available_channels]
       properties:
         schema_version: { type: integer, example: 1 }
+        catalog_revision: { type: string }
         generated_at: { type: string, format: date-time }
         total_agencies: { type: integer }
         last_agency_update: { type: string, format: date-time, nullable: true }
+        last_agency_deletion: { type: string, format: date-time, nullable: true }
+        current_cursor: { type: string }
+        supports_incremental_sync: { type: boolean, example: true }
+        changes_endpoint: { type: string, example: /api/v1/agencies/changes }
+        full_sync_required_after_days: { type: integer, example: 180 }
         available_statuses: { type: array, items: { $ref: '#/components/schemas/AgencyStatus' } }
         available_channels: { type: array, items: { type: string, enum: [terrestrial, air] } }
     Me:
@@ -193,6 +256,24 @@ components:
       properties:
         message: { type: string }
   responses:
+    FullSyncRequired:
+      description: El cursor fue alterado, expiró por retención o usa otra versión de esquema
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [message, code, meta]
+            properties:
+              message: { type: string }
+              code: { type: string, enum: [full_sync_required] }
+              meta:
+                type: object
+                properties:
+                  schema_version: { type: integer }
+          example:
+            message: El cursor ya no es válido. Se requiere una sincronización completa.
+            code: full_sync_required
+            meta: { schema_version: 1 }
     Unauthenticated:
       description: Token ausente, inválido, revocado o expirado
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }

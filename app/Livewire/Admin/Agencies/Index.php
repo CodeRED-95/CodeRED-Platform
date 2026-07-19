@@ -11,6 +11,7 @@ use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Services\AgencySearchService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
@@ -203,7 +204,7 @@ class Index extends Component
     {
         $agency = Agency::query()->findOrFail($agencyId);
         Gate::authorize('delete', $agency);
-        $agency->delete();
+        DB::transaction(fn () => $agency->delete());
 
         $this->dispatch('toast', type: 'success', message: 'La agencia se movió a la papelera.');
     }
@@ -212,7 +213,7 @@ class Index extends Component
     {
         $agency = Agency::onlyTrashed()->findOrFail($agencyId);
         Gate::authorize('restore', $agency);
-        $agency->restore();
+        DB::transaction(fn () => $agency->restore());
 
         $this->dispatch('toast', type: 'success', message: 'La agencia fue restaurada.');
     }
@@ -221,7 +222,7 @@ class Index extends Component
     {
         $agency = Agency::onlyTrashed()->findOrFail($agencyId);
         Gate::authorize('forceDelete', $agency);
-        $agency->forceDelete();
+        DB::transaction(fn () => $agency->forceDelete());
 
         $this->dispatch('toast', type: 'success', message: 'La agencia fue eliminada definitivamente.');
     }

@@ -52,6 +52,11 @@ flowchart TB
 
 ## Flujo API
 
+### Sincronización incremental de agencias
+
+El catálogo público autenticado se sincroniza mediante un changelog append-only independiente de la auditoría administrativa. `agency_sync_changes.id` es la secuencia monotónica; los cursores opacos están firmados con HMAC y contienen esa secuencia y la versión del esquema. El observer de `Agency` escribe eventos `upsert` o `delete` dentro de la misma transacción del cambio. `agency_sync_states` conserva el watermark de retención para detectar cursores vencidos y exigir una sincronización completa. Véase [ADR 0032](adr/0032-agency-incremental-sync-changelog.md).
+
+
 ```mermaid
 sequenceDiagram
     participant C as Cliente

@@ -120,7 +120,7 @@ DEV_ADMIN_NAME="Administrador Dev"
 
 ## Nota sobre PostgreSQL y volúmenes persistentes
 
-Las variables `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` se usan para inicializar el servicio `postgres` en Docker Compose.  
+Las variables `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD` se usan para inicializar el servicio `postgres` en Docker Compose.
 Si el volumen de PostgreSQL ya fue creado con otras credenciales, modificar `.env` no cambia automáticamente la contraseña interna del rol. En ese caso debe sincronizarse el rol dentro de PostgreSQL sin borrar el volumen.
 
 Las variables `DEV_ADMIN_*` se leen exclusivamente desde `config/codered.php` durante el bootstrap normal. El seeder consume `config()` para seguir funcionando con la configuración cacheada.
@@ -137,5 +137,11 @@ Las variables `DEV_ADMIN_*` se leen exclusivamente desde `config/codered.php` du
 | `API_ALLOWED_ORIGINS` | Orígenes CORS explícitos separados por coma |
 | `API_DEFAULT_TOKEN_EXPIRATION_DAYS` | Expiración propuesta en panel |
 | `API_MAX_PER_PAGE` | Máximo de paginación |
+| `API_AGENCY_SCHEMA_VERSION` | Versión independiente del contrato de catálogo |
+| `API_AGENCY_CHANGES_DEFAULT_LIMIT` | Tamaño predeterminado de una página incremental |
+| `API_AGENCY_CHANGES_MAX_LIMIT` | Límite máximo incremental |
+| `API_AGENCY_CHANGELOG_RETENTION_DAYS` | Retención del changelog append-only |
+| `API_ETAG_ENABLED` | Activa ETag y If-None-Match |
+| `API_LAST_MODIFIED_ENABLED` | Activa Last-Modified fiable |
 
 En producción, `API_ALLOWED_ORIGINS` debe incluir únicamente dominios necesarios y el origen `chrome-extension://ID_DEFINITIVO`.

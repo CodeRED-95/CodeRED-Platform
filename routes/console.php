@@ -4,8 +4,10 @@ use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Schedule;
 use Symfony\Component\Console\Command\Command;
 
 Artisan::command('health:redis', function (): int {
@@ -86,3 +88,38 @@ Artisan::command('auth:diagnose {--email=}', function (): int {
 
     return Command::SUCCESS;
 })->purpose('Diagnostica roles y permisos del usuario autenticado o de un correo indicado.');
+
+Artisan::command('agencies:prune-sync-changes {--dry-run} {--days=}', function (): int {
+    $configuredDays = (int) config('api.agency_changelog_retention_days');
+    $days = $this->option('days') !== null ? (int) $this->option('days') : $configuredDays;
+    if ($days < 1) {
+        $this->error('El periodo de retención debe ser de al menos un día.');
+
+        return Command::INVALID;
+    }
+
+    $cutoff = now()->subDays($days);
+    $query = DB::table('agency_sync_changes')->where('changed_at', '<', $cutoff);
+    $count = (clone $query)->count();
+    $maximumPrunedSequence = (int) ((clone $query)->max('id') ?? 0);
+    if ($this->option('dry-run')) {
+        $this->info($count.' cambios vencerían antes de '.$cutoff->toIso8601String().'. No se eliminó ninguno.');
+
+        return Command::SUCCESS;
+    }
+
+    DB::transaction(function () use ($query, $maximumPrunedSequence): void {
+        $query->delete();
+        if ($maximumPrunedSequence > 0) {
+            DB::table('agency_sync_states')->where('id', 1)->update([
+                'minimum_sequence' => $maximumPrunedSequence,
+                'updated_at' => now(),
+            ]);
+        }
+    });
+    $this->info($count.' cambios vencidos fueron eliminados.');
+
+    return Command::SUCCESS;
+})->purpose('Elimina cambios incrementales vencidos conservando el watermark de cursores.');
+
+Schedule::command('agencies:prune-sync-changes')->dailyAt('02:30')->withoutOverlapping();

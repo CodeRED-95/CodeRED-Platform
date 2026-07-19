@@ -27,6 +27,7 @@ class AgencyImportActionTest extends TestCase
 
         $this->assertSame(1, $summary['imported']);
         $this->assertSame(0, $summary['failed']);
+        $this->assertDatabaseHas('agency_sync_changes', ['code' => 'SHA-000007', 'operation' => 'upsert']);
         $this->assertDatabaseHas('agencies', [
             'code' => 'SHA-000007',
             'source' => 'github_gist',
@@ -52,6 +53,7 @@ class AgencyImportActionTest extends TestCase
 
         $this->assertSame(1, $summary['updated']);
         $this->assertSame('Dirección actualizada', $existing->fresh()->address);
+        $this->assertDatabaseHas('agency_sync_changes', ['agency_internal_id' => $existing->id, 'operation' => 'upsert']);
     }
 
     public function test_import_persists_new_chosen_format_and_external_id(): void
