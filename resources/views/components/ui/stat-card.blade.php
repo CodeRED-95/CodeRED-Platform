@@ -9,11 +9,12 @@
         'brand' => ['value' => 'text-[color:var(--color-brand-light)]', 'icon' => 'bg-[color:var(--color-brand-soft)] text-[color:var(--color-brand-light)]'],
         'ivory' => ['value' => 'text-[color:var(--color-accent-ivory)]', 'icon' => 'bg-white/5 text-[color:var(--color-accent-ivory)]'],
         'info' => ['value' => 'text-[color:var(--color-info)]', 'icon' => 'bg-sky-500/10 text-sky-200'],
+        'purple' => ['value' => 'text-violet-300', 'icon' => 'bg-violet-500/10 text-violet-300'],
     ];
     $selectedTone = $tones[$tone] ?? $tones['neutral'];
 @endphp
 
-<article {{ $attributes->class('group rounded-[var(--radius-card)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] p-5 transition duration-200 hover:-translate-y-0.5 hover:border-[color:var(--color-border)] hover:bg-[color:var(--color-surface-hover)]') }}>
+<article {{ $attributes->class('group rounded-[var(--radius-card)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] p-5 transition duration-200 '.($href ? 'hover:-translate-y-0.5 hover:border-[color:var(--color-border)] hover:bg-[color:var(--color-surface-hover)]' : '')) }}>
     @if ($href)
         <a href="{{ $href }}" class="focus-ring block rounded-[var(--radius-control)]" wire:navigate>
     @endif
@@ -26,7 +27,7 @@
             @endif
         </div>
         @if ($icon)
-            <div class="rounded-2xl p-3 transition group-hover:scale-105 {{ $selectedTone['icon'] }}">{{ $icon }}</div>
+            <div class="rounded-xl p-2.5 transition {{ $href ? 'group-hover:scale-105' : '' }} {{ $selectedTone['icon'] }}">{{ $icon }}</div>
         @endif
     </div>
     @if ($href)

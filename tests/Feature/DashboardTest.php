@@ -32,6 +32,11 @@ class DashboardTest extends TestCase
         return $actor;
     }
 
+    public function test_guest_cannot_access_dashboard(): void
+    {
+        $this->get(route('dashboard'))->assertRedirect(route('login'));
+    }
+
     public function test_super_admin_sees_complete_and_real_dashboard_metrics(): void
     {
         $initialUsers = User::query()->count();
@@ -72,9 +77,12 @@ class DashboardTest extends TestCase
             ])
             ->assertViewHas('statusDistribution', fn (array $distribution): bool => count($distribution) === 5)
             ->assertViewHas('agencyTrend', fn (array $trend): bool => count($trend) === 30)
-            ->assertSee('Total usuarios')
+            ->assertSee('Total de usuarios')
             ->assertSee('Tendencia de agencias')
             ->assertSee('Distribución por estado')
+            ->assertSee('Resumen secundario')
+            ->assertSeeHtml('id="dashboard-trend-area"')
+            ->assertSeeHtml('fill="none"')
             ->assertSee('Trasladadas');
     }
 
@@ -85,12 +93,19 @@ class DashboardTest extends TestCase
         User::factory()->create(['created_at' => now()->subDays(2)]);
         Agency::factory()->create(['created_at' => now()->subDays(6)]);
 
-        Livewire::actingAs($actor)
-            ->test(Dashboard::class)
+        $component = Livewire::actingAs($actor)->test(Dashboard::class);
+
+        foreach ([7, 30, 90] as $period) {
+            $component
+                ->set('period', $period)
+                ->assertViewHas('agencyTrend', fn (array $trend): bool => count($trend) === $period)
+                ->assertSee('Últimos '.$period.' días');
+        }
+
+        $component
             ->set('period', 7)
-            ->assertViewHas('agencyTrend', fn (array $trend): bool => count($trend) === 7 && collect($trend)->sum('count') >= 1)
-            ->assertViewHas('userMetrics', fn (array $metrics): bool => $metrics['new'] >= 2)
-            ->assertSee('Últimos 7 días');
+            ->assertViewHas('agencyTrend', fn (array $trend): bool => collect($trend)->sum('count') >= 1)
+            ->assertViewHas('userMetrics', fn (array $metrics): bool => $metrics['new'] >= 2);
     }
 
     public function test_dashboard_shows_real_activity_and_complete_last_import(): void
@@ -125,13 +140,14 @@ class DashboardTest extends TestCase
             ->test(Dashboard::class)
             ->assertViewHas('recentActivity', fn ($activity): bool => $activity->count() >= 1 && $activity->first()->relationLoaded('actor'))
             ->assertSee($actor->name)
-            ->assertSee('actualizó un registro')
+            ->assertSee('actualizó la agencia “Agencia Auditada”')
             ->assertSee('agencias.json')
             ->assertSee('Procesados')
             ->assertSee('Importados')
             ->assertSee('Actualizados')
             ->assertSee('Ignorados')
-            ->assertSee('Errores');
+            ->assertSee('Errores')
+            ->assertSee('Completada con errores');
     }
 
     public function test_dashboard_does_not_expose_administrative_metrics_without_permissions(): void
@@ -146,5 +162,79 @@ class DashboardTest extends TestCase
             ->assertSee('No tienes indicadores disponibles')
             ->assertDontSee('Agencia confidencial')
             ->assertDontSee('Total usuarios');
+    }
+
+    public function test_dashboard_handles_zero_agencies_and_missing_imports_without_invalid_percentages(): void
+    {
+        $actor = $this->superAdmin();
+        Agency::withoutEvents(fn () => Agency::withTrashed()->forceDelete());
+        AgencyImport::query()->delete();
+
+        Livewire::actingAs($actor)
+            ->test(Dashboard::class)
+            ->assertViewHas('agencyMetrics', fn (array $metrics): bool => $metrics['total'] === 0)
+            ->assertViewHas('statusDistribution', fn (array $distribution): bool => collect($distribution)->every(
+                fn (array $status): bool => $status['count'] === 0 && $status['percentage'] === 0.0,
+            ))
+            ->assertViewHas('lastImport', null)
+            ->assertSee('No se registraron agencias durante este periodo.')
+            ->assertSee('No existen importaciones.')
+            ->assertSee('0.0%');
+    }
+
+    public function test_recent_activity_is_ordered_and_limited_to_six_real_events(): void
+    {
+        $actor = $this->superAdmin();
+        $agencies = Agency::withoutEvents(fn () => Agency::factory()->count(8)->create());
+        ActivityLog::query()->delete();
+
+        foreach ($agencies as $index => $agency) {
+            ActivityLog::query()->create([
+                'user_id' => $actor->id,
+                'action' => 'updated',
+                'auditable_type' => Agency::class,
+                'auditable_id' => $agency->id,
+                'created_at' => now()->subMinutes(8 - $index),
+            ]);
+        }
+
+        Livewire::actingAs($actor)
+            ->test(Dashboard::class)
+            ->assertViewHas('recentActivity', fn ($activity): bool => $activity->count() === 6
+                && $activity->first()->auditable_id === $agencies->last()->id
+                && $activity->last()->auditable_id === $agencies->get(2)->id)
+            ->assertSee('Máximo 6');
+    }
+
+    public function test_import_count_respects_selected_period(): void
+    {
+        $actor = $this->superAdmin();
+        $createImport = function (int $daysAgo) use ($actor): void {
+            $import = AgencyImport::query()->create([
+                'user_id' => $actor->id,
+                'original_filename' => 'agencias-'.$daysAgo.'.json',
+                'stored_filename' => 'imports/agencias-'.$daysAgo.'.json',
+                'file_type' => 'json',
+                'status' => AgencyImportStatus::Completed,
+                'strategy' => AgencyImportStrategy::UpdateExisting,
+                'total_rows' => 1,
+                'valid_rows' => 1,
+                'imported_rows' => 1,
+                'updated_rows' => 0,
+                'skipped_rows' => 0,
+                'failed_rows' => 0,
+            ]);
+            $import->forceFill(['created_at' => now()->subDays($daysAgo)])->saveQuietly();
+        };
+
+        $createImport(20);
+        $createImport(2);
+
+        Livewire::actingAs($actor)
+            ->test(Dashboard::class)
+            ->set('period', 7)
+            ->assertViewHas('importsInPeriod', 1)
+            ->set('period', 30)
+            ->assertViewHas('importsInPeriod', 2);
     }
 }

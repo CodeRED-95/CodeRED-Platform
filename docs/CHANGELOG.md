@@ -153,3 +153,5 @@ Todas las versiones siguen `Keep a Changelog`.
 - API: contrato español de agencia con `internal_id`, `id`, Code, ubicación, tamaño e identificadores terrestre/aéreo, preservando aliases anteriores.
 
 - UI: dropdowns, selects y confirmaciones usan un portal global con posicionamiento adaptativo; la escala de capas y la región única de toasts quedan centralizadas.
+
+- Dashboard: rediseño ejecutivo compacto con cuatro KPIs, métricas secundarias, tendencia SVG segura, donut real, actividad limitada y última importación resumida.

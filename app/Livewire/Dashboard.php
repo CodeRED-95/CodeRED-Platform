@@ -34,6 +34,8 @@ class Dashboard extends Component
         $canViewAgencyHistory = $isSuperAdmin || $user->hasPermission('agencies.view_history');
         $canViewActivity = $canViewUserActivity || $canViewAgencyHistory;
         $agencyMetrics = $canViewAgencies ? $this->agencyMetrics() : [];
+        $agencyTrend = $canViewAgencies ? $this->agencyTrend() : [];
+        $lastImport = $canViewAgencies ? AgencyImport::query()->latest()->first() : null;
 
         return view('livewire.dashboard', [
             'canViewAgencies' => $canViewAgencies,
@@ -42,11 +44,14 @@ class Dashboard extends Component
             'agencyMetrics' => $agencyMetrics,
             'userMetrics' => $canViewUsers ? $this->userMetrics() : [],
             'statusDistribution' => $canViewAgencies ? $this->statusDistribution($agencyMetrics) : [],
-            'agencyTrend' => $canViewAgencies ? $this->agencyTrend() : [],
+            'agencyTrend' => $agencyTrend,
+            'trendMaximum' => max(collect($agencyTrend)->max('count') ?? 0, 1),
             'recentActivity' => $canViewActivity
                 ? $this->recentActivity($canViewUserActivity, $canViewAgencyHistory)
                 : new Collection,
-            'lastImport' => $canViewAgencies ? AgencyImport::query()->latest()->first() : null,
+            'lastImport' => $lastImport,
+            'importsInPeriod' => $canViewAgencies ? $this->importsInPeriod() : 0,
+            'refreshedAt' => now(),
         ])->layout('layouts.app', ['pageTitle' => 'Dashboard']);
     }
 
@@ -59,10 +64,10 @@ class Dashboard extends Component
         ])->filter()->values()->all();
 
         return ActivityLog::query()
-            ->with(['actor', 'auditable'])
+            ->with(['actor:id,name', 'auditable'])
             ->whereIn('auditable_type', $types)
             ->latest('created_at')
-            ->limit(8)
+            ->limit(6)
             ->get();
     }
 
@@ -88,7 +93,7 @@ class Dashboard extends Component
     /** @return array<string, int> */
     private function userMetrics(): array
     {
-        $since = now()->subDays($this->period);
+        $since = now()->startOfDay()->subDays($this->period - 1);
         $metrics = User::query()
             ->selectRaw('COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at >= ?) AS recent', [$since])
             ->first();
@@ -101,17 +106,17 @@ class Dashboard extends Component
 
     /**
      * @param  array<string, int>  $metrics
-     * @return array<int, array{value: string, label: string, count: int, percentage: float, stroke: string}>
+     * @return array<int, array{value: string, label: string, count: int, percentage: float, stroke: string, dot: string}>
      */
     private function statusDistribution(array $metrics): array
     {
-        $total = max($metrics['total'], 1);
-        $strokes = [
-            AgencyStatus::Active->value => 'stroke-emerald-400',
-            AgencyStatus::Inactive->value => 'stroke-slate-400',
-            AgencyStatus::TemporarilyClosed->value => 'stroke-amber-400',
-            AgencyStatus::UnderReview->value => 'stroke-sky-400',
-            AgencyStatus::Moved->value => 'stroke-violet-400',
+        $total = $metrics['total'];
+        $styles = [
+            AgencyStatus::Active->value => ['stroke-emerald-400', 'bg-emerald-400'],
+            AgencyStatus::Inactive->value => ['stroke-slate-400', 'bg-slate-400'],
+            AgencyStatus::TemporarilyClosed->value => ['stroke-amber-400', 'bg-amber-400'],
+            AgencyStatus::UnderReview->value => ['stroke-sky-400', 'bg-sky-400'],
+            AgencyStatus::Moved->value => ['stroke-violet-400', 'bg-violet-400'],
         ];
 
         return collect(AgencyStatus::cases())
@@ -119,8 +124,9 @@ class Dashboard extends Component
                 'value' => $status->value,
                 'label' => $status->label(),
                 'count' => $metrics[$status->value],
-                'percentage' => round(($metrics[$status->value] / $total) * 100, 1),
-                'stroke' => $strokes[$status->value],
+                'percentage' => $total > 0 ? round(($metrics[$status->value] / $total) * 100, 1) : 0.0,
+                'stroke' => $styles[$status->value][0],
+                'dot' => $styles[$status->value][1],
             ])
             ->all();
     }
@@ -147,10 +153,17 @@ class Dashboard extends Component
                     'date' => $date->toDateString(),
                     'label' => $date->locale('es')->isoFormat('D MMM'),
                     'count' => $count,
-                    'x' => round(40 + (($offset / $divisor) * 540), 2),
-                    'y' => round(180 - (($count / $maximum) * 150), 2),
+                    'x' => round(56 + (($offset / $divisor) * 688), 2),
+                    'y' => round(205 - (($count / $maximum) * 180), 2),
                 ];
             })
             ->all();
+    }
+
+    private function importsInPeriod(): int
+    {
+        return AgencyImport::query()
+            ->where('created_at', '>=', now()->startOfDay()->subDays($this->period - 1))
+            ->count();
     }
 }

@@ -329,13 +329,14 @@ Los nuevos dropdowns deben reutilizar ese posicionador. No deben volver a crear 
 
 ## Dashboard operativo
 
-El Dashboard consulta datos reales y respeta permisos antes de cargar cada bloque:
+El Dashboard ejecutivo usa una jerarquía compacta y datos reales:
 
-- KPIs de usuarios y los cinco estados de agencias;
-- periodo funcional de 7, 30 o 90 días;
-- tendencia calculada mediante agregación SQL y representada en SVG con tooltips nativos;
-- donut SVG con cantidades y porcentajes reales;
-- actividad filtrada por tipo de entidad según permisos y cargada con `actor`/`auditable` mediante eager loading;
-- última importación con los contadores persistidos en `agency_imports`.
+- cuatro KPIs principales: total de agencias, activas, en revisión y total de usuarios;
+- resumen secundario de usuarios nuevos, estados menos prioritarios, importaciones del periodo y errores del último proceso;
+- selector funcional de 7, 30 o 90 días, aplicado solo a métricas temporales;
+- tendencia calculada mediante agregación SQL y representada con línea/área SVG, eje Y desde cero y tooltips nativos;
+- donut SVG con total central, cinco estados, cantidades y porcentajes seguros cuando el total es cero;
+- actividad limitada a seis eventos, filtrada por permisos y cargada con `actor`/`auditable` mediante eager loading;
+- última importación compacta con estados traducidos y contadores persistidos en `agency_imports`.
 
-Los SVG incluyen resumen textual, títulos por punto o segmento y no requieren una segunda librería de gráficos.
+En escritorio, gráficos y paneles recientes usan proporciones 65/35 aproximadas; en móvil se apilan sin scroll horizontal. Los SVG declaran siempre `fill="none"` en ejes y trazos abiertos para evitar rellenos negros implícitos. Incluyen resumen textual y no requieren una segunda librería de gráficos.
