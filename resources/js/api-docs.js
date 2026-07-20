@@ -19,6 +19,17 @@ const categories = {
   Catálogo: "Revisión, esquema y cursores del catálogo.",
 };
 
+export function buildApiPath(path, basePath = "/api/v1") {
+  const normalizedPath = String(path ?? "").trim();
+  const normalizedBase = "/" + String(basePath || "/api/v1").replace(/^\/+|\/+$/g, "");
+
+  if (normalizedPath === normalizedBase || normalizedPath.startsWith(normalizedBase + "/")) {
+    return normalizedPath;
+  }
+
+  return normalizedBase + "/" + normalizedPath.replace(/^\/+/, "");
+}
+
 export function buildRequestUrl(basePath, path, parameters = [], values = {}) {
   let resolvedPath = path;
   const query = new URLSearchParams();
@@ -33,9 +44,47 @@ export function buildRequestUrl(basePath, path, parameters = [], values = {}) {
     if (parameter.in === "query") query.set(parameter.name, String(value).trim());
   });
 
-  const url = new URL(basePath.replace(/\/$/, "") + "/" + resolvedPath.replace(/^\//, ""), window.location.origin);
+  const url = new URL(buildApiPath(resolvedPath, basePath), window.location.origin);
   query.forEach((value, key) => url.searchParams.set(key, value));
   return url;
+}
+
+export async function parseResponseBody(response) {
+  if (response.status === 204 || response.status === 304) {
+    return { body: null, text: "" };
+  }
+
+  const text = await response.text();
+  if (text === "") return { body: null, text };
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    try {
+      return { body: JSON.parse(text), text };
+    } catch (_error) {
+      return { body: { parseError: true, raw: text }, text };
+    }
+  }
+
+  return { body: text, text };
+}
+
+export async function executeApiRequest({ requestTarget, method, token, isProtected, timeoutMs = 15000, fetchImpl = fetch }) {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  const headers = { Accept: "application/json" };
+  if (isProtected) headers.Authorization = `Bearer ${normalizeBearerToken(token)}`;
+  const options = { method, headers, signal: controller.signal };
+  if (isProtected) options.credentials = "omit";
+  const started = performance.now();
+
+  try {
+    const response = await fetchImpl(requestTarget, options);
+    const parsed = await parseResponseBody(response);
+    return { response, ...parsed, duration: Math.round(performance.now() - started) };
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
 }
 
 export function generateCurl(url, isProtected) {
@@ -44,8 +93,10 @@ export function generateCurl(url, isProtected) {
 }
 
 export function generateFetch(url, isProtected) {
+  const parsedUrl = new URL(url, window.location.origin);
+  const target = parsedUrl.origin === window.location.origin ? parsedUrl.pathname + parsedUrl.search : parsedUrl.toString();
   const authorization = isProtected ? "\n      Authorization: 'Bearer TU_TOKEN'," : "";
-  return `const response = await fetch('${url}', {\n  headers: {\n    Accept: 'application/json',${authorization}\n  },\n});\n\nconst data = await response.json();`;
+  return `const response = await fetch('${target}', {\n  headers: {\n    Accept: 'application/json',${authorization}\n  },\n});\n\nconst data = await response.json();`;
 }
 
 export function normalizeBearerToken(value) {
@@ -234,54 +285,78 @@ export function codeRedApiDocs(config) {
     },
 
     async execute(endpoint) {
+      if (!endpoint) return;
       const missing = endpoint.parameters.filter((parameter) => parameter.required && String(endpoint.values[parameter.name] ?? "").trim() === "");
       if (missing.length) {
         endpoint.expanded = true;
         endpoint.response = { status: 422, error: "Completa los parámetros obligatorios: " + missing.map((parameter) => parameter.name).join(", ") + ".", bodyText: "", headersText: "{}" };
         return;
       }
-      if (endpoint.protected && !this.token.trim()) {
+      if (endpoint.protected && !normalizeBearerToken(this.token)) {
         endpoint.expanded = true;
         endpoint.response = { error: "Autoriza un token antes de probar este endpoint.", status: 401 };
         return;
       }
+
+      let url;
+      try {
+        url = buildRequestUrl(config.basePath, endpoint.path, endpoint.parameters, endpoint.values);
+        if (url.origin !== window.location.origin || endpoint.method !== "GET") throw new Error("Endpoint no permitido");
+      } catch (_error) {
+        endpoint.expanded = true;
+        endpoint.response = { status: 0, error: "No fue posible preparar la solicitud. Revisa la ruta y sus parámetros.", bodyText: "", headersText: "{}" };
+        return;
+      }
+
       endpoint.loading = true;
       endpoint.expanded = true;
-      const started = performance.now();
+      const requestTarget = url.pathname + url.search;
+      let result;
       try {
-        const url = buildRequestUrl(config.basePath, endpoint.path, endpoint.parameters, endpoint.values);
-        if (url.origin !== window.location.origin || endpoint.method !== "GET") throw new Error("Endpoint no permitido");
-        const headers = { Accept: "application/json" };
-        if (endpoint.protected) headers.Authorization = `Bearer ${this.token.trim()}`;
-        const requestTarget = url.pathname + url.search;
-        const response = await fetch(requestTarget, { method: "GET", credentials: "omit", headers });
-        const text = await response.text();
-        let body = text;
-        try { body = text ? JSON.parse(text) : null; } catch (_error) { /* conserva texto seguro */ }
-        const safeHeaders = {};
-        ["content-type", "etag", "last-modified", "x-ratelimit-limit", "x-ratelimit-remaining", "retry-after"].forEach((name) => {
-          const value = response.headers.get(name);
-          if (value !== null) safeHeaders[name] = value;
+        result = await executeApiRequest({
+          requestTarget,
+          method: endpoint.method,
+          token: this.token,
+          isProtected: endpoint.protected,
         });
+      } catch (error) {
         endpoint.response = {
-          status: response.status,
-          ok: response.ok,
-          statusText: response.statusText,
-          duration: Math.round(performance.now() - started),
-          size: new Blob([text]).size,
-          body,
-          bodyText: typeof body === "string" ? body : JSON.stringify(body, null, 2),
-          headers: safeHeaders,
-          headersText: JSON.stringify(safeHeaders, null, 2),
-          curl: generateCurl(url.toString(), endpoint.protected),
-          fetch: generateFetch(url.toString(), endpoint.protected),
-          error: response.ok ? null : apiErrorMessage(response.status),
+          status: 0,
+          requestTarget,
+          method: endpoint.method,
+          error: error?.name === "AbortError"
+            ? "La solicitud superó el tiempo máximo de espera."
+            : "No fue posible conectar con la API. Comprueba que la documentación y la API utilicen el mismo protocolo y dominio.",
+          bodyText: "",
+          headersText: "{}",
         };
-      } catch (_error) {
-        endpoint.response = { status: 0, error: "No fue posible conectar con la API. Comprueba que la documentación y la API utilicen el mismo protocolo y dominio.", bodyText: "", headersText: "{}" };
-      } finally {
         endpoint.loading = false;
+        return;
       }
+
+      const { response, body, text, duration } = result;
+      const safeHeaders = {};
+      ["content-type", "etag", "last-modified", "x-ratelimit-limit", "x-ratelimit-remaining", "retry-after"].forEach((name) => {
+        const value = response.headers.get(name);
+        if (value !== null) safeHeaders[name] = value;
+      });
+      endpoint.response = {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText,
+        duration,
+        size: new TextEncoder().encode(text).length,
+        requestTarget,
+        method: endpoint.method,
+        body,
+        bodyText: typeof body === "string" ? body : JSON.stringify(body, null, 2),
+        headers: safeHeaders,
+        headersText: JSON.stringify(safeHeaders, null, 2),
+        curl: generateCurl(url.toString(), endpoint.protected),
+        fetch: generateFetch(url.toString(), endpoint.protected),
+        error: response.ok ? null : apiErrorMessage(response.status),
+      };
+      endpoint.loading = false;
     },
 
     useNextCursor(endpoint) {

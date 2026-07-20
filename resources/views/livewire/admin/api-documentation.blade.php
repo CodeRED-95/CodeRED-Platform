@@ -107,6 +107,7 @@
                                 <p x-show="!endpoint.parameters.length" class="text-sm text-[color:var(--color-text-muted)]">Este endpoint no requiere parámetros.</p>
 
                                 <div x-show="endpoint.response" class="mt-5 space-y-3" aria-live="polite">
+                                    <p x-show="endpoint.response?.requestTarget" class="break-all text-xs text-[color:var(--color-text-muted)]">Solicitud: <span class="font-mono text-slate-300" x-text="endpoint.response?.method + ' ' + endpoint.response?.requestTarget"></span></p>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="rounded-full px-2.5 py-1 text-xs font-semibold" x-bind:class="endpoint.response?.ok ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-200'" x-text="endpoint.response?.status || 'Error de red'"></span>
                                         <span class="text-xs text-[color:var(--color-text-muted)]" x-text="(endpoint.response?.duration ?? 0) + ' ms · ' + (endpoint.response?.size ?? 0) + ' bytes'"></span>

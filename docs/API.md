@@ -36,3 +36,7 @@ La administración y documentación interactiva son exclusivas de Super Administ
 ## Autenticación y rate limiting
 
 Sanctum representa una sesión web como `TransientToken` y un Bearer persistente como `PersonalAccessToken`. El limiter usa un bucket `user:{id}` para sesión, `token:{id}` para integraciones y `ip:{address}` cuando no existe usuario; nunca usa el secreto ni el header Authorization. El probador interactivo omite cookies únicamente al ejecutar `/api/v1`, de modo que el Bearer pegado sea la credencial realmente validada. Swagger aplica la misma regla a Try it out, pero conserva la sesión para cargar el contrato protegido. En DevTools debe observarse `Authorization: Bearer …` en la petición API, sin copiar su valor en capturas o logs.
+
+## Ejecución desde la guía interactiva
+
+El probador normaliza cada ruta con `buildApiPath`, que admite paths relativos o ya prefijados sin producir `/api/v1/api/v1`. Cada petición crea su propio `AbortController` con un máximo de 15 segundos. Solo una excepción lanzada por `fetch` se presenta como error de conexión; las respuestas HTTP conservan status, headers y body aunque sean 401, 403, 404, 409, 410, 422, 429 o 500. Los cuerpos 204/304, vacíos, de texto y JSON inválido se procesan sin perder el status.
