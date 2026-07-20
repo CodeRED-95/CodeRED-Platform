@@ -2,18 +2,16 @@
 
 namespace App\Livewire\Admin;
 
+use App\Services\ApiDocumentationSettingsService;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 
 class ApiDocumentation extends Component
 {
-    public function mount(): void
+    public function mount(ApiDocumentationSettingsService $settings): void
     {
         abort_unless((bool) config('api.docs_enabled'), 404);
-        if ((bool) config('api.docs_require_auth')) {
-            Gate::authorize('api-tokens.view-any');
-        }
+        abort_if(! $settings->isPublic() && ! auth()->check(), 401);
     }
 
     public function render(): View

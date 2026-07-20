@@ -214,3 +214,10 @@ Todas las versiones siguen `Keep a Changelog`.
 - Se incorporan género y código de verificación; la fecha se normaliza y la edad es dinámica.
 - Se añade caché negativa con hash, refresco asíncrono y `dni:import-legacy`.
 - Se documenta la migración desde `dni_consultas` y la rotación hacia Sanctum.
+
+
+## 2026-07-20 — Probador DNI y documentación API web
+
+- Se agrega `/admin/api-tools/dni` con modos interno y endpoint efímero.
+- Las ejecuciones administrativas usan `request_type=admin_test` y se excluyen de métricas de clientes.
+- Se añaden rutas temáticas, visibilidad pública configurable, Swagger/OpenAPI y ejemplos Postman sin secretos.

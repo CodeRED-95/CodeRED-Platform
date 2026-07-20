@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\ApiToken;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ApiDocumentationSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -15,7 +16,7 @@ class ApiTokenManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_only_super_administrator_can_open_tokens_and_documentation(): void
+    public function test_only_super_administrator_can_manage_tokens_and_authenticated_users_can_read_private_documentation(): void
     {
         $super = $this->superAdmin();
         $viewer = User::factory()->create();
@@ -24,9 +25,10 @@ class ApiTokenManagementTest extends TestCase
         $this->actingAs($super)->get(route('api.docs'))->assertOk()->assertSee('API CodeRED Platform');
         $this->actingAs($super)->get(route('api.docs.spec'))->assertOk()->assertHeader('content-type', 'application/yaml; charset=UTF-8');
         $this->actingAs($viewer)->get(route('admin.api-tokens.index'))->assertForbidden();
-        $this->actingAs($viewer)->get(route('api.docs'))->assertForbidden();
+        $this->actingAs($viewer)->get(route('api.docs'))->assertOk();
         auth()->forgetGuards();
-        config()->set('api.docs_require_auth', false);
+        $this->get(route('api.docs'))->assertRedirect(route('login'));
+        app(ApiDocumentationSettingsService::class)->save(true);
         $this->get(route('api.docs'))->assertOk();
     }
 

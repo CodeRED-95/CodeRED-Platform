@@ -33,7 +33,10 @@
                             ['label' => 'Mapa de agencias', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Importaciones', 'route' => 'admin.agencies.import', 'icon' => '⇪', 'can' => \Illuminate\Support\Facades\Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Tokens API', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
+                            ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('api-tools.dni.test')],
                             ['label' => 'Ajustes · API DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.dni.view')],
+                            ['label' => 'Documentación API', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
+                            ['label' => 'Ajustes · Documentación', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
                             ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => auth()->user()->isSuperAdmin()],
                             ['label' => 'Usuarios', 'route' => 'admin.users.index', 'icon' => '◔', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Models\User::class)],
                             ['label' => 'Roles y permisos', 'route' => null, 'icon' => '◌', 'can' => false],
@@ -131,6 +134,13 @@
                     @endcan
                     @if (auth()->user()->hasPermission('api-tokens.view-any'))
                         <a href="{{ route('admin.api-tokens.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Tokens API</a>
+                    @endif
+                    @if (auth()->user()->hasPermission('api-tools.dni.test'))
+                        <a href="{{ route('admin.api-tools.dni') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Probar API DNI</a>
+                    @endif
+                    <a href="{{ route('api.docs') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Documentación API</a>
+                    @if (auth()->user()->hasPermission('settings.api-documentation.update'))
+                        <a href="{{ route('admin.settings.api-documentation') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Ajustes · Documentación</a>
                     @endif
                     @if (auth()->user()->hasPermission('settings.dni.view'))
                         <a href="{{ route('admin.settings.dni') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Ajustes · API DNI</a>

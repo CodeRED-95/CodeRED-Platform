@@ -386,3 +386,10 @@ document.addEventListener("livewire:navigating", () => {
   window.dispatchEvent(new CustomEvent("codered-map:destroy"));
   window.dispatchEvent(new CustomEvent("codered-agency-map:destroy"));
 });
+
+
+document.addEventListener("codered-copy", async (event) => {
+  const value = String(event.detail?.value ?? "");
+  if (!value || !navigator.clipboard?.writeText) return;
+  await navigator.clipboard.writeText(value);
+});

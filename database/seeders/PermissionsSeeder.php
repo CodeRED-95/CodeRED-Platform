@@ -31,6 +31,8 @@ class PermissionsSeeder extends Seeder
             ['slug' => 'users.reset_password', 'name' => 'Restablecer contraseñas'],
             ['slug' => 'users.manage_status', 'name' => 'Gestionar estado de usuarios'],
             ['slug' => 'users.view_activity', 'name' => 'Ver actividad de usuarios'],
+            ['slug' => 'api-tools.dni.test', 'name' => 'Probar API DNI'],
+            ['slug' => 'settings.api-documentation.update', 'name' => 'Configurar documentación API'],
             ['slug' => 'settings.dni.view', 'name' => 'Ver ajustes DNI'],
             ['slug' => 'settings.dni.update', 'name' => 'Actualizar ajustes DNI'],
             ['slug' => 'settings.dni.test', 'name' => 'Probar proveedor DNI'],

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApiDocumentationSpecController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Middleware\EnsureApiDocumentationAccess;
 use App\Livewire\Account\ChangePassword;
 use App\Livewire\Account\Profile;
 use App\Livewire\Admin\Agencies\Form as AgencyForm;
@@ -11,7 +12,9 @@ use App\Livewire\Admin\Agencies\Map as AgenciesMap;
 use App\Livewire\Admin\Agencies\Show as AgencyShow;
 use App\Livewire\Admin\ApiDocumentation;
 use App\Livewire\Admin\ApiTokens\Index as ApiTokensIndex;
+use App\Livewire\Admin\ApiTools\DniTester;
 use App\Livewire\Admin\DesignSystem;
+use App\Livewire\Admin\Settings\ApiDocumentation as ApiDocumentationSettings;
 use App\Livewire\Admin\Settings\Dni as DniSettings;
 use App\Livewire\Admin\Users\Form as UsersForm;
 use App\Livewire\Admin\Users\Index as UsersIndex;
@@ -40,10 +43,21 @@ Route::get('/admin/users', UsersIndex::class)->middleware(['auth'])->name('admin
 Route::get('/admin/users/create', UsersForm::class)->middleware(['auth'])->name('admin.users.create');
 Route::get('/admin/users/{user}/edit', UsersForm::class)->middleware(['auth'])->name('admin.users.edit');
 Route::get('/admin/users/{user}', UsersShow::class)->middleware(['auth'])->name('admin.users.show');
-Route::get('/docs/api/openapi.yaml', ApiDocumentationSpecController::class)->name('api.docs.spec');
-Route::get('/docs/api', ApiDocumentation::class)->name('api.docs');
+Route::middleware(EnsureApiDocumentationAccess::class)->group(function (): void {
+    Route::get('/docs', ApiDocumentation::class)->name('docs');
+    Route::get('/docs/api', ApiDocumentation::class)->name('api.docs');
+    Route::get('/docs/api/v1', ApiDocumentation::class)->name('api.docs.v1');
+    Route::get('/docs/api/agencias', ApiDocumentation::class)->name('api.docs.agencies');
+    Route::get('/docs/api/dni', ApiDocumentation::class)->name('api.docs.dni');
+    Route::get('/docs/api/autenticacion', ApiDocumentation::class)->name('api.docs.authentication');
+    Route::get('/docs/api/errores', ApiDocumentation::class)->name('api.docs.errors');
+    Route::get('/docs/openapi', ApiDocumentation::class)->name('api.docs.openapi');
+    Route::get('/docs/api/openapi.yaml', ApiDocumentationSpecController::class)->name('api.docs.spec');
+});
 Route::get('/admin/api-tokens', ApiTokensIndex::class)->middleware(['auth'])->name('admin.api-tokens.index');
+Route::get('/admin/api-tools/dni', DniTester::class)->middleware(['auth'])->name('admin.api-tools.dni');
 Route::get('/admin/settings/dni', DniSettings::class)->middleware(['auth'])->name('admin.settings.dni');
+Route::get('/admin/settings/api-documentation', ApiDocumentationSettings::class)->middleware(['auth'])->name('admin.settings.api-documentation');
 Route::get('/admin/design-system', DesignSystem::class)
     ->middleware(['auth'])
     ->name('admin.design-system');

@@ -9,7 +9,7 @@ class ApiRequestLog extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['api_client_id', 'token_id', 'service', 'endpoint', 'method', 'status_code', 'ip_address', 'user_agent', 'identifier_hash', 'response_time_ms', 'source', 'provider_called', 'provider_status_code', 'cache_hit', 'local_database_hit', 'created_at'];
+    protected $fillable = ['api_client_id', 'token_id', 'service', 'endpoint', 'method', 'status_code', 'ip_address', 'user_agent', 'identifier_hash', 'response_time_ms', 'request_type', 'source', 'provider_called', 'provider_status_code', 'cache_hit', 'local_database_hit', 'created_at'];
 
     protected function casts(): array
     {

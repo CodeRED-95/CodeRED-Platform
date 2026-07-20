@@ -75,17 +75,23 @@ paths:
     get:
       tags: [DNI]
       summary: Consultar persona por DNI
+      description: Requiere la ability dni:consultar. El DNI es una cadena de ocho dígitos y conserva ceros iniciales.
       security: [{ bearerAuth: [] }]
       parameters:
-        - { name: dni, in: path, required: true, schema: { type: string, pattern: '^\\d{8}$' } }
+        - { name: dni, in: path, required: true, schema: { type: string, pattern: '^\\d{8}$', example: '12345678' } }
       responses:
-        '200': { description: Datos públicos normalizados del DNI }
+        '200':
+          description: Datos públicos normalizados del DNI
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DniResponse' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { description: DNI no encontrado }
+        '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/RateLimited' }
-        '503': { description: Proveedor temporalmente no disponible }
+        '502': { $ref: '#/components/responses/BadGateway' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /agencies:
     get:
       tags: [Agencias]
@@ -259,6 +265,26 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    DniData:
+      type: object
+      additionalProperties: false
+      required: [dni, nombres, apellido_paterno, apellido_materno, nombre_completo, genero, fecha_nacimiento, edad, codigo_verificacion]
+      properties:
+        dni: { type: string, pattern: '^\\d{8}$', example: '12345678' }
+        nombres: { type: string, example: MARIA ISABEL }
+        apellido_paterno: { type: string, example: JIMENEZ }
+        apellido_materno: { type: string, example: DIAZ }
+        nombre_completo: { type: string, example: MARIA ISABEL JIMENEZ DIAZ }
+        genero: { type: string, nullable: true, example: M }
+        fecha_nacimiento: { type: string, format: date, nullable: true, example: '1994-11-16' }
+        edad: { type: integer, nullable: true, example: 31 }
+        codigo_verificacion: { type: string, nullable: true, example: '8' }
+    DniResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, example: true }
+        data: { $ref: '#/components/schemas/DniData' }
     AgencyStatus:
       type: string
       enum: [active, inactive, temporarily_closed, under_review, moved]
@@ -368,6 +394,12 @@ components:
       properties:
         message: { type: string }
   responses:
+    BadGateway:
+      description: El proveedor interno devolvió una respuesta inválida
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    ServiceUnavailable:
+      description: Servicio DNI temporalmente no disponible
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
     FullSyncRequired:
       description: El cursor fue alterado, expiró por retención o usa otra versión de esquema
       content:

@@ -2,9 +2,14 @@
     class="space-y-6"
     x-data="codeRedApiDocs({ specUrl: @js(route('api.docs.spec', absolute: false)), basePath: '/api/v1' })"
 >
-    <x-ui.page-header title="API CodeRED Platform" subtitle="Consulta y sincroniza el catálogo oficial de agencias mediante tokens seguros.">
+    <x-ui.page-header title="API CodeRED Platform" subtitle="Documentación de agencias y DNI para API versión v1.">
         <x-slot:actions>
-            <x-ui.button href="{{ route('admin.api-tokens.index') }}" variant="secondary" size="sm">Administrar tokens</x-ui.button>
+            @if(auth()->check() && auth()->user()->hasPermission('api-tools.dni.test'))
+                <x-ui.button href="{{ route('admin.api-tools.dni') }}" variant="primary" size="sm">Probar endpoint DNI</x-ui.button>
+            @endif
+            @if(auth()->check() && auth()->user()->hasPermission('api-tokens.view-any'))
+                <x-ui.button href="{{ route('admin.api-tokens.index') }}" variant="secondary" size="sm">Administrar tokens</x-ui.button>
+            @endif
             <x-ui.button href="{{ route('api.docs.spec', absolute: false) }}" variant="outline" size="sm">Descargar OpenAPI</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
@@ -16,6 +21,7 @@
         <x-ui.badge tone="neutral">Laravel Sanctum</x-ui.badge>
         <x-ui.badge tone="neutral">{{ $rateLimit }}/minuto/token</x-ui.badge>
         <x-ui.badge tone="neutral">Máximo {{ $maxPerPage }} por página</x-ui.badge>
+        <span class="text-xs text-[color:var(--color-text-muted)]">Actualizada: 20/07/2026</span>
         <span class="ml-auto text-xs text-[color:var(--color-text-muted)]">Base URL: <code x-text="apiBaseUrl"></code></span>
     </section>
 

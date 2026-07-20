@@ -1,14 +1,12 @@
-# API DNI y respaldo PeruDevs
+# API DNI v1
 
-`GET /api/v1/dni/{dni}` requiere Bearer Sanctum con `dni:consultar`. Consulta primero `dni_records`, luego caché negativa y finalmente PeruDevs.
+Última actualización: 20/07/2026.
 
-PeruDevs se invoca mediante GET a la URL configurable con los parámetros `document` y `key`. La API key privada nunca es un token Sanctum, no se envía como Bearer y no aparece en logs o respuestas.
+## Consulta
 
-El payload `estado/mensaje/resultado` se valida estrictamente. `resultado.id` debe coincidir con el DNI solicitado. `fecha_nacimiento` se convierte de `DD/MM/YYYY` a `YYYY-MM-DD`; la edad se calcula en cada respuesta.
+`GET /api/v1/dni/{dni}` requiere `dni:consultar`. El DNI es string de ocho dígitos, conserva ceros iniciales, la fecha usa `YYYY-MM-DD` y la edad se calcula dinámicamente.
 
-Errores: 401 credencial inválida, 403 ability ausente, 404 no encontrado, 422 DNI inválido, 429 límite local, 502 respuesta externa inválida y 503 proveedor no configurado o no disponible.
-
-Administración: `/admin/settings/dni`, exclusiva de Super Administrador. La API key se cifra, un campo vacío la conserva y eliminarla requiere confirmación.
+### cURL
 
 ```bash
 curl --request GET \
@@ -17,4 +15,36 @@ curl --request GET \
   --header 'Authorization: Bearer TOKEN_DNI'
 ```
 
-Consulta [DNI_LEGACY_MIGRATION.md](../DNI_LEGACY_MIGRATION.md) para migrar desde `dni-api`.
+### JavaScript
+
+```javascript
+const response = await fetch('https://platform.codered.host/api/v1/dni/12345678', {
+  headers: { Accept: 'application/json', Authorization: 'Bearer TOKEN_DNI' },
+});
+const data = await response.json();
+```
+
+### PHP
+
+```php
+$response = Http::withToken('TOKEN_DNI')
+    ->acceptJson()
+    ->get('https://platform.codered.host/api/v1/dni/12345678');
+$data = $response->json();
+```
+
+### Python
+
+```python
+import requests
+response = requests.get(
+    "https://platform.codered.host/api/v1/dni/12345678",
+    headers={"Accept": "application/json", "Authorization": "Bearer TOKEN_DNI"},
+    timeout=15,
+)
+data = response.json()
+```
+
+La respuesta pública mantiene la misma estructura sin importar si CodeRED resolvió la consulta internamente, desde caché o mediante su proveedor privado. PeruDevs y su API key no forman parte de la autenticación del consumidor.
+
+Errores: 401, 403, 404, 422, 429, 502 y 503. Consulta [errores](errors.md), [autenticación](authentication.md) y la colección [Postman](../postman/CodeRED-Platform-API.postman_collection.json).

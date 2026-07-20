@@ -112,3 +112,10 @@ Proprietary
 
 - [Migración del servicio DNI legado](docs/DNI_LEGACY_MIGRATION.md)
 - [API DNI](docs/api/dni.md)
+
+
+- [Documentación API web](/docs/api)
+- [Documentación DNI](docs/api/dni.md)
+- [Documentación Agencias](docs/api/agencies.md)
+- [OpenAPI](docs/openapi.yaml)
+- [Colección Postman](docs/postman/CodeRED-Platform-API.postman_collection.json)
