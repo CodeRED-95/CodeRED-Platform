@@ -213,10 +213,21 @@ components:
     AgencyStatus:
       type: string
       enum: [active, inactive, temporarily_closed, under_review, moved]
+    AgencyPublicStatus:
+      type: string
+      description: Estado operativo actual de la agencia.
+      enum: [Activa, Inactiva, Cerrada temporalmente, En revisión, Trasladada]
+      example: Activa
+    AgencyStatusOption:
+      type: object
+      required: [value, label]
+      properties:
+        value: { $ref: '#/components/schemas/AgencyStatus' }
+        label: { $ref: '#/components/schemas/AgencyPublicStatus' }
     Agency:
       type: object
       additionalProperties: false
-      required: [internal_id, id, code, agencia, departamento, provincia, distrito, direccion, link_mapa, tamano, texto_chosen_terrestre, texto_chosen_aereo]
+      required: [internal_id, id, code, agencia, departamento, provincia, distrito, direccion, link_mapa, tamano, estado, centro_operaciones, texto_chosen_terrestre, texto_chosen_aereo]
       properties:
         internal_id: { type: integer, format: int64, example: 25 }
         id: { type: integer, format: int64, nullable: true, example: 610 }
@@ -228,6 +239,11 @@ components:
         direccion: { type: string, example: av. universitaria mza a lote 6 }
         link_mapa: { type: string, format: uri, nullable: true, example: 'https://www.google.com/maps/dir/?api=1&destination=-8.380017,-74.568467' }
         tamano: { type: string, nullable: true, example: Pequeño }
+        estado: { $ref: '#/components/schemas/AgencyPublicStatus' }
+        centro_operaciones:
+          type: boolean
+          description: Indica si la agencia funciona como Centro de Operaciones.
+          example: true
         texto_chosen_terrestre: { type: string, nullable: true, example: 610 - UCAYALI - YARINACOCHA - TERRESTRE }
         texto_chosen_aereo: { type: string, nullable: true, example: null }
     AgencyDeleted:
@@ -254,7 +270,7 @@ components:
           properties:
             next_cursor: { type: string }
             has_more: { type: boolean }
-            schema_version: { type: integer, example: 1 }
+            schema_version: { type: integer, example: 2 }
             generated_at: { type: string, format: date-time }
     AgencyPage:
       type: object
@@ -265,9 +281,9 @@ components:
         meta: { type: object }
     Metadata:
       type: object
-      required: [schema_version, catalog_revision, generated_at, total_agencies, last_agency_update, last_agency_deletion, current_cursor, supports_incremental_sync, changes_endpoint, full_sync_required_after_days, available_statuses, available_channels]
+      required: [schema_version, catalog_revision, generated_at, total_agencies, last_agency_update, last_agency_deletion, current_cursor, supports_incremental_sync, changes_endpoint, full_sync_required_after_days, available_statuses, available_status_options, supports_operations_center, available_channels]
       properties:
-        schema_version: { type: integer, example: 1 }
+        schema_version: { type: integer, example: 2 }
         catalog_revision: { type: string }
         generated_at: { type: string, format: date-time }
         total_agencies: { type: integer }
@@ -278,6 +294,8 @@ components:
         changes_endpoint: { type: string, example: /api/v1/agencies/changes }
         full_sync_required_after_days: { type: integer, example: 180 }
         available_statuses: { type: array, items: { $ref: '#/components/schemas/AgencyStatus' } }
+        available_status_options: { type: array, items: { $ref: '#/components/schemas/AgencyStatusOption' } }
+        supports_operations_center: { type: boolean, example: true }
         available_channels: { type: array, items: { type: string, enum: [terrestrial, air] } }
     Me:
       type: object

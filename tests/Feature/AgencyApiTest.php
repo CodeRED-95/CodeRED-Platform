@@ -28,6 +28,7 @@ class AgencyApiTest extends TestCase
             'external_id' => 610,
             'texto_chosen_terrestre' => '610 - TERRESTRE',
             'texto_chosen_aereo' => '610 - AEREO',
+            'is_operations_center' => true,
         ]);
 
         $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/'.$agency->code)->assertOk()->assertJsonPath('data.id', 610)
@@ -40,7 +41,11 @@ class AgencyApiTest extends TestCase
             ->assertJsonPath('data.distrito', trim($agency->district))
             ->assertJsonPath('data.direccion', trim($agency->address))
             ->assertJsonPath('data.link_mapa', $agency->map_url)
-            ->assertJsonPath('data.tamano', $agency->size?->label());
+            ->assertJsonPath('data.tamano', $agency->size?->label())
+            ->assertJsonPath('data.estado', 'Activa')
+            ->assertJsonPath('data.centro_operaciones', true);
+
+        $this->assertIsBool($this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/'.$agency->code)->json('data.centro_operaciones'));
     }
 
     public function test_snapshot_uses_external_id_and_keeps_deprecated_chosen_fallback(): void
@@ -48,10 +53,35 @@ class AgencyApiTest extends TestCase
         $agency = Agency::factory()->create([
             'status' => AgencyStatus::Active, 'has_moved' => false, 'external_id' => 614,
             'texto_chosen_terrestre' => null, 'texto_chosen_aereo' => '614 - AEREO',
+            'is_operations_center' => true,
         ]);
 
         $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/snapshot')->assertOk()
-            ->assertJsonFragment(['id' => 614, 'code' => $agency->code, 'texto_chosen_aereo' => '614 - AEREO', 'texto_chosen' => '614 - AEREO']);
+            ->assertJsonFragment([
+                'internal_id' => $agency->id,
+                'id' => 614,
+                'code' => $agency->code,
+                'estado' => 'Activa',
+                'centro_operaciones' => true,
+                'texto_chosen_aereo' => '614 - AEREO',
+                'texto_chosen' => '614 - AEREO',
+            ]);
+    }
+
+    public function test_contract_maps_every_real_status_and_boolean_operations_center(): void
+    {
+        foreach (AgencyStatus::cases() as $index => $status) {
+            $agency = Agency::factory()->create([
+                'status' => $status,
+                'has_moved' => $status === AgencyStatus::Moved,
+                'moved_to_address' => $status === AgencyStatus::Moved ? 'Nueva sede' : null,
+                'is_operations_center' => $index % 2 === 0,
+            ]);
+
+            $response = $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/'.$agency->code)->assertOk();
+            $response->assertJsonPath('data.estado', $status->label());
+            $this->assertIsBool($response->json('data.centro_operaciones'));
+        }
     }
 
     public function test_agency_version_returns_payload(): void

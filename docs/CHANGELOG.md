@@ -3,6 +3,8 @@
 - API: Swagger UI renderiza el contrato OpenAPI con Authorize Sanctum, Try it out, duración y snippets; la copia de tokens usa Clipboard API con selección manual segura como fallback.
 # Changelog
 
+- API de agencias schema v2: agrega estado operativo legible y Centro de Operaciones booleano en listado, detalle, snapshot y sincronización incremental; metadata y OpenAPI anuncian la nueva capacidad.
+
 - La documentación interactiva ahora descubre las abilities reales del Bearer Token, identifica acceso total, bloquea preventivamente endpoints sin permiso y muestra un resumen de disponibilidad sin depender de una ability fija.
 
 - La guía API centraliza el Bearer Token en memoria para todas las tarjetas y conserva los estados HTTP reales sin presentarlos como errores de red.

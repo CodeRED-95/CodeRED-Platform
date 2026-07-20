@@ -47,6 +47,8 @@ class AgencyResource extends JsonResource
             'direccion' => trim($agency->address),
             'link_mapa' => $agency->map_url,
             'tamano' => $agency->size?->label(),
+            'estado' => $agency->status->label(),
+            'centro_operaciones' => (bool) $agency->is_operations_center,
             'name' => $agency->name,
             'short_name' => $agency->short_name,
             'slug' => $agency->slug,

@@ -20,6 +20,8 @@ final class AgencySyncPayload
             'direccion' => trim($agency->address),
             'link_mapa' => $agency->map_url,
             'tamano' => $agency->size?->label(),
+            'estado' => $agency->status->label(),
+            'centro_operaciones' => (bool) $agency->is_operations_center,
             'texto_chosen_terrestre' => $agency->texto_chosen_terrestre,
             'texto_chosen_aereo' => $agency->texto_chosen_aereo,
         ];

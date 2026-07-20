@@ -1,6 +1,6 @@
 # Sincronización del catálogo de agencias
 
-La extensión utiliza sincronización de solo lectura mediante Sanctum y la ability `agencies:read`. La versión de la API (`v1`) es distinta de `schema_version`, que identifica el contrato del catálogo.
+La extensión utiliza sincronización de solo lectura mediante Sanctum y la ability `agencies:read`. La versión de la API (`v1`) es distinta de `schema_version`, que identifica el contrato del catálogo. El schema 2 agrega `estado` y `centro_operaciones` tanto al full sync como a cada elemento de `changes.upserted`; un cursor del schema 1 debe iniciar nuevamente la sincronización completa.
 
 ## Flujo consistente
 

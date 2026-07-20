@@ -30,6 +30,11 @@ class CatalogMetadataController
             'changes_endpoint' => '/api/v1/agencies/changes',
             'full_sync_required_after_days' => (int) config('api.agency_changelog_retention_days'),
             'available_statuses' => array_column(AgencyStatus::cases(), 'value'),
+            'available_status_options' => array_map(
+                static fn (AgencyStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
+                AgencyStatus::cases(),
+            ),
+            'supports_operations_center' => true,
             'available_channels' => ['terrestrial', 'air'],
         ], 200, $revision->headers($etag, $metadata['last_changed_at']));
     }

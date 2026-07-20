@@ -81,8 +81,9 @@ class AgenciesController
             ->where('status', AgencyStatus::Active->value)
             ->where('has_moved', false)
             ->orderBy('name')
-            ->get(['external_id', 'code', 'name', 'short_name', 'slug', 'department', 'province', 'district', 'address', 'reference', 'phone', 'secondary_phone', 'schedule', 'latitude', 'longitude', 'map_url', 'size', 'is_operations_center', 'status', 'updated_at', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo'])
+            ->get(['id', 'external_id', 'code', 'name', 'short_name', 'slug', 'department', 'province', 'district', 'address', 'reference', 'phone', 'secondary_phone', 'schedule', 'latitude', 'longitude', 'map_url', 'size', 'is_operations_center', 'status', 'updated_at', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo'])
             ->map(fn (Agency $agency): array => [
+                'internal_id' => (int) $agency->getKey(),
                 'id' => $agency->external_id,
                 ...$agency->only(['code', 'name', 'short_name', 'slug', 'department', 'province', 'district', 'address', 'reference', 'phone', 'secondary_phone', 'schedule', 'latitude', 'longitude', 'map_url', 'size', 'is_operations_center', 'status', 'updated_at', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at']),
                 'texto_chosen_terrestre' => $agency->texto_chosen_terrestre,
@@ -95,6 +96,8 @@ class AgenciesController
                 'direccion' => trim($agency->address),
                 'link_mapa' => $agency->map_url,
                 'tamano' => $agency->size?->label(),
+                'estado' => $agency->status->label(),
+                'centro_operaciones' => (bool) $agency->is_operations_center,
             ]);
 
         $movedAgencies = Agency::query()

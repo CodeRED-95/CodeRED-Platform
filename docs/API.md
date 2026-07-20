@@ -19,7 +19,9 @@ La estrategia completa de ETag, cursores, retención y recuperación está en [S
 
 ## Contrato de agencia
 
-La respuesta dedicada expone únicamente `internal_id`, `id` externo, `code`, nombre y ubicación en español, enlace de mapa, tamaño y los textos chosen terrestre/aéreo. No serializa el modelo Eloquent completo, eliminadas, auditoría ni procedencia interna.
+La respuesta dedicada expone únicamente `internal_id`, `id` externo, `code`, nombre y ubicación en español, enlace de mapa, tamaño, estado operativo legible, `centro_operaciones` booleano y los textos chosen terrestre/aéreo. No serializa el modelo Eloquent completo, eliminadas, auditoría ni procedencia interna.
+
+El schema de catálogo actual es **2**. La versión 2 agrega `estado` y `centro_operaciones` a listado, detalle, snapshot y `changes.upserted`. Los estados públicos proceden de `AgencyStatus::label()`; además de Activa, Inactiva, Cerrada temporalmente y Trasladada, el dominio real conserva En revisión porque es un estado operativo vigente.
 
 ## Seguridad
 

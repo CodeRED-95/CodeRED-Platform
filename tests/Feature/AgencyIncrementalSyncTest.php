@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencySyncChange;
 use App\Modules\Agencies\Services\AgencySyncCursor;
@@ -84,16 +85,41 @@ class AgencyIncrementalSyncTest extends TestCase
         $response->assertJsonFragment(['internal_id' => $agency->id, 'id' => 810, 'code' => $agency->code]);
     }
 
+    public function test_status_and_operations_center_changes_refresh_etag_and_incremental_payload(): void
+    {
+        $token = $this->token();
+        $agency = Agency::factory()->create([
+            'status' => AgencyStatus::Inactive,
+            'is_operations_center' => false,
+        ]);
+        $cursor = $this->withToken($token)->getJson('/api/v1/catalog/metadata')->json('current_cursor');
+        $before = (string) $this->withToken($token)->getJson('/api/v1/catalog/metadata')->headers->get('ETag');
+
+        $agency->update(['status' => AgencyStatus::Active]);
+        $afterStatus = (string) $this->withToken($token)->getJson('/api/v1/catalog/metadata')->headers->get('ETag');
+        $this->assertNotSame($before, $afterStatus);
+
+        $agency->update(['is_operations_center' => true]);
+        $afterOperationsCenter = (string) $this->withToken($token)->getJson('/api/v1/catalog/metadata')->headers->get('ETag');
+        $this->assertNotSame($afterStatus, $afterOperationsCenter);
+
+        $this->withToken($token)->getJson('/api/v1/agencies/changes?cursor='.urlencode((string) $cursor))->assertOk()
+            ->assertJsonPath('data.upserted.0.internal_id', $agency->id)
+            ->assertJsonPath('data.upserted.0.estado', 'Activa')
+            ->assertJsonPath('data.upserted.0.centro_operaciones', true)
+            ->assertJsonPath('meta.schema_version', 2);
+    }
+
     public function test_invalid_schema_and_expired_cursors_require_full_sync(): void
     {
         $token = $this->token();
         $cursor = app(AgencySyncCursor::class)->encode(0);
         $this->withToken($token)->getJson('/api/v1/agencies/changes?cursor='.urlencode($cursor.'altered'))
             ->assertStatus(409)->assertJsonPath('code', 'full_sync_required');
-        config()->set('api.agency_schema_version', 2);
+        config()->set('api.agency_schema_version', 3);
         $this->withToken($token)->getJson('/api/v1/agencies/changes?cursor='.urlencode($cursor))
-            ->assertStatus(409)->assertJsonPath('meta.schema_version', 2);
-        config()->set('api.agency_schema_version', 1);
+            ->assertStatus(409)->assertJsonPath('meta.schema_version', 3);
+        config()->set('api.agency_schema_version', 2);
 
         Agency::factory()->create();
         AgencySyncChange::query()->update(['changed_at' => now()->subDays(200)]);
@@ -128,7 +154,7 @@ class AgencyIncrementalSyncTest extends TestCase
         $pageTwo = $this->withToken($token)->getJson('/api/v1/agencies?per_page=1&page=2')->assertOk();
         $etag = (string) $pageOne->headers->get('ETag');
         $this->assertNotSame($etag, $pageTwo->headers->get('ETag'));
-        $pageOne->assertJsonPath('meta.schema_version', 1);
+        $pageOne->assertJsonPath('meta.schema_version', 2);
         $this->withToken($token)->withHeader('If-None-Match', $etag)
             ->get('/api/v1/agencies?per_page=1&page=1')->assertStatus(304);
     }

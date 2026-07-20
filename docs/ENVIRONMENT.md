@@ -137,7 +137,7 @@ Las variables `DEV_ADMIN_*` se leen exclusivamente desde `config/codered.php` du
 | `API_ALLOWED_ORIGINS` | Orígenes CORS explícitos separados por coma |
 | `API_DEFAULT_TOKEN_EXPIRATION_DAYS` | Expiración propuesta en panel |
 | `API_MAX_PER_PAGE` | Máximo de paginación |
-| `API_AGENCY_SCHEMA_VERSION` | Versión independiente del contrato de catálogo |
+| `API_AGENCY_SCHEMA_VERSION` | Versión independiente del contrato de catálogo (actual: 2) |
 | `API_AGENCY_CHANGES_DEFAULT_LIMIT` | Tamaño predeterminado de una página incremental |
 | `API_AGENCY_CHANGES_MAX_LIMIT` | Límite máximo incremental |
 | `API_AGENCY_CHANGELOG_RETENTION_DAYS` | Retención del changelog append-only |

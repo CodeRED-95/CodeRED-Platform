@@ -61,6 +61,7 @@ class ApiV1SecurityTest extends TestCase
             'name' => 'Yarinacocha',
             'department' => 'Ucayali ',
             'status' => AgencyStatus::Active,
+            'is_operations_center' => true,
             'texto_chosen_terrestre' => '610 - TERRESTRE',
             'texto_chosen_aereo' => null,
         ]);
@@ -72,10 +73,11 @@ class ApiV1SecurityTest extends TestCase
         $response = $this->withHeaders($headers)->getJson('/api/v1/agencies?search=610&status=active&has_terrestrial=1&per_page=1');
         $response->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.internal_id', $active->id)
             ->assertJsonPath('data.0.id', 610)->assertJsonPath('data.0.departamento', 'Ucayali')
+            ->assertJsonPath('data.0.estado', 'Activa')->assertJsonPath('data.0.centro_operaciones', true)
             ->assertJsonPath('data.0.texto_chosen_aereo', null)->assertJsonPath('meta.per_page', 1);
         $this->assertSame([
             'internal_id', 'id', 'code', 'agencia', 'departamento', 'provincia', 'distrito', 'direccion',
-            'link_mapa', 'tamano', 'texto_chosen_terrestre', 'texto_chosen_aereo',
+            'link_mapa', 'tamano', 'estado', 'centro_operaciones', 'texto_chosen_terrestre', 'texto_chosen_aereo',
         ], array_keys($response->json('data.0')));
         $response->assertJsonMissing(['internal_id' => $deleted->id]);
     }
@@ -89,7 +91,11 @@ class ApiV1SecurityTest extends TestCase
         $this->getJson('/api/v1/health')->assertOk()->assertJsonStructure(['status', 'api_version', 'timestamp'])
             ->assertJsonMissing(['database' => true]);
         $this->withToken($token)->getJson('/api/v1/catalog/metadata')->assertOk()
-            ->assertJsonPath('schema_version', 1)->assertJsonPath('available_channels', ['terrestrial', 'air']);
+            ->assertJsonPath('schema_version', 2)
+            ->assertJsonPath('supports_operations_center', true)
+            ->assertJsonPath('available_status_options.0.value', AgencyStatus::Active->value)
+            ->assertJsonPath('available_status_options.0.label', AgencyStatus::Active->label())
+            ->assertJsonPath('available_channels', ['terrestrial', 'air']);
         $this->withToken($token)->getJson('/api/v1/me')->assertOk()->assertJsonPath('name', 'Cliente API')
             ->assertJsonPath('token_name', 'Extensión Chrome')->assertJsonPath('abilities.0', 'agencies:read');
         $this->withToken($token)->getJson('/api/v1/agencies/'.$agency->code)->assertOk()->assertJsonPath('data.id', 801);
