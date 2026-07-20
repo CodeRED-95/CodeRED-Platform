@@ -26,17 +26,19 @@ class AgencyCatalogController
         if ($revision->isNotModified($request, $etag)) {
             return $revision->notModified($etag, $metadata['last_changed_at']);
         }
-
+        $status = $filters['estado'] ?? $filters['status'] ?? null;
+        $size = $filters['tamano'] ?? $filters['size'] ?? null;
         $query = Agency::query()
-            ->search($filters['search'] ?? null)
-            ->byLocation($filters['department'] ?? null, $filters['province'] ?? null, $filters['district'] ?? null)
-            ->when(isset($filters['status']), fn (Builder $query) => $query->where('status', $filters['status']))
-            ->when(isset($filters['size']), fn (Builder $query) => $query->where('size', $filters['size']))
+            ->search($filters['agencia'] ?? $filters['search'] ?? null)
+            ->byLocation($filters['departamento'] ?? $filters['department'] ?? null, $filters['provincia'] ?? $filters['province'] ?? null, $filters['distrito'] ?? $filters['district'] ?? null)
+            ->when($status !== null, fn (Builder $query) => $query->where('status', $status))
+            ->when($size !== null, fn (Builder $query) => $query->where('size', $size))
+            ->when(array_key_exists('co', $filters), fn (Builder $query) => $query->where('is_operations_center', (bool) $filters['co']))
             ->when(array_key_exists('has_terrestrial', $filters), fn (Builder $query) => $this->withChannel($query, 'texto_chosen_terrestre', (bool) $filters['has_terrestrial']))
             ->when(array_key_exists('has_air', $filters), fn (Builder $query) => $this->withChannel($query, 'texto_chosen_aereo', (bool) $filters['has_air']));
-
         $response = AgencyResource::collection($query->orderBy($sort, $direction)->paginate($perPage)->withQueryString())->response();
         $payload = $response->getData(true);
+        $payload['success'] = true;
         $payload['meta']['schema_version'] = (int) config('api.agency_schema_version');
         $response->setData($payload);
         $response->headers->add($revision->headers($etag, $metadata['last_changed_at']));
@@ -46,15 +48,23 @@ class AgencyCatalogController
 
     public function show(Request $request, string $code, CatalogRevisionService $revision): JsonResponse|Response
     {
-        $normalizedCode = strtoupper(trim($code));
-        $etag = $revision->etag('agency:'.$normalizedCode);
+        return $this->resourceResponse($request, Agency::query()->where('code', strtoupper(trim($code)))->firstOrFail(), $revision);
+    }
+
+    public function showById(Request $request, int $id, CatalogRevisionService $revision): JsonResponse|Response
+    {
+        return $this->resourceResponse($request, Agency::query()->findOrFail($id), $revision);
+    }
+
+    private function resourceResponse(Request $request, Agency $agency, CatalogRevisionService $revision): JsonResponse|Response
+    {
+        $etag = $revision->etag('agency:'.$agency->code);
         $metadata = $revision->metadata();
         if ($revision->isNotModified($request, $etag)) {
             return $revision->notModified($etag, $metadata['last_changed_at']);
         }
-
-        $resource = new AgencyResource(Agency::query()->where('code', $normalizedCode)->firstOrFail());
-        $resource->additional(['meta' => ['schema_version' => (int) config('api.agency_schema_version')]]);
+        $resource = new AgencyResource($agency);
+        $resource->additional(['success' => true, 'meta' => ['schema_version' => (int) config('api.agency_schema_version')]]);
         $response = $resource->response();
         $response->headers->add($revision->headers($etag, $metadata['last_changed_at']));
 
@@ -63,8 +73,6 @@ class AgencyCatalogController
 
     private function withChannel(Builder $query, string $column, bool $present): Builder
     {
-        return $present
-            ? $query->whereNotNull($column)->where($column, '<>', '')
-            : $query->where(fn (Builder $query) => $query->whereNull($column)->orWhere($column, ''));
+        return $present ? $query->whereNotNull($column)->where($column, '<>', '') : $query->where(fn (Builder $query) => $query->whereNull($column)->orWhere($column, ''));
     }
 }

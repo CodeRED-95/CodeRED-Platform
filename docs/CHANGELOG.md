@@ -191,3 +191,9 @@ Todas las versiones siguen `Keep a Changelog`.
 - UI: dropdowns, selects y confirmaciones usan un portal global con posicionamiento adaptativo; la escala de capas y la región única de toasts quedan centralizadas.
 
 - Dashboard: rediseño ejecutivo compacto con cuatro KPIs, métricas secundarias, tendencia SVG segura, donut real, actividad limitada y última importación resumida.
+
+## 2026-07-20 — API DNI y abilities separadas
+
+- Se incorporó el módulo DNI con proveedor intercambiable, Redis, validación y respuesta controlada.
+- Se separaron `agencias:consultar` y `dni:consultar`, con clientes API, límites y auditoría por servicio.
+- Se añadieron rutas `/api/v1/agencias` y `/api/v1/dni/{dni}` sin retirar los contratos heredados.

@@ -107,3 +107,5 @@ Proprietary
 - El módulo **Usuarios** ya prepara la administración de cuentas internas bajo el mismo Design System.
 - La documentación viva se mantiene en `/docs`.
 - Las decisiones técnicas relevantes se registran en `/docs/adr`.
+
+- [API de agencias, DNI y tokens separados](docs/API_DNI_AND_TOKENS.md)

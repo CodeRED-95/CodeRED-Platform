@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ApiClient;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -11,8 +12,8 @@ class EnsureApiTokenOwnerIsActive
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
-        if (! $user instanceof User || ! $user->isActive()) {
+        $owner = $request->user();
+        if ((! $owner instanceof User && ! $owner instanceof ApiClient) || ! $owner->isActive()) {
             return response()->json(['message' => 'No autenticado.'], 401);
         }
 

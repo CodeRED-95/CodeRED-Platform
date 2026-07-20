@@ -17,6 +17,13 @@ class AgencyIndexRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'agencia' => ['nullable', 'string', 'max:150'],
+            'departamento' => ['nullable', 'string', 'max:120'],
+            'provincia' => ['nullable', 'string', 'max:120'],
+            'distrito' => ['nullable', 'string', 'max:120'],
+            'tamano' => ['nullable', Rule::enum(AgencySize::class)],
+            'co' => ['nullable', 'boolean'],
+            'estado' => ['nullable', Rule::enum(AgencyStatus::class)],
             'search' => ['nullable', 'string', 'max:150'],
             'status' => ['nullable', Rule::enum(AgencyStatus::class)],
             'department' => ['nullable', 'string', 'max:120'],

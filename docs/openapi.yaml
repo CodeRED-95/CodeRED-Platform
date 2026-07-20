@@ -3,7 +3,7 @@ info:
   title: CodeRED Platform API
   version: 1.0.0
   description: |
-    API REST de solo lectura para el catálogo de agencias de CodeRED Platform.
+    API REST para consultas independientes de agencias y DNI en CodeRED Platform.
     Crea y revoca credenciales desde API y Tokens. En Authorize pega un token Sanctum
     con agencies:read para el catálogo o profile:read para /me. Nunca incluyas tokens reales
     en URLs, capturas, código fuente o documentación.
@@ -11,7 +11,9 @@ tags:
   - name: Sistema
     description: Estado público del servicio.
   - name: Agencias
-    description: Consulta del catálogo oficial; requiere la ability agencies:read.
+    description: Consulta del catálogo oficial; requiere agencias:consultar.
+  - name: DNI
+    description: Consulta DNI; requiere dni:consultar.
   - name: Catálogo
     description: Metadatos del catálogo; requiere agencies:read.
   - name: Perfil
@@ -37,6 +39,53 @@ paths:
                 timestamp: '2026-07-19T12:00:00Z'
         '503':
           description: Base de datos no disponible
+  /agencias:
+    get:
+      tags: [Agencias]
+      summary: Listar agencias con token del servicio Agencias
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: agencia, in: query, schema: { type: string } }
+        - { name: departamento, in: query, schema: { type: string } }
+        - { name: provincia, in: query, schema: { type: string } }
+        - { name: distrito, in: query, schema: { type: string } }
+        - { name: tamano, in: query, schema: { type: string, enum: [small, medium, large] } }
+        - { name: co, in: query, schema: { type: boolean } }
+        - { name: estado, in: query, schema: { $ref: '#/components/schemas/AgencyStatus' } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Página de agencias }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /agencias/{id}:
+    get:
+      tags: [Agencias]
+      summary: Obtener agencia por ID interno
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Agencia encontrada }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /dni/{dni}:
+    get:
+      tags: [DNI]
+      summary: Consultar persona por DNI
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: dni, in: path, required: true, schema: { type: string, pattern: '^\\d{8}$' } }
+      responses:
+        '200': { description: Datos públicos normalizados del DNI }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: DNI no encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { description: Proveedor temporalmente no disponible }
   /agencies:
     get:
       tags: [Agencias]

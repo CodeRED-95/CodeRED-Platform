@@ -149,3 +149,17 @@ En producción, `API_ALLOWED_ORIGINS` debe incluir únicamente dominios necesari
 ## Proxy inverso y Cloudflare Tunnel
 
 Laravel confía en los encabezados `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Port`, `X-Forwarded-Proto` y `X-Forwarded-Prefix` que Nginx reenvía desde el proxy frontal. Las interfaces del mismo origen deben usar rutas relativas; no se debe corregir HTTPS mediante `URL::forceScheme()` porque el acceso local continúa usando HTTP. El servicio PHP no debe exponerse directamente fuera de la red Docker.
+
+## API DNI y límites separados
+
+| Variable | Uso |
+|---|---|
+| `AGENCY_API_RATE_LIMIT_PER_MINUTE` | Límite por token para agencias |
+| `DNI_PROVIDER` | Implementación de proveedor activa |
+| `DNI_API_URL` | URL privada de configuración del proveedor |
+| `DNI_API_TOKEN` | Credencial secreta; nunca versionar |
+| `DNI_CACHE_TTL` | TTL de resultados exitosos |
+| `DNI_NOT_FOUND_CACHE_TTL` | TTL corto de no encontrados |
+| `DNI_RATE_LIMIT_PER_MINUTE` | Límite por token para DNI |
+| `DNI_API_TIMEOUT_SECONDS` | Timeout total del proveedor |
+| `DNI_API_CONNECT_TIMEOUT_SECONDS` | Timeout de conexión |

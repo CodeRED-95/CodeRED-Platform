@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Domain\Dni\Contracts\DniProviderInterface;
 use App\Models\ApiToken;
 use App\Models\User;
 use App\Observers\UserObserver;
 use App\Policies\UserPolicy;
+use App\Services\Dni\CurrentDniProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,44 +19,45 @@ use Laravel\Sanctum\TransientToken;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        $this->app->bind(DniProviderInterface::class, CurrentDniProvider::class);
+    }
 
     public function boot(): void
     {
         Sanctum::usePersonalAccessTokenModel(ApiToken::class);
         User::observe(UserObserver::class);
         Gate::policy(User::class, UserPolicy::class);
-
-        Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
-            if ($user->hasRole('super-admin')) {
-                return true;
-            }
-
-            if ($user->hasPermission($ability)) {
-                return true;
-            }
-
-            return null;
+        Gate::before(function (User $user, string $ability): ?bool {
+            return $user->hasRole('super-admin') || $user->hasPermission($ability) ? true : null;
         });
+        RateLimiter::for('api', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.rate_limit_per_minute'), 1), 'api'));
+        RateLimiter::for('api-agencias', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.agency_rate_limit_per_minute'), 1), 'agencias'));
+        RateLimiter::for('api-dni', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('dni.rate_limit_per_minute'), 1), 'dni'));
+    }
 
-        RateLimiter::for('api', function (Request $request): Limit {
-            $limit = max((int) config('api.rate_limit_per_minute'), 1);
-            $user = $request->user();
-            $token = $user?->currentAccessToken();
+    private function tokenLimit(Request $request, int $limit, string $service): Limit
+    {
+        $owner = $request->user();
+        $token = $owner?->currentAccessToken();
+        if ($token instanceof PersonalAccessToken) {
+            $prefix = $service === 'api' ? '' : $service.':';
 
-            if ($token instanceof PersonalAccessToken) {
-                return Limit::perMinute($limit)->by('token:'.$token->getKey());
-            }
+            return Limit::perMinute($limit)->by($prefix.'token:'.$token->getKey());
+        }
+        if ($token instanceof TransientToken && $owner !== null) {
+            $prefix = $service === 'api' ? '' : $service.':';
 
-            if ($token instanceof TransientToken && $user !== null) {
-                return Limit::perMinute($limit)->by('user:'.$user->getAuthIdentifier());
-            }
+            return Limit::perMinute($limit)->by($prefix.'user:'.$owner->getAuthIdentifier());
+        }
+        if ($owner !== null) {
+            $prefix = $service === 'api' ? '' : $service.':';
 
-            if ($user !== null) {
-                return Limit::perMinute($limit)->by('user:'.$user->getAuthIdentifier());
-            }
+            return Limit::perMinute($limit)->by($prefix.'user:'.$owner->getAuthIdentifier());
+        }
+        $prefix = $service === 'api' ? '' : $service.':';
 
-            return Limit::perMinute($limit)->by('ip:'.$request->ip());
-        });
+        return Limit::perMinute($limit)->by($prefix.'ip:'.$request->ip());
     }
 }

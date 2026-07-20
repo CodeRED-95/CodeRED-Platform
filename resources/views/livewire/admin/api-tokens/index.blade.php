@@ -1,5 +1,5 @@
 <div class="space-y-8">
-    <x-ui.page-header title="API y Tokens" subtitle="Credenciales Sanctum para integraciones de solo lectura.">
+    <x-ui.page-header title="Tokens API" subtitle="Clientes y credenciales separadas para Agencias y DNI.">
         <x-slot:actions>
             <x-ui.button href="{{ route('api.docs') }}" variant="secondary">Documentación API</x-ui.button>
         </x-slot:actions>
@@ -28,6 +28,18 @@
         </x-ui.alert>
     @endif
 
+
+    <x-ui.card title="Nuevo cliente API" description="Identidad independiente de los usuarios del panel web.">
+        <form wire:submit="createClient" class="grid gap-4 md:grid-cols-4">
+            <x-ui.input id="client-name" wire:model="clientName" label="Nombre del cliente" required :error="$errors->first('clientName')" />
+            <x-ui.input id="client-contact" wire:model="clientContactName" label="Contacto" :error="$errors->first('clientContactName')" />
+            <x-ui.input id="client-email" wire:model="clientContactEmail" type="email" label="Correo de contacto" :error="$errors->first('clientContactEmail')" />
+            <div class="flex items-end"><x-ui.button type="submit" class="w-full" loading-target="createClient">Crear cliente</x-ui.button></div>
+        </form>
+        <div class="mt-4 flex gap-2 text-sm text-[color:var(--color-text-secondary)]">
+            <span>Agencias: {{ $usageSummary['agencias'] ?? 0 }}</span><span>·</span><span>DNI: {{ $usageSummary['dni'] ?? 0 }}</span>
+        </div>
+    </x-ui.card>
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div class="space-y-6">
             <x-ui.card title="Tokens emitidos" description="El valor completo nunca se almacena ni vuelve a mostrarse.">
@@ -68,6 +80,7 @@
                 <tbody class="divide-y divide-white/5">
                     @forelse ($tokens as $token)
                         @php
+                            $revoked = $token->revoked_at !== null;
                             $expired = $token->expires_at?->isPast() ?? false;
                             $expiring = ! $expired && $token->expires_at?->lte(now()->addDays(7));
                         @endphp
@@ -80,8 +93,10 @@
                             </td>
                             <td class="px-4 py-4"><div class="flex max-w-sm flex-wrap gap-1">@foreach ($token->abilities ?? [] as $tokenAbility)<x-ui.badge tone="info">{{ $tokenAbility }}</x-ui.badge>@endforeach</div></td>
                             <td class="px-4 py-4 text-sm">
-                                <x-ui.badge :tone="$expired ? 'danger' : ($expiring ? 'warning' : 'success')">{{ $expired ? 'Expirado' : ($expiring ? 'Próximo a expirar' : 'Activo') }}</x-ui.badge>
+                                <x-ui.badge :tone="$revoked || $expired ? 'danger' : ($expiring ? 'warning' : 'success')">{{ $revoked ? 'Revocado' : ($expired ? 'Expirado' : ($expiring ? 'Próximo a expirar' : 'Activo')) }}</x-ui.badge>
                                 <p class="mt-2 text-[color:var(--color-text-secondary)]">Último uso: {{ $token->last_used_at?->format('d/m/Y H:i') ?? 'Nunca utilizado' }}</p>
+                                <p class="text-[color:var(--color-text-secondary)]">Consultas: {{ $token->request_logs_count }} · Agencias {{ $token->agency_requests_count }} · DNI {{ $token->dni_requests_count }}</p>
+                                <p class="text-[color:var(--color-text-secondary)]">Exitosas: {{ $token->successful_requests_count }} · Errores: {{ $token->failed_requests_count }}</p>
                                 <p class="text-[color:var(--color-text-secondary)]">Expira: {{ $token->expires_at?->format('d/m/Y H:i') ?? 'Sin expiración' }}</p>
                             </td>
                             <td class="px-4 py-4"><div class="flex flex-wrap gap-2">
@@ -103,8 +118,8 @@
             <form wire:submit="createToken" class="space-y-4">
                 <x-ui.input id="token-name" wire:model="name" label="Nombre" required :error="$errors->first('name')" placeholder="Extensión Chrome - PC principal" />
                 <x-ui.textarea id="token-description" wire:model="description" label="Descripción" :error="$errors->first('description')" />
-                <x-ui.dropdown-select id="token-owner-create" wire:model="targetUserId" label="Propietario" :value="$targetUserId" :options="$users->pluck('name', 'id')->all()" :error="$errors->first('targetUserId')" />
-                <x-ui.input id="token-expiration" wire:model="expirationDate" type="date" :min="now()->addDay()->toDateString()" :max="now()->addYear()->toDateString()" label="Fecha de expiración" required :error="$errors->first('expirationDate')" />
+                <x-ui.dropdown-select id="token-client-create" wire:model="targetApiClientId" label="Propietario o cliente" :value="$targetApiClientId" :options="[0 => 'Usuario administrador (compatibilidad)'] + $clients->pluck('name', 'id')->all()" :error="$errors->first('targetApiClientId')" />
+                <x-ui.input id="token-expiration" wire:model="expirationDate" type="date" :min="now()->addDay()->toDateString()" :max="now()->addYear()->toDateString()" label="Fecha de expiración opcional" :error="$errors->first('expirationDate')" />
                 <fieldset class="space-y-2">
                     <legend class="text-sm font-medium">Abilities</legend>
                     @foreach ($availableAbilities as $abilityValue => $abilityLabel)
@@ -116,4 +131,36 @@
             </form>
         </x-ui.card>
     </div>
+    <x-ui.card title="Tokens revocados" description="Historial sin secreto ni hash reutilizable.">
+        <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            @forelse ($revokedTokens as $revokedToken)
+                <div class="rounded-xl border border-white/10 p-3"><div class="flex justify-between gap-2"><span class="font-medium">{{ $revokedToken->name }}</span><x-ui.badge tone="danger">Revocado</x-ui.badge></div><p class="text-sm text-[color:var(--color-text-secondary)]">{{ $revokedToken->owner_name }} · #{{ $revokedToken->original_token_id }}</p><p class="text-xs text-[color:var(--color-text-muted)]">{{ implode(', ', $revokedToken->abilities) }} · {{ $revokedToken->revoked_at?->format('d/m/Y H:i') }}</p></div>
+            @empty
+                <p class="text-sm text-[color:var(--color-text-muted)]">No hay tokens revocados.</p>
+            @endforelse
+        </div>
+    </x-ui.card>
+    <x-ui.card title="Historial de consumo" description="No almacena Bearer Tokens ni el DNI en texto plano.">
+        <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <x-ui.dropdown-select id="log-client" wire:model.live="logClientId" label="Cliente" :value="$logClientId" :options="[0 => 'Todos'] + $clients->pluck('name', 'id')->all()" />
+            <x-ui.dropdown-select id="log-token" wire:model.live="logTokenId" label="Token" :value="$logTokenId" :options="[0 => 'Todos'] + $tokens->pluck('name', 'id')->all()" />
+            <x-ui.dropdown-select id="log-service" wire:model.live="logService" label="Servicio" :value="$logService" :options="['' => 'Todos', 'agencias' => 'Agencias', 'dni' => 'DNI']" />
+            <x-ui.input id="log-status" wire:model.live.debounce.400ms="logStatus" label="Estado HTTP" inputmode="numeric" />
+            <x-ui.input id="log-from" wire:model.live="logFrom" type="date" label="Desde" />
+            <x-ui.input id="log-to" wire:model.live="logTo" type="date" label="Hasta" />
+        </div>
+        <div class="mt-5 overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="text-[color:var(--color-text-muted)]"><tr><th class="p-3">Fecha</th><th class="p-3">Cliente / token</th><th class="p-3">Servicio</th><th class="p-3">HTTP</th><th class="p-3">Duración</th></tr></thead>
+                <tbody class="divide-y divide-white/5">
+                    @forelse ($logs as $log)
+                        <tr><td class="p-3">{{ $log->created_at?->format('d/m/Y H:i:s') }}</td><td class="p-3">{{ $log->client?->name ?? 'Usuario heredado' }} · {{ $log->token?->name ?? '#'.$log->token_id }}</td><td class="p-3">{{ ucfirst($log->service) }}</td><td class="p-3"><x-ui.badge :tone="$log->status_code < 400 ? 'success' : 'danger'">{{ $log->status_code }}</x-ui.badge></td><td class="p-3">{{ $log->response_time_ms }} ms</td></tr>
+                    @empty
+                        <tr><td colspan="5" class="p-8 text-center text-[color:var(--color-text-muted)]">Todavía no hay consumo registrado.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <x-ui.pagination :paginator="$logs" />
+    </x-ui.card>
 </div>

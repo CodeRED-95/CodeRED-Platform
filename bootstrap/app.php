@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuditApiRequest;
 use App\Http\Middleware\EnsureApiTokenNotExpired;
 use App\Http\Middleware\EnsureApiTokenOwnerIsActive;
 use App\Http\Middleware\EnsureApiVersion;
@@ -39,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $middleware->alias([
+            'api.audit' => AuditApiRequest::class,
             'api.token.expiration' => EnsureApiTokenNotExpired::class,
             'api.token-owner-active' => EnsureApiTokenOwnerIsActive::class,
             'api.private-cache' => EnsurePrivateApiCaching::class,
