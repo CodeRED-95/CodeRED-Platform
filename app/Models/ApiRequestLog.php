@@ -9,11 +9,11 @@ class ApiRequestLog extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['api_client_id', 'token_id', 'service', 'endpoint', 'method', 'status_code', 'ip_address', 'user_agent', 'identifier_hash', 'response_time_ms', 'created_at'];
+    protected $fillable = ['api_client_id', 'token_id', 'service', 'endpoint', 'method', 'status_code', 'ip_address', 'user_agent', 'identifier_hash', 'response_time_ms', 'source', 'provider_called', 'provider_status_code', 'cache_hit', 'local_database_hit', 'created_at'];
 
     protected function casts(): array
     {
-        return ['created_at' => 'datetime'];
+        return ['created_at' => 'datetime', 'provider_called' => 'boolean', 'cache_hit' => 'boolean', 'local_database_hit' => 'boolean'];
     }
 
     public function client(): BelongsTo

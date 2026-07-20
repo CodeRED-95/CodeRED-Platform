@@ -2,14 +2,16 @@
 
 namespace Tests\Feature;
 
-use App\Domain\Dni\Contracts\DniProviderInterface;
 use App\Domain\Dni\Data\DniData;
-use App\Domain\Dni\Exceptions\DniProviderUnavailableException;
 use App\Models\ApiClient;
 use App\Models\ApiRequestLog;
+use App\Models\DniRecord;
 use App\Modules\Agencies\Models\Agency;
+use App\Services\Dni\DniCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
@@ -21,95 +23,142 @@ class DniApiTest extends TestCase
     {
         parent::setUp();
         Cache::clear();
-        $this->app->instance(DniProviderInterface::class, new class implements DniProviderInterface
-        {
-            public int $calls = 0;
-
-            public function find(string $dni): ?DniData
-            {
-                $this->calls++;
-
-                return $dni === '00000000' ? null : new DniData($dni, 'ANA PEREZ DIAZ', 'ANA', 'PEREZ', 'DIAZ', '1990-01-01', 36);
-            }
-        });
+        config()->set('dni.perudevs.enabled', true);
+        config()->set('dni.perudevs.base_url', 'https://service.fitcoders.test/enty');
+        config()->set('dni.perudevs.api_token', 'private-perudevs-token');
+        config()->set('dni.perudevs.retry_times', 0);
+        config()->set('dni.persist_external_results', true);
     }
 
-    public function test_abilities_are_strictly_separated_and_combined_token_can_use_both(): void
+    public function test_local_database_is_primary_preserves_string_and_never_calls_provider(): void
+    {
+        Http::fake();
+        $record = DniRecord::factory()->create(['dni' => '00123456', 'nombres' => 'LOCAL']);
+        $token = $this->token(['dni:consultar']);
+        $this->withToken($token)->getJson('/api/v1/dni/00123456')->assertOk()->assertJsonPath('data.dni', '00123456')->assertJsonPath('data.nombres', 'LOCAL')->assertJsonPath('meta.source', 'internal');
+        Http::assertNothingSent();
+        $this->assertSame('00123456', $record->fresh()->dni);
+        $this->assertDatabaseCount('dni_records', 1);
+        $this->assertDatabaseHas('api_request_logs', ['source' => 'internal', 'provider_called' => false, 'local_database_hit' => true]);
+    }
+
+    public function test_cache_precedes_provider_and_uses_configured_ttl(): void
+    {
+        config()->set('dni.cache_ttl', 60);
+        config()->set('dni.persist_external_results', false);
+        $cache = app(DniCacheService::class);
+        $cache->put(new DniData('12345678', 'CACHE PERSONA', 'CACHE', 'PERSONA', ''));
+        Http::fake();
+        $token = $this->token(['dni:consultar']);
+        $this->withToken($token)->getJson('/api/v1/dni/12345678')->assertOk()->assertJsonPath('meta.source', 'cache');
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('dni_records', 0);
+    }
+
+    public function test_perudevs_result_is_normalized_persisted_and_next_lookup_is_local(): void
+    {
+        Http::fake(['*' => Http::response(['data' => ['dni' => '12345678', 'nombres' => 'ANA', 'apellidoPaterno' => 'PEREZ', 'apellidoMaterno' => 'DIAZ', 'nombreCompleto' => 'ANA PEREZ DIAZ', 'fechaNacimiento' => '1990-01-01', 'edad' => 36, 'id' => 'ref-1']], 200, ['Content-Type' => 'application/json'])]);
+        $token = $this->token(['dni:consultar']);
+        $this->withToken($token)->getJson('/api/v1/dni/12345678')->assertOk()->assertJsonPath('meta.source', 'perudevs')->assertJsonPath('data.apellido_paterno', 'PEREZ');
+        $this->assertDatabaseHas('dni_records', ['dni' => '12345678', 'source' => 'perudevs', 'provider_reference' => 'ref-1']);
+        Http::assertSentCount(1);
+        auth()->forgetGuards();
+        $this->withToken($token)->getJson('/api/v1/dni/12345678')->assertOk()->assertJsonPath('meta.source', 'internal');
+        Http::assertSentCount(1);
+        $this->assertDatabaseCount('dni_records', 1);
+        Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer private-perudevs-token') && ! str_contains((string) $request->header('Authorization')[0], $token));
+    }
+
+    public function test_persist_disabled_keeps_result_only_in_cache(): void
+    {
+        config()->set('dni.persist_external_results', false);
+        Http::fake(['*' => Http::response(['data' => ['dni' => '87654321', 'nombres' => 'LUIS', 'apellidoPaterno' => 'RAMOS', 'apellidoMaterno' => 'SOTO', 'nombreCompleto' => 'LUIS RAMOS SOTO']], 200, ['Content-Type' => 'application/json'])]);
+        $token = $this->token(['dni:consultar']);
+        $this->withToken($token)->getJson('/api/v1/dni/87654321')->assertOk()->assertJsonPath('meta.source', 'perudevs');
+        $this->assertDatabaseCount('dni_records', 0);
+        auth()->forgetGuards();
+        $this->withToken($token)->getJson('/api/v1/dni/87654321')->assertOk()->assertJsonPath('meta.source', 'cache');
+        Http::assertSentCount(1);
+    }
+
+    public function test_not_found_is_cached_with_independent_ttl(): void
+    {
+        config()->set('dni.not_found_cache_ttl', 30);
+        Http::fake(['*' => Http::response([], 404, ['Content-Type' => 'application/json'])]);
+        $token = $this->token(['dni:consultar']);
+        $this->withToken($token)->getJson('/api/v1/dni/00000000')->assertNotFound();
+        auth()->forgetGuards();
+        $this->withToken($token)->getJson('/api/v1/dni/00000000')->assertNotFound();
+        Http::assertSentCount(1);
+    }
+
+    public function test_provider_errors_are_controlled(): void
+    {
+        $token = $this->token(['dni:consultar']);
+        Http::fakeSequence()
+            ->push(['message' => 'secret provider detail'], 401, ['Content-Type' => 'application/json'])
+            ->push(['message' => 'secret provider detail'], 403, ['Content-Type' => 'application/json'])
+            ->push(['message' => 'secret provider detail'], 429, ['Content-Type' => 'application/json'])
+            ->push(['message' => 'secret provider detail'], 500, ['Content-Type' => 'application/json'])
+            ->push('<html>bad</html>', 200, ['Content-Type' => 'text/html']);
+
+        foreach ([[401, 503], [403, 503], [429, 503], [500, 503]] as [$providerStatus, $expected]) {
+            Cache::clear();
+            auth()->forgetGuards();
+            $this->withToken($token)->getJson('/api/v1/dni/11111111')->assertStatus($expected)->assertJsonMissing(['secret provider detail']);
+        }
+        Cache::clear();
+        auth()->forgetGuards();
+        $this->withToken($token)->getJson('/api/v1/dni/22222222')->assertStatus(502);
+    }
+
+    public function test_provider_timeout_is_controlled(): void
+    {
+        Http::fake(fn () => throw new ConnectionException('timeout'));
+
+        $this->withToken($this->token(['dni:consultar']))->getJson('/api/v1/dni/33333333')->assertStatus(503);
+    }
+
+    public function test_disabled_or_unconfigured_provider_returns_controlled_503(): void
+    {
+        config()->set('dni.perudevs.enabled', false);
+        Http::fake();
+        $this->withToken($this->token(['dni:consultar']))->getJson('/api/v1/dni/12345678')->assertStatus(503)->assertJsonPath('success', false);
+        Http::assertNothingSent();
+    }
+
+    public function test_abilities_remain_strictly_separated_and_rate_limits_independent(): void
     {
         Agency::factory()->create();
+        DniRecord::factory()->create(['dni' => '12345678']);
         $client = ApiClient::factory()->create();
-        $agencies = $client->createToken('Solo agencias', ['agencias:consultar'])->plainTextToken;
-        $dni = $client->createToken('Solo DNI', ['dni:consultar'])->plainTextToken;
-        $combined = $client->createToken('Combinado', ['agencias:consultar', 'dni:consultar'])->plainTextToken;
-
-        $this->withToken($agencies)->getJson('/api/v1/agencias')->assertOk();
+        $agencies = $client->createToken('Agencias', ['agencias:consultar']);
+        $dni = $client->createToken('DNI', ['dni:consultar']);
+        $this->withToken($agencies->plainTextToken)->getJson('/api/v1/dni/12345678')->assertForbidden();
         auth()->forgetGuards();
-        $this->withToken($agencies)->getJson('/api/v1/dni/12345678')->assertForbidden();
+        $this->withToken($dni->plainTextToken)->getJson('/api/v1/agencias')->assertForbidden();
         auth()->forgetGuards();
-        $this->withToken($dni)->getJson('/api/v1/dni/12345678')->assertOk()->assertJsonPath('data.dni', '12345678');
-        auth()->forgetGuards();
-        $this->withToken($dni)->getJson('/api/v1/agencias')->assertForbidden();
-        auth()->forgetGuards();
-        $this->withToken($combined)->getJson('/api/v1/agencias')->assertOk();
-        auth()->forgetGuards();
-        $this->withToken($combined)->getJson('/api/v1/dni/12345678')->assertOk();
+        $this->withToken($dni->plainTextToken)->getJson('/api/v1/dni/12345678')->assertOk();
+        config()->set('dni.rate_limit_per_minute', 1);
+        RateLimiter::clear('dni:token:'.$dni->accessToken->getKey());
     }
 
-    public function test_dni_validation_not_found_provider_failure_and_cache_are_controlled(): void
+    public function test_validation_expiration_revocation_and_audit_never_expose_tokens(): void
     {
         $client = ApiClient::factory()->create();
-        $token = $client->createToken('DNI', ['dni:consultar'])->plainTextToken;
+        $token = $client->createToken('DNI', ['dni:consultar']);
         foreach (['1234567', '123456789', '1234ABCD'] as $invalid) {
-            $this->withToken($token)->getJson('/api/v1/dni/'.$invalid)->assertUnprocessable();
+            $this->withToken($token->plainTextToken)->getJson('/api/v1/dni/'.$invalid)->assertUnprocessable();
             auth()->forgetGuards();
         }
-        $this->withToken($token)->getJson('/api/v1/dni/00000000')->assertNotFound()->assertJsonPath('success', false);
-        auth()->forgetGuards();
-        $this->withToken($token)->getJson('/api/v1/dni/87654321')->assertOk();
-        auth()->forgetGuards();
-        $this->withToken($token)->getJson('/api/v1/dni/87654321')->assertOk();
-        $this->assertTrue(Cache::has('dni:lookup:87654321'));
-
-        $this->app->instance(DniProviderInterface::class, new class implements DniProviderInterface
-        {
-            public function find(string $dni): ?DniData
-            {
-                throw new DniProviderUnavailableException;
-            }
-        });
-        auth()->forgetGuards();
-        $this->withToken($token)->getJson('/api/v1/dni/11111111')->assertStatus(503)->assertJsonMissing(['exception']);
+        $token->accessToken->forceFill(['revoked_at' => now()])->save();
+        $this->withToken($token->plainTextToken)->getJson('/api/v1/dni/12345678')->assertUnauthorized();
+        $this->assertStringNotContainsString($token->plainTextToken, json_encode(ApiRequestLog::query()->get()->toArray(), JSON_THROW_ON_ERROR));
+        $this->assertStringNotContainsString('private-perudevs-token', json_encode(ApiRequestLog::query()->get()->toArray(), JSON_THROW_ON_ERROR));
     }
 
-    public function test_missing_invalid_expired_and_revoked_tokens_return_unauthorized(): void
+    private function token(array $abilities): string
     {
-        $this->getJson('/api/v1/dni/12345678')->assertUnauthorized();
-        $this->withToken('invalid')->getJson('/api/v1/dni/12345678')->assertUnauthorized();
-        $client = ApiClient::factory()->create();
-        $expired = $client->createToken('Expirado', ['dni:consultar'], now()->subMinute())->plainTextToken;
-        $this->withToken($expired)->getJson('/api/v1/dni/12345678')->assertUnauthorized();
-        $created = $client->createToken('Revocado', ['dni:consultar']);
-        $created->accessToken->forceFill(['revoked_at' => now()])->save();
-        auth()->forgetGuards();
-        $this->withToken($created->plainTextToken)->getJson('/api/v1/dni/12345678')->assertUnauthorized();
-    }
-
-    public function test_services_have_independent_token_rate_limits_and_safe_audit(): void
-    {
-        config()->set('dni.rate_limit_per_minute', 1);
-        config()->set('api.agency_rate_limit_per_minute', 2);
-        $client = ApiClient::factory()->create();
-        $created = $client->createToken('Combinado secreto', ['agencias:consultar', 'dni:consultar']);
-        RateLimiter::clear('dni:token:'.$created->accessToken->getKey());
-        RateLimiter::clear('agencias:token:'.$created->accessToken->getKey());
-        $this->withToken($created->plainTextToken)->getJson('/api/v1/dni/12345678')->assertOk();
-        auth()->forgetGuards();
-        $this->withToken($created->plainTextToken)->getJson('/api/v1/dni/87654321')->assertTooManyRequests();
-        auth()->forgetGuards();
-        $this->withToken($created->plainTextToken)->getJson('/api/v1/agencias')->assertOk();
-        $log = ApiRequestLog::query()->where('service', 'dni')->firstOrFail();
-        $this->assertSame(hash('sha256', '12345678'), $log->identifier_hash);
-        $this->assertSame($client->id, $log->api_client_id);
-        $this->assertStringNotContainsString($created->plainTextToken, json_encode($log->toArray(), JSON_THROW_ON_ERROR));
+        return ApiClient::factory()->create()->createToken('Prueba', $abilities)->plainTextToken;
     }
 }

@@ -8,12 +8,12 @@ class SystemSetting extends Model
 {
     protected $table = 'application_settings';
 
-    public $timestamps = false;
+    public $timestamps = true;
 
-    protected $fillable = ['key', 'value', 'group', 'is_public'];
+    protected $fillable = ['key', 'value', 'group', 'is_public', 'is_encrypted'];
 
     protected function casts(): array
     {
-        return ['is_public' => 'boolean'];
+        return ['is_public' => 'boolean', 'is_encrypted' => 'boolean'];
     }
 }

@@ -7,7 +7,7 @@ use App\Models\ApiToken;
 use App\Models\User;
 use App\Observers\UserObserver;
 use App\Policies\UserPolicy;
-use App\Services\Dni\CurrentDniProvider;
+use App\Services\Dni\PeruDevsDniProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->bind(DniProviderInterface::class, CurrentDniProvider::class);
+        $this->app->bind(DniProviderInterface::class, PeruDevsDniProvider::class);
     }
 
     public function boot(): void

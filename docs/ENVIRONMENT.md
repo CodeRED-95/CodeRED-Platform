@@ -163,3 +163,21 @@ Laravel confía en los encabezados `X-Forwarded-For`, `X-Forwarded-Host`, `X-For
 | `DNI_RATE_LIMIT_PER_MINUTE` | Límite por token para DNI |
 | `DNI_API_TIMEOUT_SECONDS` | Timeout total del proveedor |
 | `DNI_API_CONNECT_TIMEOUT_SECONDS` | Timeout de conexión |
+
+
+### PeruDevs administrable
+
+| Variable | Uso |
+|---|---|
+| `DNIPERUDEVS_ENABLED` | Habilita el respaldo externo; desactivado por defecto |
+| `DNIPERUDEVS_BASE_URL` | Base configurable del servicio |
+| `DNIPERUDEVS_DNI_PATH` | Ruta configurable de consulta completa |
+| `DNIPERUDEVS_API_TOKEN` | Secreto de emergencia; la base de datos cifrada tiene prioridad |
+| `DNIPERUDEVS_TIMEOUT` | Timeout HTTP, en segundos |
+| `DNIPERUDEVS_RETRIES` | Reintentos transitorios |
+| `DNI_CACHE_TTL` | TTL de resultados exitosos |
+| `DNI_NOT_FOUND_CACHE_TTL` | TTL independiente de no encontrados |
+| `DNI_PERSIST_EXTERNAL_RESULTS` | Persiste resultados externos normalizados |
+| `DNI_REFRESH_AFTER_DAYS` | Umbral reservado para refresco explícito futuro |
+
+Los valores guardados en Ajustes → API DNI / PeruDevs prevalecen sobre estas variables. No se debe definir un secreto real en `.env.example`.

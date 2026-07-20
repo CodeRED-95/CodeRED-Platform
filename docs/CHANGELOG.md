@@ -197,3 +197,12 @@ Todas las versiones siguen `Keep a Changelog`.
 - Se incorporó el módulo DNI con proveedor intercambiable, Redis, validación y respuesta controlada.
 - Se separaron `agencias:consultar` y `dni:consultar`, con clientes API, límites y auditoría por servicio.
 - Se añadieron rutas `/api/v1/agencias` y `/api/v1/dni/{dni}` sin retirar los contratos heredados.
+
+
+## 2026-07-20 — Flujo DNI local-first y PeruDevs
+
+- Se agrega `dni_records` como fuente principal con DNI string único.
+- Se integra PeruDevs como respaldo configurable desde el panel y con token cifrado.
+- Se separan cachés positiva/negativa, persistencia externa y errores 404/502/503 controlados.
+- Se amplía la auditoría con origen, proveedor y hits local/caché.
+- Se agregan permisos exclusivos de Super Administrador y pruebas con `Http::fake()`.

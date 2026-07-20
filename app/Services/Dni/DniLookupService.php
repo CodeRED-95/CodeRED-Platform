@@ -3,33 +3,59 @@
 namespace App\Services\Dni;
 
 use App\Domain\Dni\Contracts\DniProviderInterface;
-use App\Domain\Dni\Data\DniData;
-use Illuminate\Contracts\Cache\Repository;
+use App\Domain\Dni\Data\DniLookupResult;
+use App\Domain\Dni\Repositories\DniRepository;
 
 class DniLookupService
 {
-    private const NOT_FOUND = '__not_found__';
+    public function __construct(
+        private readonly DniRepository $repository,
+        private readonly DniCacheService $cache,
+        private readonly DniProviderInterface $provider,
+        private readonly DniSettingsService $settings,
+    ) {}
 
-    public function __construct(private readonly DniProviderInterface $provider, private readonly Repository $cache) {}
-
-    public function find(string $dni): ?DniData
+    public function find(string $dni): DniLookupResult
     {
-        $key = 'dni:lookup:'.$dni;
-        $cached = $this->cache->get($key);
-        if ($cached === self::NOT_FOUND) {
-            return null;
+        $local = $this->repository->findByDni($dni);
+        if ($local !== null) {
+            return DniLookupResult::found($this->repository->toData($local), 'internal');
         }
-        if (is_array($cached)) {
-            return DniData::fromArray($cached);
-        }
-        $result = $this->provider->find($dni);
-        if ($result === null) {
-            $this->cache->put($key, self::NOT_FOUND, (int) config('dni.not_found_cache_ttl'));
 
-            return null;
+        $cached = $this->cache->get($dni);
+        if ($cached !== null) {
+            return DniLookupResult::found($cached, 'cache');
         }
-        $this->cache->put($key, $result->toArray(), (int) config('dni.cache_ttl'));
+        if ($this->cache->isNotFound($dni)) {
+            return DniLookupResult::notFound();
+        }
 
-        return $result;
+        if (! $this->provider->isEnabled()) {
+            return DniLookupResult::unavailable('El proveedor externo de DNI no está configurado.');
+        }
+
+        $external = $this->provider->find($dni);
+        if ($external->status === 'not_found') {
+            $this->cache->rememberNotFound($dni);
+
+            return DniLookupResult::notFound(true, $external->statusCode);
+        }
+        if ($external->status !== 'found' || $external->data === null) {
+            $state = $external->status === 'invalid_response' ? 'invalid_response' : 'unavailable';
+
+            return DniLookupResult::unavailable(
+                $state === 'invalid_response' ? 'El proveedor externo devolvió una respuesta inválida.' : 'El proveedor externo de DNI no está disponible temporalmente.',
+                $external->statusCode,
+                $state,
+            );
+        }
+
+        $data = $external->data;
+        if ($this->settings->persistResults()) {
+            $data = $this->repository->toData($this->repository->updateOrCreateFromProvider($data));
+        }
+        $this->cache->put($data);
+
+        return DniLookupResult::found($data, 'perudevs', true, $external->statusCode);
     }
 }

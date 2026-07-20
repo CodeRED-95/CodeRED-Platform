@@ -12,6 +12,7 @@ use App\Livewire\Admin\Agencies\Show as AgencyShow;
 use App\Livewire\Admin\ApiDocumentation;
 use App\Livewire\Admin\ApiTokens\Index as ApiTokensIndex;
 use App\Livewire\Admin\DesignSystem;
+use App\Livewire\Admin\Settings\Dni as DniSettings;
 use App\Livewire\Admin\Users\Form as UsersForm;
 use App\Livewire\Admin\Users\Index as UsersIndex;
 use App\Livewire\Admin\Users\Show as UsersShow;
@@ -42,6 +43,7 @@ Route::get('/admin/users/{user}', UsersShow::class)->middleware(['auth'])->name(
 Route::get('/docs/api/openapi.yaml', ApiDocumentationSpecController::class)->name('api.docs.spec');
 Route::get('/docs/api', ApiDocumentation::class)->name('api.docs');
 Route::get('/admin/api-tokens', ApiTokensIndex::class)->middleware(['auth'])->name('admin.api-tokens.index');
+Route::get('/admin/settings/dni', DniSettings::class)->middleware(['auth'])->name('admin.settings.dni');
 Route::get('/admin/design-system', DesignSystem::class)
     ->middleware(['auth'])
     ->name('admin.design-system');

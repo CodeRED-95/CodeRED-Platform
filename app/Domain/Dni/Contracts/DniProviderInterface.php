@@ -2,9 +2,11 @@
 
 namespace App\Domain\Dni\Contracts;
 
-use App\Domain\Dni\Data\DniData;
+use App\Domain\Dni\Data\DniProviderResult;
 
 interface DniProviderInterface
 {
-    public function find(string $dni): ?DniData;
+    public function isEnabled(): bool;
+
+    public function find(string $dni): DniProviderResult;
 }
