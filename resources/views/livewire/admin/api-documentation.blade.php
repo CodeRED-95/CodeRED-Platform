@@ -31,20 +31,20 @@
                 <div>
                     <div class="flex flex-wrap items-center gap-3">
                         <h2 class="text-lg font-semibold text-white">Autenticación</h2>
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1" x-bind:class="authStatus === 'valid' ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/20' : authStatus === 'invalid' || authStatus === 'forbidden' ? 'bg-rose-500/10 text-rose-200 ring-rose-500/20' : 'bg-white/5 text-[color:var(--color-text-secondary)] ring-white/10'" x-text="authMessage"></span>
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1" x-bind:class="$store.apiDocsAuth.status === 'valid' ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/20' : $store.apiDocsAuth.status === 'invalid' || $store.apiDocsAuth.status === 'forbidden' ? 'bg-rose-500/10 text-rose-200 ring-rose-500/20' : 'bg-white/5 text-[color:var(--color-text-secondary)] ring-white/10'" x-text="$store.apiDocsAuth.message"></span>
                     </div>
                     <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">El token permanece únicamente en memoria mientras esta página está abierta. Nunca se guarda en storage, cookies o ejemplos.</p>
                     <label for="api-docs-token" class="mt-4 block text-sm font-medium text-white">Bearer Token</label>
                     <div class="mt-1.5 flex flex-col gap-2 sm:flex-row">
                         <div class="relative min-w-0 flex-1">
-                            <input id="api-docs-token" x-bind:type="showToken ? 'text' : 'password'" x-model="token" autocomplete="off" spellcheck="false" class="min-h-[var(--control-height)] w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 pr-24 text-sm text-white focus-ring" placeholder="Pega el token Sanctum">
+                            <input id="api-docs-token" x-bind:type="showToken ? 'text' : 'password'" x-model="$store.apiDocsAuth.token" autocomplete="off" spellcheck="false" class="min-h-[var(--control-height)] w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 pr-24 text-sm text-white focus-ring" placeholder="Pega el token Sanctum">
                             <button type="button" class="focus-ring absolute inset-y-1 right-1 rounded-lg px-3 text-xs text-[color:var(--color-text-secondary)] hover:text-white" x-on:click="showToken = !showToken" x-text="showToken ? 'Ocultar' : 'Mostrar'"></button>
                         </div>
-                        <x-ui.button type="button" x-on:click="authorize" x-bind:disabled="authStatus === 'loading'">Autorizar</x-ui.button>
+                        <x-ui.button type="button" x-on:click="authorize" x-bind:disabled="$store.apiDocsAuth.status === 'loading'">Autorizar</x-ui.button>
                         <x-ui.button type="button" variant="secondary" x-on:click="clearAuthorization">Limpiar token</x-ui.button>
                     </div>
-                    <p class="mt-2 text-xs text-[color:var(--color-text-muted)]" aria-live="polite" x-text="authStatus === 'loading' ? 'Validando token…' : authMessage"></p>
-                    <p x-show="authDetails?.abilities" class="mt-2 text-xs text-[color:var(--color-text-secondary)]">Abilities: <span class="text-white" x-text="authDetails?.abilities?.join(', ')"></span></p>
+                    <p class="mt-2 text-xs text-[color:var(--color-text-muted)]" aria-live="polite" x-text="$store.apiDocsAuth.status === 'loading' ? 'Validando token…' : $store.apiDocsAuth.message"></p>
+                    <p x-show="$store.apiDocsAuth.abilities.length" class="mt-2 text-xs text-[color:var(--color-text-secondary)]">Abilities: <span class="text-white" x-text="$store.apiDocsAuth.abilities.join(', ')"></span></p>
                 </div>
                 <x-ui.button type="button" variant="outline" size="sm" x-on:click="execute(endpoints.find((item) => item.id === 'health'))">Comprobar servicio</x-ui.button>
             </div>
@@ -109,7 +109,7 @@
                                 <div x-show="endpoint.response" class="mt-5 space-y-3" aria-live="polite">
                                     <p x-show="endpoint.response?.requestTarget" class="break-all text-xs text-[color:var(--color-text-muted)]">Solicitud: <span class="font-mono text-slate-300" x-text="endpoint.response?.method + ' ' + endpoint.response?.requestTarget"></span></p>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <span class="rounded-full px-2.5 py-1 text-xs font-semibold" x-bind:class="endpoint.response?.ok ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-200'" x-text="endpoint.response?.status || 'Error de red'"></span>
+                                        <span class="rounded-full px-2.5 py-1 text-xs font-semibold" x-bind:class="endpoint.response?.ok ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-200'" x-text="endpoint.response?.status || (endpoint.response?.kind === 'network' ? 'Error de red' : 'Validación')"></span>
                                         <span class="text-xs text-[color:var(--color-text-muted)]" x-text="(endpoint.response?.duration ?? 0) + ' ms · ' + (endpoint.response?.size ?? 0) + ' bytes'"></span>
                                         <span class="text-xs text-[color:var(--color-text-muted)]" x-text="endpoint.response?.headers?.etag ? 'ETag ' + endpoint.response.headers.etag : ''"></span>
                                     </div>

@@ -2,7 +2,7 @@ import "./bootstrap";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { codeRedTokenCopy } from "./api-token-copy";
-import { codeRedApiDocs } from "./api-docs";
+import { codeRedApiDocs, createApiDocsAuthStore } from "./api-docs";
 
 document.addEventListener("alpine:init", () => {
   window.codeRedFloating = (config = {}) => ({
@@ -132,6 +132,7 @@ document.addEventListener("alpine:init", () => {
   });
   window.Alpine.data("codeRedFloating", window.codeRedFloating);
   window.Alpine.data("codeRedTokenCopy", codeRedTokenCopy);
+  window.Alpine.store("apiDocsAuth", createApiDocsAuthStore());
 
   window.Alpine.data("codeRedAgencyMap", (config) => ({
     map: null,

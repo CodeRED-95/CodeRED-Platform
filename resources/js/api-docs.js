@@ -72,8 +72,7 @@ export async function parseResponseBody(response) {
 export async function executeApiRequest({ requestTarget, method, token, isProtected, timeoutMs = 15000, fetchImpl = fetch }) {
   const controller = new AbortController();
   const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
-  const headers = { Accept: "application/json" };
-  if (isProtected) headers.Authorization = `Bearer ${normalizeBearerToken(token)}`;
+  const headers = buildApiHeaders({ authenticated: isProtected, token });
   const options = { method, headers, signal: controller.signal };
   if (isProtected) options.credentials = "omit";
   const started = performance.now();
@@ -101,6 +100,53 @@ export function generateFetch(url, isProtected) {
 
 export function normalizeBearerToken(value) {
   return String(value ?? "").trim().replace(/^Bearer\s+/i, "");
+}
+
+export class ApiDocsValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ApiDocsValidationError";
+  }
+}
+
+export function createApiDocsAuthStore() {
+  return {
+    token: "",
+    authorized: false,
+    abilities: [],
+    user: null,
+    status: "idle",
+    message: "No autorizado",
+    details: null,
+
+    setToken(value) {
+      this.token = normalizeBearerToken(value);
+    },
+
+    clear() {
+      this.token = "";
+      this.authorized = false;
+      this.abilities = [];
+      this.user = null;
+      this.status = "idle";
+      this.message = "No autorizado";
+      this.details = null;
+    },
+  };
+}
+
+export function buildApiHeaders({ authenticated = false, token = "" } = {}) {
+  const headers = { Accept: "application/json" };
+
+  if (authenticated) {
+    const normalizedToken = normalizeBearerToken(token);
+    if (!normalizedToken) {
+      throw new ApiDocsValidationError("Debes autorizar un token antes de probar este endpoint.");
+    }
+    headers.Authorization = `Bearer ${normalizedToken}`;
+  }
+
+  return headers;
 }
 
 export function apiErrorMessage(status) {
@@ -135,11 +181,7 @@ export function codeRedApiDocs(config) {
     activeTab: "guide",
     categoryFilter: "Todos",
     search: "",
-    token: "",
     showToken: false,
-    authStatus: "idle",
-    authMessage: "No autorizado",
-    authDetails: null,
     swagger: null,
     swaggerReady: false,
 
@@ -154,8 +196,8 @@ export function codeRedApiDocs(config) {
         this.spec = parseYaml(await response.text());
         this.endpoints = this.extractEndpoints();
       } catch (_error) {
-        this.authMessage = "No fue posible cargar el contrato OpenAPI.";
-        this.$dispatch("toast", { tone: "danger", message: this.authMessage });
+        this.$store.apiDocsAuth.message = "No fue posible cargar el contrato OpenAPI.";
+        this.$dispatch("toast", { tone: "danger", message: this.$store.apiDocsAuth.message });
       }
     },
 
@@ -247,41 +289,49 @@ export function codeRedApiDocs(config) {
     },
 
     async authorize() {
-      this.token = normalizeBearerToken(this.token);
-      if (!this.token) {
-        this.authStatus = "invalid";
-        this.authMessage = "Ingresa un token para autorizar.";
+      const auth = this.$store.apiDocsAuth;
+      auth.setToken(auth.token);
+      if (!auth.token) {
+        auth.status = "invalid";
+        auth.message = "Ingresa un token para autorizar.";
         return;
       }
-      this.authStatus = "loading";
+      auth.status = "loading";
       try {
-        const response = await fetch("/api/v1/me", {
-          credentials: "omit",
-          headers: { Accept: "application/json", Authorization: `Bearer ${this.token}` },
+        const { response, body } = await executeApiRequest({
+          requestTarget: "/api/v1/me",
+          method: "GET",
+          token: auth.token,
+          isProtected: true,
         });
-        const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          this.authStatus = response.status === 403 ? "forbidden" : "invalid";
-          this.authMessage = response.status === 403
+          auth.authorized = false;
+          auth.status = response.status === 403 ? "forbidden" : "invalid";
+          auth.message = response.status === 403
             ? "Token válido, pero sin permiso profile:read."
             : apiErrorMessage(response.status) ?? "No fue posible validar el token.";
-          this.authDetails = null;
+          auth.details = null;
+          auth.abilities = [];
+          auth.user = null;
           return;
         }
-        this.authStatus = "valid";
-        this.authMessage = "Token válido";
-        this.authDetails = data;
-      } catch (_error) {
-        this.authStatus = "invalid";
-        this.authMessage = "No fue posible conectar con la API. Comprueba que la documentación y la API utilicen el mismo protocolo y dominio.";
+        auth.authorized = true;
+        auth.status = "valid";
+        auth.message = "Token válido";
+        auth.details = body;
+        auth.abilities = Array.isArray(body?.abilities) ? body.abilities : [];
+        auth.user = body?.user ?? null;
+      } catch (error) {
+        auth.authorized = false;
+        auth.status = "invalid";
+        auth.message = error?.name === "AbortError"
+          ? "La validación superó el tiempo máximo de espera."
+          : "No fue posible conectar con la API. Comprueba que la documentación y la API utilicen el mismo protocolo y dominio.";
       }
     },
 
     clearAuthorization() {
-      this.token = "";
-      this.authStatus = "idle";
-      this.authMessage = "No autorizado";
-      this.authDetails = null;
+      this.$store.apiDocsAuth.clear();
     },
 
     async execute(endpoint) {
@@ -289,12 +339,13 @@ export function codeRedApiDocs(config) {
       const missing = endpoint.parameters.filter((parameter) => parameter.required && String(endpoint.values[parameter.name] ?? "").trim() === "");
       if (missing.length) {
         endpoint.expanded = true;
-        endpoint.response = { status: 422, error: "Completa los parámetros obligatorios: " + missing.map((parameter) => parameter.name).join(", ") + ".", bodyText: "", headersText: "{}" };
+        endpoint.response = { kind: "validation", status: 422, error: "Completa los parámetros obligatorios: " + missing.map((parameter) => parameter.name).join(", ") + ".", bodyText: "", headersText: "{}" };
         return;
       }
-      if (endpoint.protected && !normalizeBearerToken(this.token)) {
+      const auth = this.$store.apiDocsAuth;
+      if (endpoint.protected && !normalizeBearerToken(auth.token)) {
         endpoint.expanded = true;
-        endpoint.response = { error: "Autoriza un token antes de probar este endpoint.", status: 401 };
+        endpoint.response = { kind: "validation", error: "Debes autorizar un token antes de probar este endpoint.", status: 0 };
         return;
       }
 
@@ -304,7 +355,7 @@ export function codeRedApiDocs(config) {
         if (url.origin !== window.location.origin || endpoint.method !== "GET") throw new Error("Endpoint no permitido");
       } catch (_error) {
         endpoint.expanded = true;
-        endpoint.response = { status: 0, error: "No fue posible preparar la solicitud. Revisa la ruta y sus parámetros.", bodyText: "", headersText: "{}" };
+        endpoint.response = { kind: "validation", status: 0, error: "No fue posible preparar la solicitud. Revisa la ruta y sus parámetros.", bodyText: "", headersText: "{}" };
         return;
       }
 
@@ -316,11 +367,12 @@ export function codeRedApiDocs(config) {
         result = await executeApiRequest({
           requestTarget,
           method: endpoint.method,
-          token: this.token,
+          token: auth.token,
           isProtected: endpoint.protected,
         });
       } catch (error) {
         endpoint.response = {
+          kind: "network",
           status: 0,
           requestTarget,
           method: endpoint.method,
@@ -341,6 +393,7 @@ export function codeRedApiDocs(config) {
         if (value !== null) safeHeaders[name] = value;
       });
       endpoint.response = {
+        kind: "http",
         status: response.status,
         ok: response.ok,
         statusText: response.statusText,
@@ -376,8 +429,6 @@ export function codeRedApiDocs(config) {
     },
 
     destroy() {
-      this.token = "";
-      this.authDetails = null;
       this.swagger = null;
       this.swaggerReady = false;
       if (this.$refs.swagger) this.$refs.swagger.replaceChildren();

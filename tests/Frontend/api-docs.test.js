@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { apiErrorMessage, buildApiPath, buildRequestUrl, executeApiRequest, generateCurl, generateFetch, normalizeBearerToken, parseResponseBody } from "../../resources/js/api-docs.js";
+import { ApiDocsValidationError, apiErrorMessage, buildApiHeaders, buildApiPath, buildRequestUrl, createApiDocsAuthStore, executeApiRequest, generateCurl, generateFetch, normalizeBearerToken, parseResponseBody } from "../../resources/js/api-docs.js";
 
 globalThis.window = { location: { origin: "https://platform.codered.host" } };
 
@@ -49,12 +49,36 @@ test("Bearer input is normalized without altering the token body", () => {
   assert.equal(normalizeBearerToken("1|abc.DEF"), "1|abc.DEF");
 });
 
+test("authentication store keeps one normalized in-memory token and clears all state", () => {
+  const store = createApiDocsAuthStore();
+  store.setToken("  Bearer 1|abc.DEF  ");
+  store.authorized = true;
+  store.abilities = ["agencies:read"];
+  store.user = { id: 1 };
+  assert.equal(store.token, "1|abc.DEF");
+
+  store.clear();
+  assert.deepEqual({ token: store.token, authorized: store.authorized, abilities: store.abilities, user: store.user }, {
+    token: "", authorized: false, abilities: [], user: null,
+  });
+});
+
+test("central headers add Bearer exactly once and never add Content-Type to GET", () => {
+  assert.deepEqual(buildApiHeaders(), { Accept: "application/json" });
+  assert.deepEqual(buildApiHeaders({ authenticated: true, token: "Bearer 1|abc.DEF" }), {
+    Accept: "application/json",
+    Authorization: "Bearer 1|abc.DEF",
+  });
+  assert.throws(() => buildApiHeaders({ authenticated: true }), ApiDocsValidationError);
+});
+
 test("the interactive client uses same-origin relative request targets", () => {
   const source = fs.readFileSync("resources/js/api-docs.js", "utf8");
-  assert.match(source, /fetch\("\/api\/v1\/me"/);
+  assert.match(source, /requestTarget: "\/api\/v1\/me"/);
   assert.match(source, /fetchImpl\(requestTarget/);
-  assert.match(source, /credentials: "omit"/);
-  assert.match(source, /headers\.Authorization = authorization\.replace/);
+  assert.match(source, /options\.credentials = "omit"/);
+  assert.match(source, /buildApiHeaders/);
+  assert.match(source, /apiDocsAuth/);
   assert.doesNotMatch(source, /192\.168\.18\.124|http:\/\/platform\.codered\.host/);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
 });
@@ -89,6 +113,49 @@ test("executeApiRequest sends a clean GET and does not turn HTTP errors into net
   assert.equal(captured.options.mode, undefined);
   assert.equal(result.response.status, 500);
   assert.deepEqual(result.body, { message: "interno" });
+});
+
+test("agency detail card sends the shared Bearer token and receives 200", async () => {
+  let captured;
+  const auth = createApiDocsAuthStore();
+  auth.setToken("Bearer 1|shared-token");
+  const success = await executeApiRequest({
+    requestTarget: "/api/v1/agencies/SHA-000297",
+    method: "GET",
+    token: auth.token,
+    isProtected: true,
+    fetchImpl: async (url, options) => {
+      captured = { url, options };
+      return new Response(JSON.stringify({ data: { code: "SHA-000297" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+
+  assert.equal(captured.url, "/api/v1/agencies/SHA-000297");
+  assert.equal(captured.options.headers.Authorization, "Bearer 1|shared-token");
+  assert.equal(captured.options.credentials, "omit");
+  assert.equal(success.response.status, 200);
+  assert.equal(success.body.data.code, "SHA-000297");
+});
+
+test("every HTTP error remains a response with its real status and body", async () => {
+  for (const status of [401, 403, 404, 422, 429, 500]) {
+    const result = await executeApiRequest({
+      requestTarget: "/api/v1/agencies/SHA-000297",
+      method: "GET",
+      token: "1|valid-token",
+      isProtected: true,
+      fetchImpl: async () => new Response(JSON.stringify({ message: `HTTP ${status}` }), {
+        status,
+        headers: { "content-type": "application/json" },
+      }),
+    });
+    assert.equal(result.response.status, status);
+    assert.deepEqual(result.body, { message: `HTTP ${status}` });
+    assert.notEqual(apiErrorMessage(status), null);
+  }
 });
 
 test("public requests omit Authorization and credential overrides", async () => {

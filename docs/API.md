@@ -40,3 +40,5 @@ Sanctum representa una sesión web como `TransientToken` y un Bearer persistente
 ## Ejecución desde la guía interactiva
 
 El probador normaliza cada ruta con `buildApiPath`, que admite paths relativos o ya prefijados sin producir `/api/v1/api/v1`. Cada petición crea su propio `AbortController` con un máximo de 15 segundos. Solo una excepción lanzada por `fetch` se presenta como error de conexión; las respuestas HTTP conservan status, headers y body aunque sean 401, 403, 404, 409, 410, 422, 429 o 500. Los cuerpos 204/304, vacíos, de texto y JSON inválido se procesan sin perder el status.
+
+El Bearer Token de la guía se mantiene en un único store Alpine en memoria. La validación y todas las tarjetas reutilizan ese estado, construyen centralmente `Accept` y `Authorization`, y ejecutan las consultas protegidas con `credentials: omit` para probar el token real sin depender de la sesión web. Limpiar autorización borra token, abilities y usuario; recargar la página recrea el store vacío.

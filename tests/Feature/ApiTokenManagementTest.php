@@ -175,10 +175,12 @@ class ApiTokenManagementTest extends TestCase
         $this->assertStringContainsString('persistAuthorization: false', $script);
         $this->assertStringContainsString('tryItOutEnabled: true', $script);
         $this->assertStringContainsString('Authorization: Bearer TU_TOKEN', $script);
-        $this->assertStringContainsString('fetch("/api/v1/me"', $script);
+        $this->assertStringContainsString('requestTarget: "/api/v1/me"', $script);
         $this->assertStringContainsString('fetchImpl(requestTarget', $script);
+        $this->assertStringContainsString('buildApiHeaders', $script);
+        $this->assertStringContainsString('this.$store.apiDocsAuth', $script);
         $this->assertStringContainsString('normalizeBearerToken', $script);
-        $this->assertStringContainsString('credentials: "omit"', $script);
+        $this->assertStringContainsString('options.credentials = "omit"', $script);
         $this->assertStringContainsString('request.credentials = "omit"', $script);
         $this->assertStringContainsString('parseResponseBody', $script);
         $this->assertStringContainsString('AbortError', $script);
