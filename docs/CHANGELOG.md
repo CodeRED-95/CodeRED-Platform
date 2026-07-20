@@ -3,6 +3,8 @@
 - API: Swagger UI renderiza el contrato OpenAPI con Authorize Sanctum, Try it out, duración y snippets; la copia de tokens usa Clipboard API con selección manual segura como fallback.
 # Changelog
 
+- La documentación interactiva ahora descubre las abilities reales del Bearer Token, identifica acceso total, bloquea preventivamente endpoints sin permiso y muestra un resumen de disponibilidad sin depender de una ability fija.
+
 - La guía API centraliza el Bearer Token en memoria para todas las tarjetas y conserva los estados HTTP reales sin presentarlos como errores de red.
 
 - Endurecido el probador de documentación API: paths sin prefijo duplicado, parseo seguro, timeout por petición y separación real entre errores HTTP y errores de red.

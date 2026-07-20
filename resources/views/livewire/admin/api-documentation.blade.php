@@ -27,26 +27,50 @@
 
     <div x-show="activeTab === 'guide'" class="space-y-6">
         <x-ui.card padding="p-5" class="border border-[color:var(--color-brand-soft)]">
-            <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <div class="flex flex-wrap items-center gap-3">
-                        <h2 class="text-lg font-semibold text-white">Autenticación</h2>
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1" x-bind:class="$store.apiDocsAuth.status === 'valid' ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/20' : $store.apiDocsAuth.status === 'invalid' || $store.apiDocsAuth.status === 'forbidden' ? 'bg-rose-500/10 text-rose-200 ring-rose-500/20' : 'bg-white/5 text-[color:var(--color-text-secondary)] ring-white/10'" x-text="$store.apiDocsAuth.message"></span>
+                        <h2 class="text-lg font-semibold text-white">Estado de autenticación</h2>
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1"
+                            x-bind:class="['valid', 'full'].includes($store.apiDocsAuth.status) ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/20' : $store.apiDocsAuth.status === 'limited' ? 'bg-amber-500/10 text-amber-200 ring-amber-500/20' : $store.apiDocsAuth.status === 'invalid' ? 'bg-rose-500/10 text-rose-200 ring-rose-500/20' : 'bg-white/5 text-[color:var(--color-text-secondary)] ring-white/10'"
+                            x-text="$store.apiDocsAuth.message"></span>
                     </div>
-                    <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">El token permanece únicamente en memoria mientras esta página está abierta. Nunca se guarda en storage, cookies o ejemplos.</p>
-                    <label for="api-docs-token" class="mt-4 block text-sm font-medium text-white">Bearer Token</label>
-                    <div class="mt-1.5 flex flex-col gap-2 sm:flex-row">
-                        <div class="relative min-w-0 flex-1">
-                            <input id="api-docs-token" x-bind:type="showToken ? 'text' : 'password'" x-model="$store.apiDocsAuth.token" autocomplete="off" spellcheck="false" class="min-h-[var(--control-height)] w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 pr-24 text-sm text-white focus-ring" placeholder="Pega el token Sanctum">
-                            <button type="button" class="focus-ring absolute inset-y-1 right-1 rounded-lg px-3 text-xs text-[color:var(--color-text-secondary)] hover:text-white" x-on:click="showToken = !showToken" x-text="showToken ? 'Ocultar' : 'Mostrar'"></button>
-                        </div>
-                        <x-ui.button type="button" x-on:click="authorize" x-bind:disabled="$store.apiDocsAuth.status === 'loading'">Autorizar</x-ui.button>
-                        <x-ui.button type="button" variant="secondary" x-on:click="clearAuthorization">Limpiar token</x-ui.button>
-                    </div>
-                    <p class="mt-2 text-xs text-[color:var(--color-text-muted)]" aria-live="polite" x-text="$store.apiDocsAuth.status === 'loading' ? 'Validando token…' : $store.apiDocsAuth.message"></p>
-                    <p x-show="$store.apiDocsAuth.abilities.length" class="mt-2 text-xs text-[color:var(--color-text-secondary)]">Abilities: <span class="text-white" x-text="$store.apiDocsAuth.abilities.join(', ')"></span></p>
+                    <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">Autoriza una vez y las tarjetas usarán las abilities reales del token. El token permanece solo en memoria y desaparece al recargar.</p>
                 </div>
                 <x-ui.button type="button" variant="outline" size="sm" x-on:click="execute(endpoints.find((item) => item.id === 'health'))">Comprobar servicio</x-ui.button>
+            </div>
+
+            <div class="mt-5">
+                <label for="api-docs-token" class="block text-sm font-medium text-white">Bearer Token</label>
+                <div class="mt-1.5 flex flex-col gap-2 lg:flex-row">
+                    <div class="relative min-w-0 flex-1">
+                        <input id="api-docs-token" x-bind:type="showToken ? 'text' : 'password'" x-model="$store.apiDocsAuth.token" x-on:input="$store.apiDocsAuth.authorized = false; $store.apiDocsAuth.abilities = []; $store.apiDocsAuth.abilitiesKnown = false; $store.apiDocsAuth.user = null; $store.apiDocsAuth.tokenName = null; $store.apiDocsAuth.validatedAt = null; $store.apiDocsAuth.status = 'idle'; $store.apiDocsAuth.message = 'Token pendiente de autorización'" autocomplete="off" spellcheck="false" class="min-h-[var(--control-height)] w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 pr-24 text-sm text-white focus-ring" placeholder="Pega el token Sanctum">
+                        <button type="button" class="focus-ring absolute inset-y-1 right-1 rounded-lg px-3 text-xs text-[color:var(--color-text-secondary)] hover:text-white" x-on:click="showToken = !showToken" x-text="showToken ? 'Ocultar' : 'Mostrar'"></button>
+                    </div>
+                    <x-ui.button type="button" x-on:click="authorize" x-bind:disabled="$store.apiDocsAuth.status === 'loading'">Autorizar</x-ui.button>
+                    <x-ui.button type="button" variant="secondary" x-show="$store.apiDocsAuth.token" x-on:click="authorize" x-bind:disabled="$store.apiDocsAuth.status === 'loading'">Comprobar token</x-ui.button>
+                    <x-ui.button type="button" variant="ghost" x-on:click="clearAuthorization">Limpiar token</x-ui.button>
+                </div>
+                <p class="mt-2 text-xs text-[color:var(--color-text-muted)]" aria-live="polite" x-text="$store.apiDocsAuth.status === 'loading' ? 'Validando token…' : $store.apiDocsAuth.message"></p>
+            </div>
+
+            <div x-show="$store.apiDocsAuth.authorized" class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-xl border border-[color:var(--color-border)] bg-white/5 p-3"><p class="text-xs text-[color:var(--color-text-muted)]">Usuario</p><p class="mt-1 text-sm font-medium text-white" x-text="$store.apiDocsAuth.user?.name || 'No disponible'"></p></div>
+                <div class="rounded-xl border border-[color:var(--color-border)] bg-white/5 p-3"><p class="text-xs text-[color:var(--color-text-muted)]">Token</p><p class="mt-1 text-sm font-medium text-white" x-text="$store.apiDocsAuth.tokenName || 'Metadata no disponible'"></p></div>
+                <div class="rounded-xl border border-[color:var(--color-border)] bg-white/5 p-3"><p class="text-xs text-[color:var(--color-text-muted)]">Última validación</p><p class="mt-1 text-sm font-medium text-white" x-text="$store.apiDocsAuth.validatedAt ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date($store.apiDocsAuth.validatedAt)) : 'Pendiente'"></p></div>
+                <div class="rounded-xl border border-[color:var(--color-border)] bg-white/5 p-3"><p class="text-xs text-[color:var(--color-text-muted)]">Endpoints disponibles</p><p class="mt-1 text-sm font-medium text-white"><span x-text="availableEndpointsCount()"></span> de <span x-text="endpoints.length"></span></p></div>
+            </div>
+
+            <div x-show="$store.apiDocsAuth.authorized" class="mt-4">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-muted)]">Abilities</span>
+                    <span x-show="$store.apiDocsAuth.abilities.includes('*')" class="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/20">Administrador · Acceso total</span>
+                    <template x-for="ability in $store.apiDocsAuth.abilities.filter((item) => item !== '*')" x-bind:key="ability">
+                        <span class="rounded-full bg-sky-500/10 px-2.5 py-1 font-mono text-xs text-sky-200 ring-1 ring-sky-500/20" x-text="'✓ ' + ability"></span>
+                    </template>
+                    <span x-show="!$store.apiDocsAuth.abilitiesKnown" class="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200 ring-1 ring-amber-500/20">Abilities no disponibles para consulta</span>
+                </div>
+                <p x-show="!$store.apiDocsAuth.abilitiesKnown" class="mt-2 text-xs text-[color:var(--color-text-secondary)]">El token puede seguir probando endpoints; Laravel validará la ability declarada por cada ruta y mostrará su respuesta HTTP real.</p>
             </div>
         </x-ui.card>
 
@@ -77,14 +101,15 @@
                                         <h3 class="font-semibold text-white" x-text="endpoint.title"></h3>
                                         <code class="mt-1 block break-all text-xs text-[color:var(--color-brand-light)]" x-text="endpoint.fullPath"></code>
                                     </div>
-                                    <span class="rounded-full bg-white/5 px-2 py-1 text-[11px] text-[color:var(--color-text-secondary)]" x-text="endpoint.ability"></span>
+                                    <div class="flex shrink-0 flex-col items-end gap-1"><span class="rounded-full bg-white/5 px-2 py-1 text-[11px] text-[color:var(--color-text-secondary)]" x-text="endpoint.protected ? 'Requiere ' + endpoint.ability : 'Público'"></span><span class="rounded-full px-2 py-1 text-[11px] font-medium" x-bind:class="endpointAccess(endpoint).state === 'available' || endpointAccess(endpoint).state === 'public' ? 'bg-emerald-500/10 text-emerald-300' : endpointAccess(endpoint).state === 'unverified' ? 'bg-amber-500/10 text-amber-200' : 'bg-slate-500/10 text-slate-300'" x-text="endpointAccess(endpoint).label"></span></div>
                                 </div>
                                 <p class="mt-3 text-sm leading-6 text-[color:var(--color-text-secondary)]" x-text="endpoint.description"></p>
                                 <div class="mt-4 flex flex-wrap gap-2">
                                     <x-ui.button type="button" size="sm" variant="secondary" x-on:click="endpoint.expanded = !endpoint.expanded" x-bind:aria-expanded="endpoint.expanded" x-text="endpoint.expanded ? 'Ocultar detalles' : 'Ver detalles'"></x-ui.button>
-                                    <x-ui.button type="button" size="sm" x-on:click="execute(endpoint)" x-bind:disabled="endpoint.loading"><span x-text="endpoint.loading ? 'Ejecutando…' : 'Probar endpoint'"></span></x-ui.button>
+                                    <x-ui.button type="button" size="sm" x-on:click="execute(endpoint)" x-bind:disabled="endpoint.loading || !canExecute(endpoint)"><span x-text="endpoint.loading ? 'Ejecutando…' : endpointAccess(endpoint).state === 'forbidden' ? 'Sin permiso' : 'Probar endpoint'"></span></x-ui.button>
                                     <x-ui.button type="button" size="sm" variant="ghost" x-on:click="copy(endpoint.fullPath, 'Ruta')">Copiar ruta</x-ui.button>
                                 </div>
+                                <p x-show="endpointAccess(endpoint).state !== 'available' && endpointAccess(endpoint).state !== 'public'" class="mt-3 text-xs" x-bind:class="endpointAccess(endpoint).state === 'forbidden' ? 'text-rose-200' : 'text-amber-200'" x-text="endpointAccess(endpoint).message"></p>
                             </div>
 
                             <div x-show="endpoint.expanded" class="border-t border-[color:var(--color-border)] p-5">

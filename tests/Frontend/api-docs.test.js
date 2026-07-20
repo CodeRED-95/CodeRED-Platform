@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { ApiDocsValidationError, apiErrorMessage, buildApiHeaders, buildApiPath, buildRequestUrl, createApiDocsAuthStore, executeApiRequest, generateCurl, generateFetch, normalizeBearerToken, parseResponseBody } from "../../resources/js/api-docs.js";
+import { ApiDocsValidationError, apiErrorMessage, buildApiHeaders, buildApiPath, buildRequestUrl, createApiDocsAuthStore, endpointAccess, executeApiRequest, extractTokenProfile, generateCurl, generateFetch, normalizeAbilities, normalizeBearerToken, parseResponseBody, tokenHasAbility } from "../../resources/js/api-docs.js";
 
 globalThis.window = { location: { origin: "https://platform.codered.host" } };
 
@@ -185,4 +185,55 @@ test("real fetch failures remain rejected as network errors", async () => {
     requestTarget: "/api/v1/health", method: "GET", token: "", isProtected: false,
     fetchImpl: async () => { throw new TypeError("Failed to fetch"); },
   }), TypeError);
+});
+
+
+test("token abilities are normalized and support administrative wildcard", () => {
+  assert.deepEqual(normalizeAbilities([" agencies:read ", "agencies:read", null, "changes:read"]), ["agencies:read", "changes:read"]);
+  assert.equal(tokenHasAbility(["*"], "users:read"), true);
+  assert.equal(tokenHasAbility(["agencies:read"], "agencies:read"), true);
+  assert.equal(tokenHasAbility(["agencies:read"], "changes:read"), false);
+  assert.equal(tokenHasAbility(["changes:read"], "changes:read"), true);
+  assert.equal(tokenHasAbility(["changes:read"], "agencies:read"), false);
+});
+
+test("token profile supports the current and future nested response shapes", () => {
+  assert.deepEqual(extractTokenProfile({ id: 1, name: "Admin", email: "admin@example.test", token_name: "CRM", abilities: ["agencies:read"] }), {
+    user: { id: 1, name: "Admin", email: "admin@example.test" }, tokenName: "CRM", abilities: ["agencies:read"],
+  });
+  assert.deepEqual(extractTokenProfile({ user: { id: 2, name: "Editor" }, token: { name: "Extensión", abilities: ["*"] } }), {
+    user: { id: 2, name: "Editor" }, tokenName: "Extensión", abilities: ["*"],
+  });
+});
+
+test("endpoint availability follows the real abilities known by the store", () => {
+  const agency = { protected: true, ability: "agencies:read" };
+  const changes = { protected: true, ability: "changes:read" };
+  const publicEndpoint = { protected: false, ability: "Público" };
+  const auth = { token: "1|token", authorized: true, abilitiesKnown: true, abilities: ["agencies:read"] };
+
+  assert.equal(endpointAccess(publicEndpoint, {}).state, "public");
+  assert.equal(endpointAccess(agency, auth).state, "available");
+  assert.equal(endpointAccess(changes, auth).state, "forbidden");
+  assert.equal(endpointAccess(changes, auth).available, false);
+  assert.equal(endpointAccess(agency, { ...auth, abilities: ["*"] }).available, true);
+  assert.equal(endpointAccess(agency, { ...auth, authorized: false }).state, "authorization-required");
+});
+
+test("tokens whose metadata cannot be read remain executable without inventing abilities", () => {
+  const access = endpointAccess(
+    { protected: true, ability: "agencies:read" },
+    { token: "1|token", authorized: true, abilitiesKnown: false, abilities: [] },
+  );
+
+  assert.equal(access.state, "unverified");
+  assert.equal(access.available, true);
+  assert.match(access.message, /servidor validará agencies:read/);
+});
+
+test("the interactive documentation no longer hardcodes a profile permission failure", () => {
+  const source = fs.readFileSync("resources/js/api-docs.js", "utf8");
+  assert.doesNotMatch(source, /Token válido, pero sin permiso profile:read/);
+  assert.match(source, /endpointAccess/);
+  assert.match(source, /abilitiesKnown/);
 });

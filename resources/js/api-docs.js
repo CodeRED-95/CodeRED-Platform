@@ -102,6 +102,53 @@ export function normalizeBearerToken(value) {
   return String(value ?? "").trim().replace(/^Bearer\s+/i, "");
 }
 
+export function normalizeAbilities(value) {
+  if (!Array.isArray(value)) return [];
+
+  return [...new Set(value.filter((ability) => typeof ability === "string").map((ability) => ability.trim()).filter(Boolean))];
+}
+
+export function tokenHasAbility(abilities, requiredAbility) {
+  if (!requiredAbility || requiredAbility === "Público") return true;
+
+  const normalized = normalizeAbilities(abilities);
+  return normalized.includes("*") || normalized.includes(requiredAbility);
+}
+
+export function extractTokenProfile(body) {
+  const user = body?.user ?? (
+    body && (body.id !== undefined || body.name !== undefined)
+      ? { id: body.id ?? null, name: body.name ?? null, email: body.email ?? null }
+      : null
+  );
+
+  return {
+    user,
+    tokenName: body?.token?.name ?? body?.token_name ?? null,
+    abilities: normalizeAbilities(body?.token?.abilities ?? body?.abilities),
+  };
+}
+
+export function endpointAccess(endpoint, auth) {
+  if (!endpoint?.protected) {
+    return { available: true, state: "public", label: "Público", message: "Este endpoint no requiere token." };
+  }
+
+  if (!normalizeBearerToken(auth?.token) || !auth?.authorized) {
+    return { available: false, state: "authorization-required", label: "Requiere autorización", message: "Autoriza un token para probar este endpoint." };
+  }
+
+  if (auth?.abilitiesKnown === false) {
+    return { available: true, state: "unverified", label: "Ability no verificada", message: `La API no permitió consultar las abilities. El servidor validará ${endpoint.ability} al ejecutar.` };
+  }
+
+  if (tokenHasAbility(auth?.abilities, endpoint.ability)) {
+    return { available: true, state: "available", label: "Disponible", message: "El token posee la ability requerida." };
+  }
+
+  return { available: false, state: "forbidden", label: "Sin permiso", message: `Este token no posee la ability requerida: ${endpoint.ability}.` };
+}
+
 export class ApiDocsValidationError extends Error {
   constructor(message) {
     super(message);
@@ -114,7 +161,10 @@ export function createApiDocsAuthStore() {
     token: "",
     authorized: false,
     abilities: [],
+    abilitiesKnown: false,
     user: null,
+    tokenName: null,
+    validatedAt: null,
     status: "idle",
     message: "No autorizado",
     details: null,
@@ -127,7 +177,10 @@ export function createApiDocsAuthStore() {
       this.token = "";
       this.authorized = false;
       this.abilities = [];
+      this.abilitiesKnown = false;
       this.user = null;
+      this.tokenName = null;
+      this.validatedAt = null;
       this.status = "idle";
       this.message = "No autorizado";
       this.details = null;
@@ -251,6 +304,18 @@ export function codeRedApiDocs(config) {
       return categories[category] ?? "Endpoints de CodeRED Platform.";
     },
 
+    endpointAccess(endpoint) {
+      return endpointAccess(endpoint, this.$store.apiDocsAuth);
+    },
+
+    canExecute(endpoint) {
+      return this.endpointAccess(endpoint).available;
+    },
+
+    availableEndpointsCount() {
+      return this.endpoints.filter((endpoint) => this.canExecute(endpoint)).length;
+    },
+
     switchTab(tab) {
       this.activeTab = tab;
       if (tab === "openapi") this.$nextTick(() => this.mountSwagger());
@@ -305,22 +370,30 @@ export function codeRedApiDocs(config) {
           isProtected: true,
         });
         if (!response.ok) {
-          auth.authorized = false;
-          auth.status = response.status === 403 ? "forbidden" : "invalid";
-          auth.message = response.status === 403
-            ? "Token válido, pero sin permiso profile:read."
+          const metadataForbidden = response.status === 403;
+          auth.authorized = metadataForbidden;
+          auth.status = metadataForbidden ? "limited" : "invalid";
+          auth.message = metadataForbidden
+            ? "Token aceptado; sus abilities no se pueden consultar con este token."
             : apiErrorMessage(response.status) ?? "No fue posible validar el token.";
           auth.details = null;
           auth.abilities = [];
+          auth.abilitiesKnown = false;
           auth.user = null;
+          auth.tokenName = null;
+          auth.validatedAt = metadataForbidden ? new Date().toISOString() : null;
           return;
         }
+        const profile = extractTokenProfile(body);
         auth.authorized = true;
-        auth.status = "valid";
-        auth.message = "Token válido";
+        auth.status = profile.abilities.includes("*") ? "full" : "valid";
+        auth.message = profile.abilities.includes("*") ? "Acceso total" : "Token válido";
         auth.details = body;
-        auth.abilities = Array.isArray(body?.abilities) ? body.abilities : [];
-        auth.user = body?.user ?? null;
+        auth.abilities = profile.abilities;
+        auth.abilitiesKnown = true;
+        auth.user = profile.user;
+        auth.tokenName = profile.tokenName;
+        auth.validatedAt = new Date().toISOString();
       } catch (error) {
         auth.authorized = false;
         auth.status = "invalid";
@@ -343,6 +416,13 @@ export function codeRedApiDocs(config) {
         return;
       }
       const auth = this.$store.apiDocsAuth;
+      const access = this.endpointAccess(endpoint);
+      if (!access.available) {
+        endpoint.expanded = true;
+        endpoint.response = { kind: "validation", error: access.message, status: 0 };
+        return;
+      }
+
       if (endpoint.protected && !normalizeBearerToken(auth.token)) {
         endpoint.expanded = true;
         endpoint.response = { kind: "validation", error: "Debes autorizar un token antes de probar este endpoint.", status: 0 };

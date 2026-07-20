@@ -160,7 +160,9 @@ class ApiTokenManagementTest extends TestCase
             ->assertSee('API CodeRED Platform')
             ->assertSee('Guía interactiva')
             ->assertSee('OpenAPI avanzada')
-            ->assertSee('Autenticación')
+            ->assertSee('Estado de autenticación')
+            ->assertSee('Comprobar token')
+            ->assertSee('Endpoints disponibles')
             ->assertSee('Buscar endpoint')
             ->assertSee('codeRedApiDocs', false)
             ->assertSee("basePath: '/api/v1'", false)
@@ -180,6 +182,9 @@ class ApiTokenManagementTest extends TestCase
         $this->assertStringContainsString('buildApiHeaders', $script);
         $this->assertStringContainsString('this.$store.apiDocsAuth', $script);
         $this->assertStringContainsString('normalizeBearerToken', $script);
+        $this->assertStringContainsString('endpointAccess', $script);
+        $this->assertStringContainsString('abilitiesKnown', $script);
+        $this->assertStringNotContainsString('Token válido, pero sin permiso profile:read', $script);
         $this->assertStringContainsString('options.credentials = "omit"', $script);
         $this->assertStringContainsString('request.credentials = "omit"', $script);
         $this->assertStringContainsString('parseResponseBody', $script);
