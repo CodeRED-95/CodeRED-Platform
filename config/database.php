@@ -17,6 +17,20 @@ return [
             'search_path' => 'public',
             'sslmode' => 'prefer',
         ],
+
+        'legacy_dni' => [
+            'driver' => 'pgsql',
+            'host' => env('DNI_LEGACY_DB_HOST', '127.0.0.1'),
+            'port' => env('DNI_LEGACY_DB_PORT', '5432'),
+            'database' => env('DNI_LEGACY_DB_DATABASE', ''),
+            'username' => env('DNI_LEGACY_DB_USERNAME', ''),
+            'password' => env('DNI_LEGACY_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DNI_LEGACY_DB_SSLMODE', 'prefer'),
+        ],
     ],
     'redis' => [
         'client' => env('REDIS_CLIENT', 'phpredis'),

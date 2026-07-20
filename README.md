@@ -109,3 +109,6 @@ Proprietary
 - Las decisiones técnicas relevantes se registran en `/docs/adr`.
 
 - [API de agencias, DNI y tokens separados](docs/API_DNI_AND_TOKENS.md)
+
+- [Migración del servicio DNI legado](docs/DNI_LEGACY_MIGRATION.md)
+- [API DNI](docs/api/dni.md)

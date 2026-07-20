@@ -12,8 +12,17 @@ class DniRecordFactory extends Factory
 
     public function definition(): array
     {
-        $dni = fake()->unique()->numerify('########');
-
-        return ['dni' => $dni, 'nombre_completo' => 'ANA PEREZ DIAZ', 'nombres' => 'ANA', 'apellido_paterno' => 'PEREZ', 'apellido_materno' => 'DIAZ', 'source' => 'internal', 'last_verified_at' => now()];
+        return [
+            'dni' => fake()->unique()->numerify('########'),
+            'nombre_completo' => 'ANA PEREZ DIAZ',
+            'nombres' => 'ANA',
+            'apellido_paterno' => 'PEREZ',
+            'apellido_materno' => 'DIAZ',
+            'genero' => 'F',
+            'fecha_nacimiento' => '1994-11-16',
+            'codigo_verificacion' => '8',
+            'source' => 'internal',
+            'last_verified_at' => now(),
+        ];
     }
 }

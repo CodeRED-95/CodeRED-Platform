@@ -150,34 +150,21 @@ En producción, `API_ALLOWED_ORIGINS` debe incluir únicamente dominios necesari
 
 Laravel confía en los encabezados `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Port`, `X-Forwarded-Proto` y `X-Forwarded-Prefix` que Nginx reenvía desde el proxy frontal. Las interfaces del mismo origen deben usar rutas relativas; no se debe corregir HTTPS mediante `URL::forceScheme()` porque el acceso local continúa usando HTTP. El servicio PHP no debe exponerse directamente fuera de la red Docker.
 
-## API DNI y límites separados
+## API DNI, PeruDevs y límites separados
 
 | Variable | Uso |
 |---|---|
-| `AGENCY_API_RATE_LIMIT_PER_MINUTE` | Límite por token para agencias |
-| `DNI_PROVIDER` | Implementación de proveedor activa |
-| `DNI_API_URL` | URL privada de configuración del proveedor |
-| `DNI_API_TOKEN` | Credencial secreta; nunca versionar |
+| `AGENCY_API_RATE_LIMIT_PER_MINUTE` | Límite independiente por token para agencias |
+| `DNI_API_RATE_LIMIT_PER_MINUTE` | Límite independiente por token para DNI |
+| `DNI_PERUDEVS_ENABLED` | Habilita el respaldo externo; desactivado por defecto |
+| `DNI_PERUDEVS_BASE_URL` | Endpoint GET completo de PeruDevs |
+| `DNI_PERUDEVS_API_KEY` | API key de emergencia; la configuración cifrada en base de datos tiene prioridad |
+| `DNI_PERUDEVS_TIMEOUT` | Timeout HTTP |
+| `DNI_PERUDEVS_RETRIES` | Reintentos transitorios |
 | `DNI_CACHE_TTL` | TTL de resultados exitosos |
-| `DNI_NOT_FOUND_CACHE_TTL` | TTL corto de no encontrados |
-| `DNI_RATE_LIMIT_PER_MINUTE` | Límite por token para DNI |
-| `DNI_API_TIMEOUT_SECONDS` | Timeout total del proveedor |
-| `DNI_API_CONNECT_TIMEOUT_SECONDS` | Timeout de conexión |
-
-
-### PeruDevs administrable
-
-| Variable | Uso |
-|---|---|
-| `DNIPERUDEVS_ENABLED` | Habilita el respaldo externo; desactivado por defecto |
-| `DNIPERUDEVS_BASE_URL` | Base configurable del servicio |
-| `DNIPERUDEVS_DNI_PATH` | Ruta configurable de consulta completa |
-| `DNIPERUDEVS_API_TOKEN` | Secreto de emergencia; la base de datos cifrada tiene prioridad |
-| `DNIPERUDEVS_TIMEOUT` | Timeout HTTP, en segundos |
-| `DNIPERUDEVS_RETRIES` | Reintentos transitorios |
-| `DNI_CACHE_TTL` | TTL de resultados exitosos |
-| `DNI_NOT_FOUND_CACHE_TTL` | TTL independiente de no encontrados |
+| `DNI_NOT_FOUND_CACHE_TTL` | TTL de caché negativa |
 | `DNI_PERSIST_EXTERNAL_RESULTS` | Persiste resultados externos normalizados |
-| `DNI_REFRESH_AFTER_DAYS` | Umbral reservado para refresco explícito futuro |
+| `DNI_REFRESH_AFTER_DAYS` | Antigüedad para refresco asíncrono |
+| `DNI_LEGACY_DB_*` | Conexión opcional de solo lectura a `dni-api` |
 
-Los valores guardados en Ajustes → API DNI / PeruDevs prevalecen sobre estas variables. No se debe definir un secreto real en `.env.example`.
+La base de datos prevalece sobre `.env`. Nunca se versiona una API key real.

@@ -13,6 +13,7 @@ class AuditLogger
         'remember_token',
         'token',
         'api_token',
+        'api_key',
     ];
 
     public function log(Model $auditable, string $action, array $oldValues, array $newValues, array $changedFields): ActivityLog

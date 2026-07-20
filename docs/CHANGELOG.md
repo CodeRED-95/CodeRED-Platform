@@ -206,3 +206,11 @@ Todas las versiones siguen `Keep a Changelog`.
 - Se separan cachés positiva/negativa, persistencia externa y errores 404/502/503 controlados.
 - Se amplía la auditoría con origen, proveedor y hits local/caché.
 - Se agregan permisos exclusivos de Super Administrador y pruebas con `Http::fake()`.
+
+
+## 2026-07-20 — Contrato real PeruDevs y migración dni-api
+
+- Se adapta PeruDevs a GET con `document` y `key`, sin Bearer.
+- Se incorporan género y código de verificación; la fecha se normaliza y la edad es dinámica.
+- Se añade caché negativa con hash, refresco asíncrono y `dni:import-legacy`.
+- Se documenta la migración desde `dni_consultas` y la rotación hacia Sanctum.

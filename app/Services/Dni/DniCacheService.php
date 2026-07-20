@@ -13,24 +13,24 @@ class DniCacheService
 
     public function get(string $dni): ?DniData
     {
-        $value = $this->cache->get($this->key($dni));
+        $value = $this->cache->get($this->key('lookup', $dni));
 
         return is_array($value) ? DniData::fromArray($value) : null;
     }
 
     public function put(DniData $data): void
     {
-        $this->cache->put($this->key($data->dni), $data->toArray(), $this->settings->cacheTtl());
+        $this->cache->put($this->key('lookup', $data->dni), $data->toArray(), $this->settings->cacheTtl());
     }
 
     public function isNotFound(string $dni): bool
     {
-        return $this->cache->get($this->key($dni)) === self::NOT_FOUND;
+        return $this->cache->get($this->key('not-found', $dni)) === self::NOT_FOUND;
     }
 
     public function rememberNotFound(string $dni): void
     {
-        $this->cache->put($this->key($dni), self::NOT_FOUND, $this->settings->notFoundCacheTtl());
+        $this->cache->put($this->key('not-found', $dni), self::NOT_FOUND, $this->settings->notFoundCacheTtlSeconds());
     }
 
     public function clearAll(): void
@@ -38,10 +38,11 @@ class DniCacheService
         $this->cache->increment('dni:cache:version');
     }
 
-    private function key(string $dni): string
+    private function key(string $type, string $dni): string
     {
         $version = (int) $this->cache->get('dni:cache:version', 1);
+        $hash = hash('sha256', $dni);
 
-        return "dni:v{$version}:lookup:{$dni}";
+        return "dni:v{$version}:{$type}:{$hash}";
     }
 }

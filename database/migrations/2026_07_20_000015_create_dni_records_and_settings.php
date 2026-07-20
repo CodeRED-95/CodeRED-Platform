@@ -12,20 +12,24 @@ return new class extends Migration
             $table->id();
             $table->string('dni', 8)->unique();
             $table->string('nombre_completo');
-            $table->string('nombres');
-            $table->string('apellido_paterno');
-            $table->string('apellido_materno');
+            $table->string('nombres', 120);
+            $table->string('apellido_paterno', 120);
+            $table->string('apellido_materno', 120);
+            $table->string('genero', 20)->nullable();
             $table->date('fecha_nacimiento')->nullable();
-            $table->unsignedSmallInteger('edad')->nullable();
+            $table->string('codigo_verificacion', 20)->nullable();
             $table->string('source', 20)->default('internal');
-            $table->string('provider_reference')->nullable();
+            $table->string('provider_reference', 100)->nullable();
             $table->timestamp('last_verified_at')->nullable();
             $table->timestamps();
+            $table->index('nombre_completo');
         });
+
         Schema::table('application_settings', function (Blueprint $table): void {
             $table->boolean('is_encrypted')->default(false);
             $table->timestamps();
         });
+
         Schema::table('api_request_logs', function (Blueprint $table): void {
             $table->string('source', 20)->nullable();
             $table->boolean('provider_called')->default(false);

@@ -3,6 +3,7 @@
 namespace App\Services\Dni;
 
 use App\Models\SystemSetting;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 
@@ -20,41 +21,46 @@ class DniSettingsService
         return $this->string('base_url', (string) config('dni.perudevs.base_url'));
     }
 
-    public function endpointPath(): string
+    public function apiKey(): ?string
     {
-        return (string) config('dni.perudevs.endpoint_path');
-    }
-
-    public function apiToken(): ?string
-    {
-        $setting = $this->setting('api_token');
+        $setting = $this->setting('api_key') ?? $this->setting('api_token');
         if ($setting === null || blank($setting->value)) {
-            return filled(config('dni.perudevs.api_token')) ? (string) config('dni.perudevs.api_token') : null;
+            return filled(config('dni.perudevs.api_key')) ? (string) config('dni.perudevs.api_key') : null;
         }
-
-        return $setting->is_encrypted ? Crypt::decryptString((string) $setting->value) : null;
-    }
-
-    public function hasApiToken(): bool
-    {
-        return filled($this->apiToken());
-    }
-
-    public function maskedToken(): ?string
-    {
-        if (! $this->hasApiToken()) {
+        if (! $setting->is_encrypted) {
             return null;
         }
 
-        return '••••••••••••••••'.substr((string) $this->apiToken(), -4);
+        try {
+            return Crypt::decryptString((string) $setting->value);
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
-    public function timeout(): int
+    public function isConfigured(): bool
+    {
+        return filled($this->baseUrl()) && filled($this->apiKey());
+    }
+
+    public function hasApiKey(): bool
+    {
+        return filled($this->apiKey());
+    }
+
+    public function maskedApiKey(): ?string
+    {
+        $key = $this->apiKey();
+
+        return $key === null ? null : '••••••••••••••••'.substr($key, -4);
+    }
+
+    public function timeoutSeconds(): int
     {
         return $this->integer('timeout_seconds', (int) config('dni.perudevs.timeout_seconds'), 1, 60);
     }
 
-    public function retries(): int
+    public function retryTimes(): int
     {
         return $this->integer('retry_times', (int) config('dni.perudevs.retry_times'), 0, 5);
     }
@@ -64,7 +70,7 @@ class DniSettingsService
         return $this->integer('cache_ttl_seconds', (int) config('dni.cache_ttl'), 60, 604800);
     }
 
-    public function notFoundCacheTtl(): int
+    public function notFoundCacheTtlSeconds(): int
     {
         return $this->integer('not_found_cache_ttl_seconds', (int) config('dni.not_found_cache_ttl'), 30, 86400);
     }
@@ -79,26 +85,33 @@ class DniSettingsService
         return $this->integer('refresh_after_days', (int) config('dni.refresh_after_days'), 1, 365);
     }
 
-    public function save(array $values, ?string $newToken = null): void
+    public function save(array $values, ?string $newApiKey = null): void
     {
         foreach (['enabled', 'base_url', 'timeout_seconds', 'retry_times', 'cache_ttl_seconds', 'not_found_cache_ttl_seconds', 'persist_results', 'refresh_after_days'] as $key) {
-            SystemSetting::query()->updateOrCreate(['key' => self::GROUP.'.'.$key], ['group' => self::GROUP, 'value' => is_bool($values[$key]) ? ($values[$key] ? '1' : '0') : (string) $values[$key], 'is_public' => false, 'is_encrypted' => false]);
+            SystemSetting::query()->updateOrCreate(
+                ['key' => self::GROUP.'.'.$key],
+                ['group' => self::GROUP, 'value' => is_bool($values[$key]) ? ($values[$key] ? '1' : '0') : (string) $values[$key], 'is_public' => false, 'is_encrypted' => false],
+            );
         }
-        if (filled($newToken)) {
-            SystemSetting::query()->updateOrCreate(['key' => self::GROUP.'.api_token'], ['group' => self::GROUP, 'value' => Crypt::encryptString(trim($newToken)), 'is_public' => false, 'is_encrypted' => true]);
+        if (filled($newApiKey)) {
+            SystemSetting::query()->updateOrCreate(
+                ['key' => self::GROUP.'.api_key'],
+                ['group' => self::GROUP, 'value' => Crypt::encryptString(trim($newApiKey)), 'is_public' => false, 'is_encrypted' => true],
+            );
+            SystemSetting::query()->where('key', self::GROUP.'.api_token')->delete();
         }
         $this->forget();
     }
 
-    public function deleteToken(): void
+    public function deleteApiKey(): void
     {
-        SystemSetting::query()->where('key', self::GROUP.'.api_token')->delete();
+        SystemSetting::query()->whereIn('key', [self::GROUP.'.api_key', self::GROUP.'.api_token'])->delete();
         $this->forget();
     }
 
     public function forget(): void
     {
-        foreach (['enabled', 'base_url', 'api_token', 'timeout_seconds', 'retry_times', 'cache_ttl_seconds', 'not_found_cache_ttl_seconds', 'persist_results', 'refresh_after_days'] as $key) {
+        foreach (['enabled', 'base_url', 'api_key', 'api_token', 'timeout_seconds', 'retry_times', 'cache_ttl_seconds', 'not_found_cache_ttl_seconds', 'persist_results', 'refresh_after_days'] as $key) {
             Cache::forget($this->cacheKey($key));
         }
     }

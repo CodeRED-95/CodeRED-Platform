@@ -5,6 +5,7 @@ namespace App\Services\Dni;
 use App\Domain\Dni\Contracts\DniProviderInterface;
 use App\Domain\Dni\Data\DniData;
 use App\Domain\Dni\Data\DniProviderResult;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -16,7 +17,7 @@ class PeruDevsDniProvider implements DniProviderInterface
 
     public function isEnabled(): bool
     {
-        return $this->settings->enabled() && filled($this->settings->baseUrl()) && $this->settings->hasApiToken();
+        return $this->settings->enabled() && $this->settings->isConfigured();
     }
 
     public function find(string $dni): DniProviderResult
@@ -24,8 +25,16 @@ class PeruDevsDniProvider implements DniProviderInterface
         if (! $this->isEnabled()) {
             return DniProviderResult::failed('unavailable');
         }
+
         try {
-            $response = Http::withToken((string) $this->settings->apiToken())->acceptJson()->asJson()->timeout($this->settings->timeout())->connectTimeout($this->settings->timeout())->retry($this->settings->retries(), 500, throw: false)->post(rtrim($this->settings->baseUrl(), '/').'/'.ltrim($this->settings->endpointPath(), '/'), ['document' => $dni]);
+            $response = Http::acceptJson()
+                ->timeout($this->settings->timeoutSeconds())
+                ->connectTimeout($this->settings->timeoutSeconds())
+                ->retry($this->settings->retryTimes(), 500, throw: false)
+                ->get($this->settings->baseUrl(), [
+                    'document' => $dni,
+                    'key' => $this->settings->apiKey(),
+                ]);
         } catch (ConnectionException) {
             return DniProviderResult::failed('unavailable');
         }
@@ -38,7 +47,12 @@ class PeruDevsDniProvider implements DniProviderInterface
         $started = hrtime(true);
         $result = $this->find($dni);
 
-        return ['ok' => in_array($result->status, ['found', 'not_found'], true), 'status' => $result->status, 'status_code' => $result->statusCode, 'response_time_ms' => (int) round((hrtime(true) - $started) / 1_000_000)];
+        return [
+            'ok' => in_array($result->status, ['found', 'not_found'], true),
+            'status' => $result->status,
+            'status_code' => $result->statusCode,
+            'response_time_ms' => (int) round((hrtime(true) - $started) / 1_000_000),
+        ];
     }
 
     private function resultFromResponse(Response $response, string $dni): DniProviderResult
@@ -62,6 +76,7 @@ class PeruDevsDniProvider implements DniProviderInterface
         if (! str_contains(mb_strtolower((string) $response->header('Content-Type')), 'json')) {
             return DniProviderResult::failed('invalid_response', 502);
         }
+
         try {
             $payload = $response->json();
         } catch (Throwable) {
@@ -70,23 +85,69 @@ class PeruDevsDniProvider implements DniProviderInterface
         if (! is_array($payload)) {
             return DniProviderResult::failed('invalid_response', 502);
         }
-        $data = is_array($payload['data'] ?? null) ? $payload['data'] : $payload;
-        $normalized = $this->normalize($data, $dni);
+        if (($payload['estado'] ?? null) === false) {
+            return DniProviderResult::notFound($status);
+        }
+        if (($payload['estado'] ?? null) !== true || ! $this->successMessage($payload['mensaje'] ?? null) || ! is_array($payload['resultado'] ?? null)) {
+            return DniProviderResult::failed('invalid_response', 502);
+        }
 
-        return $normalized === null ? DniProviderResult::failed('invalid_response', 502) : DniProviderResult::found($normalized, $status);
+        $normalized = $this->normalize($payload['resultado'], $dni);
+
+        return $normalized === null
+            ? DniProviderResult::failed('invalid_response', 502)
+            : DniProviderResult::found($normalized, $status);
     }
 
     private function normalize(array $data, string $dni): ?DniData
     {
-        $document = (string) ($data['dni'] ?? $data['documento'] ?? $data['numeroDocumento'] ?? $dni);
-        $names = trim((string) ($data['nombres'] ?? $data['names'] ?? ''));
-        $paternal = trim((string) ($data['apellidoPaterno'] ?? $data['apellido_paterno'] ?? $data['first_last_name'] ?? ''));
-        $maternal = trim((string) ($data['apellidoMaterno'] ?? $data['apellido_materno'] ?? $data['second_last_name'] ?? ''));
-        $full = trim((string) ($data['nombreCompleto'] ?? $data['nombre_completo'] ?? $data['full_name'] ?? implode(' ', array_filter([$names, $paternal, $maternal]))));
-        if ($document !== $dni || $names === '' || $paternal === '' || $full === '') {
+        $document = trim((string) ($data['id'] ?? ''));
+        $names = trim((string) ($data['nombres'] ?? ''));
+        $paternal = trim((string) ($data['apellido_paterno'] ?? ''));
+        $maternal = trim((string) ($data['apellido_materno'] ?? ''));
+        $full = trim((string) ($data['nombre_completo'] ?? ''));
+
+        if ($document !== $dni || $names === '' || $paternal === '' || $maternal === '' || $full === '') {
             return null;
         }
 
-        return new DniData($dni, $full, $names, $paternal, $maternal, isset($data['fechaNacimiento']) ? (string) $data['fechaNacimiento'] : (isset($data['fecha_nacimiento']) ? (string) $data['fecha_nacimiento'] : null), isset($data['edad']) ? (int) $data['edad'] : null, isset($data['id']) ? (string) $data['id'] : null);
+        return new DniData(
+            $document,
+            $full,
+            $names,
+            $paternal,
+            $maternal,
+            $this->nullableString($data['genero'] ?? null),
+            $this->normalizeDate($data['fecha_nacimiento'] ?? null),
+            $this->nullableString($data['codigo_verificacion'] ?? null),
+            $document,
+        );
+    }
+
+    private function normalizeDate(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            $date = CarbonImmutable::createFromFormat('!d/m/Y', trim($value));
+
+            return $date->format('Y-m-d');
+        } catch (Throwable) {
+            report(new \RuntimeException('PeruDevs devolvió una fecha de nacimiento inválida.'));
+
+            return null;
+        }
+    }
+
+    private function successMessage(mixed $message): bool
+    {
+        return is_string($message) && str_contains(mb_strtolower($message), 'encontr');
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        return is_scalar($value) && trim((string) $value) !== '' ? trim((string) $value) : null;
     }
 }

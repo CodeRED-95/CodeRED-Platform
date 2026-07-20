@@ -5,6 +5,7 @@ namespace App\Services\Dni;
 use App\Domain\Dni\Contracts\DniProviderInterface;
 use App\Domain\Dni\Data\DniLookupResult;
 use App\Domain\Dni\Repositories\DniRepository;
+use App\Jobs\RefreshDniRecordJob;
 
 class DniLookupService
 {
@@ -19,6 +20,10 @@ class DniLookupService
     {
         $local = $this->repository->findByDni($dni);
         if ($local !== null) {
+            if ($local->needsProviderRefresh($this->settings->refreshAfterDays())) {
+                RefreshDniRecordJob::dispatchAfterResponse($dni);
+            }
+
             return DniLookupResult::found($this->repository->toData($local), 'internal');
         }
 
