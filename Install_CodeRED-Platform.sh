@@ -57,13 +57,20 @@ read_password() {
         [[ "$a" != "$b" ]] && { warn "Las contraseñas no coinciden."; continue; }
         (( ${#a} < 12 )) && { warn "Usa al menos 12 caracteres."; continue; }
         [[ "$a" == *$'\n'* || "$a" == *$'\r'* ]] && { warn "No se permiten saltos de línea."; continue; }
+        [[ "$a" == *[[:space:]]* || "$a" == *"#"* || "$a" == *"="* || "$a" == *"\""* || "$a" == *"'"* ]] && { warn "La contraseña contiene caracteres incompatibles con el .env. No uses espacios, comillas, # ni =."; continue; }
         REPLY="$a"
         return
     done
 }
 
 set_env() {
-    local key="$1" value="$2" tmp
+    local key="$1" value="$2" quote="${3:-false}" tmp
+    [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]] && { echo "[ERROR] El valor de $key contiene saltos de línea." >&2; return 1; }
+    if [[ "$quote" == "true" ]]; then
+        value="${value//\\/\\\\}"
+        value="${value//\"/\\\"}"
+        value="\"${value}\""
+    fi
     tmp="$(mktemp)"
     awk -v k="$key" -v v="$value" '
         BEGIN{done=0}
@@ -72,6 +79,16 @@ set_env() {
         END{if(!done) print k"="v}
     ' "$ENV_FILE" > "$tmp"
     mv "$tmp" "$ENV_FILE"
+}
+
+validate_env_file() {
+    local invalid
+    invalid="$(awk '/\r$/ {print NR ": retorno CR"; next} /^[[:space:]]*($|#)/ {next} !/^[A-Za-z_][A-Za-z0-9_]*=/ {print NR ": clave inválida"; next} {key=$0; sub(/=.*/, "", key); value=substr($0,index($0,"=")+1); if ((key=="DB_PASSWORD" || key=="DEV_ADMIN_PASSWORD" || key ~ /(_API_KEY|_TOKEN)$/) && value ~ /^"/) {print key; next} if (value ~ /^"([^"\\]|\\.)*"$/) next; if (value ~ /[[:space:]]/) print key}' "$ENV_FILE")"
+    if [[ -n "$invalid" ]]; then
+        while IFS= read -r key; do [[ -n "$key" ]] && echo "[ERROR] El archivo .env contiene un valor inválido en $key" >&2; done <<< "$invalid"
+        return 1
+    fi
+    ok "Archivo .env válido"
 }
 
 get_env() {
@@ -134,6 +151,8 @@ ADMIN_EMAIL="$REPLY"
 read_password "Contraseña del administrador"
 ADMIN_PASSWORD="$REPLY"
 
+set_env APP_NAME "CodeRED Platform" true
+set_env VITE_APP_NAME "CodeRED Platform" true
 set_env APP_ENV "$APP_ENV"
 set_env APP_DEBUG "$APP_DEBUG"
 set_env APP_URL "$APP_URL"
@@ -141,7 +160,7 @@ set_env LOG_LEVEL "$LOG_LEVEL"
 set_env DB_DATABASE "$DB_DATABASE"
 set_env DB_USERNAME "$DB_USERNAME"
 set_env DB_PASSWORD "$DB_PASSWORD"
-set_env DEV_ADMIN_NAME "$ADMIN_NAME"
+set_env DEV_ADMIN_NAME "$ADMIN_NAME" true
 set_env DEV_ADMIN_EMAIL "$ADMIN_EMAIL"
 set_env DEV_ADMIN_PASSWORD "$ADMIN_PASSWORD"
 
@@ -175,6 +194,8 @@ else
     set_env DNI_PERUDEVS_ENABLED "false"
     set_env DNI_PERUDEVS_API_KEY ""
 fi
+
+validate_env_file || die "Corrige las claves indicadas antes de continuar."
 
 unset DB_PASSWORD ADMIN_PASSWORD REPLY || true
 

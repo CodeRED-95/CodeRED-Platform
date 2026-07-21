@@ -9,6 +9,7 @@ use App\Modules\Ruc\Services\RucImportService;
 use App\Modules\Ruc\Support\EncodingNormalizer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
@@ -32,6 +33,7 @@ class Imports extends Component
     public function start(RucImportService $service): void
     {
         Gate::authorize('ruc.import');
+        Log::info('Solicitud de importación RUC recibida', ['user_id' => auth()->id(), 'has_file' => $this->file !== null]);
         try {
             EncodingNormalizer::normalize((string) config('ruc.import_encoding'));
         } catch (InvalidArgumentException) {
@@ -39,7 +41,7 @@ class Imports extends Component
 
             return;
         }
-        $this->validate(['file' => ['required', 'file', 'mimes:txt', 'max:'.(max(1, (int) config('ruc.import_max_size_mb')) * 1024)]]);
+        $this->validate(['file' => ['required', 'file', 'extensions:txt', 'max:'.(max(1, (int) config('ruc.import_max_size_mb')) * 1024)]], ['file.required' => 'Selecciona un archivo TXT.', 'file.file' => 'El archivo seleccionado no es válido.', 'file.extensions' => 'El padrón debe ser un archivo TXT.', 'file.max' => 'El archivo supera el tamaño permitido.']);
         $import = $service->fromUpload($this->file, (int) auth()->id(), $this->force);
         $this->reset(['file', 'force']);
         $this->dispatch('toast', type: 'success', message: 'Importación encolada: '.$import->uuid);

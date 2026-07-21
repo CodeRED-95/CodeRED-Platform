@@ -7,6 +7,7 @@ use App\Modules\Ruc\Jobs\ProcessRucImportJob;
 use App\Modules\Ruc\Models\RucImport;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -67,6 +68,7 @@ class RucImportService
             throw ValidationException::withMessages(['file' => 'No se pudo guardar el archivo en el almacenamiento privado.']);
         }
         fclose($stream);
+        Log::info('Archivo RUC almacenado', ['disk' => $disk, 'path' => $path, 'size' => filesize($source)]);
         $import = RucImport::query()->create([
             'uuid' => $uuid, 'original_filename' => basename($originalName), 'stored_filename' => $stored,
             'disk' => $disk, 'path' => $path, 'file_size' => filesize($source), 'file_hash' => $hash,
@@ -78,6 +80,7 @@ class RucImportService
             ProcessRucImportJob::dispatch($import->id)
                 ->onConnection('redis')
                 ->onQueue((string) config('ruc.import_queue'));
+            Log::info('Job RUC despachado', ['import_id' => $import->id, 'queue' => (string) config('ruc.import_queue')]);
         }
 
         return $import;

@@ -171,3 +171,25 @@ docker compose exec app sh scripts/check-assets.sh
 - `composer.lock` y `package-lock.json` deben versionarse.
 - Los valores con espacios en `.env` deben escribirse entre comillas.
 - Redis local sin contraseña debe usar valores vacíos, no la cadena `null`.
+
+## Escritura segura del `.env` por el instalador
+
+El instalador cita únicamente valores textuales que pueden contener espacios (`APP_NAME`, `VITE_APP_NAME` y `DEV_ADMIN_NAME`). Contraseñas, API keys, correos, URLs, booleanos y números se escriben sin comillas. Las contraseñas no admiten espacios, comillas, `#` ni `=` y nunca se transforman silenciosamente. Antes de construir contenedores, `validate_env_file` rechaza claves o valores incompatibles sin imprimir secretos.
+
+La prueba reproducible del contrato es:
+
+```bash
+bash tests/Installer/env-installer-test.sh
+```
+
+## Subida del padrón RUC
+
+El límite declarado por `RUC_IMPORT_MAX_SIZE_MB=5000` está alineado con Nginx (`client_max_body_size 5G`), PHP (`upload_max_filesize=5G`, `post_max_size=5100M`) y las reglas temporales de Livewire. La interfaz distingue el progreso de subida temporal del procesamiento asíncrono. El formulario no se refresca mediante polling mientras el usuario selecciona o sube el TXT; el polling se activa únicamente cuando existe una importación en curso.
+
+Después de cambiar límites de infraestructura se deben reconstruir los contenedores:
+
+```bash
+docker compose up -d --build
+docker compose restart nginx app queue
+docker compose exec -T app php artisan optimize:clear
+```

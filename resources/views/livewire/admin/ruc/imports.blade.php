@@ -1,4 +1,4 @@
-<div class="space-y-6" wire:poll.2s>
+<div class="space-y-6">
     <x-ui.page-header title="Importaciones RUC" subtitle="El worker procesa el TXT aunque cierres o actualices esta página."><x-slot:actions><x-ui.button href="{{ route('admin.ruc.records') }}" variant="secondary">Ver padrón</x-ui.button></x-slot:actions></x-ui.page-header>
     @if(auth()->user()->hasPermission('ruc.import'))
         <x-ui.card title="Subir padrón reducido SUNAT" description="TXT privado con configuración validada antes de encolarse.">
@@ -9,16 +9,16 @@
             </div>
             @if (! $configuration['valid'])<x-ui.alert tone="danger" class="mb-5">{{ $configuration['message'] }}</x-ui.alert>@endif
             <div class="mb-5"><x-ui.button type="button" variant="secondary" size="sm" wire:click="checkConfiguration" loading-target="checkConfiguration">Comprobar configuración</x-ui.button></div>
-            <form wire:submit="start" class="space-y-4">
+            <form wire:submit.prevent="start" class="space-y-4">
                 <x-ui.file-upload wire:model="file" accept=".txt,text/plain" label="Archivo TXT" description="Padrón reducido SUNAT · TXT separado por |" :error="$errors->first('file')" />
                 @if($file)<p class="text-sm text-[color:var(--color-text-secondary)]">{{ $file->getClientOriginalName() }} · {{ number_format($file->getSize() / 1048576, 2) }} MB</p>@endif
                 <x-ui.checkbox wire:model="force">Reprocesar aunque el hash ya exista; los RUC existentes seguirán sin sobrescribirse</x-ui.checkbox>
-                <x-ui.button type="submit" loading-target="start">Iniciar importación en segundo plano</x-ui.button>
+                <x-ui.button type="submit" :disabled="! $file || ! $configuration['valid']" loading-target="file,start">Iniciar importación en segundo plano</x-ui.button>
             </form>
         </x-ui.card>
     @endif
     @if($activeImport)
-        <x-ui.card title="Importación activa" description="{{ $activeImport->original_filename }}">
+        <x-ui.card wire:poll.2s title="Importación activa" description="{{ $activeImport->original_filename }}">
             <div class="mb-3 flex items-center justify-between gap-3 text-sm">
                 <x-ui.badge :tone="$activeImport->status->tone()">{{ $activeImport->status->label() }}</x-ui.badge>
                 <span class="font-semibold tabular-nums">{{ $activeImport->progress_percentage }}%</span>
