@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\DniApiController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\MeController;
+use App\Modules\Ruc\Http\Controllers\RucApiController;
+use App\Modules\Ruc\Http\Controllers\RucSearchApiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
@@ -19,6 +21,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::middleware(['throttle:api-dni', 'api.audit:dni', 'abilities:dni:consultar'])->group(function (): void {
             Route::get('/dni/{dni}', DniApiController::class)->name('dni.show');
         });
+        Route::get('/ruc/buscar', RucSearchApiController::class)->middleware(['throttle:ruc-search', 'api.audit:ruc', 'abilities:ruc:buscar'])->name('ruc.search');
+        Route::get('/ruc/{ruc}', RucApiController::class)->middleware(['throttle:ruc-lookup', 'api.audit:ruc', 'abilities:ruc:consultar'])->name('ruc.show');
         Route::middleware(['throttle:api', 'abilities:agencies:read'])->group(function (): void {
             Route::get('/agencies', [AgencyCatalogController::class, 'index'])->name('agencies.index');
             Route::get('/agencies/changes', AgencyChangesController::class)->name('agencies.changes');

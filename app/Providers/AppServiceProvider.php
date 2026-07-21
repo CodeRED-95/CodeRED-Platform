@@ -35,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.rate_limit_per_minute'), 1), 'api'));
         RateLimiter::for('api-agencias', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.agency_rate_limit_per_minute'), 1), 'agencias'));
         RateLimiter::for('api-dni', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('dni.rate_limit_per_minute'), 1), 'dni'));
+        RateLimiter::for('ruc-lookup', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('ruc.rate_limit_per_minute'), 1), 'ruc'));
+        RateLimiter::for('ruc-search', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('ruc.search_rate_limit_per_minute'), 1), 'ruc-search'));
+        RateLimiter::for('ruc-admin-test', fn (Request $request): Limit => Limit::perMinute(20)->by('ruc-admin:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
     }
 
     private function tokenLimit(Request $request, int $limit, string $service): Limit

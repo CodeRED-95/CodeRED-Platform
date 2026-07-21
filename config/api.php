@@ -20,6 +20,8 @@ return [
     'abilities' => [
         'agencias:consultar' => 'Solo Agencias',
         'dni:consultar' => 'Solo DNI',
+        'ruc:consultar' => 'RUC · Consultar por número',
+        'ruc:buscar' => 'RUC · Buscar por razón social',
         'agencies:read' => 'Consultar agencias (compatibilidad)',
         'agencies:map' => 'Consultar datos cartográficos',
         'profile:read' => 'Consultar propietario del token',
