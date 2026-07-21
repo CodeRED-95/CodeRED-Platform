@@ -3,6 +3,9 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { codeRedTokenCopy } from "./api-token-copy";
 import { codeRedApiDocs, createApiDocsAuthStore } from "./api-docs";
+import { registerClipboardListener } from "./clipboard";
+
+registerClipboardListener();
 
 document.addEventListener("alpine:init", () => {
   window.codeRedFloating = (config = {}) => ({
@@ -385,11 +388,4 @@ document.addEventListener("alpine:init", () => {
 document.addEventListener("livewire:navigating", () => {
   window.dispatchEvent(new CustomEvent("codered-map:destroy"));
   window.dispatchEvent(new CustomEvent("codered-agency-map:destroy"));
-});
-
-
-document.addEventListener("codered-copy", async (event) => {
-  const value = String(event.detail?.value ?? "");
-  if (!value || !navigator.clipboard?.writeText) return;
-  await navigator.clipboard.writeText(value);
 });
