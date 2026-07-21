@@ -32,6 +32,9 @@ class Records extends Component
     #[Url]
     public string $distrito = '';
 
+    #[Url]
+    public string $ubigeo = '';
+
     public function mount(): void
     {
         Gate::authorize('ruc.view');
@@ -53,7 +56,8 @@ class Records extends Component
             ->when($this->condicion !== '', fn (Builder $query) => $query->where('condicion', $this->condicion))
             ->when($this->departamento !== '', fn (Builder $query) => $query->where('departamento', $this->departamento))
             ->when($this->provincia !== '', fn (Builder $query) => $query->where('provincia', $this->provincia))
-            ->when($this->distrito !== '', fn (Builder $query) => $query->where('distrito', $this->distrito));
+            ->when($this->distrito !== '', fn (Builder $query) => $query->where('distrito', $this->distrito))
+            ->when($this->ubigeo !== '', fn (Builder $query) => $query->where('ubigeo', trim($this->ubigeo)));
 
         return view('livewire.admin.ruc.records', [
             'records' => $query->orderBy('razon_social')->paginate(25),

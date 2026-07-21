@@ -29,6 +29,7 @@ while true; do
     echo "10) Backup manual de .env"
     echo "11) Abrir shell del contenedor app"
     echo "12) Información de Laravel"
+    echo "13) Sincronizar tabla de ubigeos"
     echo "0) Salir"
     echo
     read -r -p "Selecciona una opción: " option
@@ -106,6 +107,10 @@ while true; do
             ;;
         12)
             run_in_project docker compose exec -T app php artisan about
+            pause
+            ;;
+        13)
+            run_in_project docker compose exec -T app php artisan ubigeos:sync
             pause
             ;;
         0)

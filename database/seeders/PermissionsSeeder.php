@@ -38,6 +38,7 @@ class PermissionsSeeder extends Seeder
             ['slug' => 'api-tools.dni.test', 'name' => 'Probar API DNI'],
             ['slug' => 'settings.api-documentation.update', 'name' => 'Configurar documentación API'],
             ['slug' => 'settings.agency-backups.update', 'name' => 'Configurar copias de agencias'],
+            ['slug' => 'settings.ubigeos.update', 'name' => 'Sincronizar catálogo de UBIGEO'],
             ['slug' => 'settings.dni.view', 'name' => 'Ver ajustes DNI'],
             ['slug' => 'settings.dni.update', 'name' => 'Actualizar ajustes DNI'],
             ['slug' => 'settings.dni.test', 'name' => 'Probar proveedor DNI'],

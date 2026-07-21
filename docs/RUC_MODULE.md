@@ -46,3 +46,19 @@ Consulte `.env.example` para límites, TTL, cola, tamaño de lote, codificación
 ## Recuperación
 
 Si un worker se interrumpe, el progreso y heartbeat permanecen en `ruc_imports`. Puede reintentar el job usando el UUID, o volver a importar con `--force`; el índice único y `ON CONFLICT DO NOTHING RETURNING` mantienen la operación idempotente. Una importación cancelada deja intactos los registros ya insertados.
+# Formato reducido SUNAT y UBIGEO
+
+El importador acepta el TXT separado por `|` del padrón reducido SUNAT, incluida la columna vacía producida por el separador final. Los índices 0–4 son RUC, razón social, estado, condición y UBIGEO; todos los valores desde el índice 5 forman la dirección. Los marcadores vacíos, `-`, `--`, `NULL` y `N/A` no forman parte de la dirección.
+
+La geografía se resuelve desde la tabla `ubigeos`, precargada una vez por job, y nunca desde las etiquetas ambiguas posteriores al UBIGEO. La fuente sincronizable es la [tabla pública de Alanube](https://developer.alanube.co/v1.0-PER/docs/ubigeo-table); la columna visual “Ciudad” se mapea a provincia y capital se conserva por separado.
+
+El snapshot versionado `database/data/ubigeos_alanube.json` permite instalar sin red y es la única fuente utilizada por `UbigeoSeeder`. La descarga nunca ocurre durante `db:seed` ni al arrancar Docker.
+
+Comandos:
+
+- `php artisan ubigeos:sync --dry-run`: descarga y valida sin escribir.
+- `php artisan ubigeos:sync`: descarga, valida controles y hace upsert.
+- `php artisan ubigeos:sync --no-download`: restaura el snapshot local.
+- `php artisan ruc:rebuild-addresses --dry-run` y `--only-missing`: reconstrucción segura de RUC existentes.
+
+La sincronización exige un mínimo de 1,800 filas, unicidad, códigos de seis dígitos y los controles `010101`, `150137` y `150140`. Nunca trunca ni elimina registros ante una descarga incompleta.

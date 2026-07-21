@@ -18,9 +18,11 @@ use App\Livewire\Admin\ApiTools\RucTester;
 use App\Livewire\Admin\DesignSystem;
 use App\Livewire\Admin\Ruc\Imports as RucImports;
 use App\Livewire\Admin\Ruc\Records as RucRecords;
+use App\Livewire\Admin\Ruc\Show as RucShow;
 use App\Livewire\Admin\Settings\AgencyBackups as AgencyBackupSettings;
 use App\Livewire\Admin\Settings\ApiDocumentation as ApiDocumentationSettings;
 use App\Livewire\Admin\Settings\Dni as DniSettings;
+use App\Livewire\Admin\Settings\Ubigeos as UbigeoSettings;
 use App\Livewire\Admin\Users\Form as UsersForm;
 use App\Livewire\Admin\Users\Index as UsersIndex;
 use App\Livewire\Admin\Users\Show as UsersShow;
@@ -75,9 +77,11 @@ Route::get('/admin/api-tools/ruc', RucTester::class)->middleware(['auth', 'throt
 Route::get('/admin/ruc', RucRecords::class)->middleware(['auth'])->name('admin.ruc.records');
 Route::get('/admin/ruc/importaciones', RucImports::class)->middleware(['auth'])->name('admin.ruc.imports');
 Route::get('/admin/ruc/importaciones/{import}/errores', RucImportErrorsController::class)->middleware(['auth'])->name('admin.ruc.imports.errors');
+Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->name('admin.ruc.show');
 Route::get('/admin/settings/dni', DniSettings::class)->middleware(['auth'])->name('admin.settings.dni');
 Route::get('/admin/settings/api-documentation', ApiDocumentationSettings::class)->middleware(['auth'])->name('admin.settings.api-documentation');
 Route::get('/admin/settings/agency-backups', AgencyBackupSettings::class)->middleware(['auth'])->name('admin.settings.agency-backups');
+Route::get('/admin/settings/ubigeos', UbigeoSettings::class)->middleware(['auth'])->name('admin.settings.ubigeos');
 Route::get('/admin/design-system', DesignSystem::class)
     ->middleware(['auth'])
     ->name('admin.design-system');

@@ -229,3 +229,6 @@ Todas las versiones siguen `Keep a Changelog`.
 - Se incorporó importación TXT por cola con streaming, progreso persistente, errores descargables y escritura idempotente.
 - Se añadió el panel de registros/importaciones, probador administrativo RUC y métricas de dashboard.
 - Se corrigió el portapapeles DNI con Clipboard API, fallback HTTP y notificación accesible.
+# 2026-07-21
+
+- El catálogo UBIGEO ahora se sincroniza manualmente desde Alanube mediante `ubigeos:sync`, conserva un snapshot offline y valida códigos de control antes del upsert.

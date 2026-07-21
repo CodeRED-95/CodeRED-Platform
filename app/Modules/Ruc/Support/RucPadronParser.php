@@ -4,11 +4,15 @@ namespace App\Modules\Ruc\Support;
 
 final class RucPadronParser
 {
+    public function __construct(private readonly RucAddressBuilder $addressBuilder) {}
+
     public function parse(string $line, string $delimiter = '|', string $encoding = 'ISO-8859-1'): array
     {
         $utf8 = $this->toUtf8(rtrim($line, "\r\n"), $encoding);
         $columns = array_map($this->clean(...), str_getcsv($utf8, $delimiter));
-        if (in_array(mb_strtoupper($columns[0]), ['RUC', 'NUMERO_RUC', 'NÚMERO_RUC', 'NUMERO DE RUC'], true)) {
+        $columns[0] = preg_replace('/^\x{FEFF}/u', '', $columns[0] ?? '') ?? '';
+        $header = mb_strtoupper(implode('|', $columns));
+        if (mb_strtoupper($columns[0]) === 'RUC' || str_contains($header, 'NOMBRE O RAZÓN SOCIAL') || str_contains($header, 'NOMBRE O RAZON SOCIAL')) {
             return ['header' => true];
         }
         if (count($columns) < 2) {
@@ -22,24 +26,19 @@ final class RucPadronParser
         }
 
         $columns = array_pad($columns, 15, '');
+        $ubigeo = preg_match('/^\d{6}$/', $columns[4]) ? $columns[4] : null;
         $base = [
             'ruc' => $columns[0], 'razon_social' => $columns[1], 'estado' => $columns[2] ?: null,
-            'condicion' => $columns[3] ?: null, 'ubigeo' => $columns[4] ?: null,
-            'tipo_via' => null, 'nombre_via' => null, 'codigo_zona' => null, 'tipo_zona' => null,
-            'numero' => null, 'interior' => null, 'lote' => null, 'departamento_direccion' => null,
-            'manzana' => null, 'kilometro' => null, 'departamento' => null, 'provincia' => null,
-            'distrito' => null, 'direccion' => null, 'created_at' => now(), 'updated_at' => now(),
+            'condicion' => $columns[3] ?: null, 'ubigeo' => $ubigeo,
+            'tipo_via' => $columns[5] ?: null, 'nombre_via' => $columns[6] ?: null,
+            'codigo_zona' => $columns[7] ?: null, 'tipo_zona' => $columns[8] ?: null,
+            'numero' => $columns[9] ?: null, 'interior' => $columns[10] ?: null,
+            'lote' => $columns[11] ?: null, 'departamento_direccion' => $columns[12] ?: null,
+            'manzana' => $columns[13] ?: null, 'kilometro' => $columns[14] ?: null,
+            'departamento' => null, 'provincia' => null, 'distrito' => null,
+            'direccion' => $this->addressBuilder->build(array_slice($columns, 5)),
+            'created_at' => now(), 'updated_at' => now(),
         ];
-        if (array_filter(array_slice($columns, 11, 4)) !== []) {
-            [$base['tipo_via'], $base['nombre_via'], $base['codigo_zona'], $base['tipo_zona'], $base['numero'], $base['interior'], $base['lote'], $base['departamento_direccion'], $base['manzana'], $base['kilometro']] = array_map(fn (string $value): ?string => $value ?: null, array_slice(array_pad($columns, 15, ''), 5, 10));
-            $base['direccion'] = $this->address($base);
-        } else {
-            $base['direccion'] = $columns[7] ?: null;
-            $base['provincia'] = $columns[8] ?: null;
-            $base['departamento'] = $columns[9] ?: null;
-            $base['distrito'] = $columns[10] ?: null;
-            $base['direccion'] ??= implode(' - ', array_filter([$base['provincia'], $base['departamento'], $base['distrito']]));
-        }
 
         return ['data' => $base];
     }
@@ -64,17 +63,5 @@ final class RucPadronParser
         $value = trim((string) $value, " \t\n\r\0\x0B\"'");
 
         return in_array(mb_strtoupper($value), ['', '-', 'NULL'], true) ? '' : preg_replace('/\s+/u', ' ', $value);
-    }
-
-    private function address(array $data): ?string
-    {
-        $parts = array_filter([
-            $data['tipo_via'], $data['nombre_via'], $data['numero'] ? 'NRO '.$data['numero'] : null,
-            $data['interior'] ? 'INT '.$data['interior'] : null, $data['lote'] ? 'LT '.$data['lote'] : null,
-            $data['manzana'] ? 'MZA '.$data['manzana'] : null, $data['kilometro'] ? 'KM '.$data['kilometro'] : null,
-            $data['tipo_zona'], $data['codigo_zona'], $data['departamento_direccion'],
-        ]);
-
-        return $parts === [] ? null : implode(' ', $parts);
     }
 }

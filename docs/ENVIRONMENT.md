@@ -183,6 +183,10 @@ La base de datos prevalece sobre `.env`. Nunca se versiona una API key real.
 | `RUC_IMPORT_CHUNK_SIZE` | Tamaño de cada escritura idempotente. |
 | `RUC_IMPORT_QUEUE` / `RUC_IMPORT_TIMEOUT` | Cola y tiempo máximo del worker. |
 | `RUC_IMPORT_LOCK_SECONDS` | Exclusión distribuida entre importaciones. |
+| `UBIGEO_SOURCE` | Fuente manual del catálogo; actualmente `alanube`. |
+| `UBIGEO_ALANUBE_URL` | Página pública que contiene la tabla estructurada. |
+| `UBIGEO_DOWNLOAD_TIMEOUT` / `UBIGEO_DOWNLOAD_RETRIES` | Límites del cliente HTTP de sincronización. |
+| `UBIGEO_SYNC_ENABLED` | Habilita la sincronización manual; no provoca descargas al arrancar. |
 | `RUC_SEARCH_MIN_LENGTH` / `RUC_SEARCH_MAX_RESULTS` | Protección de búsquedas parciales. |
 
 La cola debe escuchar `ruc-imports` antes de `default`. Los padrones se almacenan fuera de `public/` y nunca deben versionarse.

@@ -6,6 +6,7 @@ use App\Modules\Ruc\Enums\RucImportStatus;
 use App\Modules\Ruc\Jobs\ProcessRucImportJob;
 use App\Modules\Ruc\Models\RucImport;
 use App\Modules\Ruc\Support\RucPadronParser;
+use Database\Seeders\UbigeoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -83,6 +84,32 @@ class RucImportTest extends TestCase
             $this->assertNotNull($import->failed_at);
             $this->assertStringContainsString('No existe el archivo', (string) $import->error_message);
         }
+    }
+
+    public function test_real_sunat_file_builds_address_and_resolves_ubigeo_without_per_row_queries(): void
+    {
+        Storage::fake('local');
+        $this->seed(UbigeoSeeder::class);
+        $contents = file_get_contents(base_path('tests/Fixtures/ruc/sunat-real-format.txt'));
+        $this->assertIsString($contents);
+        Storage::disk('local')->put('ruc-imports/sunat-real.txt', $contents);
+        $import = $this->import('ruc-imports/sunat-real.txt', 'sunat-real.txt');
+
+        (new ProcessRucImportJob($import->id))->handle(app(RucPadronParser::class));
+
+        $this->assertDatabaseHas('ruc_records', [
+            'ruc' => '20512805478',
+            'ubigeo' => '150140',
+            'departamento' => 'LIMA',
+            'provincia' => 'LIMA',
+            'distrito' => 'SANTIAGO DE SURCO',
+            'direccion' => 'BL. 51 URB. LA CRUCETA 51 402',
+        ]);
+        $import->refresh();
+        $this->assertSame(RucImportStatus::Completed, $import->status);
+        $this->assertSame(2, $import->processed_rows);
+        $this->assertSame(1, $import->resolved_ubigeo_rows);
+        $this->assertSame(0, $import->unknown_ubigeo_rows);
     }
 
     private function import(string $path, string $filename): RucImport

@@ -8,6 +8,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(UbigeoSeeder::class);
         $this->call([
             RolesAndPermissionsSeeder::class,
             AdminSeeder::class,

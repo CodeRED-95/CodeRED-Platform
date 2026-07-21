@@ -4,6 +4,7 @@ namespace App\Modules\Ruc\Jobs;
 
 use App\Modules\Ruc\Enums\RucImportStatus;
 use App\Modules\Ruc\Models\RucImport;
+use App\Modules\Ruc\Models\Ubigeo;
 use App\Modules\Ruc\Support\RucPadronParser;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -113,7 +114,8 @@ class ProcessRucImportJob implements ShouldQueue
             ]);
 
             $batch = $errors = [];
-            $processed = $inserted = $ignored = $invalid = $chunk = 0;
+            $ubigeos = Ubigeo::query()->get(['codigo', 'departamento', 'provincia', 'distrito'])->keyBy('codigo');
+            $processed = $inserted = $ignored = $invalid = $chunk = $resolved = $unknown = 0;
             while (($line = fgets($stream)) !== false) {
                 $processed++;
                 $parsed = $parser->parse($line, $import->delimiter, $import->encoding);
@@ -123,14 +125,23 @@ class ProcessRucImportJob implements ShouldQueue
                     $invalid++;
                     $errors[] = ['ruc_import_id' => $import->id, 'line_number' => $processed, 'reason' => $parsed['error'], 'line_preview' => $parser->preview($line, $import->encoding), 'created_at' => now()];
                 } else {
-                    $batch[] = $parsed['data'];
+                    $data = $parsed['data'];
+                    if ($data['ubigeo'] !== null && ($location = $ubigeos->get($data['ubigeo'])) !== null) {
+                        $data['departamento'] = $location->departamento;
+                        $data['provincia'] = $location->provincia;
+                        $data['distrito'] = $location->distrito;
+                        $resolved++;
+                    } elseif ($data['ubigeo'] !== null) {
+                        $unknown++;
+                    }
+                    $batch[] = $data;
                 }
                 if (($processed % $progressInterval) === 0) {
                     [$added, $duplicates] = $this->flush($batch, $errors);
                     $inserted += $added;
                     $ignored += $duplicates;
                     $chunk++;
-                    $this->progress($import, $processed, $inserted, $ignored, $invalid, $chunk, $total);
+                    $this->progress($import, $processed, $inserted, $ignored, $invalid, $resolved, $unknown, $chunk, $total);
                     $batch = $errors = [];
                     if ($import->fresh()->cancel_requested_at !== null) {
                         $this->markCancelled($import);
@@ -150,6 +161,8 @@ class ProcessRucImportJob implements ShouldQueue
                 'inserted_rows' => $inserted,
                 'ignored_rows' => $ignored,
                 'invalid_rows' => $invalid,
+                'resolved_ubigeo_rows' => $resolved,
+                'unknown_ubigeo_rows' => $unknown,
                 'progress_percentage' => 100,
                 'current_chunk' => $chunk,
                 'finished_at' => now(),
@@ -198,9 +211,9 @@ class ProcessRucImportJob implements ShouldQueue
         return count(DB::select($sql, $bindings));
     }
 
-    private function progress(RucImport $import, int $processed, int $inserted, int $ignored, int $invalid, int $chunk, int $total): void
+    private function progress(RucImport $import, int $processed, int $inserted, int $ignored, int $invalid, int $resolved, int $unknown, int $chunk, int $total): void
     {
-        $import->update(['processed_rows' => $processed, 'inserted_rows' => $inserted, 'ignored_rows' => $ignored, 'invalid_rows' => $invalid, 'progress_percentage' => min(99.99, round($processed * 100 / max(1, $total), 2)), 'current_chunk' => $chunk, 'last_message' => "Lote {$chunk} confirmado.", 'last_heartbeat_at' => now()]);
+        $import->update(['processed_rows' => $processed, 'inserted_rows' => $inserted, 'ignored_rows' => $ignored, 'invalid_rows' => $invalid, 'resolved_ubigeo_rows' => $resolved, 'unknown_ubigeo_rows' => $unknown, 'progress_percentage' => min(99.99, round($processed * 100 / max(1, $total), 2)), 'current_chunk' => $chunk, 'last_message' => "Lote {$chunk} confirmado.", 'last_heartbeat_at' => now()]);
     }
 
     private function countLines($stream): int
