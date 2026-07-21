@@ -39,7 +39,7 @@
                 @elseif ($sourceType === 'json')
                     <x-ui.textarea wire:model.defer="jsonPayload" rows="12" label="Contenido JSON" :error="$errors->first('jsonPayload')" />
                 @else
-                    <x-ui.input type="file" wire:model="file" accept="application/json,.json" label="Archivo JSON" :error="$errors->first('file')" />
+                    <x-ui.file-upload wire:model="file" accept="application/json,.json" label="Archivo JSON" description="Copia CodeRED o arreglo JSON compatible" :error="$errors->first('file')" />
                 @endif
 
                 <div class="flex justify-end">

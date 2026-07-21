@@ -1,4 +1,4 @@
-@props(['tone' => 'info'])
+@props(['tone' => 'info', 'title' => null, 'dismissible' => false])
 
 @php
     $tones = [
@@ -10,6 +10,10 @@
     ];
 @endphp
 
-<div {{ $attributes->merge(['class' => 'rounded-[var(--radius-card)] border p-4 '.($tones[$tone] ?? $tones['info'])]) }}>
-    {{ $slot }}
+<div x-data="{ visible: true }" x-show="visible" role="{{ $tone === 'danger' ? 'alert' : 'status' }}" {{ $attributes->merge(['class' => 'rounded-[var(--radius-card)] border p-4 '.($tones[$tone] ?? $tones['info'])]) }}>
+    <div class="flex items-start gap-3">
+        <span class="mt-0.5" aria-hidden="true">{{ $tone === 'success' ? '✓' : ($tone === 'danger' ? '!' : 'i') }}</span>
+        <div class="min-w-0 flex-1">@if($title)<p class="font-semibold">{{ $title }}</p>@endif<div class="{{ $title ? 'mt-1 ' : '' }}text-sm leading-6">{{ $slot }}</div>@isset($action)<div class="mt-3">{{ $action }}</div>@endisset</div>
+        @if($dismissible)<button type="button" class="focus-ring rounded p-1 opacity-70 hover:bg-white/10 hover:opacity-100" x-on:click="visible = false" aria-label="Cerrar alerta">✕</button>@endif
+    </div>
 </div>

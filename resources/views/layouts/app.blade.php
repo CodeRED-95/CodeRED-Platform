@@ -26,9 +26,10 @@
                 </div>
 
                 <nav
-                    class="sidebar-navigation min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 py-5 text-sm [scrollbar-gutter:stable] [scrollbar-width:thin]"
+                    class="sidebar-navigation min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 py-5 text-sm [scrollbar-gutter:stable]"
                     data-sidebar-navigation
-                    x-init="$nextTick(() => $el.querySelector('[data-sidebar-active=true]')?.scrollIntoView({ block: 'nearest', behavior: 'instant' }))"
+                    x-data="codeRedSidebarScroll"
+                    x-on:scroll.passive="remember"
                 >
                     @php
                         $navGroups = [
@@ -71,11 +72,9 @@
                         @foreach ($items as $item)
                           @if ($item['can'])
                             <a href="{{ route($item['route']) }}"
-                               @if(request()->routeIs($item['route'])) data-sidebar-active="true" @endif
+                               @if(request()->routeIs($item['route'])) data-sidebar-active="true" aria-current="page" @endif
                                @class([
-                                   'flex items-center gap-3 rounded-2xl px-3 py-3 transition focus-ring',
-                                   'bg-white/10 text-white shadow-sm ring-1 ring-inset ring-white/10' => request()->routeIs($item['route']),
-                                   'text-[color:var(--color-text-secondary)] hover:bg-white/5 hover:text-white' => ! request()->routeIs($item['route']),
+                                   'sidebar-link',
                                ])>
                                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-[color:var(--color-brand-light)]">{{ $item['icon'] }}</span>
                                 <span class="font-medium">{{ $item['label'] }}</span>
@@ -112,7 +111,7 @@
                             </x-ui.icon-button>
                             <div>
                                 <p class="text-xs uppercase tracking-[0.24em] text-[color:var(--color-text-muted)]">CodeRED Platform</p>
-                                <h1 class="font-display text-lg font-semibold text-white">{{ $pageTitle ?? config('app.name') }}</h1>
+                                <h1 class="font-display text-lg font-semibold text-white">{{ $pageTitle ?? 'Panel administrativo' }}</h1>
                             </div>
                         </div>
 
@@ -124,8 +123,8 @@
                     </div>
                 </header>
 
-                <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8">
-                    {{ $slot }}
+                <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8" id="main-content">
+                    <div class="mx-auto w-full max-w-[1680px]">{{ $slot }}</div>
                 </main>
             </div>
         </div>
@@ -143,7 +142,7 @@
                         <div class="min-w-0"><p class="truncate text-sm font-medium">{{ auth()->user()->name }}</p><p class="truncate text-xs text-[color:var(--color-text-secondary)]">Mi perfil</p></div>
                     </a>
                 </div>
-                <nav class="sidebar-navigation mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-5 pb-5 [scrollbar-gutter:stable] [scrollbar-width:thin]" data-sidebar-navigation x-on:click="if ($event.target.closest('a')) sidebarOpen = false" x-init="$nextTick(() => $el.querySelector('[data-sidebar-active=true]')?.scrollIntoView({ block: 'nearest', behavior: 'instant' }))">
+                <nav class="sidebar-navigation mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-5 pb-5 [scrollbar-gutter:stable]" data-sidebar-navigation x-data="codeRedSidebarScroll" x-on:scroll.passive="remember" x-on:click="if ($event.target.closest('a')) sidebarOpen = false">
                     @foreach ($navGroups as $group => $items)
                         @if(collect($items)->contains('can', true))<p class="px-4 pb-1 pt-3 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--color-text-muted)] first:pt-0">{{ $group }}</p>@endif
                         @foreach ($items as $item)
@@ -152,9 +151,7 @@
                                     href="{{ route($item['route']) }}"
                                     @if(request()->routeIs($item['route'])) data-sidebar-active="true" aria-current="page" @endif
                                     @class([
-                                        'block rounded-2xl px-4 py-3 transition',
-                                        'bg-white/10 text-white' => request()->routeIs($item['route']),
-                                        'text-[color:var(--color-text-secondary)] hover:bg-white/5 hover:text-white' => ! request()->routeIs($item['route']),
+                                        'sidebar-link',
                                     ])
                                 >{{ $item['label'] }}</a>
                             @endif

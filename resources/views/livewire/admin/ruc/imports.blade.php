@@ -10,7 +10,7 @@
             @if (! $configuration['valid'])<x-ui.alert tone="danger" class="mb-5">{{ $configuration['message'] }}</x-ui.alert>@endif
             <div class="mb-5"><x-ui.button type="button" variant="secondary" size="sm" wire:click="checkConfiguration" loading-target="checkConfiguration">Comprobar configuración</x-ui.button></div>
             <form wire:submit="start" class="space-y-4">
-                <x-ui.input type="file" wire:model="file" accept=".txt,text/plain" label="Archivo TXT" :error="$errors->first('file')" />
+                <x-ui.file-upload wire:model="file" accept=".txt,text/plain" label="Archivo TXT" description="Padrón reducido SUNAT · TXT separado por |" :error="$errors->first('file')" />
                 @if($file)<p class="text-sm text-[color:var(--color-text-secondary)]">{{ $file->getClientOriginalName() }} · {{ number_format($file->getSize() / 1048576, 2) }} MB</p>@endif
                 <x-ui.checkbox wire:model="force">Reprocesar aunque el hash ya exista; los RUC existentes seguirán sin sobrescribirse</x-ui.checkbox>
                 <x-ui.button type="submit" loading-target="start">Iniciar importación en segundo plano</x-ui.button>

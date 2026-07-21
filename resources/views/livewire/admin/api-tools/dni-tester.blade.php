@@ -7,8 +7,8 @@
             <div>
                 <span class="mb-2 block text-sm font-medium">Modo de prueba</span>
                 <div class="space-y-2">
-                    <label class="flex gap-2"><input type="radio" wire:model.live="mode" value="internal"> Prueba mediante servicio interno</label>
-                    <label class="flex gap-2"><input type="radio" wire:model.live="mode" value="endpoint"> Prueba mediante endpoint API</label>
+                    <x-ui.radio wire:model.live="mode" value="internal" label="Prueba mediante servicio interno" description="Valida base interna, caché y proveedor." />
+                    <x-ui.radio wire:model.live="mode" value="endpoint" label="Prueba mediante endpoint API" description="Valida Sanctum, abilities y rate limit." />
                 </div>
             </div>
             @if($mode === 'endpoint')

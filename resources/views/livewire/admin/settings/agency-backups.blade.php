@@ -4,7 +4,7 @@
         <form wire:submit="save" class="grid gap-5 md:grid-cols-2">
             <x-ui.input type="number" min="1" max="100" wire:model="maximumBackups" label="Cantidad máxima de backups" :error="$errors->first('maximumBackups')" />
             <x-ui.input type="number" min="1" max="3650" wire:model="retentionDays" label="Días de retención" :error="$errors->first('retentionDays')" />
-            <label class="flex items-center gap-3 md:col-span-2"><input type="checkbox" wire:model="autoCleanup" class="size-4 rounded"> Eliminar automáticamente copias antiguas, conservando como mínimo una</label>
+            <div class="md:col-span-2"><x-ui.toggle wire:model="autoCleanup" label="Eliminar automáticamente copias antiguas" description="Siempre se conservará como mínimo una copia." /></div>
             <div class="md:col-span-2"><x-ui.button type="submit" loading-target="save">Guardar configuración</x-ui.button></div>
         </form>
     </x-ui.card>

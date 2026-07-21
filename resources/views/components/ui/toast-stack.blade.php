@@ -14,14 +14,20 @@
             const payload = Array.isArray(detail) ? detail[0] : detail;
             if (!payload?.message) return;
 
+            const duplicate = this.toasts.find((toast) => toast.message === payload.message && toast.tone === (payload.tone ?? payload.type ?? 'info'));
+            if (duplicate) return;
             const toast = {
                 id: this.nextId++,
                 message: payload.message,
                 tone: payload.tone ?? payload.type ?? 'info',
+                paused: false,
             };
 
             this.toasts.push(toast);
-            window.setTimeout(() => this.remove(toast.id), @js($duration));
+            this.expire(toast);
+        },
+        expire(toast) {
+            window.setTimeout(() => toast.paused ? this.expire(toast) : this.remove(toast.id), @js($duration));
         },
         remove(id) {
             this.toasts = this.toasts.filter((toast) => toast.id !== id);
@@ -51,6 +57,8 @@
             x-transition:leave-start="translate-x-0 opacity-100"
             x-transition:leave-end="translate-x-4 opacity-0"
             role="status"
+            x-on:mouseenter="toast.paused = true"
+            x-on:mouseleave="toast.paused = false"
             class="pointer-events-auto flex items-start gap-3 rounded-[var(--radius-card)] border p-4 shadow-2xl backdrop-blur"
             x-bind:class="toneClass(toast.tone)"
         >

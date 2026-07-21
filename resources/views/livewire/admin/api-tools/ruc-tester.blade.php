@@ -2,7 +2,7 @@
     <x-ui.page-header title="Probar API RUC" subtitle="Consulta el mismo servicio y endpoint de producción sin exponer tokens." />
     <x-ui.card title="Consulta"><form wire:submit="consult" class="grid gap-5 lg:grid-cols-3">
         <x-ui.input wire:model="ruc" label="RUC" inputmode="numeric" pattern="[0-9]{11}" minlength="11" maxlength="11" required :error="$errors->first('ruc')" />
-        <div><span class="mb-2 block text-sm font-medium">Modo</span><label class="block"><input type="radio" wire:model.live="mode" value="internal"> Servicio interno</label><label class="mt-2 block"><input type="radio" wire:model.live="mode" value="endpoint"> Endpoint API</label></div>
+        <fieldset><legend class="mb-2 text-sm font-medium">Modo</legend><x-ui.radio wire:model.live="mode" value="internal" label="Servicio interno" /><x-ui.radio wire:model.live="mode" value="endpoint" label="Endpoint API" /></fieldset>
         @if($mode === 'endpoint')<x-ui.dropdown-select id="ruc-token" wire:model="tokenId" label="Token de referencia" :value="$tokenId" :options="[0 => 'Selecciona un token'] + $tokens->mapWithKeys(fn ($token) => [$token->id => $token->name.' · '.implode(', ', $token->abilities ?? [])])->all()" :error="$errors->first('tokenId')" />@endif
         <div class="flex gap-3 lg:col-span-3"><x-ui.button type="submit" loading-target="consult">Consultar</x-ui.button><x-ui.button type="button" variant="secondary" wire:click="clear">Limpiar</x-ui.button></div>
     </form></x-ui.card>

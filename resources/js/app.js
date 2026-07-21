@@ -8,6 +8,27 @@ import { registerClipboardListener } from "./clipboard";
 registerClipboardListener();
 
 document.addEventListener("alpine:init", () => {
+  window.Alpine.data("codeRedSidebarScroll", () => ({
+    storageKey: "codered:sidebar-scroll",
+    init() {
+      const stored = Number(window.sessionStorage.getItem(this.storageKey) ?? 0);
+      this.$el.scrollTop = Number.isFinite(stored) ? stored : 0;
+      this.$nextTick(() => {
+        const active = this.$el.querySelector('[data-sidebar-active="true"]');
+        if (active) {
+          const top = active.offsetTop;
+          const bottom = top + active.offsetHeight;
+          if (top < this.$el.scrollTop || bottom > this.$el.scrollTop + this.$el.clientHeight) {
+            active.scrollIntoView({ block: "nearest", behavior: "instant" });
+          }
+        }
+      });
+    },
+    remember() {
+      window.sessionStorage.setItem(this.storageKey, String(this.$el.scrollTop));
+    },
+  }));
+
   window.codeRedFloating = (config = {}) => ({
     open: false,
     placement: "bottom",

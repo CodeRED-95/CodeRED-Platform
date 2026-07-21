@@ -8,13 +8,13 @@
         <x-ui.section-header title="Paleta oficial" description="Tokens semánticos usados por la interfaz." />
         <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             @foreach ([
-                ['name' => 'Background', 'value' => 'var(--color-background)'],
-                ['name' => 'Surface', 'value' => 'var(--color-surface)'],
-                ['name' => 'Brand', 'value' => 'var(--color-brand)'],
-                ['name' => 'Accent ivory', 'value' => 'var(--color-accent-ivory)'],
+                ['name' => 'Background', 'value' => 'var(--color-background)', 'class' => 'token-swatch-background'],
+                ['name' => 'Surface', 'value' => 'var(--color-surface)', 'class' => 'token-swatch-surface'],
+                ['name' => 'Brand', 'value' => 'var(--color-brand)', 'class' => 'token-swatch-brand'],
+                ['name' => 'Accent ivory', 'value' => 'var(--color-accent-ivory)', 'class' => 'token-swatch-ivory'],
             ] as $color)
                 <div class="rounded-[var(--radius-card)] border border-white/10 p-4">
-                    <div class="h-20 rounded-2xl border border-white/10" style="background: {{ $color['value'] }}"></div>
+                    <div class="h-20 rounded-[var(--radius-card)] border border-white/10 {{ $color['class'] }}"></div>
                     <p class="mt-3 font-medium">{{ $color['name'] }}</p>
                     <code class="text-xs text-[color:var(--color-text-secondary)]">{{ $color['value'] }}</code>
                 </div>
@@ -31,6 +31,8 @@
                 <x-ui.button variant="outline">Outline</x-ui.button>
                 <x-ui.button variant="ghost">Ghost</x-ui.button>
                 <x-ui.button variant="danger">Peligro</x-ui.button>
+                <x-ui.button variant="success">Éxito</x-ui.button>
+                <x-ui.button variant="warning">Advertencia</x-ui.button>
             </div>
         </x-ui.card>
         <x-ui.card>
@@ -45,6 +47,17 @@
             </div>
         </x-ui.card>
     </div>
+
+    <x-ui.card title="Carga de archivos y selección" description="Controles reutilizables con foco, ayuda y errores asociados.">
+        <div class="grid gap-5 lg:grid-cols-2">
+            <x-ui.file-upload label="Archivo de ejemplo" description="JSON o TXT según el flujo." />
+            <fieldset><legend class="mb-2 text-sm font-medium">Modo de ejecución</legend><x-ui.radio name="demo-mode" value="safe" label="Modo seguro" description="Valida antes de persistir." /><x-ui.radio name="demo-mode" value="direct" label="Modo directo" /></fieldset>
+        </div>
+    </x-ui.card>
+
+    <x-ui.card title="Tabla y paginación" description="Superficie compartida, hover semántico y encabezado consistente.">
+        <x-ui.table caption="Ejemplo de tabla del sistema"><thead><tr><th>Elemento</th><th>Estado</th><th>Origen</th></tr></thead><tbody><tr><td>Agencia de ejemplo</td><td><x-ui.badge tone="success">Activa</x-ui.badge></td><td>CodeRED</td></tr></tbody></x-ui.table>
+    </x-ui.card>
 
     <div class="grid gap-6 xl:grid-cols-2">
         <x-ui.card>

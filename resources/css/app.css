@@ -4,6 +4,12 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
+    --color-bg-app: #080b12;
+    --color-bg-sidebar: #101827;
+    --color-bg-surface: #141d2e;
+    --color-bg-elevated: #0d1320;
+    --color-bg-hover: #1a263a;
     --color-background: #080b12;
     --color-background-elevated: #0d1320;
     --color-sidebar: #101827;
@@ -36,6 +42,15 @@
     --radius-panel: 18px;
     --shadow-elevated: 0 24px 80px rgba(2, 6, 23, 0.35);
     --shadow-control: 0 1px 2px rgba(2, 6, 23, 0.24);
+    --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.28);
+    --shadow-md: 0 12px 32px rgba(2, 6, 23, 0.28);
+    --shadow-lg: 0 24px 64px rgba(2, 6, 23, 0.4);
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --transition-fast: 150ms;
+    --transition-normal: 200ms;
     --control-height: 3rem;
     --icon-size-control: 1.25rem;
     --space-section: 1.5rem;
@@ -50,11 +65,16 @@
     --layer-critical: 90;
   }
 
-  html { font-family: var(--font-sans); }
+  html { font-family: var(--font-sans); scrollbar-color: var(--color-border) var(--color-background); scrollbar-width: thin; }
   body { @apply antialiased bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]; }
   h1, h2, h3, h4, .font-display { font-family: var(--font-display); }
   code, pre, kbd, samp { font-family: var(--font-mono); }
   ::selection { background: var(--color-brand-soft); color: var(--color-text-primary); }
+  * { scrollbar-color: var(--color-border) transparent; scrollbar-width: thin; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 9999px; background: var(--color-border); background-clip: padding-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--color-brand); background-clip: padding-box; }
 }
 
 @layer components {
@@ -74,6 +94,52 @@
 
   .focus-ring {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-background)];
+  }
+
+  .type-page-title { @apply font-display text-3xl font-semibold tracking-tight text-[color:var(--color-text-primary)] lg:text-4xl; }
+  .type-section-title { @apply font-display text-lg font-semibold tracking-tight text-[color:var(--color-text-primary)]; }
+  .type-card-title { @apply text-base font-semibold text-[color:var(--color-text-primary)]; }
+  .type-body { @apply text-sm leading-6 text-[color:var(--color-text-primary)]; }
+  .type-caption { @apply text-xs leading-5 text-[color:var(--color-text-secondary)]; }
+
+  .sidebar-navigation {
+    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
+  }
+
+  .sidebar-link {
+    @apply focus-ring relative flex items-center gap-3 rounded-[var(--radius-control)] px-3 py-2.5 text-[color:var(--color-text-secondary)] transition;
+    transition-duration: var(--transition-fast);
+  }
+
+  .sidebar-link:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+  .sidebar-link[aria-current="page"] {
+    background: var(--color-surface-active);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-sm);
+  }
+  .sidebar-link[aria-current="page"]::before {
+    position: absolute;
+    inset-block: 0.65rem;
+    left: -0.25rem;
+    width: 0.1875rem;
+    border-radius: 9999px;
+    background: var(--color-brand);
+    content: "";
+  }
+
+  .ui-table thead { background: color-mix(in srgb, var(--color-background-elevated) 88%, transparent); color: var(--color-text-secondary); }
+  .ui-table th { @apply whitespace-nowrap px-5 py-3 text-xs font-semibold uppercase tracking-wider; }
+  .ui-table tbody tr { border-color: var(--color-border-subtle); transition: background-color var(--transition-fast); }
+  .ui-table tbody tr:hover { background: color-mix(in srgb, var(--color-surface-hover) 60%, transparent); }
+  .ui-table td { @apply px-5 py-4 align-middle; }
+
+  .token-swatch-background { background: var(--color-background); }
+  .token-swatch-surface { background: var(--color-surface); }
+  .token-swatch-brand { background: var(--color-brand); }
+  .token-swatch-ivory { background: var(--color-accent-ivory); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
   }
 
   .layer-content { z-index: var(--layer-content); }

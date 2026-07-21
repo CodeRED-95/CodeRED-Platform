@@ -80,5 +80,6 @@ class DesignSystemComponentsTest extends TestCase
         $this->assertStringContainsString('aria-live="polite"', $html);
         $this->assertStringContainsString('Guardado correctamente', $html);
         $this->assertStringContainsString('Cerrar notificación', $html);
+        $this->assertStringContainsString('toast.paused', $html);
     }
 }

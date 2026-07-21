@@ -232,3 +232,4 @@ Todas las versiones siguen `Keep a Changelog`.
 # 2026-07-21
 
 - El catálogo UBIGEO ahora se sincroniza manualmente desde Alanube mediante `ubigeos:sync`, conserva un snapshot offline y valida códigos de control antes del upsert.
+- Se consolidó el lenguaje visual premium de CodeRED: shell con scroll independiente, sidebar persistente, tokens ampliados, tablas globales y primitivas accesibles para archivos, radios, alertas, cards y botones.

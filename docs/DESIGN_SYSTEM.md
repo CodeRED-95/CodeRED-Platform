@@ -319,6 +319,47 @@ Los nuevos dropdowns deben reutilizar ese posicionador. No deben volver a crear 
 
 Los listboxes teletransportados conservan el foco en el trigger al abrirse. `codeRedFloating.focusTrigger()` usa `focus({ preventScroll: true })` y las opciones se desplazan únicamente dentro de su panel mediante `scrollTop`; está prohibido usar `scrollIntoView()` al abrir un overlay situado al final de `body`.
 
+## Unificación premium
+
+El shell administrativo usa un único contrato: `body` no desplaza, sidebar y `main` tienen scroll independiente y el contenido se limita a 1680px. El header global identifica el área segura y cada pantalla expresa su jerarquía mediante `x-ui.page-header`, evitando títulos duplicados.
+
+### Escala visual
+
+| Rol | Clase o token |
+|---|---|
+| Título de página | `.type-page-title` |
+| Título de sección | `.type-section-title` |
+| Título de tarjeta | `.type-card-title` |
+| Texto general | `.type-body` |
+| Texto auxiliar | `.type-caption` |
+| Transiciones | `--transition-fast`, `--transition-normal` |
+| Sombras | `--shadow-sm`, `--shadow-md`, `--shadow-lg` |
+| Radios | `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl` |
+
+### Superficies y acciones
+
+- `x-ui.card`: `default`, `elevated`, `interactive`, `metric`, `success`, `warning`, `danger` e `info`.
+- `x-ui.button`: `primary`, `secondary`, `ghost`, `outline`, `link`, `success`, `warning` y `danger`.
+- `x-ui.alert` admite título, acción, cierre opcional y semántica ARIA.
+- `x-ui.table` aplica encabezados, hover, espaciado y caption accesible globales.
+- `x-ui.file-upload` es la dropzone oficial para JSON, TXT y respaldos.
+- `x-ui.radio`, `x-ui.checkbox` y `x-ui.toggle` cubren elecciones y configuración binaria.
+
+### Sidebar, responsive y movimiento
+
+La cabecera y el perfil permanecen fijos. Solo la navegación desplaza; su posición se guarda en `sessionStorage` y se restaura sin mover el documento. El enlace activo usa `aria-current`, barra de marca y contraste propio. En móvil el mismo contrato se presenta como drawer `h-dvh`.
+
+Los scrollbars globales son visibles, delgados y compatibles con Firefox/WebKit. El hover usa el acento CodeRED. `prefers-reduced-motion` reduce animaciones sin eliminar feedback.
+
+### Regla para nuevas pantallas
+
+1. Comenzar con `x-ui.page-header`.
+2. Agrupar contenido con `x-ui.card` y `x-ui.section-header`.
+3. Usar controles `x-ui.*`; un control nativo solo es válido dentro de una primitiva especializada.
+4. Usar tabla, paginación, empty state y skeleton para colecciones.
+5. Comunicar estados con badge, alert o toast según su persistencia.
+6. Probar teclado, foco, móvil, altura de 600px y reducción de movimiento.
+
 `x-ui.pagination` renderiza `vendor.pagination.codered` y no delega en la vista clara predeterminada de Livewire. El contrato incluye resumen, anterior/siguiente, página activa con `aria-current`, estados disabled y controles compactos móviles. Cada listado entrega un selector real mediante `scroll-to` para desplazar suavemente al comienzo del resultado, nunca al final del documento.
 
 ## Vista cartográfica integrada

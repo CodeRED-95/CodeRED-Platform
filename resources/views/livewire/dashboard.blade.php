@@ -33,13 +33,8 @@
 @endphp
 
 <div class="mx-auto max-w-[1680px] space-y-5 overflow-x-clip">
-    <header class="flex flex-col gap-4 border-b border-[color:var(--color-border-subtle)] pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--color-brand-light)]">Centro operativo</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold tracking-tight text-white">Dashboard</h1>
-            <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">Resumen operativo de usuarios, agencias e importaciones.</p>
-        </div>
-
+    <x-ui.page-header eyebrow="Centro operativo" title="Dashboard" subtitle="Resumen operativo de usuarios, agencias e importaciones.">
+        <x-slot:actions>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-end">
             @if ($canViewAgencies)
                 <div class="w-full sm:w-52">
@@ -56,7 +51,8 @@
                 Actualizado <time datetime="{{ $refreshedAt->toIso8601String() }}">{{ $refreshedAt->format('d/m/Y H:i') }}</time>
             </p>
         </div>
-    </header>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="hidden items-center gap-3 rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.03] px-4 py-3 text-sm text-[color:var(--color-text-secondary)]" wire:loading.delay.flex wire:target="period" role="status" aria-live="polite">
         <x-ui.spinner size="sm" label="Actualizando indicadores" />

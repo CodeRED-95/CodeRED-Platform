@@ -18,7 +18,11 @@ class SidebarScrollStructureTest extends TestCase
         $this->assertGreaterThanOrEqual(2, substr_count($layout, 'min-h-0 flex-1'));
         $this->assertGreaterThanOrEqual(3, substr_count($layout, 'overflow-y-auto'));
         $this->assertStringContainsString('data-sidebar-active="true"', $layout);
-        $this->assertStringContainsString("scrollIntoView({ block: 'nearest'", $layout);
+        $javascript = file_get_contents(resource_path('js/app.js'));
+        $this->assertIsString($javascript);
+        $this->assertStringContainsString('codeRedSidebarScroll', $layout);
+        $this->assertStringContainsString('sessionStorage', $javascript);
+        $this->assertStringContainsString('scrollIntoView({ block: "nearest"', $javascript);
         $this->assertStringContainsString('overscroll-contain', $layout);
     }
 }
