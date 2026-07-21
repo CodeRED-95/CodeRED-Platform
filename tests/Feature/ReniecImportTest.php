@@ -28,7 +28,7 @@ class ReniecImportTest extends TestCase
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
         Storage::fake('local');
-        config()->set(['reniec.disk' => 'local', 'reniec.incoming_directory' => 'private/reniec/incoming', 'reniec.chunk_size' => 2, 'reniec.encoding' => 'UTF-8', 'reniec.delimiter' => '|', 'reniec.validate_checksum' => true]);
+        config()->set(['reniec.import.disk' => 'local', 'reniec.import.incoming_directory' => 'private/reniec/incoming', 'reniec.import.chunk_size' => 2, 'reniec.import.encoding' => 'UTF-8', 'reniec.import.delimiter' => '|', 'reniec.import.validate_checksum' => true]);
     }
 
     public function test_registers_server_file_and_rejects_path_traversal_and_low_space_contract(): void

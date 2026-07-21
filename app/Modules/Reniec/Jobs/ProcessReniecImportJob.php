@@ -6,6 +6,7 @@ use App\Modules\Reniec\Enums\ReniecImportStatus;
 use App\Modules\Reniec\Models\ReniecImport;
 use App\Modules\Reniec\Services\ReniecCopyLoader;
 use App\Modules\Reniec\Services\ReniecFileService;
+use App\Modules\Reniec\Services\ReniecIncomingFileScanner;
 use App\Modules\Reniec\Services\ReniecMergeService;
 use App\Modules\Reniec\Support\ReniecLineParser;
 use Illuminate\Bus\Queueable;
@@ -29,13 +30,13 @@ class ProcessReniecImportJob implements ShouldQueue
     public function __construct(public readonly int $importId)
     {
         $this->onConnection('redis');
-        $this->onQueue((string) config('reniec.queue'));
+        $this->onQueue((string) config('reniec.import.queue'));
     }
 
     public function handle(ReniecFileService $files, ReniecLineParser $parser, ReniecCopyLoader $copy, ReniecMergeService $merge): void
     {
         $import = ReniecImport::query()->findOrFail($this->importId);
-        $lock = Cache::lock('reniec-import-global', (int) config('reniec.lock_seconds'));
+        $lock = Cache::lock('reniec-import-global', (int) config('reniec.import.lock_seconds'));
         if (! $lock->get()) {
             throw new \RuntimeException('Ya existe una importación RENIEC activa.');
         }
@@ -61,7 +62,7 @@ class ProcessReniecImportJob implements ShouldQueue
         }
         $started = microtime(true);
         $import->update(['status' => ReniecImportStatus::Processing, 'started_at' => $import->started_at ?: now(), 'resumed_at' => $import->current_byte_offset > 0 ? now() : null, 'last_heartbeat_at' => now()]);
-        $import->update(['metadata' => array_merge($import->metadata ?? [], ['host' => gethostname() ?: 'unknown', 'worker_pid' => getmypid(), 'queue' => (string) config('reniec.queue'), 'app_commit' => trim((string) shell_exec('git rev-parse --short HEAD 2>/dev/null')) ?: null])]);
+        $import->update(['metadata' => array_merge($import->metadata ?? [], ['host' => gethostname() ?: 'unknown', 'worker_pid' => getmypid(), 'queue' => (string) config('reniec.import.queue'), 'app_commit' => trim((string) shell_exec('git rev-parse --short HEAD 2>/dev/null')) ?: null])]);
         $rows = [];
         $errors = [];
         $line = (int) $import->current_line_number;
@@ -70,7 +71,7 @@ class ProcessReniecImportJob implements ShouldQueue
         $chunk = (int) $import->last_completed_chunk;
         while (($raw = fgets($stream)) !== false) {
             $line++;
-            $parsed = $parser->parse($raw, $line, (string) config('reniec.delimiter'), (string) config('reniec.encoding'));
+            $parsed = $parser->parse($raw, $line, (string) config('reniec.import.delimiter'), (string) config('reniec.import.encoding'));
             if (isset($parsed['header'])) {
                 continue;
             }if (isset($parsed['data'])) {
@@ -81,7 +82,7 @@ class ProcessReniecImportJob implements ShouldQueue
                 $code = $parsed['error'] ?? 'parser_exception';
                 $errors[] = [$line, $code, $code, hash('sha256', $raw), 'Contenido omitido'];
             }
-            if (count($rows) + count($errors) >= (int) config('reniec.chunk_size')) {
+            if (count($rows) + count($errors) >= (int) config('reniec.import.chunk_size')) {
                 $chunk++;
                 $this->checkpoint($import, $copy, $rows, $errors, $line, ftell($stream), $valid, $invalid, $chunk, $started);
                 $rows = [];
@@ -117,8 +118,8 @@ class ProcessReniecImportJob implements ShouldQueue
         }
         $status = $invalid > 0 ? ReniecImportStatus::CompletedWithErrors : ReniecImportStatus::Completed;
         $import->update(['status' => $status, 'total_rows' => $processed, 'processed_rows' => $processed, 'finished_at' => now(), 'last_heartbeat_at' => now(), 'estimated_seconds_remaining' => 0]);
-        if (config('reniec.archive_files')) {
-            $archive = trim((string) config('reniec.archive_directory'), '/').'/'.$import->uuid.'-'.basename($import->source_path);
+        if (config('reniec.import.archive_files')) {
+            $archive = app(ReniecIncomingFileScanner::class)->resolveDirectory((string) config('reniec.import.archive_directory'), Storage::disk($import->disk)).'/'.$import->uuid.'-'.basename($import->source_path);
             if (Storage::disk($import->disk)->move($import->source_path, $archive)) {
                 $import->update(['archive_path' => $archive]);
             }
@@ -139,7 +140,7 @@ class ProcessReniecImportJob implements ShouldQueue
             $import->update(['processed_rows' => $valid + $invalid, 'valid_rows' => $valid, 'invalid_rows' => $invalid, 'current_byte_offset' => $offset, 'current_line_number' => $line, 'last_completed_chunk' => $chunk, 'rows_per_second' => round($speed, 2), 'estimated_seconds_remaining' => $eta, 'last_heartbeat_at' => now()]);
         });
         if ($errors !== []) {
-            $path = trim((string) config('reniec.errors_directory'), '/').'/'.$import->uuid.'.csv';
+            $path = app(ReniecIncomingFileScanner::class)->resolveDirectory((string) config('reniec.import.errors_directory'), Storage::disk($import->disk)).'/'.$import->uuid.'.csv';
             if (! Storage::disk($import->disk)->exists($path)) {
                 Storage::disk($import->disk)->put($path, "line_number,error_code,error_message,raw_value_hash,safe_excerpt\n");
             }

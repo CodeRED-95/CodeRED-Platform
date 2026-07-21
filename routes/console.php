@@ -7,6 +7,7 @@ use App\Modules\Reniec\Jobs\ProcessReniecImportJob;
 use App\Modules\Reniec\Models\ReniecImport;
 use App\Modules\Reniec\Services\ReniecCopyLoader;
 use App\Modules\Reniec\Services\ReniecFileService;
+use App\Modules\Reniec\Services\ReniecIncomingFileScanner;
 use App\Modules\Reniec\Services\ReniecMergeService;
 use App\Modules\Reniec\Support\ReniecLineParser;
 use Illuminate\Support\Facades\Artisan;
@@ -133,16 +134,19 @@ Artisan::command('agencies:prune-sync-changes {--dry-run} {--days=}', function (
 Schedule::command('agencies:prune-sync-changes')->dailyAt('02:30')->withoutOverlapping();
 
 Artisan::command('reniec:scan', function (): int {
-    $files = app(ReniecFileService::class)->available();
-    foreach ($files as $file) {
-        $this->line($file['name'].' | '.$file['size'].' bytes | '.$file['path']);
-    }
-    $this->info(count($files).' archivos RENIEC disponibles.');
+    $scanner = app(ReniecIncomingFileScanner::class);
+    $diagnostics = $scanner->diagnostics();
+    $this->line('Disk: '.$diagnostics['disk']);
+    $this->line('Directorio configurado: '.$diagnostics['configured_directory']);
+    $this->line('Ruta física: '.$diagnostics['physical_path']);
+    $this->line('Directorio existe: '.($diagnostics['exists'] ? 'sí' : 'no'));
+    $files = $scanner->scan();
+    $this->table(['Nombre', 'Tamaño', 'Fecha', 'Estado'], collect($files)->map(fn (array $file): array => [$file['name'], $file['size'], date('Y-m-d H:i:s', $file['last_modified']), $file['status']])->all());
+    $this->info(count($files).' archivos TXT encontrados.');
 
     return Command::SUCCESS;
-})->purpose('Lista archivos RENIEC disponibles en el directorio privado de entrada.');
-
-Artisan::command('reniec:register-file {path} {--strategy=} {--dry-run}', function (): int {
+})->purpose('Diagnostica y lista archivos RENIEC disponibles en el servidor.');
+Artisan::command('reniec:register {path} {--dry-run} {--strategy=}', function (): int {
     if ($this->option('dry-run')) {
         $this->info('Validación seca: '.$this->argument('path'));
 
@@ -194,7 +198,7 @@ Artisan::command('reniec:status {--id=}', function (): int {
     return Command::SUCCESS;
 });
 Artisan::command('reniec:cleanup {--dry-run}', function (): int {
-    $q = ReniecImport::query()->where('finished_at', '<', now()->subDays(config('reniec.retention_days')));
+    $q = ReniecImport::query()->where('finished_at', '<', now()->subDays(config('reniec.import.retention_days')));
     $count = $q->count();
     if (! $this->option('dry-run')) {
         $q->each(fn ($i) => $i->delete());
@@ -227,8 +231,9 @@ Artisan::command('reniec:benchmark {--rows=1000000} {--strategy=insert_ignore}',
 
         return Command::INVALID;
     }
-    $disk = Storage::disk(config('reniec.disk'));
-    $path = trim(config('reniec.incoming_directory'), '/').'/benchmark-'.now()->format('YmdHis').'.txt';
+    $disk = Storage::disk(config('reniec.import.disk'));
+    $directory = app(ReniecIncomingFileScanner::class)->storageDirectory($disk);
+    $path = $directory.'/benchmark-'.now()->format('YmdHis').'.txt';
     $stream = fopen('php://temp/maxmemory:1048576', 'w+b');
     fwrite($stream, "DNI|NOMBRES|PATERNO|MATERNO|FECHA|SEXO|UBIGEO|\n");
     for ($i = 1; $i <= $rows; $i++) {

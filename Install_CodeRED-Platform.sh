@@ -233,6 +233,7 @@ for _ in {1..40}; do
     sleep 3
 done
 docker compose exec -T app php artisan about >/dev/null 2>&1 || die "Laravel no respondió a tiempo."
+docker compose exec -T app mkdir -p \n    storage/app/private/reniec/incoming \n    storage/app/private/reniec/working \n    storage/app/private/reniec/archive \n    storage/app/private/reniec/errors
 
 if [[ -z "$(get_env APP_KEY)" ]]; then
     docker compose exec -T app php artisan key:generate --force

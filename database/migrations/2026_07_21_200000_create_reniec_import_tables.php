@@ -48,7 +48,7 @@ return new class extends Migration
             $t->unique(['import_id', 'row_number']);
             $t->index(['import_id', 'dni']);
         });
-        if (DB::getDriverName() === 'pgsql' && config('reniec.staging_unlogged')) {
+        if (DB::getDriverName() === 'pgsql' && config('reniec.import.staging_unlogged')) {
             DB::statement('ALTER TABLE reniec_import_staging SET UNLOGGED');
         }
     }

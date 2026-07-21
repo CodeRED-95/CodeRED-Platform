@@ -235,3 +235,5 @@ Todas las versiones siguen `Keep a Changelog`.
 - Se consolidó el lenguaje visual premium de CodeRED: shell con scroll independiente, sidebar persistente, tokens ampliados, tablas globales y primitivas accesibles para archivos, radios, alertas, cards y botones.
 - Corregido el quoting seguro del instalador y el flujo de subida temporal del padrón RUC, con límites coherentes entre Nginx, PHP y Livewire.
 - Añadido importador masivo RENIEC con worker exclusivo, staging/COPY, checkpoints, control CLI y panel administrativo.
+
+- La detección RENIEC ahora inspecciona el directorio privado configurado desde CLI y Livewire, con diagnóstico de ruta física y pruebas sobre filesystem aislado.
