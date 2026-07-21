@@ -16,7 +16,6 @@
 /bootstrap/cache
 /public/build
 *.log
-Install_CodeRED-Platform.sh
 /storage/app/private/ruc-imports/
 /storage/framework/testing/disks/local/backups/
 /storage/framework/testing/disks/local/imports/agencies/previews/*.json
