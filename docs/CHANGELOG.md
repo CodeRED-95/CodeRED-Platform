@@ -221,3 +221,11 @@ Todas las versiones siguen `Keep a Changelog`.
 - Se agrega `/admin/api-tools/dni` con modos interno y endpoint efímero.
 - Las ejecuciones administrativas usan `request_type=admin_test` y se excluyen de métricas de clientes.
 - Se añaden rutas temáticas, visibilidad pública configurable, Swagger/OpenAPI y ejemplos Postman sin secretos.
+
+## 2026-07-21 — Módulo RUC nativo
+
+- Se migró la funcionalidad de consulta de `CodeRED-95/api-ruc` al dominio Laravel, con PostgreSQL y caché Redis.
+- Se añadieron abilities independientes `ruc:consultar` y `ruc:buscar`, auditoría, rate limits y documentación OpenAPI.
+- Se incorporó importación TXT por cola con streaming, progreso persistente, errores descargables y escritura idempotente.
+- Se añadió el panel de registros/importaciones, probador administrativo RUC y métricas de dashboard.
+- Se corrigió el portapapeles DNI con Clipboard API, fallback HTTP y notificación accesible.

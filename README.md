@@ -95,7 +95,7 @@ PENDIENTE DE CONFIGURAR
 - Importación desde GitHub Gist.
 - Web pública y panel administrativo.
 - Exportación, caché y snapshot compacto.
-- Próximos módulos: DNI, RUC, Clientes, Trabajadores, Reportes, Estadísticas, Chrome Extension y App móvil.
+- Próximos módulos: Clientes, Trabajadores, Reportes, Estadísticas, Chrome Extension y App móvil.
 
 ## Licencia
 
@@ -112,6 +112,8 @@ Proprietary
 
 - [Migración del servicio DNI legado](docs/DNI_LEGACY_MIGRATION.md)
 - [API DNI](docs/api/dni.md)
+- [Módulo RUC e importaciones](docs/RUC_MODULE.md)
+- [API RUC](docs/api/ruc.md)
 
 
 - [Documentación API web](/docs/api)

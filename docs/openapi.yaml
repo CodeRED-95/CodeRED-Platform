@@ -3,7 +3,7 @@ info:
   title: CodeRED Platform API
   version: 1.0.0
   description: |
-    API REST para consultas independientes de agencias y DNI en CodeRED Platform.
+    API REST para consultas independientes de agencias, DNI y RUC en CodeRED Platform.
     Crea y revoca credenciales desde API y Tokens. En Authorize pega un token Sanctum
     con agencies:read para el catálogo o profile:read para /me. Nunca incluyas tokens reales
     en URLs, capturas, código fuente o documentación.
@@ -14,6 +14,8 @@ tags:
     description: Consulta del catálogo oficial; requiere agencias:consultar.
   - name: DNI
     description: Consulta DNI; requiere dni:consultar.
+  - name: RUC
+    description: Consulta del padrón reducido SUNAT; requiere abilities RUC independientes.
   - name: Catálogo
     description: Metadatos del catálogo; requiere agencies:read.
   - name: Perfil
@@ -92,6 +94,39 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '502': { $ref: '#/components/responses/BadGateway' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /ruc/{ruc}:
+    get:
+      tags: [RUC]
+      summary: Consultar contribuyente por RUC
+      operationId: getRuc
+      description: Requiere ruc:consultar. El token DNI no autoriza esta operación.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: ruc, in: path, required: true, schema: { type: string, pattern: '^\d{11}$', example: '20123456789' } }
+      responses:
+        '200': { description: RUC encontrado, content: { application/json: { schema: { $ref: '#/components/schemas/RucResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /ruc/buscar:
+    get:
+      tags: [RUC]
+      summary: Buscar por razón social
+      operationId: searchRuc
+      description: Requiere ruc:buscar y aplica paginación y longitud mínima.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: razon_social, in: query, required: true, schema: { type: string, minLength: 3, maxLength: 150 }, example: EMPRESA EJEMPLO }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Resultados paginados }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /agencies:
     get:
       tags: [Agencias]
@@ -265,6 +300,32 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   schemas:
+    RucData:
+      type: object
+      required: [ruc, razon_social, estado, condicion, ubigeo, direccion, departamento, provincia, distrito]
+      properties:
+        ruc: { type: string, pattern: '^\d{11}$', example: '20123456789' }
+        razon_social: { type: string, example: EMPRESA EJEMPLO S.A.C. }
+        estado: { type: string, nullable: true, example: ACTIVO }
+        condicion: { type: string, nullable: true, example: HABIDO }
+        ubigeo: { type: string, nullable: true, example: '150101' }
+        direccion: { type: string, nullable: true }
+        departamento: { type: string, nullable: true, example: LIMA }
+        provincia: { type: string, nullable: true, example: LIMA }
+        distrito: { type: string, nullable: true, example: LIMA }
+    RucResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string, example: RUC encontrado. }
+        data: { $ref: '#/components/schemas/RucData' }
+        meta:
+          type: object
+          properties:
+            source: { type: string, enum: [internal, cache] }
+            cached: { type: boolean }
+            response_time_ms: { type: integer }
     DniData:
       type: object
       additionalProperties: false

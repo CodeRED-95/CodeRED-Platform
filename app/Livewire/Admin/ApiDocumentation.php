@@ -19,6 +19,7 @@ class ApiDocumentation extends Component
         return view('livewire.admin.api-documentation', [
             'rateLimit' => (int) config('api.rate_limit_per_minute'),
             'maxPerPage' => (int) config('api.max_per_page'),
+            'rucRateLimit' => (int) config('ruc.rate_limit_per_minute'),
         ])->layout(auth()->check() ? 'layouts.app' : 'layouts.guest', ['pageTitle' => 'Documentación API']);
     }
 }

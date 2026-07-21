@@ -2,10 +2,13 @@
     class="space-y-6"
     x-data="codeRedApiDocs({ specUrl: @js(route('api.docs.spec', absolute: false)), basePath: '/api/v1' })"
 >
-    <x-ui.page-header title="API CodeRED Platform" subtitle="Documentación de agencias y DNI para API versión v1.">
+    <x-ui.page-header title="API CodeRED Platform" subtitle="Documentación de agencias, DNI y RUC para API versión v1.">
         <x-slot:actions>
             @if(auth()->check() && auth()->user()->hasPermission('api-tools.dni.test'))
                 <x-ui.button href="{{ route('admin.api-tools.dni') }}" variant="primary" size="sm">Probar endpoint DNI</x-ui.button>
+            @endif
+            @if(auth()->check() && auth()->user()->hasPermission('ruc.test'))
+                <x-ui.button href="{{ route('admin.api-tools.ruc') }}" variant="primary" size="sm">Probar endpoint RUC</x-ui.button>
             @endif
             @if(auth()->check() && auth()->user()->hasPermission('api-tokens.view-any'))
                 <x-ui.button href="{{ route('admin.api-tokens.index') }}" variant="secondary" size="sm">Administrar tokens</x-ui.button>
@@ -83,11 +86,11 @@
         <x-ui.card padding="p-5">
             <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem]">
                 <x-ui.search-box label="Buscar endpoint" placeholder="Ruta, nombre, categoría o ability…" x-model="search" />
-                <fieldset><legend class="text-sm font-medium text-white">Categoría</legend><div class="mt-1.5 flex flex-wrap gap-1"><template x-for="filter in ['Todos','Sistema','Autenticación','Agencias','Catálogo']" x-bind:key="filter"><button type="button" class="focus-ring rounded-lg px-2.5 py-2 text-xs" x-bind:class="categoryFilter === filter ? 'bg-[color:var(--color-brand)] text-white' : 'bg-white/5 text-[color:var(--color-text-secondary)] hover:text-white'" x-on:click="categoryFilter = filter" x-text="filter"></button></template></div></fieldset>
+                <fieldset><legend class="text-sm font-medium text-white">Categoría</legend><div class="mt-1.5 flex flex-wrap gap-1"><template x-for="filter in ['Todos','Sistema','Autenticación','Agencias','Catálogo','RUC']" x-bind:key="filter"><button type="button" class="focus-ring rounded-lg px-2.5 py-2 text-xs" x-bind:class="categoryFilter === filter ? 'bg-[color:var(--color-brand)] text-white' : 'bg-white/5 text-[color:var(--color-text-secondary)] hover:text-white'" x-on:click="categoryFilter = filter" x-text="filter"></button></template></div></fieldset>
             </div>
         </x-ui.card>
 
-        <template x-for="category in ['Sistema', 'Autenticación', 'Agencias', 'Catálogo']" x-bind:key="category">
+        <template x-for="category in ['Sistema', 'Autenticación', 'Agencias', 'Catálogo', 'RUC']" x-bind:key="category">
             <section x-show="categoryEndpoints(category).length" class="space-y-3" x-bind:aria-labelledby="'api-category-' + category.replaceAll(' ', '-')">
                 <div class="flex flex-wrap items-end justify-between gap-3">
                     <div>

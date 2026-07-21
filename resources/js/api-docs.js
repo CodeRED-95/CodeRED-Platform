@@ -10,6 +10,8 @@ const visual = {
   agencySnapshot: { category: "Agencias", ability: "agencies:read", title: "Snapshot completo" },
   agencyVersion: { category: "Agencias", ability: "agencies:read", title: "Versión heredada" },
   catalogMetadata: { category: "Catálogo", ability: "agencies:read", title: "Metadata del catálogo" },
+  getRuc: { category: "RUC", ability: "ruc:consultar", title: "Consultar RUC" },
+  searchRuc: { category: "RUC", ability: "ruc:buscar", title: "Buscar razón social" },
 };
 
 const categories = {
@@ -17,6 +19,7 @@ const categories = {
   Autenticación: "Identidad, vigencia y abilities del token Sanctum.",
   Agencias: "Consulta y sincronización del catálogo oficial.",
   Catálogo: "Revisión, esquema y cursores del catálogo.",
+  RUC: "Consulta exacta y búsqueda paginada del padrón reducido SUNAT.",
 };
 
 export function buildApiPath(path, basePath = "/api/v1") {
