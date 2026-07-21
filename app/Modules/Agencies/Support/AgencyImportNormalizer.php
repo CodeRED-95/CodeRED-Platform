@@ -92,12 +92,13 @@ final class AgencyImportNormalizer
         $warnings = [];
         $errors = [];
 
-        if (! array_key_exists('id', $row) || $row['id'] === null || $row['id'] === '') {
-            $errors[] = 'El registro no contiene id.';
+        $identity = $row['external_id'] ?? $row['id'] ?? null;
+        if (($identity === null || $identity === '') && self::normalizeText($row['code'] ?? null) === null) {
+            $errors[] = 'El registro no contiene ID externo ni code.';
         }
 
-        $externalId = filter_var($row['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-        if (array_key_exists('id', $row) && $row['id'] !== null && $row['id'] !== '' && $externalId === false) {
+        $externalId = $identity === null || $identity === '' ? null : filter_var($identity, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($identity !== null && $identity !== '' && $externalId === false) {
             $errors[] = 'El id debe ser un entero mayor que cero.';
         }
 
@@ -139,12 +140,15 @@ final class AgencyImportNormalizer
         $mapUrl = self::normalizeText($row['link_mapa'] ?? null);
         $size = self::normalizeSize($row['tamano'] ?? null);
         $isOperationsCenter = self::parseOperationsCenter($row['co'] ?? false, $warnings);
+        $status = AgencyStatus::tryFrom((string) ($row['status'] ?? '')) ?? AgencyStatus::UnderReview;
 
         if (($row['tamano'] ?? null) !== null && $size === null) {
             $warnings[] = 'El tamaño no pudo normalizarse.';
         }
 
         [$latitude, $longitude] = self::parseCoordinates($mapUrl);
+        $latitude = self::coordinate($row['latitude'] ?? $latitude, -90, 90);
+        $longitude = self::coordinate($row['longitude'] ?? $longitude, -180, 180);
         if ($mapUrl !== null && $latitude === null && $longitude === null) {
             $warnings[] = 'El enlace de mapa no contiene coordenadas válidas.';
         }
@@ -165,17 +169,49 @@ final class AgencyImportNormalizer
             'longitude' => $longitude,
             'size' => $size,
             'is_operations_center' => $isOperationsCenter,
-            'source' => 'github_gist',
-            'source_reference' => $externalId === false || $externalId === null ? null : (string) $externalId,
-            'status' => AgencyStatus::UnderReview->value,
+            'short_name' => self::normalizeText($row['short_name'] ?? null),
+            'reference' => self::normalizeText($row['reference'] ?? null),
+            'phone' => self::normalizeText($row['phone'] ?? null),
+            'secondary_phone' => self::normalizeText($row['secondary_phone'] ?? null),
+            'email' => self::normalizeText($row['email'] ?? null),
+            'schedule' => self::normalizeText($row['schedule'] ?? null),
+            'services' => self::jsonArray($row['services'] ?? []),
+            'observations' => self::normalizeText($row['observations'] ?? null),
+            'source' => self::normalizeText($row['source'] ?? null) ?? 'github_gist',
+            'source_reference' => self::normalizeText($row['source_reference'] ?? null) ?? ($externalId === false || $externalId === null ? null : (string) $externalId),
+            'status' => $status->value,
             'slug' => $name ? self::slugifyUnique($name, (string) ($row['id'] ?? '')) : null,
-            'has_moved' => false,
+            'has_moved' => self::boolean($row['has_moved'] ?? false),
             'moved_to_agency_id' => null,
-            'moved_to_address' => null,
-            'move_notice' => null,
-            'moved_at' => null,
+            'moved_to_address' => self::normalizeText($row['moved_to_address'] ?? null),
+            'move_notice' => self::normalizeText($row['move_notice'] ?? null),
+            'moved_at' => self::normalizeText($row['moved_at'] ?? null),
         ];
 
         return AgencyImportRowData::make($row, $normalized, $warnings, $errors);
+    }
+
+    private static function coordinate(mixed $value, float $minimum, float $maximum): ?float
+    {
+        if (! is_numeric($value)) {
+            return null;
+        }
+        $coordinate = (float) $value;
+
+        return $coordinate >= $minimum && $coordinate <= $maximum ? $coordinate : null;
+    }
+
+    private static function jsonArray(mixed $value): array
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        return is_array($value) && array_is_list($value) ? $value : [];
+    }
+
+    private static function boolean(mixed $value): bool
+    {
+        return in_array($value, [true, 1, '1', 'true'], true);
     }
 }

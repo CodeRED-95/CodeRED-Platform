@@ -5,9 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\Admin\Agencies\Import;
 use App\Models\Role;
 use App\Models\User;
-use App\Modules\Agencies\Enums\AgencyImportStatus;
 use App\Modules\Agencies\Models\Agency;
-use App\Modules\Agencies\Models\AgencyImport;
 use App\Modules\Agencies\Services\AgencyBackupService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -69,23 +67,12 @@ class AgencyImportWizardTest extends TestCase
             ->call('goToImport')
             ->assertSet('step', 4)
             ->call('import')
-            ->assertSet('step', 5)
-            ->assertSet('summary.imported', 1)
-            ->assertSet('summary.skipped', 1)
-            ->assertSet('summary.failed', 1)
-            ->assertSee('Resumen final');
+            ->assertSet('step', 4)
+            ->assertHasErrors(['import']);
 
-        $this->assertDatabaseHas('agencies', ['source_reference' => '2']);
+        $this->assertDatabaseMissing('agencies', ['source_reference' => '2']);
         $this->assertDatabaseMissing('agencies', ['source_reference' => '999']);
-        $this->assertDatabaseHas('agency_imports', [
-            'id' => $component->get('completedImportId'),
-            'status' => AgencyImportStatus::CompletedWithErrors->value,
-            'total_rows' => 3,
-            'imported_rows' => 1,
-            'skipped_rows' => 1,
-            'failed_rows' => 1,
-        ]);
-        $this->assertSame($snapshotPath, AgencyImport::query()->latest('id')->value('stored_filename'));
+        $this->assertDatabaseCount('agency_imports', 0);
     }
 
     public function test_generated_backup_can_be_previewed_and_restored_without_editing_json(): void

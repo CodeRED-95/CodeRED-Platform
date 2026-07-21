@@ -10,6 +10,7 @@ use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use ValueError;
 
 class AgencyImportActionTest extends TestCase
 {
@@ -95,6 +96,58 @@ class AgencyImportActionTest extends TestCase
         $this->assertSame(1, $summary['failed']);
         $this->assertSame(1, $summary['identity_conflicts']);
         $this->assertDatabaseMissing('agencies', ['address' => 'Conflicto']);
+    }
+
+    public function test_official_restore_ignores_old_ids_handles_types_soft_deletes_and_moves(): void
+    {
+        $existing = Agency::factory()->create(['code' => 'RESTORE-001', 'external_id' => null]);
+        $existing->delete();
+        $base = [
+            '_backup_record' => true, 'external_id' => null, 'departamento' => 'Lima',
+            'provincia' => 'Lima', 'distrito' => 'Miraflores', 'direccion' => 'Direccion',
+            'source' => 'manual', 'co' => '0', 'latitude' => '-12.1234567', 'longitude' => -77.1234567,
+        ];
+        $rows = [
+            [...$base, '_backup_id' => 999, '_backup_moved_to_id' => null, '_backup_deleted_at' => null, 'code' => 'RESTORE-001', 'agencia' => 'Restaurada', 'services' => '[]'],
+            [...$base, '_backup_id' => 1000, '_backup_moved_to_id' => 1001, '_backup_deleted_at' => null, 'code' => 'MOVE-001', 'agencia' => 'Trasladada', 'has_moved' => '1', 'services' => '["air"]'],
+            [...$base, '_backup_id' => 1001, '_backup_moved_to_id' => null, '_backup_deleted_at' => '2026-07-20 12:00:00', 'code' => 'TARGET-001', 'agencia' => 'Destino', 'services' => []],
+        ];
+
+        $summary = app(ImportAgenciesAction::class)->execute($this->import(AgencyImportStrategy::UpdateExisting), $rows);
+
+        $moved = Agency::where('code', 'MOVE-001')->firstOrFail();
+        $target = Agency::withTrashed()->where('code', 'TARGET-001')->firstOrFail();
+        $this->assertSame(1, $summary['restored']);
+        $this->assertFalse($existing->fresh()->trashed());
+        $this->assertTrue($target->trashed());
+        $this->assertSame($target->id, $moved->moved_to_agency_id);
+        $this->assertSame(['air'], $moved->services);
+        $this->assertNotSame(1000, $moved->id);
+        $this->assertFalse($existing->fresh()->is_operations_center);
+    }
+
+    public function test_imports_exactly_488_agencies_and_rolls_back_on_unexpected_error(): void
+    {
+        $rows = [];
+        for ($id = 1; $id <= 488; $id++) {
+            $rows[] = $this->row(10000 + $id, 'Direccion '.$id);
+        }
+        $summary = app(ImportAgenciesAction::class)->execute($this->import(AgencyImportStrategy::IgnoreExisting), $rows);
+        $this->assertSame(488, $summary['imported']);
+        $this->assertDatabaseCount('agencies', 488);
+
+        $invalidImport = $this->import(AgencyImportStrategy::IgnoreExisting);
+        $invalidImport->strategy = 'invalid-strategy';
+        $invalidImport->save();
+        try {
+            app(ImportAgenciesAction::class)->execute($invalidImport, [
+                $this->row(20001, 'Se debe revertir'),
+                $this->row(10001, 'Dispara estrategia invalida'),
+            ]);
+            $this->fail('La estrategia invalida debia fallar.');
+        } catch (ValueError) {
+            $this->assertDatabaseMissing('agencies', ['external_id' => 20001]);
+        }
     }
 
     private function import(AgencyImportStrategy $strategy): AgencyImport

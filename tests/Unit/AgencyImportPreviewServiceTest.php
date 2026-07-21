@@ -50,7 +50,7 @@ class AgencyImportPreviewServiceTest extends TestCase
         ]);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('lista reconocible de agencias');
+        $this->expectExceptionMessage('array de agencias o un respaldo válido');
 
         (new AgencyImportPreviewService)->previewFromUrl('https://raw.githubusercontent.com/example/data.json');
     }
@@ -60,7 +60,7 @@ class AgencyImportPreviewServiceTest extends TestCase
         $service = new AgencyImportPreviewService;
         $row = ['id' => 3, 'agencia' => 'Tacna'];
 
-        $official = $service->normalizePayload(['metadata' => ['module' => 'agencies', 'schema_version' => 1], 'data' => ['agencies' => [$row]]]);
+        $official = $service->normalizePayload(['metadata' => ['application' => 'CodeRED Platform', 'type' => 'agency-backup', 'module' => 'agencies', 'schema_version' => 1], 'data' => ['agencies' => [$row]]]);
         $spanish = $service->normalizePayload(['agencias' => [$row]]);
 
         $this->assertSame('data.agencies', $official['format']);
@@ -74,16 +74,36 @@ class AgencyImportPreviewServiceTest extends TestCase
         $service = new AgencyImportPreviewService;
 
         foreach ([
-            [[], 'El archivo no contiene agencias.'],
-            [['module' => 'dni', 'agencies' => [['id' => 1]]], 'pertenece a otro módulo'],
-            [['schema_version' => 99, 'agencies' => [['id' => 1]]], 'todavía no es compatible'],
-            [['agencies' => ['not' => 'a list']], 'lista reconocible de agencias'],
+            [[], 'no contiene agencias para importar'],
+            [['module' => 'dni', 'agencies' => [['id' => 1]]], 'no corresponde a un respaldo'],
+            [['schema_version' => 99, 'agencies' => [['id' => 1]]], 'no es compatible'],
+            [['agencies' => ['not' => 'a list']], 'array de agencias o un respaldo válido'],
         ] as [$payload, $message]) {
             try {
                 $service->normalizePayload($payload);
                 $this->fail('El payload inválido debía rechazarse.');
             } catch (InvalidArgumentException $exception) {
                 $this->assertStringContainsString($message, $exception->getMessage());
+            }
+        }
+    }
+
+    public function test_validates_official_metadata_and_record_count(): void
+    {
+        $service = new AgencyImportPreviewService;
+        $row = ['code' => 'SHA-1', 'name' => 'Agencia'];
+        foreach ([
+            [['metadata' => ['application' => 'Otra', 'type' => 'agency-backup'], 'data' => ['agencies' => [$row]]], 'no fue generado'],
+            [['metadata' => ['application' => 'CodeRED Platform', 'type' => 'dni-backup'], 'data' => ['agencies' => [$row]]], 'no corresponde'],
+            [['metadata' => ['application' => 'CodeRED Platform', 'type' => 'agency-backup', 'schema_version' => 2], 'data' => ['agencies' => [$row]]], 'Versiones soportadas: 1'],
+            [['metadata' => ['application' => 'CodeRED Platform', 'type' => 'agency-backup', 'schema_version' => 1, 'record_count' => 2], 'data' => ['agencies' => [$row]]], 'no coincide'],
+            [['metadata' => ['application' => 'CodeRED Platform', 'type' => 'agency-backup', 'schema_version' => 1]], 'no contiene la colecci'],
+        ] as [$payload, $message]) {
+            try {
+                $service->normalizePayload($payload);
+                $this->fail('Los metadatos invalidos debian rechazarse.');
+            } catch (InvalidArgumentException $exception) {
+                $this->assertStringContainsString($message, iconv('UTF-8', 'ASCII//TRANSLIT', $exception->getMessage()));
             }
         }
     }

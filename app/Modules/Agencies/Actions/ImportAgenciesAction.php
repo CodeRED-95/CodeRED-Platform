@@ -18,6 +18,11 @@ class ImportAgenciesAction
 
     public function execute(AgencyImport $import, array $rows, ?string $defaultStatus = null): array
     {
+        return DB::transaction(fn (): array => $this->executeWithinTransaction($import, $rows, $defaultStatus));
+    }
+
+    private function executeWithinTransaction(AgencyImport $import, array $rows, ?string $defaultStatus): array
+    {
         $summary = [
             'imported' => 0,
             'updated' => 0,
@@ -27,6 +32,7 @@ class ImportAgenciesAction
             'legacy_classified' => 0,
             'legacy_unclassified' => 0,
             'identity_conflicts' => 0,
+            'restored' => 0,
         ];
 
         $seenExternalIds = [];
@@ -120,7 +126,7 @@ class ImportAgenciesAction
                 }
 
                 $changes = [];
-                foreach (['external_id', 'name', 'department', 'province', 'district', 'address', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size'] as $field) {
+                foreach (['external_id', 'name', 'short_name', 'department', 'province', 'district', 'address', 'reference', 'phone', 'secondary_phone', 'email', 'schedule', 'services', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size', 'status', 'is_operations_center', 'has_moved', 'moved_to_address', 'move_notice', 'moved_at'] as $field) {
                     $value = $data[$field] ?? null;
                     if ($value === null || $value === '') {
                         continue;
@@ -141,6 +147,42 @@ class ImportAgenciesAction
                     $summary['skipped']++;
                 }
             });
+        }
+
+        $backupIdMap = [];
+        foreach ($rows as $row) {
+            if (! ($row['_backup_record'] ?? false)) {
+                continue;
+            }
+            $data = AgencyImportNormalizer::transform($row)->normalized;
+            $agency = $this->duplicateFinder->find($data);
+            if ($agency === null) {
+                continue;
+            }
+            if (is_numeric($row['_backup_id'] ?? null)) {
+                $backupIdMap[(int) $row['_backup_id']] = $agency->id;
+            }
+            $agency->update(['moved_to_agency_id' => null]);
+            if (($row['_backup_deleted_at'] ?? null) === null && $agency->trashed()) {
+                $agency->restore();
+                $summary['restored']++;
+            } elseif (($row['_backup_deleted_at'] ?? null) !== null && ! $agency->trashed()) {
+                $agency->delete();
+            }
+        }
+
+        foreach ($rows as $row) {
+            $oldTarget = $row['_backup_moved_to_id'] ?? null;
+            $oldSource = $row['_backup_id'] ?? null;
+            if ($oldTarget === null) {
+                continue;
+            }
+            if (! is_numeric($oldSource) || ! is_numeric($oldTarget) || ! isset($backupIdMap[(int) $oldSource], $backupIdMap[(int) $oldTarget])) {
+                $summary['warnings']++;
+
+                continue;
+            }
+            Agency::withTrashed()->whereKey($backupIdMap[(int) $oldSource])->update(['moved_to_agency_id' => $backupIdMap[(int) $oldTarget]]);
         }
 
         return $summary;

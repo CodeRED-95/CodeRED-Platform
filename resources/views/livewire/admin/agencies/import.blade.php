@@ -149,6 +149,7 @@
                 <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <x-ui.stat-card label="Importadas" :value="$summary['imported'] ?? 0" tone="success" />
                     <x-ui.stat-card label="Actualizadas" :value="$summary['updated'] ?? 0" tone="info" />
+                    <x-ui.stat-card label="Restauradas" :value="$summary['restored'] ?? 0" tone="success" />
                     <x-ui.stat-card label="Omitidas" :value="$summary['skipped'] ?? 0" tone="warning" />
                     <x-ui.stat-card label="Fallidas" :value="$summary['failed'] ?? 0" tone="danger" />
                     <x-ui.stat-card label="Advertencias" :value="$summary['warnings'] ?? 0" tone="warning" />

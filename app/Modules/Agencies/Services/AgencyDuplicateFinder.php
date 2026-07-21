@@ -21,7 +21,7 @@ class AgencyDuplicateFinder
         }
 
         if (filled($data['source_reference'] ?? null)) {
-            $matches->push(Agency::withTrashed()->where('source', 'github_gist')->where('source_reference', $data['source_reference'])->first());
+            $matches->push(Agency::withTrashed()->where('source', $data['source'] ?? 'github_gist')->where('source_reference', $data['source_reference'])->first());
         }
 
         if (filled($data['code'] ?? null)) {
@@ -41,7 +41,7 @@ class AgencyDuplicateFinder
             return ['agency' => null, 'conflict' => null];
         }
 
-        $agency = Agency::query()
+        $agency = Agency::withTrashed()
             ->whereRaw('lower(unaccent(name)) = lower(unaccent(?))', [$data['name']])
             ->whereRaw('lower(unaccent(department)) = lower(unaccent(?))', [$data['department']])
             ->whereRaw('lower(unaccent(province)) = lower(unaccent(?))', [$data['province']])

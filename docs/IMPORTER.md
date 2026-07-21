@@ -92,6 +92,12 @@ La reimportación nunca sobrescribe campos manuales de traslado.
 - La vista previa no escribe agencias en base de datos.
 - La importación real se procesa mediante `ImportAgenciesAction`.
 - Se acepta el array raíz legado y los respaldos oficiales con agencias en `data.agencies`. También se reconocen `agencies` y `agencias`; vista previa e importación usan el mismo lector y rechazan módulos o versiones futuras incompatibles.
+- El esquema oficial soportado es `agency-backup` versión 1, generado por `CodeRED Platform`. `record_count` debe coincidir con la colección real.
+- La restauración oficial ignora los IDs internos del origen. Busca coincidencias por `external_id`, `code` y `source_reference`, incluyendo eliminados lógicamente.
+- La persistencia completa es transaccional. Los registros inválidos bloquean la confirmación; un error inesperado revierte toda la operación.
+- `deleted_at` se restaura de forma explícita y las relaciones `moved_to_agency_id` se resuelven en una segunda fase mediante el mapa de IDs del respaldo.
+- `services` acepta array o JSON serializado. Booleanos, coordenadas, estados, tamaños y valores nulos se normalizan antes de persistir.
+- Solo usuarios autorizados con `agencies.import` pueden abrir o ejecutar el asistente; por la matriz actual corresponde al Super Administrador.
 - Los errores se guardan en `agency_import_failures`.
 - El estado final es `completed`, `completed_with_errors` o `failed`.
 - El resumen conserva importadas, actualizadas, omitidas y fallidas.

@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 final class AgencyImportPayloadReader
 {
-    public const SCHEMA_VERSION = 1;
+    public const SUPPORTED_SCHEMA_VERSIONS = [1];
 
     public function read(mixed $payload): array
     {
@@ -19,14 +19,26 @@ final class AgencyImportPayloadReader
         }
 
         $metadata = is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [];
+        if ($metadata !== []) {
+            if (($metadata['application'] ?? null) !== 'CodeRED Platform') {
+                throw new InvalidArgumentException('El archivo no fue generado por CodeRED Platform.');
+            }
+            if (($metadata['type'] ?? null) !== 'agency-backup') {
+                throw new InvalidArgumentException('El archivo no corresponde a un respaldo de agencias.');
+            }
+        }
         $module = $payload['module'] ?? $metadata['module'] ?? null;
         if ($module !== null && $module !== 'agencies') {
-            throw new InvalidArgumentException('La copia de seguridad pertenece a otro módulo.');
+            throw new InvalidArgumentException('El archivo no corresponde a un respaldo de agencias.');
         }
 
         $version = $payload['schema_version'] ?? $metadata['schema_version'] ?? null;
-        if (is_numeric($version) && (int) $version > self::SCHEMA_VERSION) {
-            throw new InvalidArgumentException('La versión de esta copia de seguridad todavía no es compatible.');
+        if ($version !== null && (! is_numeric($version) || ! in_array((int) $version, self::SUPPORTED_SCHEMA_VERSIONS, true))) {
+            throw new InvalidArgumentException('La versión '.(string) $version.' del respaldo no es compatible. Versiones soportadas: '.implode(', ', self::SUPPORTED_SCHEMA_VERSIONS).'.');
+        }
+
+        if ($metadata !== [] && ! isset($payload['data']['agencies'])) {
+            throw new InvalidArgumentException('El respaldo no contiene la colección de agencias.');
         }
 
         $candidates = [
@@ -36,6 +48,9 @@ final class AgencyImportPayloadReader
         ];
         foreach ($candidates as $format => $agencies) {
             if (is_array($agencies) && array_is_list($agencies)) {
+                if (isset($metadata['record_count']) && (! is_numeric($metadata['record_count']) || (int) $metadata['record_count'] !== count($agencies))) {
+                    throw new InvalidArgumentException('El número de agencias del respaldo no coincide con los metadatos del archivo.');
+                }
                 if ($format === 'data.agencies') {
                     $agencies = array_map($this->normalizeOfficialAgency(...), $agencies);
                 }
@@ -44,13 +59,13 @@ final class AgencyImportPayloadReader
             }
         }
 
-        throw new InvalidArgumentException('El archivo JSON no contiene una lista reconocible de agencias.');
+        throw new InvalidArgumentException('El archivo debe contener un array de agencias o un respaldo válido de CodeRED Platform.');
     }
 
     private function result(array $agencies, string $format, ?int $version, ?int $declared): array
     {
         if ($agencies === []) {
-            throw new InvalidArgumentException('El archivo no contiene agencias.');
+            throw new InvalidArgumentException('El respaldo no contiene agencias para importar.');
         }
 
         return ['agencies' => $agencies, 'format' => $format, 'schema_version' => $version, 'declared_count' => $declared];
@@ -64,6 +79,11 @@ final class AgencyImportPayloadReader
 
         return [
             ...$agency,
+            '_backup_record' => true,
+            '_backup_id' => $agency['id'] ?? null,
+            '_backup_moved_to_id' => $agency['moved_to_agency_id'] ?? null,
+            '_backup_deleted_at' => $agency['deleted_at'] ?? null,
+            'id' => $agency['external_id'] ?? null,
             'agencia' => $agency['agencia'] ?? $agency['name'] ?? null,
             'departamento' => $agency['departamento'] ?? $agency['department'] ?? null,
             'provincia' => $agency['provincia'] ?? $agency['province'] ?? null,

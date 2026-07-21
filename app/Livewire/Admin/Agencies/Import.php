@@ -74,6 +74,9 @@ class Import extends Component
 
         try {
             $payload = $this->loadPayload($service);
+            if (($this->payloadMetadata['format'] ?? null) === 'data.agencies') {
+                $this->strategy = AgencyImportStrategy::UpdateExisting->value;
+            }
             $this->analysePayload($payload, $duplicateFinder);
             $this->snapshotPath = $this->storeSnapshot($payload);
             $this->step = 3;
@@ -105,6 +108,12 @@ class Import extends Component
     {
         if ($this->step !== 4 || ! $this->snapshotExists()) {
             $this->addError('source', 'Debes validar y confirmar una vista previa antes de importar.');
+
+            return;
+        }
+
+        if (($this->summary['invalid_rows'] ?? 0) > 0) {
+            $this->addError('import', 'La restauración no puede ejecutarse porque contiene registros inválidos. Corrige las posiciones indicadas y vuelve a generar la vista previa.');
 
             return;
         }
