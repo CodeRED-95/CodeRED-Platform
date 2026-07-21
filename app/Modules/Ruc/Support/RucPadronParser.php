@@ -8,7 +8,7 @@ final class RucPadronParser
     {
         $utf8 = mb_convert_encoding(rtrim($line, "\r\n"), 'UTF-8', $encoding);
         $columns = array_map($this->clean(...), str_getcsv($utf8, $delimiter));
-        if ($columns[0] !== '' && ! preg_match('/^\d{11}$/', $columns[0]) && str_contains(mb_strtoupper($columns[0]), 'RUC')) {
+        if (in_array(mb_strtoupper($columns[0]), ['RUC', 'NUMERO_RUC', 'NÚMERO_RUC', 'NUMERO DE RUC'], true)) {
             return ['header' => true];
         }
         if (count($columns) < 2) {

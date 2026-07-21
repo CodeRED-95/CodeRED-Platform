@@ -25,6 +25,7 @@ class RucPadronParserTest extends TestCase
 
         $this->assertTrue($parser->parse("RUC|RAZON_SOCIAL\n", '|', 'UTF-8')['header']);
         $this->assertSame('RUC inválido.', $parser->parse("123|EMPRESA\n", '|', 'UTF-8')['error']);
+        $this->assertSame('RUC inválido.', $parser->parse("RUC-INVALIDO|EMPRESA\n", '|', 'UTF-8')['error']);
         $this->assertSame('Razón social vacía.', $parser->parse("20123456789|\n", '|', 'UTF-8')['error']);
     }
 }

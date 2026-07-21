@@ -8,6 +8,7 @@ use App\Modules\Ruc\Models\RucImport;
 use App\Modules\Ruc\Support\RucPadronParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Tests\TestCase;
 
 class RucImportTest extends TestCase
@@ -32,5 +33,72 @@ class RucImportTest extends TestCase
         $this->assertDatabaseHas('ruc_import_errors', ['line_number' => 4, 'reason' => 'RUC inválido.']);
         $this->assertSame(RucImportStatus::CompletedWithErrors, $import->fresh()->status);
         $this->assertSame(100.0, (float) $import->fresh()->progress_percentage);
+    }
+
+    public function test_forty_row_fixture_rewinds_stream_reaches_one_hundred_percent_and_is_idempotent(): void
+    {
+        Storage::fake('local');
+        config()->set('ruc.import_progress_interval', 10);
+        $contents = file_get_contents(base_path('tests/Fixtures/ruc/padron-40.txt'));
+        $this->assertIsString($contents);
+        Storage::disk('local')->put('ruc-imports/padron-40.txt', $contents);
+
+        $first = $this->import('ruc-imports/padron-40.txt', 'first-40.txt');
+        (new ProcessRucImportJob($first->id))->handle(app(RucPadronParser::class));
+
+        $first->refresh();
+        $this->assertSame(RucImportStatus::CompletedWithErrors, $first->status);
+        $this->assertSame(40, $first->total_rows);
+        $this->assertSame(40, $first->processed_rows);
+        $this->assertSame(38, $first->inserted_rows);
+        $this->assertSame(1, $first->ignored_rows);
+        $this->assertSame(1, $first->invalid_rows);
+        $this->assertSame('100.00', $first->progress_percentage);
+        $this->assertNotNull($first->last_heartbeat_at);
+        Storage::disk('local')->assertExists($first->path);
+
+        $second = $this->import('ruc-imports/padron-40.txt', 'second-40.txt');
+        (new ProcessRucImportJob($second->id))->handle(app(RucPadronParser::class));
+
+        $second->refresh();
+        $this->assertSame(40, $second->processed_rows);
+        $this->assertSame(0, $second->inserted_rows);
+        $this->assertSame(39, $second->ignored_rows);
+        $this->assertSame(1, $second->invalid_rows);
+        $this->assertSame('100.00', $second->progress_percentage);
+        $this->assertDatabaseCount('ruc_records', 38);
+    }
+
+    public function test_missing_private_file_marks_import_failed_immediately(): void
+    {
+        Storage::fake('local');
+        $import = $this->import('ruc-imports/missing.txt', 'missing.txt');
+
+        try {
+            (new ProcessRucImportJob($import->id))->handle(app(RucPadronParser::class));
+            $this->fail('El Job debía fallar porque el archivo no existe.');
+        } catch (RuntimeException) {
+            $import->refresh();
+            $this->assertSame(RucImportStatus::Failed, $import->status);
+            $this->assertNotNull($import->failed_at);
+            $this->assertStringContainsString('No existe el archivo', (string) $import->error_message);
+        }
+    }
+
+    private function import(string $path, string $filename): RucImport
+    {
+        return RucImport::query()->create([
+            'uuid' => fake()->uuid(),
+            'original_filename' => $filename,
+            'stored_filename' => basename($path),
+            'disk' => 'local',
+            'path' => $path,
+            'file_size' => Storage::disk('local')->exists($path) ? Storage::disk('local')->size($path) : 0,
+            'file_hash' => hash('sha256', $filename),
+            'status' => RucImportStatus::Queued,
+            'encoding' => 'UTF-8',
+            'delimiter' => '|',
+            'queue_name' => 'ruc-imports',
+        ]);
     }
 }

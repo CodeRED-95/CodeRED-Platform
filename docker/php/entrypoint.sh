@@ -5,7 +5,7 @@ git config --global --add safe.directory /var/www/html >/dev/null 2>&1 || true
 
 APP_DIR="/var/www/html"
 BOOTSTRAP_MARKER="$APP_DIR/storage/framework/.codered_bootstrapped"
-TARGETS="$APP_DIR/bootstrap/cache $APP_DIR/storage/framework/cache $APP_DIR/storage/framework/sessions $APP_DIR/storage/framework/views $APP_DIR/storage/logs"
+TARGETS="$APP_DIR/bootstrap/cache $APP_DIR/storage/app/private $APP_DIR/storage/framework/cache $APP_DIR/storage/framework/sessions $APP_DIR/storage/framework/views $APP_DIR/storage/logs"
 
 for dir in $TARGETS; do
     mkdir -p "$dir"

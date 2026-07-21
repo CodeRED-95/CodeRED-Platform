@@ -17,3 +17,4 @@
 /public/build
 *.log
 Install_CodeRED-Platform.sh
+/storage/app/private/ruc-imports/

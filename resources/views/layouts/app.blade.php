@@ -9,15 +9,15 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="h-full bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]">
+<body class="h-dvh overflow-hidden bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]">
     <x-ui.toast-stack :messages="[
         ['tone' => 'success', 'message' => session('success')],
         ['tone' => 'danger', 'message' => session('error')],
     ]" />
-    <div class="min-h-screen code-red-shell">
-        <div class="flex min-h-screen">
-            <aside class="layer-sidebar fixed inset-y-0 left-0 hidden w-72 border-r border-[color:var(--color-border-subtle)] bg-[color:var(--color-sidebar)]/95 backdrop-blur lg:flex lg:flex-col">
-                <div class="border-b border-white/5 px-6 py-6">
+    <div class="code-red-shell h-dvh min-h-0 overflow-hidden">
+        <div class="flex h-dvh min-h-0 overflow-hidden">
+            <aside class="layer-sidebar fixed inset-y-0 left-0 hidden h-dvh min-h-0 w-72 flex-col overflow-hidden border-r border-[color:var(--color-border-subtle)] bg-[color:var(--color-sidebar)]/95 backdrop-blur lg:flex">
+                <div class="shrink-0 border-b border-white/5 px-6 py-6">
                     <x-ui.logo variant="symbol" class="h-11 w-11 rounded-2xl" />
                     <div class="mt-4">
                         <p class="text-lg font-semibold tracking-tight">CodeRED Platform</p>
@@ -25,7 +25,11 @@
                     </div>
                 </div>
 
-                <nav class="flex-1 space-y-1 px-4 py-5 text-sm">
+                <nav
+                    class="sidebar-navigation min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 py-5 text-sm [scrollbar-gutter:stable] [scrollbar-width:thin]"
+                    data-sidebar-navigation
+                    x-init="$nextTick(() => $el.querySelector('[data-sidebar-active=true]')?.scrollIntoView({ block: 'nearest', behavior: 'instant' }))"
+                >
                     @php
                         $navGroups = [
                             'General' => [
@@ -33,7 +37,7 @@
                             ],
                             'Agencias' => [
                                 ['label' => 'Listado', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
-                                ['label' => 'Mapa', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
+                                ['label' => 'Mapa de agencias', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                                 ['label' => 'Importar', 'route' => 'admin.agencies.import', 'icon' => '⇪', 'can' => Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
                                 ['label' => 'Copias de seguridad', 'route' => 'admin.agencies.backups.index', 'icon' => '▣', 'can' => auth()->user()->hasPermission('agencies.backup.view')],
                             ],
@@ -66,6 +70,7 @@
                         @foreach ($items as $item)
                           @if ($item['can'])
                             <a href="{{ route($item['route']) }}"
+                               @if(request()->routeIs($item['route'])) data-sidebar-active="true" @endif
                                @class([
                                    'flex items-center gap-3 rounded-2xl px-3 py-3 transition focus-ring',
                                    'bg-white/10 text-white shadow-sm ring-1 ring-inset ring-white/10' => request()->routeIs($item['route']),
@@ -80,7 +85,7 @@
                 </nav>
 
                 @auth
-                    <div class="border-t border-white/5 p-4">
+                    <div class="shrink-0 border-t border-white/5 p-4">
                         <a href="{{ route('profile.show') }}" aria-label="Abrir mi perfil" class="focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3 transition hover:bg-white/10">
                             <x-ui.avatar :name="auth()->user()->name" size="sm" />
                             <div class="min-w-0 flex-1">
@@ -97,8 +102,8 @@
                 @endauth
             </aside>
 
-            <div class="flex min-h-screen flex-1 flex-col lg:pl-72">
-                <header class="layer-header sticky top-0 border-b border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/90 backdrop-blur">
+            <div class="flex h-dvh min-h-0 flex-1 flex-col overflow-hidden lg:pl-72">
+                <header class="layer-header shrink-0 border-b border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/90 backdrop-blur">
                     <div class="flex items-center justify-between gap-4 px-4 py-4 lg:px-8">
                         <div class="flex items-center gap-3">
                             <x-ui.icon-button class="h-11 w-11 lg:hidden" x-on:click="sidebarOpen = true" label="Abrir menú">
@@ -118,75 +123,47 @@
                     </div>
                 </header>
 
-                <main class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
+                <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8">
                     {{ $slot }}
                 </main>
             </div>
         </div>
 
-        <div x-cloak x-show="sidebarOpen" class="layer-popover fixed inset-0 lg:hidden">
+        <div x-cloak x-show="sidebarOpen" class="layer-popover fixed inset-0 h-dvh overflow-hidden lg:hidden">
             <div class="absolute inset-0 bg-black/70" x-on:click="sidebarOpen = false"></div>
-            <aside class="absolute inset-y-0 left-0 w-[86vw] max-w-sm border-r border-white/10 bg-[color:var(--color-sidebar)] p-5 shadow-2xl">
-                <div class="flex items-center justify-between">
+            <aside class="absolute inset-y-0 left-0 flex h-dvh min-h-0 w-[86vw] max-w-sm flex-col overflow-hidden border-r border-white/10 bg-[color:var(--color-sidebar)] shadow-2xl">
+                <div class="flex shrink-0 items-center justify-between p-5 pb-0">
                     <x-ui.logo variant="symbol" class="h-10 w-10 rounded-xl" />
                     <x-ui.icon-button x-on:click="sidebarOpen = false" label="Cerrar menú">✕</x-ui.icon-button>
                 </div>
-                <div class="mt-5 border-b border-white/5 pb-4">
+                <div class="mx-5 mt-5 shrink-0 border-b border-white/5 pb-4">
                     <a href="{{ route('profile.show') }}" class="focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3">
                         <x-ui.avatar :name="auth()->user()->name" size="sm" />
                         <div class="min-w-0"><p class="truncate text-sm font-medium">{{ auth()->user()->name }}</p><p class="truncate text-xs text-[color:var(--color-text-secondary)]">Mi perfil</p></div>
                     </a>
                 </div>
-                <div class="mt-5 space-y-2">
-                    @if (auth()->user()->hasPermission('dashboard.view'))
-                        <a href="{{ route('dashboard') }}" class="block rounded-2xl bg-white/5 px-4 py-3">Dashboard</a>
-                    @endif
-                    @can('viewAny', \App\Modules\Agencies\Models\Agency::class)
-                        <a href="{{ route('admin.agencies.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Agencias</a>
-                        <a href="{{ route('admin.agencies.map') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Mapa de agencias</a>
-                    @endcan
-                    @can('import', \App\Modules\Agencies\Models\Agency::class)
-                        <a href="{{ route('admin.agencies.import') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Importaciones</a>
-                    @endcan
-                    @if (auth()->user()->hasPermission('agencies.backup.view'))
-                        <a href="{{ route('admin.agencies.backups.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Copias de agencias</a>
-                    @endif
-                    @if (auth()->user()->hasPermission('settings.agency-backups.update'))
-                        <a href="{{ route('admin.settings.agency-backups') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Ajustes · Copias</a>
-                    @endif
-                    @can('viewAny', \App\Models\User::class)
-                        <a href="{{ route('admin.users.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Usuarios</a>
-                    @endcan
-                    @if (auth()->user()->hasPermission('api-tokens.view-any'))
-                        <a href="{{ route('admin.api-tokens.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Tokens API</a>
-                    @endif
-                    @if (auth()->user()->hasPermission('api-tools.dni.test'))
-                        <a href="{{ route('admin.api-tools.dni') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Probar API DNI</a>
-                    @endif
-                    @if (auth()->user()->hasPermission('ruc.test'))
-                        <a href="{{ route('admin.api-tools.ruc') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Probar API RUC</a>
-                    @endif
-                    @if (auth()->user()->hasPermission('ruc.view'))
-                        <a href="{{ route('admin.ruc.records') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Padrón RUC</a>
-                    @endif
-                    @if (auth()->user()->hasPermission('ruc.import-history'))
-                        <a href="{{ route('admin.ruc.imports') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Importaciones RUC</a>
-                    @endif
-                    <a href="{{ route('api.docs') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Documentación API</a>
-                    @if (auth()->user()->hasPermission('settings.api-documentation.update'))
-                        <a href="{{ route('admin.settings.api-documentation') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Ajustes · Documentación</a>
-                    @endif
-                    @if (auth()->user()->hasPermission('settings.dni.view'))
-                        <a href="{{ route('admin.settings.dni') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Ajustes · API DNI</a>
-                    @endif
-                    @if (auth()->user()->isSuperAdmin())
-                        <a href="{{ route('admin.design-system') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Design System</a>
-                    @endif
-                    <form method="post" action="{{ route('logout') }}" class="pt-3">
-                        @csrf
-                        <x-ui.button variant="secondary" size="sm" type="submit" class="w-full">Cerrar sesión</x-ui.button>
-                    </form>
-                </div>
+                <nav class="sidebar-navigation mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-5 pb-5 [scrollbar-gutter:stable] [scrollbar-width:thin]" data-sidebar-navigation x-on:click="if ($event.target.closest('a')) sidebarOpen = false" x-init="$nextTick(() => $el.querySelector('[data-sidebar-active=true]')?.scrollIntoView({ block: 'nearest', behavior: 'instant' }))">
+                    @foreach ($navGroups as $group => $items)
+                        @if(collect($items)->contains('can', true))<p class="px-4 pb-1 pt-3 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--color-text-muted)] first:pt-0">{{ $group }}</p>@endif
+                        @foreach ($items as $item)
+                            @if($item['can'])
+                                <a
+                                    href="{{ route($item['route']) }}"
+                                    @if(request()->routeIs($item['route'])) data-sidebar-active="true" aria-current="page" @endif
+                                    @class([
+                                        'block rounded-2xl px-4 py-3 transition',
+                                        'bg-white/10 text-white' => request()->routeIs($item['route']),
+                                        'text-[color:var(--color-text-secondary)] hover:bg-white/5 hover:text-white' => ! request()->routeIs($item['route']),
+                                    ])
+                                >{{ $item['label'] }}</a>
+                            @endif
+                        @endforeach
+                    @endforeach
+                </nav>
+                <form method="post" action="{{ route('logout') }}" class="shrink-0 border-t border-white/5 p-5">
+                    @csrf
+                    <x-ui.button variant="secondary" size="sm" type="submit" class="w-full">Cerrar sesión</x-ui.button>
+                </form>
             </aside>
         </div>
     </div>

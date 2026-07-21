@@ -23,14 +23,18 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $started_at
  * @property Carbon|null $finished_at
  * @property Carbon|null $last_heartbeat_at
+ * @property Carbon|null $cancel_requested_at
+ * @property string $queue_name
+ * @property string|null $job_uuid
+ * @property string|null $last_message
  */
 class RucImport extends Model
 {
-    protected $fillable = ['uuid', 'original_filename', 'stored_filename', 'disk', 'path', 'file_size', 'file_hash', 'status', 'total_rows', 'processed_rows', 'inserted_rows', 'updated_rows', 'ignored_rows', 'invalid_rows', 'failed_rows', 'progress_percentage', 'current_chunk', 'total_chunks', 'encoding', 'delimiter', 'errors_path', 'started_at', 'finished_at', 'failed_at', 'last_heartbeat_at', 'error_message', 'created_by'];
+    protected $fillable = ['uuid', 'original_filename', 'stored_filename', 'disk', 'path', 'file_size', 'file_hash', 'status', 'total_rows', 'processed_rows', 'inserted_rows', 'updated_rows', 'ignored_rows', 'invalid_rows', 'failed_rows', 'progress_percentage', 'current_chunk', 'total_chunks', 'encoding', 'delimiter', 'errors_path', 'started_at', 'finished_at', 'failed_at', 'last_heartbeat_at', 'error_message', 'queue_name', 'job_uuid', 'last_message', 'cancel_requested_at', 'created_by'];
 
     protected function casts(): array
     {
-        return ['status' => RucImportStatus::class, 'progress_percentage' => 'decimal:2', 'started_at' => 'datetime', 'finished_at' => 'datetime', 'failed_at' => 'datetime', 'last_heartbeat_at' => 'datetime'];
+        return ['status' => RucImportStatus::class, 'progress_percentage' => 'decimal:2', 'started_at' => 'datetime', 'finished_at' => 'datetime', 'failed_at' => 'datetime', 'last_heartbeat_at' => 'datetime', 'cancel_requested_at' => 'datetime'];
     }
 
     public function createdBy(): BelongsTo

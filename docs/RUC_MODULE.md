@@ -9,6 +9,7 @@ CodeRED Platform integra de forma nativa la consulta del padrón reducido SUNAT.
 - `GET /api/v1/ruc/{ruc}` exige `ruc:consultar`.
 - `GET /api/v1/ruc/buscar` exige `ruc:buscar` y limita búsqueda y paginación.
 - Las importaciones TXT se guardan en almacenamiento privado y se procesan en la cola `ruc-imports`.
+- La ruta guardada es relativa al disco local privado (`ruc-imports/<uuid>.txt`) y debe ser visible por `app` y `queue`.
 - Una importación normal solo inserta RUC nuevos. No sobrescribe registros existentes.
 
 ## Importar un padrón
@@ -18,6 +19,7 @@ Desde el panel use **Empresas y RUC > Importaciones RUC**, o ejecute:
 ```bash
 php artisan ruc:import /ruta/padron.txt
 php artisan ruc:import-status
+php artisan ruc:import-status --id=123
 php artisan ruc:cleanup-imports --dry-run
 php artisan ruc:recalculate-metrics
 ```
@@ -33,6 +35,8 @@ El lector trabaja en streaming, valida el encabezado, convierte la codificación
 - Los tokens DNI, agencias y RUC son independientes.
 - Las consultas se auditan sin almacenar el token ni el RUC en texto plano.
 - La cola debe escuchar `ruc-imports,default`; `docker-compose.yml` ya contiene ese orden.
+- `REDIS_QUEUE_RETRY_AFTER` debe superar `RUC_IMPORT_TIMEOUT` (7500 y 7200 segundos por defecto) para impedir reentregas mientras un job sigue activo.
+- Tras modificar el worker, recrear los servicios con `docker compose up -d --build`, reiniciar `queue` y ejecutar `php artisan queue:restart`.
 - Antes de importar un padrón grande, pruebe una muestra y confirme espacio libre, Redis y el worker.
 
 ## Variables
@@ -41,4 +45,4 @@ Consulte `.env.example` para límites, TTL, cola, tamaño de lote, codificación
 
 ## Recuperación
 
-Si un worker se interrumpe, el progreso y heartbeat permanecen en `ruc_imports`. Puede reintentar el job usando el UUID, o volver a importar con `--force`; el índice único y `insertOrIgnore` mantienen la operación idempotente. Una importación cancelada deja intactos los registros ya insertados.
+Si un worker se interrumpe, el progreso y heartbeat permanecen en `ruc_imports`. Puede reintentar el job usando el UUID, o volver a importar con `--force`; el índice único y `ON CONFLICT DO NOTHING RETURNING` mantienen la operación idempotente. Una importación cancelada deja intactos los registros ya insertados.
