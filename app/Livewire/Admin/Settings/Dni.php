@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Admin\Settings;
 
+use App\Core\Api\Enums\ApiRequestType;
 use App\Core\Audit\AuditLogger;
+use App\Models\ApiRequestLog;
 use App\Models\SystemSetting;
 use App\Services\Dni\DniCacheService;
 use App\Services\Dni\DniSettingsService;
@@ -79,7 +81,19 @@ class Dni extends Component
     {
         Gate::authorize('settings.dni.test');
         $this->validate(['testDni' => ['required', 'regex:/^\d{8}$/']]);
+        $startedAt = hrtime(true);
         $this->testResult = $provider->testConnection($this->testDni);
+        ApiRequestLog::query()->create([
+            'request_type' => ApiRequestType::ProviderTest->value,
+            'service' => 'dni',
+            'endpoint' => '/admin/settings/dni/provider-test',
+            'method' => 'INTERNAL',
+            'status_code' => ($this->testResult['success'] ?? false) ? 200 : 503,
+            'identifier_hash' => hash('sha256', $this->testDni),
+            'response_time_ms' => (int) round((hrtime(true) - $startedAt) / 1_000_000),
+            'provider_called' => true,
+            'created_at' => now(),
+        ]);
         $this->testDni = '';
     }
 

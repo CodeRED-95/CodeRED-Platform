@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Core\Api\Enums\ApiRequestType;
 use App\Models\ApiClient;
 use App\Models\ApiRequestLog;
 use Closure;
@@ -21,7 +22,7 @@ class AuditApiRequest
         ApiRequestLog::query()->create([
             'api_client_id' => $owner instanceof ApiClient ? $owner->getKey() : null,
             'token_id' => $token instanceof PersonalAccessToken ? $token->getKey() : null,
-            'request_type' => (string) $request->attributes->get('request_type', 'api'),
+            'request_type' => (string) $request->attributes->get('request_type', ApiRequestType::Api->value),
             'service' => $service,
             'endpoint' => '/'.$request->path(),
             'method' => $request->method(),

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\ApiTools;
 
+use App\Core\Api\Enums\ApiRequestType;
 use App\Domain\Dni\Data\DniLookupResult;
 use App\Http\Resources\Api\V1\DniResource;
 use App\Models\ApiClient;
@@ -90,7 +91,7 @@ class DniTester extends Component
         $status = $this->statusFor($lookup);
 
         ApiRequestLog::query()->create(array_merge([
-            'request_type' => 'admin_test',
+            'request_type' => ApiRequestType::AdminTest->value,
             'service' => 'dni',
             'endpoint' => '/admin/api-tools/dni',
             'method' => 'INTERNAL',
@@ -138,7 +139,7 @@ class DniTester extends Component
                 'HTTP_ACCEPT' => 'application/json',
                 'HTTP_AUTHORIZATION' => 'Bearer '.$temporary->plainTextToken,
             ]);
-            $request->attributes->set('request_type', 'admin_test');
+            $request->attributes->set('request_type', ApiRequestType::AdminTest->value);
             $response = $kernel->handle($request);
             $elapsed = $this->elapsed($started);
             $payload = json_decode((string) $response->getContent(), true);
@@ -147,7 +148,7 @@ class DniTester extends Component
             if ($log === null) {
                 $source = is_array($payload) ? (string) data_get($payload, 'meta.source', 'none') : 'none';
                 $log = ApiRequestLog::query()->create([
-                    'request_type' => 'admin_test',
+                    'request_type' => ApiRequestType::AdminTest->value,
                     'api_client_id' => $owner instanceof ApiClient ? $owner->getKey() : null,
                     'token_id' => $temporaryId,
                     'service' => 'dni',

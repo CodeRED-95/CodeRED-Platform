@@ -9,6 +9,7 @@ use App\Modules\Agencies\Actions\BulkRestoreAgenciesAction;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
+use App\Modules\Agencies\Services\AgencyBackupService;
 use App\Modules\Agencies\Services\AgencySearchService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -123,6 +124,13 @@ class Index extends Component
     {
         $this->selectedAgencyIds = [];
         $this->pendingBulkAction = null;
+    }
+
+    public function createBackup(AgencyBackupService $service): void
+    {
+        Gate::authorize('agencies.backup.create');
+        $backup = $service->create(auth()->id());
+        $this->dispatch('toast', type: 'success', message: 'Copia creada: '.$backup->filename);
     }
 
     public function prepareBulkAction(string $action): void
@@ -278,6 +286,8 @@ class Index extends Component
             'districts' => Agency::withTrashed()->select('district')->distinct()->orderBy('district')->pluck('district'),
             'sizes' => ['' => 'Todos'] + AgencySize::options(),
             'statuses' => ['' => 'Todos'] + AgencyStatus::options(),
+            'filteredExportUrl' => route('admin.agencies.export', ['scope' => 'filtered'] + array_filter($filters, fn (string $value): bool => $value !== '')),
+            'allExportUrl' => route('admin.agencies.export', ['scope' => 'all']),
         ])->layout('layouts.app', ['pageTitle' => 'Agencias Shalom']);
     }
 

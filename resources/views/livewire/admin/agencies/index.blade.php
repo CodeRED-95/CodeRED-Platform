@@ -4,6 +4,21 @@
         subtitle="Administración y consulta del módulo Agencies."
     >
         <x-slot:actions>
+            @if(auth()->user()->hasPermission('agencies.export'))
+                <div class="relative" x-data="{ open: false }">
+                    <x-ui.button type="button" variant="secondary" x-on:click="open = ! open" x-bind:aria-expanded="open">Exportar</x-ui.button>
+                    <div x-cloak x-show="open" x-on:click.outside="open = false" class="layer-popover absolute right-0 mt-2 w-72 space-y-1 rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-2 shadow-2xl">
+                        <a href="{{ $filteredExportUrl }}" class="focus-ring block rounded-xl px-3 py-2 text-sm hover:bg-white/5">Exportar resultados filtrados (.json)</a>
+                        <a href="{{ $allExportUrl }}" class="focus-ring block rounded-xl px-3 py-2 text-sm hover:bg-white/5">Exportar todas las agencias (.json)</a>
+                        @if(auth()->user()->hasPermission('agencies.backup.create'))
+                            <button type="button" wire:click="createBackup" class="focus-ring block w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-white/5">Crear copia de seguridad</button>
+                        @endif
+                        @if(auth()->user()->hasPermission('agencies.backup.view'))
+                            <a href="{{ route('admin.agencies.backups.index') }}" class="focus-ring block rounded-xl px-3 py-2 text-sm hover:bg-white/5">Ver copias de seguridad</a>
+                        @endif
+                    </div>
+                </div>
+            @endif
             @can('create', \App\Modules\Agencies\Models\Agency::class)
                 <x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Nueva agencia</x-ui.button>
             @endcan

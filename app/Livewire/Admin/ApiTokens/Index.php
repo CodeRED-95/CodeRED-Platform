@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\ApiTokens;
 
+use App\Core\Api\Enums\ApiRequestType;
 use App\Core\Audit\AuditLogger;
 use App\Models\ApiClient;
 use App\Models\ApiRequestLog;
@@ -225,11 +226,11 @@ class Index extends Component
     public function render(): View
     {
         $query = ApiToken::query()->with(['tokenable', 'creator'])->withCount([
-            'requestLogs' => fn (Builder $query) => $query->where('request_type', 'api'),
-            'requestLogs as agency_requests_count' => fn (Builder $query) => $query->where('request_type', 'api')->where('service', 'agencias'),
-            'requestLogs as dni_requests_count' => fn (Builder $query) => $query->where('request_type', 'api')->where('service', 'dni'),
-            'requestLogs as successful_requests_count' => fn (Builder $query) => $query->where('request_type', 'api')->whereBetween('status_code', [200, 399]),
-            'requestLogs as failed_requests_count' => fn (Builder $query) => $query->where('request_type', 'api')->where('status_code', '>=', 400),
+            'requestLogs' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value),
+            'requestLogs as agency_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->where('service', 'agencias'),
+            'requestLogs as dni_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->where('service', 'dni'),
+            'requestLogs as successful_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->whereBetween('status_code', [200, 399]),
+            'requestLogs as failed_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->where('status_code', '>=', 400),
         ])
             ->when($this->search !== '', function (Builder $query): void {
                 $term = '%'.mb_strtolower(trim($this->search)).'%';
@@ -262,7 +263,7 @@ class Index extends Component
             'revokedTokens' => RevokedApiToken::query()->latest('revoked_at')->limit(20)->get(),
             'tokens' => $tokens,
             'clients' => ApiClient::query()->orderBy('name')->get(),
-            'usageSummary' => ApiRequestLog::query()->where('request_type', 'api')->selectRaw('service, count(*) as total')->groupBy('service')->pluck('total', 'service'),
+            'usageSummary' => ApiRequestLog::query()->where('request_type', ApiRequestType::Api->value)->selectRaw('service, count(*) as total')->groupBy('service')->pluck('total', 'service'),
             'users' => User::query()->active()->orderBy('name')->get(['id', 'name', 'email']),
             'availableAbilities' => (array) config('api.abilities'),
         ])->layout('layouts.app', ['pageTitle' => 'API y Tokens']);

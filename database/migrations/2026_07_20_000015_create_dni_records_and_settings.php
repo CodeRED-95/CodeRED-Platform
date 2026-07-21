@@ -31,7 +31,6 @@ return new class extends Migration
         });
 
         Schema::table('api_request_logs', function (Blueprint $table): void {
-            $table->string('request_type', 20)->default('api')->index();
             $table->string('source', 20)->nullable();
             $table->boolean('provider_called')->default(false);
             $table->unsignedSmallInteger('provider_status_code')->nullable();
@@ -43,7 +42,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('api_request_logs', function (Blueprint $table): void {
-            $table->dropColumn(['request_type', 'source', 'provider_called', 'provider_status_code', 'cache_hit', 'local_database_hit']);
+            $table->dropColumn(['source', 'provider_called', 'provider_status_code', 'cache_hit', 'local_database_hit']);
         });
         Schema::table('application_settings', function (Blueprint $table): void {
             $table->dropColumn(['is_encrypted', 'created_at', 'updated_at']);

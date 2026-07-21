@@ -32,6 +32,8 @@
                             ['label' => 'Agencias', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Mapa de agencias', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                             ['label' => 'Importaciones', 'route' => 'admin.agencies.import', 'icon' => '⇪', 'can' => \Illuminate\Support\Facades\Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
+                            ['label' => 'Copias de agencias', 'route' => 'admin.agencies.backups.index', 'icon' => '▣', 'can' => auth()->user()->hasPermission('agencies.backup.view')],
+                            ['label' => 'Ajustes · Copias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
                             ['label' => 'Tokens API', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
                             ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('api-tools.dni.test')],
                             ['label' => 'Ajustes · API DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.dni.view')],
@@ -129,6 +131,12 @@
                     @can('import', \App\Modules\Agencies\Models\Agency::class)
                         <a href="{{ route('admin.agencies.import') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Importaciones</a>
                     @endcan
+                    @if (auth()->user()->hasPermission('agencies.backup.view'))
+                        <a href="{{ route('admin.agencies.backups.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Copias de agencias</a>
+                    @endif
+                    @if (auth()->user()->hasPermission('settings.agency-backups.update'))
+                        <a href="{{ route('admin.settings.agency-backups') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Ajustes · Copias</a>
+                    @endif
                     @can('viewAny', \App\Models\User::class)
                         <a href="{{ route('admin.users.index') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Usuarios</a>
                     @endcan

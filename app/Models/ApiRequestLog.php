@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Api\Enums\ApiRequestType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -13,7 +14,7 @@ class ApiRequestLog extends Model
 
     protected function casts(): array
     {
-        return ['created_at' => 'datetime', 'provider_called' => 'boolean', 'cache_hit' => 'boolean', 'local_database_hit' => 'boolean'];
+        return ['request_type' => ApiRequestType::class, 'created_at' => 'datetime', 'provider_called' => 'boolean', 'cache_hit' => 'boolean', 'local_database_hit' => 'boolean'];
     }
 
     public function client(): BelongsTo

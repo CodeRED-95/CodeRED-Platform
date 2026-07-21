@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Middleware\EnsureApiDocumentationAccess;
 use App\Livewire\Account\ChangePassword;
 use App\Livewire\Account\Profile;
+use App\Livewire\Admin\Agencies\Backups as AgencyBackups;
 use App\Livewire\Admin\Agencies\Form as AgencyForm;
 use App\Livewire\Admin\Agencies\Import as AgencyImport;
 use App\Livewire\Admin\Agencies\Index as AgenciesIndex;
@@ -14,6 +15,7 @@ use App\Livewire\Admin\ApiDocumentation;
 use App\Livewire\Admin\ApiTokens\Index as ApiTokensIndex;
 use App\Livewire\Admin\ApiTools\DniTester;
 use App\Livewire\Admin\DesignSystem;
+use App\Livewire\Admin\Settings\AgencyBackups as AgencyBackupSettings;
 use App\Livewire\Admin\Settings\ApiDocumentation as ApiDocumentationSettings;
 use App\Livewire\Admin\Settings\Dni as DniSettings;
 use App\Livewire\Admin\Users\Form as UsersForm;
@@ -22,6 +24,8 @@ use App\Livewire\Admin\Users\Show as UsersShow;
 use App\Livewire\Dashboard;
 use App\Livewire\PublicAgencies\Index as PublicAgenciesIndex;
 use App\Livewire\PublicAgencies\Show as PublicAgencyShow;
+use App\Modules\Agencies\Http\Controllers\AgencyBackupDownloadController;
+use App\Modules\Agencies\Http\Controllers\AgencyExportController;
 use App\Modules\Agencies\Http\Controllers\AgencyImportPreviewController;
 use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +38,9 @@ Route::middleware('guest')->group(function (): void {
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth')->name('logout');
 Route::view('/404', 'errors.404')->name('error.404');
 Route::get('/admin/agencies', AgenciesIndex::class)->middleware(['auth'])->name('admin.agencies.index');
+Route::get('/admin/agencies/export', AgencyExportController::class)->middleware(['auth'])->name('admin.agencies.export');
+Route::get('/admin/agencies/backups', AgencyBackups::class)->middleware(['auth'])->name('admin.agencies.backups.index');
+Route::get('/admin/agencies/backups/{backup}/download', AgencyBackupDownloadController::class)->middleware(['auth'])->name('admin.agencies.backups.download');
 Route::get('/admin/agencies/map', AgenciesMap::class)->middleware(['auth'])->name('admin.agencies.map');
 Route::get('/admin/agencies/import', AgencyImport::class)->middleware(['auth'])->name('admin.agencies.import');
 Route::get('/admin/agencies/create', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.create');
@@ -58,6 +65,7 @@ Route::get('/admin/api-tokens', ApiTokensIndex::class)->middleware(['auth'])->na
 Route::get('/admin/api-tools/dni', DniTester::class)->middleware(['auth'])->name('admin.api-tools.dni');
 Route::get('/admin/settings/dni', DniSettings::class)->middleware(['auth'])->name('admin.settings.dni');
 Route::get('/admin/settings/api-documentation', ApiDocumentationSettings::class)->middleware(['auth'])->name('admin.settings.api-documentation');
+Route::get('/admin/settings/agency-backups', AgencyBackupSettings::class)->middleware(['auth'])->name('admin.settings.agency-backups');
 Route::get('/admin/design-system', DesignSystem::class)
     ->middleware(['auth'])
     ->name('admin.design-system');
