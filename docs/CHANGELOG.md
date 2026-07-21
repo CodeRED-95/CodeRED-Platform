@@ -234,3 +234,4 @@ Todas las versiones siguen `Keep a Changelog`.
 - El catálogo UBIGEO ahora se sincroniza manualmente desde Alanube mediante `ubigeos:sync`, conserva un snapshot offline y valida códigos de control antes del upsert.
 - Se consolidó el lenguaje visual premium de CodeRED: shell con scroll independiente, sidebar persistente, tokens ampliados, tablas globales y primitivas accesibles para archivos, radios, alertas, cards y botones.
 - Corregido el quoting seguro del instalador y el flujo de subida temporal del padrón RUC, con límites coherentes entre Nginx, PHP y Livewire.
+- Añadido importador masivo RENIEC con worker exclusivo, staging/COPY, checkpoints, control CLI y panel administrativo.

@@ -16,6 +16,7 @@ use App\Livewire\Admin\ApiTokens\Index as ApiTokensIndex;
 use App\Livewire\Admin\ApiTools\DniTester;
 use App\Livewire\Admin\ApiTools\RucTester;
 use App\Livewire\Admin\DesignSystem;
+use App\Livewire\Admin\Reniec\Imports as ReniecImports;
 use App\Livewire\Admin\Ruc\Imports as RucImports;
 use App\Livewire\Admin\Ruc\Records as RucRecords;
 use App\Livewire\Admin\Ruc\Show as RucShow;
@@ -75,6 +76,7 @@ Route::get('/admin/api-tokens', ApiTokensIndex::class)->middleware(['auth'])->na
 Route::get('/admin/api-tools/dni', DniTester::class)->middleware(['auth'])->name('admin.api-tools.dni');
 Route::get('/admin/api-tools/ruc', RucTester::class)->middleware(['auth', 'throttle:ruc-admin-test'])->name('admin.api-tools.ruc');
 Route::get('/admin/ruc', RucRecords::class)->middleware(['auth'])->name('admin.ruc.records');
+Route::get('/admin/reniec/importaciones', ReniecImports::class)->middleware(['auth'])->name('admin.reniec.imports');
 Route::get('/admin/ruc/importaciones', RucImports::class)->middleware(['auth'])->name('admin.ruc.imports');
 Route::get('/admin/ruc/importaciones/{import}/errores', RucImportErrorsController::class)->middleware(['auth'])->name('admin.ruc.imports.errors');
 Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->name('admin.ruc.show');

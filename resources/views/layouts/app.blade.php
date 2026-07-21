@@ -45,6 +45,7 @@
                             'Identidad' => [
                                 ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('api-tools.dni.test')],
                                 ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.dni.view')],
+                                ['label' => 'Importaciones RENIEC', 'route' => 'admin.reniec.imports', 'icon' => '⇪', 'can' => auth()->user()->hasPermission('reniec.manage')],
                             ],
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('ruc.test')],

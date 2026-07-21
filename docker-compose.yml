@@ -69,6 +69,23 @@ services:
       - redis
       - postgres
 
+  reniec-queue:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: codered-reniec-queue
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "queue:work", "redis", "--queue=reniec-imports", "--sleep=3", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768"]
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - app
+      - redis
+      - postgres
+
   scheduler:
     build:
       context: .

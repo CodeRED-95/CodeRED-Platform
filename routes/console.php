@@ -2,12 +2,20 @@
 
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
+use App\Modules\Reniec\Enums\ReniecImportStatus;
+use App\Modules\Reniec\Jobs\ProcessReniecImportJob;
+use App\Modules\Reniec\Models\ReniecImport;
+use App\Modules\Reniec\Services\ReniecCopyLoader;
+use App\Modules\Reniec\Services\ReniecFileService;
+use App\Modules\Reniec\Services\ReniecMergeService;
+use App\Modules\Reniec\Support\ReniecLineParser;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Console\Command\Command;
 
 Artisan::command('health:redis', function (): int {
@@ -74,7 +82,7 @@ Artisan::command('auth:diagnose {--email=}', function (): int {
     $permissions = $user->roles()->with('permissions')->get()->flatMap(fn ($role) => $role->permissions->pluck('slug'))->unique()->values()->all();
     $agency = Agency::query()->first();
 
-    $this->line('Email: '.$user->email);
+    $this->line('Email: '.(string) $user->getAttribute('email'));
     $this->line('Roles: '.json_encode($roles, JSON_UNESCAPED_UNICODE));
     $this->line('Permisos: '.json_encode($permissions, JSON_UNESCAPED_UNICODE));
     $this->line("hasRole('super-admin'): ".($user->hasRole('super-admin') ? 'true' : 'false'));
@@ -123,3 +131,132 @@ Artisan::command('agencies:prune-sync-changes {--dry-run} {--days=}', function (
 })->purpose('Elimina cambios incrementales vencidos conservando el watermark de cursores.');
 
 Schedule::command('agencies:prune-sync-changes')->dailyAt('02:30')->withoutOverlapping();
+
+Artisan::command('reniec:scan', function (): int {
+    $files = app(ReniecFileService::class)->available();
+    foreach ($files as $file) {
+        $this->line($file['name'].' | '.$file['size'].' bytes | '.$file['path']);
+    }
+    $this->info(count($files).' archivos RENIEC disponibles.');
+
+    return Command::SUCCESS;
+})->purpose('Lista archivos RENIEC disponibles en el directorio privado de entrada.');
+
+Artisan::command('reniec:register-file {path} {--strategy=} {--dry-run}', function (): int {
+    if ($this->option('dry-run')) {
+        $this->info('Validación seca: '.$this->argument('path'));
+
+        return Command::SUCCESS;
+    }
+    $import = app(ReniecFileService::class)->register((string) $this->argument('path'), null, $this->option('strategy') ?: null);
+    $this->info('Importación registrada: '.$import->id.' ('.$import->uuid.')');
+
+    return Command::SUCCESS;
+})->purpose('Registra sin copiar un archivo RENIEC ya ubicado en el servidor.');
+
+Artisan::command('reniec:import {import_id}', function (): int {
+    $import = ReniecImport::query()->findOrFail($this->argument('import_id'));
+    $import->update(['status' => ReniecImportStatus::Queued]);
+    ProcessReniecImportJob::dispatch($import->id);
+    $this->info('Importación enviada a reniec-imports.');
+
+    return Command::SUCCESS;
+});
+
+Artisan::command('reniec:resume {import_id}', function (): int {
+    $import = ReniecImport::query()->findOrFail($this->argument('import_id'));
+    app(ReniecFileService::class)->assertUnchanged($import);
+    $import->update(['status' => ReniecImportStatus::Queued, 'paused_at' => null, 'cancel_requested_at' => null, 'resumed_at' => now(), 'error_message' => null]);
+    ProcessReniecImportJob::dispatch($import->id);
+    $this->info('Reanudación en cola.');
+
+    return Command::SUCCESS;
+});
+
+Artisan::command('reniec:pause {import_id}', function (): int {
+    ReniecImport::query()->findOrFail($this->argument('import_id'))->update(['paused_at' => now()]);
+    $this->info('Pausa solicitada; se aplicará tras el lote actual.');
+
+    return Command::SUCCESS;
+});
+Artisan::command('reniec:cancel {import_id}', function (): int {
+    ReniecImport::query()->findOrFail($this->argument('import_id'))->update(['cancel_requested_at' => now(), 'status' => ReniecImportStatus::Cancelling]);
+    $this->info('Cancelación solicitada.');
+
+    return Command::SUCCESS;
+});
+Artisan::command('reniec:status {--id=}', function (): int {
+    $q = ReniecImport::query();
+    if ($this->option('id')) {
+        $q->whereKey($this->option('id'));
+    }$this->table(['ID', 'Archivo', 'Estado', 'Línea', 'Offset', 'Válidas', 'Inválidas', 'Heartbeat'], $q->latest()->limit(50)->get()->map(fn ($i) => [$i->id, $i->original_filename, $i->status->value, $i->current_line_number, $i->current_byte_offset, $i->valid_rows, $i->invalid_rows, $i->last_heartbeat_at])->all());
+
+    return Command::SUCCESS;
+});
+Artisan::command('reniec:cleanup {--dry-run}', function (): int {
+    $q = ReniecImport::query()->where('finished_at', '<', now()->subDays(config('reniec.retention_days')));
+    $count = $q->count();
+    if (! $this->option('dry-run')) {
+        $q->each(fn ($i) => $i->delete());
+    }$this->info($count.' importaciones vencidas '.($this->option('dry-run') ? 'detectadas' : 'eliminadas').'.');
+
+    return Command::SUCCESS;
+});
+Artisan::command('reniec:validate-file {path}', function (): int {
+    $import = app(ReniecFileService::class)->register((string) $this->argument('path'));
+    $import->delete();
+    $this->info('Archivo, espacio, tamaño y checksum válidos.');
+
+    return Command::SUCCESS;
+});
+Artisan::command('reniec:analyze', function (): int {
+    if (DB::getDriverName() === 'pgsql') {
+        DB::statement('ANALYZE dni_records');
+    }$this->info('ANALYZE completado.');
+
+    return Command::SUCCESS;
+});
+
+Schedule::command('reniec:cleanup')->dailyAt('03:15')->withoutOverlapping();
+
+Artisan::command('reniec:benchmark {--rows=1000000} {--strategy=insert_ignore}', function (): int {
+    $rows = max(1, (int) $this->option('rows'));
+    $strategy = (string) $this->option('strategy');
+    if (! in_array($strategy, ['insert_ignore', 'upsert'], true)) {
+        $this->error('Estrategia inválida.');
+
+        return Command::INVALID;
+    }
+    $disk = Storage::disk(config('reniec.disk'));
+    $path = trim(config('reniec.incoming_directory'), '/').'/benchmark-'.now()->format('YmdHis').'.txt';
+    $stream = fopen('php://temp/maxmemory:1048576', 'w+b');
+    fwrite($stream, "DNI|NOMBRES|PATERNO|MATERNO|FECHA|SEXO|UBIGEO|\n");
+    for ($i = 1; $i <= $rows; $i++) {
+        fwrite($stream, sprintf("%08d|NOMBRE%d|PATERNO|MATERNO|1990-01-01|X|150101|\n", $i % 100000000, $i));
+        if (ftell($stream) > 900000) {
+            rewind($stream);
+            $disk->append($path, stream_get_contents($stream));
+            ftruncate($stream, 0);
+            rewind($stream);
+        }
+    }rewind($stream);
+    $tail = stream_get_contents($stream);
+    if ($tail !== '') {
+        $disk->append($path, $tail);
+    }fclose($stream);
+    $start = microtime(true);
+    $import = app(ReniecFileService::class)->register($path, null, $strategy);
+    (new ProcessReniecImportJob($import->id))->handle(app(ReniecFileService::class), app(ReniecLineParser::class), app(ReniecCopyLoader::class), app(ReniecMergeService::class));
+    $seconds = microtime(true) - $start;
+    $this->table(['Filas', 'Segundos', 'Filas/s', 'Memoria pico'], [[$rows, round($seconds, 2), round($rows / max(.001, $seconds), 2), memory_get_peak_usage(true)]]);
+
+    return Command::SUCCESS;
+})->purpose('Benchmark opcional del pipeline RENIEC con datos sintéticos locales.');
+
+Artisan::command('reniec:detect-stalled', function (): int {
+    $count = ReniecImport::query()->whereIn('status', array_map(fn ($s) => $s->value, array_filter(ReniecImportStatus::cases(), fn ($s) => $s->active())))->where(fn ($q) => $q->whereNull('last_heartbeat_at')->where('updated_at', '<', now()->subMinutes(15))->orWhere('last_heartbeat_at', '<', now()->subMinutes(15)))->update(['status' => ReniecImportStatus::Stalled->value, 'error_message' => 'El worker no actualizó el heartbeat durante 15 minutos.', 'updated_at' => now()]);
+    $this->info($count.' importaciones RENIEC marcadas como detenidas.');
+
+    return Command::SUCCESS;
+});
+Schedule::command('reniec:detect-stalled')->everyTenMinutes()->withoutOverlapping();

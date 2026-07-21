@@ -1,0 +1,16 @@
+<div class="space-y-6">
+ <x-ui.page-header eyebrow="Identidad" title="Importaciones RENIEC" subtitle="Procesamiento masivo mediante archivo privado, staging PostgreSQL y worker exclusivo." />
+ <x-ui.alert tone="info" title="El archivo no se sube desde el navegador">Cópialo a <code>storage/app/private/reniec/incoming/</code> y selecciónalo aquí. Espacio recomendado: cinco veces el tamaño del padrón.</x-ui.alert>
+ <x-ui.card title="Archivos disponibles">
+  <form wire:submit.prevent="registerAndStart" class="space-y-4">
+   <x-ui.dropdown-select wire:model="selectedPath" label="Archivo en el servidor" :value="$selectedPath" :options="collect($availableFiles)->mapWithKeys(fn($f)=>[$f['path']=>$f['name'].' · '.number_format($f['size']/1073741824,2).' GB'])->all()" :error="$errors->first('selectedPath')" />
+   <x-ui.dropdown-select wire:model="strategy" label="Estrategia" :value="$strategy" :options="['insert_ignore'=>'Insertar nuevos e ignorar existentes','upsert'=>'Insertar y actualizar cambios']" />
+   <x-ui.button type="submit" :disabled="$selectedPath === ''" loading-target="registerAndStart">Registrar e iniciar</x-ui.button>
+  </form>
+ </x-ui.card>
+ @if($active)<x-ui.card wire:poll.5s title="Importación activa" description="{{ $active->original_filename }}">
+  <div class="grid gap-3 md:grid-cols-4 text-sm"><div>Fase: <strong>{{ $active->status->value }}</strong></div><div>Línea: <strong>{{ number_format($active->current_line_number) }}</strong></div><div>Offset: <strong>{{ number_format($active->current_byte_offset) }}</strong></div><div>Velocidad: <strong>{{ number_format($active->rows_per_second,2) }}/s</strong></div><div>Válidas: <strong>{{ number_format($active->valid_rows) }}</strong></div><div>Inválidas: <strong>{{ number_format($active->invalid_rows) }}</strong></div><div>Checkpoint: <strong>{{ $active->last_completed_chunk }}</strong></div><div>Heartbeat: <strong>{{ $active->last_heartbeat_at?->diffForHumans() ?? 'Pendiente' }}</strong></div></div>
+  <div class="mt-4 flex gap-2"><x-ui.button variant="warning" wire:click="pause({{ $active->id }})">Pausar</x-ui.button><x-ui.button variant="danger" wire:click="cancel({{ $active->id }})">Cancelar</x-ui.button></div>
+ </x-ui.card>@endif
+ <x-ui.card title="Historial"><x-ui.table><thead><tr><th>Archivo</th><th>Estado</th><th>Estrategia</th><th>Procesadas</th><th>Nuevas</th><th>Actualizadas</th><th>Inválidas</th><th>Acciones</th></tr></thead><tbody>@forelse($imports as $import)<tr><td>{{ $import->original_filename }}</td><td><x-ui.badge>{{ $import->status->value }}</x-ui.badge></td><td>{{ $import->strategy }}</td><td>{{ number_format($import->processed_rows) }}</td><td>{{ number_format($import->inserted_rows) }}</td><td>{{ number_format($import->updated_rows) }}</td><td>{{ number_format($import->invalid_rows) }}</td><td>@if(in_array($import->status,[\App\Modules\Reniec\Enums\ReniecImportStatus::Paused,\App\Modules\Reniec\Enums\ReniecImportStatus::Failed],true))<x-ui.button size="sm" wire:click="resume({{ $import->id }})">Reanudar</x-ui.button>@endif</td></tr>@empty<tr><td colspan="8"><x-ui.empty-state title="No hay importaciones RENIEC" description="Copia un padrón al directorio privado para comenzar." /></td></tr>@endforelse</tbody></x-ui.table><x-ui.pagination :paginator="$imports" /></x-ui.card>
+</div>
