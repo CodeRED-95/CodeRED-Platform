@@ -3,13 +3,19 @@
 namespace App\Livewire;
 
 use App\Models\ActivityLog;
+use App\Models\ApiRequestLog;
+use App\Models\ApiToken;
+use App\Models\DniRecord;
 use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
+use App\Modules\Ruc\Models\RucImport;
+use App\Modules\Ruc\Models\RucRecord;
 use App\Policies\UserPolicy;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -38,6 +44,8 @@ class Dashboard extends Component
         $canViewUserActivity = $isSuperAdmin || $user->hasPermission('users.view_activity');
         $canViewAgencyHistory = $isSuperAdmin || $user->hasPermission('agencies.view_history');
         $canViewActivity = $canViewUserActivity || $canViewAgencyHistory;
+        $canViewDniMetrics = $isSuperAdmin || $user->hasPermission('dni-records.view');
+        $canViewRucMetrics = $isSuperAdmin || $user->hasPermission('ruc.view');
         $agencyMetrics = $canViewAgencies ? $this->agencyMetrics() : [];
         $agencyTrend = $canViewAgencies ? $this->agencyTrend() : [];
         $lastImport = $canViewAgencies ? AgencyImport::query()->latest()->first() : null;
@@ -56,6 +64,12 @@ class Dashboard extends Component
                 : new Collection,
             'lastImport' => $lastImport,
             'importsInPeriod' => $canViewAgencies ? $this->importsInPeriod() : 0,
+            'platformMetrics' => $isSuperAdmin ? $this->platformMetrics() : [],
+            'dniMetrics' => $canViewDniMetrics ? $this->dniMetrics() : [],
+            'rucMetrics' => $canViewRucMetrics ? $this->rucMetrics() : [],
+            'canViewDniMetrics' => $canViewDniMetrics,
+            'canViewRucMetrics' => $canViewRucMetrics,
+            'isSuperAdmin' => $isSuperAdmin,
             'refreshedAt' => now(),
         ])->layout('layouts.app', ['pageTitle' => 'Dashboard']);
     }
@@ -170,5 +184,35 @@ class Dashboard extends Component
         return AgencyImport::query()
             ->where('created_at', '>=', now()->startOfDay()->subDays($this->period - 1))
             ->count();
+    }
+
+    private function platformMetrics(): array
+    {
+        return Cache::remember('dashboard:platform', 60, fn (): array => [
+            'requests_24h' => ApiRequestLog::query()->where('created_at', '>=', now()->subDay())->count(),
+            'requests_7d' => ApiRequestLog::query()->where('created_at', '>=', now()->subDays(7))->count(),
+            'errors_24h' => ApiRequestLog::query()->where('created_at', '>=', now()->subDay())->where('status_code', '>=', 400)->count(),
+            'average_ms' => (int) round((float) ApiRequestLog::query()->where('created_at', '>=', now()->subDay())->avg('response_time_ms')),
+            'active_tokens' => ApiToken::query()->whereNull('revoked_at')->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->count(),
+        ]);
+    }
+
+    private function dniMetrics(): array
+    {
+        return Cache::remember('dashboard:dni', 60, fn (): array => [
+            'records' => DniRecord::query()->count(),
+            'requests_today' => ApiRequestLog::query()->where('service', 'dni')->whereDate('created_at', today())->count(),
+            'internal_today' => ApiRequestLog::query()->where('service', 'dni')->whereDate('created_at', today())->where('local_database_hit', true)->count(),
+            'provider_today' => ApiRequestLog::query()->where('service', 'dni')->whereDate('created_at', today())->where('provider_called', true)->count(),
+        ]);
+    }
+
+    private function rucMetrics(): array
+    {
+        return Cache::remember('dashboard:ruc', 60, function (): array {
+            $last = RucImport::query()->latest()->first();
+
+            return ['records' => RucRecord::query()->count(), 'requests_today' => ApiRequestLog::query()->where('service', 'ruc')->whereDate('created_at', today())->count(), 'imports' => RucImport::query()->count(), 'last_import' => $last?->finished_at?->toIso8601String(), 'active_import' => $last?->status->active() ? $last : null];
+        });
     }
 }

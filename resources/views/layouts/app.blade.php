@@ -27,28 +27,44 @@
 
                 <nav class="flex-1 space-y-1 px-4 py-5 text-sm">
                     @php
-                        $nav = [
-                            ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => auth()->user()->hasPermission('dashboard.view')],
-                            ['label' => 'Agencias', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
-                            ['label' => 'Mapa de agencias', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
-                            ['label' => 'Importaciones', 'route' => 'admin.agencies.import', 'icon' => '⇪', 'can' => \Illuminate\Support\Facades\Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
-                            ['label' => 'Copias de agencias', 'route' => 'admin.agencies.backups.index', 'icon' => '▣', 'can' => auth()->user()->hasPermission('agencies.backup.view')],
-                            ['label' => 'Ajustes · Copias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
-                            ['label' => 'Tokens API', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
-                            ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('api-tools.dni.test')],
-                            ['label' => 'Ajustes · API DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.dni.view')],
-                            ['label' => 'Documentación API', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
-                            ['label' => 'Ajustes · Documentación', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
-                            ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => auth()->user()->isSuperAdmin()],
-                            ['label' => 'Usuarios', 'route' => 'admin.users.index', 'icon' => '◔', 'can' => \Illuminate\Support\Facades\Gate::allows('viewAny', \App\Models\User::class)],
-                            ['label' => 'Roles y permisos', 'route' => null, 'icon' => '◌', 'can' => false],
-                            ['label' => 'Auditoría', 'route' => null, 'icon' => '▤', 'can' => false],
-                            ['label' => 'Configuración', 'route' => null, 'icon' => '⚙', 'can' => false],
+                        $navGroups = [
+                            'General' => [
+                                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => auth()->user()->hasPermission('dashboard.view')],
+                            ],
+                            'Agencias' => [
+                                ['label' => 'Listado', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
+                                ['label' => 'Mapa', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
+                                ['label' => 'Importar', 'route' => 'admin.agencies.import', 'icon' => '⇪', 'can' => Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
+                                ['label' => 'Copias de seguridad', 'route' => 'admin.agencies.backups.index', 'icon' => '▣', 'can' => auth()->user()->hasPermission('agencies.backup.view')],
+                            ],
+                            'Identidad' => [
+                                ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('api-tools.dni.test')],
+                                ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.dni.view')],
+                            ],
+                            'Empresas y RUC' => [
+                                ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('ruc.test')],
+                                ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => auth()->user()->hasPermission('ruc.view')],
+                                ['label' => 'Importaciones RUC', 'route' => 'admin.ruc.imports', 'icon' => '⇪', 'can' => auth()->user()->hasPermission('ruc.import-history')],
+                            ],
+                            'API' => [
+                                ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
+                                ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
+                            ],
+                            'Administración' => [
+                                ['label' => 'Usuarios', 'route' => 'admin.users.index', 'icon' => '◔', 'can' => Gate::allows('viewAny', \App\Models\User::class)],
+                                ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => auth()->user()->isSuperAdmin()],
+                            ],
+                            'Configuración' => [
+                                ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
+                                ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
+                            ],
                         ];
                     @endphp
 
-                    @foreach ($nav as $item)
-                        @if ($item['can'])
+                    @foreach ($navGroups as $group => $items)
+                        @if(collect($items)->contains('can', true))<p class="px-3 pb-1 pt-4 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--color-text-muted)] first:pt-0">{{ $group }}</p>@endif
+                        @foreach ($items as $item)
+                          @if ($item['can'])
                             <a href="{{ route($item['route']) }}"
                                @class([
                                    'flex items-center gap-3 rounded-2xl px-3 py-3 transition focus-ring',
@@ -58,7 +74,8 @@
                                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-[color:var(--color-brand-light)]">{{ $item['icon'] }}</span>
                                 <span class="font-medium">{{ $item['label'] }}</span>
                             </a>
-                        @endif
+                          @endif
+                        @endforeach
                     @endforeach
                 </nav>
 
@@ -145,6 +162,15 @@
                     @endif
                     @if (auth()->user()->hasPermission('api-tools.dni.test'))
                         <a href="{{ route('admin.api-tools.dni') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Probar API DNI</a>
+                    @endif
+                    @if (auth()->user()->hasPermission('ruc.test'))
+                        <a href="{{ route('admin.api-tools.ruc') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Probar API RUC</a>
+                    @endif
+                    @if (auth()->user()->hasPermission('ruc.view'))
+                        <a href="{{ route('admin.ruc.records') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Padrón RUC</a>
+                    @endif
+                    @if (auth()->user()->hasPermission('ruc.import-history'))
+                        <a href="{{ route('admin.ruc.imports') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Importaciones RUC</a>
                     @endif
                     <a href="{{ route('api.docs') }}" class="block rounded-2xl px-4 py-3 text-[color:var(--color-text-secondary)]">Documentación API</a>
                     @if (auth()->user()->hasPermission('settings.api-documentation.update'))

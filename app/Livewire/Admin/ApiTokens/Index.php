@@ -229,6 +229,7 @@ class Index extends Component
             'requestLogs' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value),
             'requestLogs as agency_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->where('service', 'agencias'),
             'requestLogs as dni_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->where('service', 'dni'),
+            'requestLogs as ruc_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->where('service', 'ruc'),
             'requestLogs as successful_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->whereBetween('status_code', [200, 399]),
             'requestLogs as failed_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->where('status_code', '>=', 400),
         ])

@@ -105,6 +105,27 @@
                 </dl>
             </section>
         @endif
+
+        @if($canViewDniMetrics || $canViewRucMetrics || $isSuperAdmin)
+            <section aria-labelledby="identity-company-metrics">
+                <h2 id="identity-company-metrics" class="mb-3 text-sm font-semibold text-white">Identidad, empresas y plataforma</h2>
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    @if($canViewDniMetrics)
+                        <x-ui.stat-card label="Registros DNI internos" :value="$dniMetrics['records']" tone="info" description="Consultas hoy: {{ $dniMetrics['requests_today'] }}" />
+                        <x-ui.stat-card label="DNI resueltos internamente" :value="$dniMetrics['internal_today']" tone="success" description="PeruDevs hoy: {{ $dniMetrics['provider_today'] }}" />
+                    @endif
+                    @if($canViewRucMetrics)
+                        <x-ui.stat-card label="Registros RUC" :value="$rucMetrics['records']" tone="brand" href="{{ route('admin.ruc.records') }}" description="Consultas hoy: {{ $rucMetrics['requests_today'] }}" />
+                        <x-ui.stat-card label="Importaciones RUC" :value="$rucMetrics['imports']" tone="info" href="{{ route('admin.ruc.imports') }}" description="Última actualización: {{ $rucMetrics['last_import'] ? \Illuminate\Support\Carbon::parse($rucMetrics['last_import'])->diffForHumans() : 'Sin importaciones' }}" />
+                    @endif
+                    @if($isSuperAdmin)
+                        <x-ui.stat-card label="Solicitudes API · 24 h" :value="$platformMetrics['requests_24h']" tone="purple" description="7 días: {{ $platformMetrics['requests_7d'] }}" />
+                        <x-ui.stat-card label="Errores API · 24 h" :value="$platformMetrics['errors_24h']" tone="warning" description="Promedio {{ $platformMetrics['average_ms'] }} ms · {{ $platformMetrics['active_tokens'] }} tokens activos" />
+                    @endif
+                </div>
+                @if($canViewRucMetrics && $rucMetrics['active_import'])<div class="mt-3"><x-ui.alert tone="info">Importación RUC activa: {{ $rucMetrics['active_import']->progress_percentage }}% · heartbeat {{ $rucMetrics['active_import']->last_heartbeat_at?->diffForHumans() }}</x-ui.alert></div>@endif
+            </section>
+        @endif
     @else
         <x-ui.empty-state title="No tienes indicadores disponibles" description="Tu cuenta no dispone de permisos para consultar métricas administrativas." icon="—" />
     @endif

@@ -95,7 +95,7 @@
                             <td class="px-4 py-4 text-sm">
                                 <x-ui.badge :tone="$revoked || $expired ? 'danger' : ($expiring ? 'warning' : 'success')">{{ $revoked ? 'Revocado' : ($expired ? 'Expirado' : ($expiring ? 'Próximo a expirar' : 'Activo')) }}</x-ui.badge>
                                 <p class="mt-2 text-[color:var(--color-text-secondary)]">Último uso: {{ $token->last_used_at?->format('d/m/Y H:i') ?? 'Nunca utilizado' }}</p>
-                                <p class="text-[color:var(--color-text-secondary)]">Consultas: {{ $token->request_logs_count }} · Agencias {{ $token->agency_requests_count }} · DNI {{ $token->dni_requests_count }}</p>
+                                <p class="text-[color:var(--color-text-secondary)]">Consultas: {{ $token->request_logs_count }} · Agencias {{ $token->agency_requests_count }} · DNI {{ $token->dni_requests_count }} · RUC {{ $token->ruc_requests_count }}</p>
                                 <p class="text-[color:var(--color-text-secondary)]">Exitosas: {{ $token->successful_requests_count }} · Errores: {{ $token->failed_requests_count }}</p>
                                 <p class="text-[color:var(--color-text-secondary)]">Expira: {{ $token->expires_at?->format('d/m/Y H:i') ?? 'Sin expiración' }}</p>
                             </td>
@@ -144,7 +144,7 @@
         <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
             <x-ui.dropdown-select id="log-client" wire:model.live="logClientId" label="Cliente" :value="$logClientId" :options="[0 => 'Todos'] + $clients->pluck('name', 'id')->all()" />
             <x-ui.dropdown-select id="log-token" wire:model.live="logTokenId" label="Token" :value="$logTokenId" :options="[0 => 'Todos'] + $tokens->pluck('name', 'id')->all()" />
-            <x-ui.dropdown-select id="log-service" wire:model.live="logService" label="Servicio" :value="$logService" :options="['' => 'Todos', 'agencias' => 'Agencias', 'dni' => 'DNI']" />
+            <x-ui.dropdown-select id="log-service" wire:model.live="logService" label="Servicio" :value="$logService" :options="['' => 'Todos', 'agencias' => 'Agencias', 'dni' => 'DNI', 'ruc' => 'RUC']" />
             <x-ui.input id="log-status" wire:model.live.debounce.400ms="logStatus" label="Estado HTTP" inputmode="numeric" />
             <x-ui.input id="log-from" wire:model.live="logFrom" type="date" label="Desde" />
             <x-ui.input id="log-to" wire:model.live="logTo" type="date" label="Hasta" />
