@@ -10,7 +10,7 @@ return [
     'import_directory' => env('RUC_IMPORT_DIRECTORY', 'ruc-imports'),
     'import_max_size_mb' => (int) env('RUC_IMPORT_MAX_SIZE_MB', 5000),
     'import_delimiter' => env('RUC_IMPORT_DELIMITER', '|'),
-    'import_encoding' => env('RUC_IMPORT_ENCODING', 'latin-1'),
+    'import_encoding' => env('RUC_IMPORT_ENCODING', 'ISO-8859-1'),
     'import_chunk_size' => (int) env('RUC_IMPORT_CHUNK_SIZE', 5000),
     'import_progress_interval' => (int) env('RUC_IMPORT_PROGRESS_INTERVAL', 1000),
     'import_queue' => env('RUC_IMPORT_QUEUE', 'ruc-imports'),

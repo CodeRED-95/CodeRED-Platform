@@ -14,5 +14,5 @@
         @forelse($records as $record)<tr><td class="px-5 py-4 font-mono">{{ $record->ruc }}</td><td class="px-5 py-4 font-medium">{{ $record->razon_social }}</td><td class="px-5 py-4"><x-ui.badge tone="info">{{ $record->estado ?? '—' }}</x-ui.badge></td><td class="px-5 py-4">{{ $record->condicion ?? '—' }}</td><td class="px-5 py-4 font-mono">{{ $record->ubigeo ?? '—' }}</td><td class="px-5 py-4">{{ implode(' · ', array_filter([$record->departamento, $record->provincia, $record->distrito])) ?: '—' }}</td><td class="max-w-md px-5 py-4">{{ $record->direccion ?? '—' }}</td></tr>
         @empty<tr><td colspan="7" class="px-5 py-12"><x-ui.empty-state title="No hay registros RUC" description="Importa un padrón reducido SUNAT o ajusta los filtros." /></td></tr>@endforelse
     </tbody></x-ui.table>
-    {{ $records->links() }}
+    <x-ui.pagination :paginator="$records" />
 </div>

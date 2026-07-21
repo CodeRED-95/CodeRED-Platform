@@ -66,6 +66,13 @@
             <div class="space-y-6">
                 <x-ui.card>
                     <x-ui.section-header title="3. Resultado de validación" description="Estadísticas calculadas sobre todas las filas." />
+                    @if ($payloadMetadata !== [])
+                        <div class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                            <div><span class="text-[color:var(--color-text-muted)]">Formato</span><p>{{ $payloadMetadata['format'] ?? 'JSON' }}</p></div>
+                            <div><span class="text-[color:var(--color-text-muted)]">Versión</span><p>{{ $payloadMetadata['schema_version'] ?? 'Legado' }}</p></div>
+                            <div><span class="text-[color:var(--color-text-muted)]">Total declarado</span><p>{{ $payloadMetadata['declared_count'] ?? 'No indicado' }}</p></div>
+                        </div>
+                    @endif
                     <div class="mt-5 grid grid-cols-2 gap-3">
                         <x-ui.stat-card label="Total" :value="$summary['total_rows'] ?? 0" tone="brand" />
                         <x-ui.stat-card label="Válidas" :value="$summary['valid_rows'] ?? 0" tone="success" />

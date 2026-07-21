@@ -76,6 +76,8 @@ class AgencyExportAndBackupTest extends TestCase
         $json = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
         $this->assertCount(3, $json['data']['agencies']);
         $this->assertSame(3, $json['metadata']['record_count']);
+        $this->assertSame('codered-platform', $json['metadata']['format']);
+        $this->assertSame('agencies', $json['metadata']['module']);
         $this->assertSame(strlen($contents), $backup->size_bytes);
         $this->assertSame(hash('sha256', $contents), $backup->checksum_sha256);
         $this->assertSame('integrity_ok', app(AgencyBackupService::class)->verify($backup));

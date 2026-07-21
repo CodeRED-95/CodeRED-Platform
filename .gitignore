@@ -18,3 +18,6 @@
 *.log
 Install_CodeRED-Platform.sh
 /storage/app/private/ruc-imports/
+/storage/framework/testing/disks/local/backups/
+/storage/framework/testing/disks/local/imports/agencies/previews/*.json
+!/storage/framework/testing/disks/local/imports/agencies/previews/28f10464-cfcd-4933-ab6e-6db79e1b6f0c.json

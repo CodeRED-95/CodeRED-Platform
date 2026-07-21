@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyImportStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
+use App\Modules\Agencies\Services\AgencyBackupService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -85,6 +86,41 @@ class AgencyImportWizardTest extends TestCase
             'failed_rows' => 1,
         ]);
         $this->assertSame($snapshotPath, AgencyImport::query()->latest('id')->value('stored_filename'));
+    }
+
+    public function test_generated_backup_can_be_previewed_and_restored_without_editing_json(): void
+    {
+        Storage::fake('local');
+        $actor = $this->superAdmin();
+        Agency::factory()->count(3)->create();
+        $backup = app(AgencyBackupService::class)->create($actor->id, 'local', null, false);
+        $contents = Storage::disk('local')->get($backup->path);
+        Agency::query()->forceDelete();
+
+        Livewire::actingAs($actor)->test(Import::class)
+            ->set('sourceType', 'json')
+            ->set('jsonPayload', $contents)
+            ->call('goToValidation')
+            ->call('validateAndPreview')
+            ->assertSet('step', 3)
+            ->assertSet('summary.total_rows', 3)
+            ->assertSet('payloadMetadata.format', 'data.agencies')
+            ->call('goToImport')
+            ->call('import')
+            ->assertSet('step', 5);
+
+        $this->assertDatabaseCount('agencies', 3);
+    }
+
+    public function test_file_required_message_is_translated(): void
+    {
+        $component = Livewire::actingAs($this->superAdmin())->test(Import::class)
+            ->set('sourceType', 'file')
+            ->call('goToValidation')
+            ->assertHasErrors(['file'])
+            ->assertSee('Selecciona una copia de seguridad JSON para continuar.');
+
+        $this->assertStringNotContainsString('validation.required_if', $component->html());
     }
 
     private function row(int $id, string $name): array

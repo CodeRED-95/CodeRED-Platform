@@ -62,6 +62,7 @@ return [
     'nullable' => 'El campo :attribute puede ser nulo.',
     'numeric' => 'El campo :attribute debe ser un número.',
     'required' => 'El campo :attribute es obligatorio.',
+    'required_if' => 'El campo :attribute es obligatorio cuando :other es :value.',
     'string' => 'El campo :attribute debe ser una cadena de texto.',
     'unique' => 'El valor de :attribute ya ha sido tomado.',
     'url' => 'El campo :attribute debe ser una URL válida.',
@@ -77,6 +78,7 @@ return [
         'address' => 'dirección',
         'sourceType' => 'fuente',
         'jsonPayload' => 'contenido JSON',
+        'file' => 'archivo JSON',
         'url' => 'URL',
     ],
 ];

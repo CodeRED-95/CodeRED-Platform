@@ -121,7 +121,7 @@ class ProcessRucImportJob implements ShouldQueue
                     $ignored++;
                 } elseif (isset($parsed['error'])) {
                     $invalid++;
-                    $errors[] = ['ruc_import_id' => $import->id, 'line_number' => $processed, 'reason' => $parsed['error'], 'line_preview' => mb_substr(mb_convert_encoding(trim($line), 'UTF-8', $import->encoding), 0, 300), 'created_at' => now()];
+                    $errors[] = ['ruc_import_id' => $import->id, 'line_number' => $processed, 'reason' => $parsed['error'], 'line_preview' => $parser->preview($line, $import->encoding), 'created_at' => now()];
                 } else {
                     $batch[] = $parsed['data'];
                 }

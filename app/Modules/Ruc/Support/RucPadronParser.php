@@ -4,9 +4,9 @@ namespace App\Modules\Ruc\Support;
 
 final class RucPadronParser
 {
-    public function parse(string $line, string $delimiter = '|', string $encoding = 'latin-1'): array
+    public function parse(string $line, string $delimiter = '|', string $encoding = 'ISO-8859-1'): array
     {
-        $utf8 = mb_convert_encoding(rtrim($line, "\r\n"), 'UTF-8', $encoding);
+        $utf8 = $this->toUtf8(rtrim($line, "\r\n"), $encoding);
         $columns = array_map($this->clean(...), str_getcsv($utf8, $delimiter));
         if (in_array(mb_strtoupper($columns[0]), ['RUC', 'NUMERO_RUC', 'NÚMERO_RUC', 'NUMERO DE RUC'], true)) {
             return ['header' => true];
@@ -42,6 +42,21 @@ final class RucPadronParser
         }
 
         return ['data' => $base];
+    }
+
+    public function preview(string $line, string $encoding): string
+    {
+        return mb_substr($this->toUtf8(trim($line), $encoding), 0, 300);
+    }
+
+    private function toUtf8(string $value, string $encoding): string
+    {
+        $source = EncodingNormalizer::normalize($encoding);
+        if (mb_check_encoding($value, 'UTF-8')) {
+            return $value;
+        }
+
+        return mb_convert_encoding($value, 'UTF-8', $source);
     }
 
     private function clean(?string $value): string

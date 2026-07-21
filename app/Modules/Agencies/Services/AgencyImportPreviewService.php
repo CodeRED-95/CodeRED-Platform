@@ -3,11 +3,19 @@
 namespace App\Modules\Agencies\Services;
 
 use App\Modules\Agencies\Support\AgencyImportNormalizer;
+use App\Modules\Agencies\Support\AgencyImportPayloadReader;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 
 class AgencyImportPreviewService
 {
+    private AgencyImportPayloadReader $reader;
+
+    public function __construct(?AgencyImportPayloadReader $reader = null)
+    {
+        $this->reader = $reader ?? new AgencyImportPayloadReader;
+    }
+
     public function payloadFromUrl(string $url, int $limitBytes = 5242880): array
     {
         $this->assertSafeUrl($url);
@@ -21,12 +29,17 @@ class AgencyImportPreviewService
             throw new InvalidArgumentException('El archivo excede el tamaño permitido.');
         }
 
-        $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-        if (! is_array($decoded) || array_is_list($decoded) === false) {
-            throw new InvalidArgumentException('El JSON raíz debe ser un array.');
-        }
+        return $this->payloadFromJson($body)['agencies'];
+    }
 
-        return $decoded;
+    public function payloadFromJson(string $contents): array
+    {
+        return $this->reader->read(json_decode($contents, true, 512, JSON_THROW_ON_ERROR));
+    }
+
+    public function normalizePayload(mixed $payload): array
+    {
+        return $this->reader->read($payload);
     }
 
     public function previewFromUrl(string $url, int $limitBytes = 5242880): array

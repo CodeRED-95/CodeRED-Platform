@@ -39,8 +39,9 @@ class AgencyBackupService
 
             $count = Agency::withTrashed()->count();
             $metadata = [
-                'application' => 'CodeRED Platform', 'type' => 'agency-backup', 'schema_version' => 1,
-                'created_at' => $now->toIso8601String(), 'timezone' => 'America/Lima',
+                'application' => 'CodeRED Platform', 'format' => 'codered-platform', 'module' => 'agencies',
+                'type' => 'agency-backup', 'schema_version' => 1,
+                'created_at' => $now->toIso8601String(), 'exported_at' => $now->toIso8601String(), 'timezone' => 'America/Lima',
                 'database_driver' => config('database.default'), 'record_count' => $count,
             ];
             $this->write($handle, '{"metadata":'.json_encode($metadata, $this->jsonFlags()).',"data":{"agencies":[');

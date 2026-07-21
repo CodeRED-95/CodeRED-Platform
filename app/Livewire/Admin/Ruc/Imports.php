@@ -6,11 +6,15 @@ use App\Modules\Ruc\Enums\RucImportStatus;
 use App\Modules\Ruc\Jobs\ProcessRucImportJob;
 use App\Modules\Ruc\Models\RucImport;
 use App\Modules\Ruc\Services\RucImportService;
+use App\Modules\Ruc\Support\EncodingNormalizer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\WithFileUploads;
+use Throwable;
 
 class Imports extends Component
 {
@@ -28,10 +32,40 @@ class Imports extends Component
     public function start(RucImportService $service): void
     {
         Gate::authorize('ruc.import');
+        try {
+            EncodingNormalizer::normalize((string) config('ruc.import_encoding'));
+        } catch (InvalidArgumentException) {
+            $this->addError('file', 'No se pudo iniciar la importación porque la codificación configurada no es compatible. Revisa RUC_IMPORT_ENCODING.');
+
+            return;
+        }
         $this->validate(['file' => ['required', 'file', 'mimes:txt', 'max:'.(max(1, (int) config('ruc.import_max_size_mb')) * 1024)]]);
         $import = $service->fromUpload($this->file, (int) auth()->id(), $this->force);
         $this->reset(['file', 'force']);
         $this->dispatch('toast', type: 'success', message: 'Importación encolada: '.$import->uuid);
+    }
+
+    public function checkConfiguration(): void
+    {
+        Gate::authorize('ruc.import');
+
+        try {
+            EncodingNormalizer::normalize((string) config('ruc.import_encoding'));
+            $disk = Storage::disk((string) config('ruc.import_disk'));
+            $directory = trim((string) config('ruc.import_directory'), '/');
+            if (! $disk->makeDirectory($directory) || ! $disk->exists($directory)) {
+                throw new InvalidArgumentException('El directorio privado de importación no está disponible.');
+            }
+            Redis::connection()->ping();
+            if (blank(config('ruc.import_queue'))) {
+                throw new InvalidArgumentException('La cola RUC no está configurada.');
+            }
+
+            $this->dispatch('toast', type: 'success', message: 'Configuración RUC comprobada: codificación, almacenamiento, Redis y cola disponibles.');
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->addError('file', 'La configuración RUC no está lista: '.$exception->getMessage());
+        }
     }
 
     public function cancel(int $id): void
@@ -105,8 +139,21 @@ class Imports extends Component
         $speed = $elapsed > 0 ? round($active->processed_rows / $elapsed, 1) : 0;
         $remaining = $speed > 0 && $active?->total_rows > 0 ? max(0, (int) round(($active->total_rows - $active->processed_rows) / $speed)) : null;
 
-        return view('livewire.admin.ruc.imports', ['activeImport' => $active, 'speed' => $speed, 'remainingSeconds' => $remaining, 'isStalled' => $active !== null && $this->isStalled($active), 'imports' => RucImport::query()->with('createdBy')->latest()->paginate(20)])
+        $configuration = $this->configurationStatus();
+
+        return view('livewire.admin.ruc.imports', ['activeImport' => $active, 'speed' => $speed, 'remainingSeconds' => $remaining, 'isStalled' => $active !== null && $this->isStalled($active), 'configuration' => $configuration, 'imports' => RucImport::query()->with('createdBy')->latest()->paginate(20)])
             ->layout('layouts.app', ['pageTitle' => 'Importaciones RUC']);
+    }
+
+    private function configurationStatus(): array
+    {
+        try {
+            $encoding = EncodingNormalizer::normalize((string) config('ruc.import_encoding'));
+
+            return ['valid' => true, 'encoding' => $encoding, 'delimiter' => (string) config('ruc.import_delimiter'), 'queue' => (string) config('ruc.import_queue'), 'message' => 'Configuración lista.'];
+        } catch (InvalidArgumentException) {
+            return ['valid' => false, 'encoding' => (string) config('ruc.import_encoding'), 'delimiter' => (string) config('ruc.import_delimiter'), 'queue' => (string) config('ruc.import_queue'), 'message' => 'La codificación configurada no es compatible. Revisa RUC_IMPORT_ENCODING.'];
+        }
     }
 
     private function isStalled(RucImport $import): bool

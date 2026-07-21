@@ -91,7 +91,7 @@ La reimportación nunca sobrescribe campos manuales de traslado.
 
 - La vista previa no escribe agencias en base de datos.
 - La importación real se procesa mediante `ImportAgenciesAction`.
-- El JSON raíz debe ser un array de objetos.
+- Se acepta el array raíz legado y los respaldos oficiales con agencias en `data.agencies`. También se reconocen `agencies` y `agencias`; vista previa e importación usan el mismo lector y rechazan módulos o versiones futuras incompatibles.
 - Los errores se guardan en `agency_import_failures`.
 - El estado final es `completed`, `completed_with_errors` o `failed`.
 - El resumen conserva importadas, actualizadas, omitidas y fallidas.

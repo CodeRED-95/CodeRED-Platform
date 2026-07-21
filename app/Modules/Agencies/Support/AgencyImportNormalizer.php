@@ -55,9 +55,9 @@ final class AgencyImportNormalizer
         $value = is_string($value) ? trim($value) : null;
 
         return match (mb_strtolower((string) $value)) {
-            'grande' => 'large',
-            'mediano', 'mediana' => 'medium',
-            'pequeño', 'pequeno', 'pequeña', 'pequena' => 'small',
+            'grande', 'large' => 'large',
+            'mediano', 'mediana', 'medium' => 'medium',
+            'pequeño', 'pequeno', 'pequeña', 'pequena', 'small' => 'small',
             default => null,
         };
     }

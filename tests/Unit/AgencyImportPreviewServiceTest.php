@@ -50,9 +50,42 @@ class AgencyImportPreviewServiceTest extends TestCase
         ]);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('El JSON raíz debe ser un array.');
+        $this->expectExceptionMessage('lista reconocible de agencias');
 
         (new AgencyImportPreviewService)->previewFromUrl('https://raw.githubusercontent.com/example/data.json');
+    }
+
+    public function test_accepts_official_backup_and_spanish_alias(): void
+    {
+        $service = new AgencyImportPreviewService;
+        $row = ['id' => 3, 'agencia' => 'Tacna'];
+
+        $official = $service->normalizePayload(['metadata' => ['module' => 'agencies', 'schema_version' => 1], 'data' => ['agencies' => [$row]]]);
+        $spanish = $service->normalizePayload(['agencias' => [$row]]);
+
+        $this->assertSame('data.agencies', $official['format']);
+        $this->assertSame('Tacna', $official['agencies'][0]['agencia']);
+        $this->assertFalse($official['agencies'][0]['co']);
+        $this->assertSame([$row], $spanish['agencies']);
+    }
+
+    public function test_rejects_empty_foreign_and_future_backups_in_spanish(): void
+    {
+        $service = new AgencyImportPreviewService;
+
+        foreach ([
+            [[], 'El archivo no contiene agencias.'],
+            [['module' => 'dni', 'agencies' => [['id' => 1]]], 'pertenece a otro módulo'],
+            [['schema_version' => 99, 'agencies' => [['id' => 1]]], 'todavía no es compatible'],
+            [['agencies' => ['not' => 'a list']], 'lista reconocible de agencias'],
+        ] as [$payload, $message]) {
+            try {
+                $service->normalizePayload($payload);
+                $this->fail('El payload inválido debía rechazarse.');
+            } catch (InvalidArgumentException $exception) {
+                $this->assertStringContainsString($message, $exception->getMessage());
+            }
+        }
     }
 
     public function test_preview_accepts_valid_array_payload(): void

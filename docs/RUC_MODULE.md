@@ -41,7 +41,7 @@ El lector trabaja en streaming, valida el encabezado, convierte la codificación
 
 ## Variables
 
-Consulte `.env.example` para límites, TTL, cola, tamaño de lote, codificación y delimitador. Cambie estos valores mediante configuración de despliegue; no incluya padrones ni secretos en Git.
+Consulte `.env.example` para límites, TTL, cola, tamaño de lote, codificación y delimitador. El valor recomendado es `RUC_IMPORT_ENCODING=ISO-8859-1`; `latin-1` se acepta solo como alias normalizado por compatibilidad. Actualice el `.env` de producción y reinicie la cola, sin incluir padrones ni secretos en Git.
 
 ## Recuperación
 

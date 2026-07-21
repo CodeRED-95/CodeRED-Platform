@@ -50,6 +50,8 @@ class Import extends Component
 
     public array $failures = [];
 
+    public array $payloadMetadata = [];
+
     public ?string $message = null;
 
     public function mount(): void
@@ -177,7 +179,7 @@ class Import extends Component
     {
         $this->reset([
             'url', 'jsonPayload', 'file', 'snapshotPath', 'completedImportId',
-            'preview', 'summary', 'failures', 'message',
+            'preview', 'summary', 'failures', 'message', 'payloadMetadata',
         ]);
         $this->step = 1;
         $this->sourceType = 'url';
@@ -193,21 +195,27 @@ class Import extends Component
             'url' => ['nullable', 'required_if:sourceType,url', 'url'],
             'jsonPayload' => ['nullable', 'required_if:sourceType,json', 'string'],
             'file' => ['nullable', 'required_if:sourceType,file', 'file', 'mimes:json', 'max:5120'],
+        ], [
+            'url.required_if' => 'Ingresa la URL de origen para continuar.',
+            'jsonPayload.required_if' => 'Ingresa el contenido JSON para continuar.',
+            'file.required_if' => 'Selecciona una copia de seguridad JSON para continuar.',
+            'file.file' => 'El archivo seleccionado no es válido.',
+            'file.mimes' => 'La copia de seguridad debe ser un archivo JSON.',
+            'file.max' => 'La copia de seguridad supera el tamaño permitido.',
         ]);
     }
 
     private function loadPayload(AgencyImportPreviewService $service): array
     {
         $this->validateSource();
-        $decoded = match ($this->sourceType) {
-            'url' => $service->payloadFromUrl((string) $this->url),
-            'file' => json_decode(file_get_contents((string) $this->file?->getRealPath()), true, 512, JSON_THROW_ON_ERROR),
-            default => json_decode((string) $this->jsonPayload, true, 512, JSON_THROW_ON_ERROR),
+        $result = match ($this->sourceType) {
+            'url' => $service->normalizePayload($service->payloadFromUrl((string) $this->url)),
+            'file' => $service->payloadFromJson(file_get_contents((string) $this->file?->getRealPath())),
+            default => $service->payloadFromJson((string) $this->jsonPayload),
         };
 
-        if (! is_array($decoded) || ! array_is_list($decoded)) {
-            throw new InvalidArgumentException('El JSON raíz debe ser un array de agencias.');
-        }
+        $this->payloadMetadata = collect($result)->except('agencies')->all();
+        $decoded = $result['agencies'];
 
         return array_map(
             fn (mixed $row): array => is_array($row) && array_is_list($row) === false

@@ -31,5 +31,5 @@
         @endforelse
         </tbody>
     </x-ui.table>
-    {{ $backups->links() }}
+    <x-ui.pagination :paginator="$backups" />
 </div>
