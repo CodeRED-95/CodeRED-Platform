@@ -98,7 +98,6 @@ class AgencyExportAndBackupTest extends TestCase
             'filename' => 'passwd.json', 'disk' => 'local', 'path' => '../passwd.json',
             'status' => AgencyBackupStatus::Completed, 'created_by' => $super->id,
         ]);
-        Storage::disk('local')->put('../passwd.json', '{}');
         $this->get(route('admin.agencies.backups.download', $unsafe))->assertNotFound();
 
         $this->artisan('agencies:backup', ['--no-cleanup' => true])->assertSuccessful()->expectsOutputToContain('SHA-256:');

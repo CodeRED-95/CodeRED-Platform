@@ -4,7 +4,7 @@ namespace App\Modules\Agencies\Http\Controllers;
 
 use App\Modules\Agencies\Http\Requests\AgencyExportRequest;
 use App\Modules\Agencies\Services\AgencyExportService;
-use Illuminate\Cache\Lock;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpFoundation\StreamedResponse;

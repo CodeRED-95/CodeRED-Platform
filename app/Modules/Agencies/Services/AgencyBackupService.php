@@ -21,7 +21,7 @@ class AgencyBackupService
         $now = CarbonImmutable::now('America/Lima');
         $filename = $this->safeFilename($output ?: 'codered-agencies-backup-'.$now->format('Y-m-d-His').'.json');
         $directory = trim((string) config('agency_backups.directory', 'backups/agencies'), '/');
-        $path = $directory.'/'.$filename;
+        [$filename, $path] = $this->uniqueDestination($disk, $directory, $filename);
         $temporary = $path.'.part-'.bin2hex(random_bytes(6));
         $backup = AgencyBackup::query()->create([
             'filename' => $filename, 'disk' => $disk, 'path' => $path,
@@ -122,6 +122,25 @@ class AgencyBackupService
         }
 
         return $filename;
+    }
+
+    private function uniqueDestination(string $disk, string $directory, string $filename): array
+    {
+        $filesystem = Storage::disk($disk);
+        $path = $directory.'/'.$filename;
+        if (! $filesystem->exists($path)) {
+            return [$filename, $path];
+        }
+        $base = pathinfo($filename, PATHINFO_FILENAME);
+        for ($suffix = 2; $suffix <= 1000; $suffix++) {
+            $candidate = $base.'-'.$suffix.'.json';
+            $path = $directory.'/'.$candidate;
+            if (! $filesystem->exists($path)) {
+                return [$candidate, $path];
+            }
+        }
+
+        throw new RuntimeException('No se pudo reservar un nombre único para el respaldo.');
     }
 
     private function write($handle, string $content): void
