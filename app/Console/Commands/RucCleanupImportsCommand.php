@@ -15,7 +15,7 @@ class RucCleanupImportsCommand extends Command
 
     public function handle(): int
     {
-        $days = max(1, (int) ($this->option('days') ?: config('ruc.import_retention_days')));
+        $days = max(1, (int) ($this->option('days') ?: config('ruc.import.retention_days')));
         $imports = RucImport::query()
             ->whereIn('status', [RucImportStatus::Completed, RucImportStatus::CompletedWithErrors, RucImportStatus::Failed, RucImportStatus::Cancelled])
             ->where('created_at', '<', now()->subDays($days))->where('path', '!=', 'deleted')->cursor();

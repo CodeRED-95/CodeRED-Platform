@@ -2,21 +2,17 @@
 
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
-use App\Modules\Reniec\Enums\ReniecImportStatus;
-use App\Modules\Reniec\Jobs\ProcessReniecImportJob;
-use App\Modules\Reniec\Models\ReniecImport;
-use App\Modules\Reniec\Services\ReniecCopyLoader;
-use App\Modules\Reniec\Services\ReniecFileService;
-use App\Modules\Reniec\Services\ReniecIncomingFileScanner;
-use App\Modules\Reniec\Services\ReniecMergeService;
-use App\Modules\Reniec\Support\ReniecLineParser;
+use App\Modules\Ruc\Enums\RucImportStatus;
+use App\Modules\Ruc\Jobs\ProcessRucImportJob;
+use App\Modules\Ruc\Models\RucImport;
+use App\Modules\Ruc\Services\RucImportService;
+use App\Modules\Ruc\Services\RucIncomingFileScanner;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schedule;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Console\Command\Command;
 
 Artisan::command('health:redis', function (): int {
@@ -133,135 +129,73 @@ Artisan::command('agencies:prune-sync-changes {--dry-run} {--days=}', function (
 
 Schedule::command('agencies:prune-sync-changes')->dailyAt('02:30')->withoutOverlapping();
 
-Artisan::command('reniec:scan', function (): int {
-    $scanner = app(ReniecIncomingFileScanner::class);
+Artisan::command('ruc:scan', function (RucIncomingFileScanner $scanner): int {
     $diagnostics = $scanner->diagnostics();
     $this->line('Disk: '.$diagnostics['disk']);
     $this->line('Directorio configurado: '.$diagnostics['configured_directory']);
     $this->line('Ruta física: '.$diagnostics['physical_path']);
-    $this->line('Directorio existe: '.($diagnostics['exists'] ? 'sí' : 'no'));
     $files = $scanner->scan();
     $this->table(['Nombre', 'Tamaño', 'Fecha', 'Estado'], collect($files)->map(fn (array $file): array => [$file['name'], $file['size'], date('Y-m-d H:i:s', $file['last_modified']), $file['status']])->all());
     $this->info(count($files).' archivos TXT encontrados.');
 
     return Command::SUCCESS;
-})->purpose('Diagnostica y lista archivos RENIEC disponibles en el servidor.');
-Artisan::command('reniec:register {path} {--dry-run} {--strategy=}', function (): int {
-    if ($this->option('dry-run')) {
-        $this->info('Validación seca: '.$this->argument('path'));
+})->purpose('Detecta padrones RUC SUNAT colocados en el servidor.');
 
-        return Command::SUCCESS;
-    }
-    $import = app(ReniecFileService::class)->register((string) $this->argument('path'), null, $this->option('strategy') ?: null);
-    $this->info('Importación registrada: '.$import->id.' ('.$import->uuid.')');
-
-    return Command::SUCCESS;
-})->purpose('Registra sin copiar un archivo RENIEC ya ubicado en el servidor.');
-
-Artisan::command('reniec:import {import_id}', function (): int {
-    $import = ReniecImport::query()->findOrFail($this->argument('import_id'));
-    $import->update(['status' => ReniecImportStatus::Queued]);
-    ProcessReniecImportJob::dispatch($import->id);
-    $this->info('Importación enviada a reniec-imports.');
+Artisan::command('ruc:import {import_id}', function (RucImportService $service): int {
+    $service->startRegistered(RucImport::query()->findOrFail((int) $this->argument('import_id')));
+    $this->info('Importación enviada a ruc-imports.');
 
     return Command::SUCCESS;
 });
 
-Artisan::command('reniec:resume {import_id}', function (): int {
-    $import = ReniecImport::query()->findOrFail($this->argument('import_id'));
-    app(ReniecFileService::class)->assertUnchanged($import);
-    $import->update(['status' => ReniecImportStatus::Queued, 'paused_at' => null, 'cancel_requested_at' => null, 'resumed_at' => now(), 'error_message' => null]);
-    ProcessReniecImportJob::dispatch($import->id);
-    $this->info('Reanudación en cola.');
+Artisan::command('ruc:pause {id}', function (): int {
+    $import = RucImport::query()->findOrFail((int) $this->argument('id'));
+    $import->update(['status' => RucImportStatus::Paused, 'last_message' => 'Pausa solicitada desde CLI.']);
+    $this->info('Pausa solicitada.');
 
     return Command::SUCCESS;
 });
 
-Artisan::command('reniec:pause {import_id}', function (): int {
-    ReniecImport::query()->findOrFail($this->argument('import_id'))->update(['paused_at' => now()]);
-    $this->info('Pausa solicitada; se aplicará tras el lote actual.');
+Artisan::command('ruc:resume {id}', function (): int {
+    $import = RucImport::query()->findOrFail((int) $this->argument('id'));
+    $import->update(['status' => RucImportStatus::Queued, 'failed_at' => null, 'error_message' => null]);
+    ProcessRucImportJob::dispatch($import->id)->onConnection('redis')->onQueue((string) config('ruc.import.queue'));
+    $this->info('Reanudación enviada a ruc-imports.');
 
     return Command::SUCCESS;
 });
-Artisan::command('reniec:cancel {import_id}', function (): int {
-    ReniecImport::query()->findOrFail($this->argument('import_id'))->update(['cancel_requested_at' => now(), 'status' => ReniecImportStatus::Cancelling]);
+
+Artisan::command('ruc:cancel {id}', function (): int {
+    $import = RucImport::query()->findOrFail((int) $this->argument('id'));
+    $import->update(['cancel_requested_at' => now(), 'last_message' => 'Cancelación solicitada desde CLI.']);
     $this->info('Cancelación solicitada.');
 
     return Command::SUCCESS;
 });
-Artisan::command('reniec:status {--id=}', function (): int {
-    $q = ReniecImport::query();
+
+Artisan::command('ruc:status {--id=}', function (): int {
+    $query = RucImport::query()->latest();
     if ($this->option('id')) {
-        $q->whereKey($this->option('id'));
-    }$this->table(['ID', 'Archivo', 'Estado', 'Línea', 'Offset', 'Válidas', 'Inválidas', 'Heartbeat'], $q->latest()->limit(50)->get()->map(fn ($i) => [$i->id, $i->original_filename, $i->status->value, $i->current_line_number, $i->current_byte_offset, $i->valid_rows, $i->invalid_rows, $i->last_heartbeat_at])->all());
-
-    return Command::SUCCESS;
-});
-Artisan::command('reniec:cleanup {--dry-run}', function (): int {
-    $q = ReniecImport::query()->where('finished_at', '<', now()->subDays(config('reniec.import.retention_days')));
-    $count = $q->count();
-    if (! $this->option('dry-run')) {
-        $q->each(fn ($i) => $i->delete());
-    }$this->info($count.' importaciones vencidas '.($this->option('dry-run') ? 'detectadas' : 'eliminadas').'.');
-
-    return Command::SUCCESS;
-});
-Artisan::command('reniec:validate-file {path}', function (): int {
-    $import = app(ReniecFileService::class)->register((string) $this->argument('path'));
-    $import->delete();
-    $this->info('Archivo, espacio, tamaño y checksum válidos.');
-
-    return Command::SUCCESS;
-});
-Artisan::command('reniec:analyze', function (): int {
-    if (DB::getDriverName() === 'pgsql') {
-        DB::statement('ANALYZE dni_records');
-    }$this->info('ANALYZE completado.');
-
-    return Command::SUCCESS;
-});
-
-Schedule::command('reniec:cleanup')->dailyAt('03:15')->withoutOverlapping();
-
-Artisan::command('reniec:benchmark {--rows=1000000} {--strategy=insert_ignore}', function (): int {
-    $rows = max(1, (int) $this->option('rows'));
-    $strategy = (string) $this->option('strategy');
-    if (! in_array($strategy, ['insert_ignore', 'upsert'], true)) {
-        $this->error('Estrategia inválida.');
-
-        return Command::INVALID;
+        $query->whereKey((int) $this->option('id'));
     }
-    $disk = Storage::disk(config('reniec.import.disk'));
-    $directory = app(ReniecIncomingFileScanner::class)->storageDirectory($disk);
-    $path = $directory.'/benchmark-'.now()->format('YmdHis').'.txt';
-    $stream = fopen('php://temp/maxmemory:1048576', 'w+b');
-    fwrite($stream, "DNI|NOMBRES|PATERNO|MATERNO|FECHA|SEXO|UBIGEO|\n");
-    for ($i = 1; $i <= $rows; $i++) {
-        fwrite($stream, sprintf("%08d|NOMBRE%d|PATERNO|MATERNO|1990-01-01|X|150101|\n", $i % 100000000, $i));
-        if (ftell($stream) > 900000) {
-            rewind($stream);
-            $disk->append($path, stream_get_contents($stream));
-            ftruncate($stream, 0);
-            rewind($stream);
-        }
-    }rewind($stream);
-    $tail = stream_get_contents($stream);
-    if ($tail !== '') {
-        $disk->append($path, $tail);
-    }fclose($stream);
-    $start = microtime(true);
-    $import = app(ReniecFileService::class)->register($path, null, $strategy);
-    (new ProcessReniecImportJob($import->id))->handle(app(ReniecFileService::class), app(ReniecLineParser::class), app(ReniecCopyLoader::class), app(ReniecMergeService::class));
-    $seconds = microtime(true) - $start;
-    $this->table(['Filas', 'Segundos', 'Filas/s', 'Memoria pico'], [[$rows, round($seconds, 2), round($rows / max(.001, $seconds), 2), memory_get_peak_usage(true)]]);
-
-    return Command::SUCCESS;
-})->purpose('Benchmark opcional del pipeline RENIEC con datos sintéticos locales.');
-
-Artisan::command('reniec:detect-stalled', function (): int {
-    $count = ReniecImport::query()->whereIn('status', array_map(fn ($s) => $s->value, array_filter(ReniecImportStatus::cases(), fn ($s) => $s->active())))->where(fn ($q) => $q->whereNull('last_heartbeat_at')->where('updated_at', '<', now()->subMinutes(15))->orWhere('last_heartbeat_at', '<', now()->subMinutes(15)))->update(['status' => ReniecImportStatus::Stalled->value, 'error_message' => 'El worker no actualizó el heartbeat durante 15 minutos.', 'updated_at' => now()]);
-    $this->info($count.' importaciones RENIEC marcadas como detenidas.');
+    $this->table(['ID', 'Archivo', 'Estado', 'Total', 'Procesadas', 'Nuevos', 'Existentes', 'Inválidos', 'Heartbeat'], $query->limit(20)->get()->map(fn (RucImport $import): array => [$import->id, $import->original_filename, $import->status->label(), $import->total_rows, $import->processed_rows, $import->inserted_rows, $import->ignored_rows, $import->invalid_rows, $import->last_heartbeat_at?->toDateTimeString() ?? '—'])->all());
 
     return Command::SUCCESS;
 });
-Schedule::command('reniec:detect-stalled')->everyTenMinutes()->withoutOverlapping();
+
+Artisan::command('ruc:cleanup {--dry-run}', function (): int {
+    $query = RucImport::query()->where('finished_at', '<', now()->subDays((int) config('ruc.import.retention_days')));
+    $count = $query->count();
+    if (! $this->option('dry-run')) {
+        $query->delete();
+    }
+    $this->info($count.' historiales RUC '.($this->option('dry-run') ? 'serían eliminados.' : 'eliminados.'));
+
+    return Command::SUCCESS;
+});
+
+Artisan::command('ruc:has-active', function (): int {
+    return RucImport::query()->whereIn('status', [RucImportStatus::Queued, RucImportStatus::Validating, RucImportStatus::Processing, RucImportStatus::Paused])->exists()
+        ? Command::SUCCESS
+        : Command::FAILURE;
+})->purpose('Devuelve éxito cuando existe una importación RUC que impide reiniciar el worker.');

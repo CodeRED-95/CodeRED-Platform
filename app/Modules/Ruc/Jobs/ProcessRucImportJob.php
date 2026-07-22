@@ -5,6 +5,9 @@ namespace App\Modules\Ruc\Jobs;
 use App\Modules\Ruc\Enums\RucImportStatus;
 use App\Modules\Ruc\Models\RucImport;
 use App\Modules\Ruc\Models\Ubigeo;
+use App\Modules\Ruc\Services\RucCopyLoader;
+use App\Modules\Ruc\Services\RucIncomingFileScanner;
+use App\Modules\Ruc\Services\RucMergeService;
 use App\Modules\Ruc\Support\RucPadronParser;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,32 +26,27 @@ class ProcessRucImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 1;
 
     public int $timeout;
 
     public function __construct(public int $importId)
     {
-        $this->timeout = max(300, (int) config('ruc.import_timeout'));
+        $this->timeout = max(300, (int) config('ruc.import.timeout'));
+        $this->onQueue((string) config('ruc.import.queue'));
     }
 
-    public function backoff(): array
-    {
-        return [60, 300, 900];
-    }
-
-    public function handle(RucPadronParser $parser): void
+    public function handle(RucPadronParser $parser, RucCopyLoader $copy, RucMergeService $merge, RucIncomingFileScanner $scanner): void
     {
         $import = RucImport::query()->findOrFail($this->importId);
-        $lock = Cache::lock('ruc-import-process:'.$import->id, max(600, (int) config('ruc.import_lock_seconds')));
+        $lock = Cache::lock('ruc-import-process:'.$import->id, max(600, (int) config('ruc.import.lock_seconds')));
         if (! $lock->get()) {
-            $import->update(['last_message' => 'Esperando el lock exclusivo de esta importación.']);
             $this->release(60);
 
             return;
         }
         try {
-            $this->process($import, $parser);
+            $this->process($import, $parser, $copy, $merge, $scanner);
         } catch (Throwable $exception) {
             $this->markFailed($import, $exception);
             throw $exception;
@@ -57,73 +55,52 @@ class ProcessRucImportJob implements ShouldQueue
         }
     }
 
-    private function process(RucImport $import, RucPadronParser $parser): void
+    private function process(RucImport $import, RucPadronParser $parser, RucCopyLoader $copy, RucMergeService $merge, RucIncomingFileScanner $scanner): void
     {
-        if ($import->cancel_requested_at !== null || $import->status === RucImportStatus::Cancelled) {
-            $this->markCancelled($import);
-
-            return;
-        }
-
         $disk = Storage::disk($import->disk);
-        $exists = $disk->exists($import->path);
-        Log::info('Iniciando importación RUC', [
-            'import_id' => $import->id,
-            'disk' => $import->disk,
-            'path' => $import->path,
-            'exists' => $exists,
-            'size' => $exists ? $disk->size($import->path) : null,
-        ]);
-        if (! $exists) {
-            throw new RuntimeException("No existe el archivo de importación en el disk [{$import->disk}] y path [{$import->path}].");
+        if (! $disk->exists($import->path)) {
+            throw new RuntimeException("No existe el archivo RUC en disk [{$import->disk}] y path [{$import->path}].");
         }
-
+        if (config('ruc.import.validate_checksum') && hash_file('sha256', $disk->path($import->path)) !== $import->file_hash) {
+            throw new RuntimeException('El archivo RUC cambió desde que fue registrado; no es seguro reanudarlo.');
+        }
         $stream = $disk->readStream($import->path);
         if (! is_resource($stream)) {
-            throw new RuntimeException('No se pudo abrir el stream privado de la importación RUC.');
+            throw new RuntimeException('No se pudo abrir el stream privado RUC.');
         }
-
-        $import->update([
-            'status' => RucImportStatus::Validating,
-            'started_at' => $import->started_at ?? now(),
-            'failed_at' => null,
-            'error_message' => null,
-            'job_uuid' => $this->job?->uuid(),
-            'queue_name' => (string) config('ruc.import_queue'),
-            'last_message' => 'Validando y contando líneas del archivo.',
-            'last_heartbeat_at' => now(),
-        ]);
-
+        $started = microtime(true);
         try {
-            $total = $this->countLines($stream);
-            if ($total === 0) {
-                throw new RuntimeException('El archivo está vacío.');
+            $total = $import->total_rows;
+            if ($total < 1) {
+                $import->update(['status' => RucImportStatus::Validating, 'started_at' => now(), 'last_heartbeat_at' => now(), 'last_message' => 'Contando líneas del padrón SUNAT.']);
+                $total = $this->countLines($stream);
+                if ($total < 1 || ! rewind($stream)) {
+                    throw new RuntimeException('El TXT RUC está vacío o no se pudo rebobinar.');
+                }
+                $import->update(['total_rows' => $total]);
+            } elseif ($import->current_byte_offset > 0 && fseek($stream, $import->current_byte_offset) !== 0) {
+                throw new RuntimeException('No se pudo reanudar el TXT RUC desde el checkpoint guardado.');
             }
-            if (! rewind($stream)) {
-                throw new RuntimeException('No se pudo rebobinar el stream después de contar las líneas.');
-            }
-
-            $chunkSize = min(3000, max(100, (int) config('ruc.import_chunk_size')));
-            $progressInterval = min($chunkSize, max(1, (int) config('ruc.import_progress_interval')));
-            $import->update([
-                'total_rows' => $total,
-                'total_chunks' => (int) ceil($total / $progressInterval),
-                'status' => RucImportStatus::Processing,
-                'last_message' => 'Procesando filas del padrón.',
-                'last_heartbeat_at' => now(),
-            ]);
-
-            $batch = $errors = [];
+            $import->update(['status' => RucImportStatus::Processing, 'job_uuid' => $this->job?->uuid(), 'queue_name' => config('ruc.import.queue'), 'last_message' => 'Procesando padrón SUNAT mediante staging y COPY.', 'last_heartbeat_at' => now()]);
             $ubigeos = Ubigeo::query()->get(['codigo', 'departamento', 'provincia', 'distrito'])->keyBy('codigo');
-            $processed = $inserted = $ignored = $invalid = $chunk = $resolved = $unknown = 0;
-            while (($line = fgets($stream)) !== false) {
-                $processed++;
-                $parsed = $parser->parse($line, $import->delimiter, $import->encoding);
+            $rows = $errors = [];
+            $line = (int) $import->current_line_number;
+            $valid = (int) DB::table('ruc_staging')->where('import_id', $import->id)->count();
+            $invalid = (int) $import->invalid_rows;
+            $resolved = (int) $import->resolved_ubigeo_rows;
+            $unknown = (int) $import->unknown_ubigeo_rows;
+            $addresses = (int) $import->address_rows;
+            $chunk = (int) $import->last_completed_chunk;
+            $chunkSize = max(100, (int) config('ruc.import.chunk_size'));
+            while (($raw = fgets($stream)) !== false) {
+                $line++;
+                $parsed = $parser->parse($raw, $import->delimiter, $import->encoding);
                 if (isset($parsed['header'])) {
-                    $ignored++;
-                } elseif (isset($parsed['error'])) {
+                    continue;
+                }
+                if (isset($parsed['error'])) {
                     $invalid++;
-                    $errors[] = ['ruc_import_id' => $import->id, 'line_number' => $processed, 'reason' => $parsed['error'], 'line_preview' => $parser->preview($line, $import->encoding), 'created_at' => now()];
+                    $errors[] = ['ruc_import_id' => $import->id, 'line_number' => $line, 'reason' => $parsed['error'], 'line_preview' => $parser->preview($raw, $import->encoding), 'created_at' => now()];
                 } else {
                     $data = $parsed['data'];
                     if ($data['ubigeo'] !== null && ($location = $ubigeos->get($data['ubigeo'])) !== null) {
@@ -134,86 +111,74 @@ class ProcessRucImportJob implements ShouldQueue
                     } elseif ($data['ubigeo'] !== null) {
                         $unknown++;
                     }
-                    $batch[] = $data;
+                    $addresses += $data['direccion'] !== null ? 1 : 0;
+                    $data['row_number'] = $line;
+                    $rows[] = $data;
+                    $valid++;
                 }
-                if (($processed % $progressInterval) === 0) {
-                    [$added, $duplicates] = $this->flush($batch, $errors);
-                    $inserted += $added;
-                    $ignored += $duplicates;
+                if (count($rows) + count($errors) >= $chunkSize) {
                     $chunk++;
-                    $this->progress($import, $processed, $inserted, $ignored, $invalid, $resolved, $unknown, $chunk, $total);
-                    $batch = $errors = [];
-                    if ($import->fresh()->cancel_requested_at !== null) {
-                        $this->markCancelled($import);
+                    $this->checkpoint($import, $copy, $rows, $errors, $line, ftell($stream), $valid, $invalid, $resolved, $unknown, $addresses, $chunk, $total, $started);
+                    $rows = $errors = [];
+                    $fresh = $import->fresh();
+                    if ($fresh->cancel_requested_at !== null) {
+                        $fresh->update(['status' => RucImportStatus::Cancelled, 'finished_at' => now(), 'last_heartbeat_at' => now()]);
 
+                        return;
+                    }
+                    if ($fresh->status === RucImportStatus::Paused) {
                         return;
                     }
                 }
             }
-            [$added, $duplicates] = $this->flush($batch, $errors);
-            $inserted += $added;
-            $ignored += $duplicates;
-            $chunk += ($batch !== [] || $errors !== []) ? 1 : 0;
-            $status = $invalid > 0 ? RucImportStatus::CompletedWithErrors : RucImportStatus::Completed;
+            if ($rows !== [] || $errors !== []) {
+                $chunk++;
+                $this->checkpoint($import, $copy, $rows, $errors, $line, ftell($stream), $valid, $invalid, $resolved, $unknown, $addresses, $chunk, $total, $started);
+            }
+            $counts = DB::transaction(fn (): array => $merge->merge($import));
+            DB::table('ruc_staging')->where('import_id', $import->id)->delete();
             $import->update([
-                'status' => $status,
-                'processed_rows' => $processed,
-                'inserted_rows' => $inserted,
-                'ignored_rows' => $ignored,
-                'invalid_rows' => $invalid,
-                'resolved_ubigeo_rows' => $resolved,
-                'unknown_ubigeo_rows' => $unknown,
-                'progress_percentage' => 100,
-                'current_chunk' => $chunk,
-                'finished_at' => now(),
-                'last_message' => $invalid > 0 ? 'Importación completada con filas inválidas.' : 'Importación completada correctamente.',
-                'last_heartbeat_at' => now(),
+                'status' => $invalid > 0 ? RucImportStatus::CompletedWithErrors : RucImportStatus::Completed,
+                'processed_rows' => $line, 'inserted_rows' => $counts['inserted'], 'ignored_rows' => $counts['ignored'],
+                'invalid_rows' => $invalid, 'resolved_ubigeo_rows' => $resolved, 'unknown_ubigeo_rows' => $unknown,
+                'address_rows' => $addresses, 'progress_percentage' => 100, 'finished_at' => now(),
+                'last_heartbeat_at' => now(), 'last_message' => 'Importación RUC completada.',
             ]);
+            if (config('ruc.import.archive_files')) {
+                $archiveDirectory = $scanner->resolveDirectory((string) config('ruc.import.archive_directory'), $disk);
+                $archive = $archiveDirectory.'/'.$import->uuid.'-'.basename($import->path);
+                $disk->makeDirectory($archiveDirectory);
+                if ($disk->move($import->path, $archive)) {
+                    $import->update(['archive_path' => $archive]);
+                }
+            }
         } finally {
             fclose($stream);
         }
     }
 
-    public function failed(Throwable $exception): void
+    private function checkpoint(RucImport $import, RucCopyLoader $copy, array $rows, array $errors, int $line, int|false $offset, int $valid, int $invalid, int $resolved, int $unknown, int $addresses, int $chunk, int $total, float $started): void
     {
-        $import = RucImport::query()->find($this->importId);
-        if ($import !== null) {
-            $this->markFailed($import, $exception);
+        if ($offset === false) {
+            throw new RuntimeException('No se pudo guardar el byte offset del TXT RUC.');
         }
-        report($exception);
-    }
-
-    private function flush(array $batch, array $errors): array
-    {
-        $inserted = $batch === [] ? 0 : $this->insertReturningCount($batch);
-        if ($errors !== []) {
-            DB::table('ruc_import_errors')->insert($errors);
-        }
-
-        return [$inserted, count($batch) - $inserted];
-    }
-
-    private function insertReturningCount(array $batch): int
-    {
-        $columns = array_keys($batch[0]);
-        $columnSql = implode(', ', array_map(fn (string $column): string => '"'.$column.'"', $columns));
-        $rowSql = '('.implode(', ', array_fill(0, count($columns), '?')).')';
-        $bindings = [];
-        foreach ($batch as $row) {
-            foreach ($columns as $column) {
-                $bindings[] = $row[$column];
+        DB::transaction(function () use ($import, $copy, $rows, $errors, $line, $offset, $invalid, $resolved, $unknown, $addresses, $chunk, $total, $started): void {
+            $copy->load($import->id, $rows);
+            if ($errors !== []) {
+                DB::table('ruc_import_errors')->insert($errors);
             }
-        }
-        $sql = 'INSERT INTO "ruc_records" ('.$columnSql.') VALUES '
-            .implode(', ', array_fill(0, count($batch), $rowSql))
-            .' ON CONFLICT ("ruc") DO NOTHING RETURNING "ruc"';
-
-        return count(DB::select($sql, $bindings));
-    }
-
-    private function progress(RucImport $import, int $processed, int $inserted, int $ignored, int $invalid, int $resolved, int $unknown, int $chunk, int $total): void
-    {
-        $import->update(['processed_rows' => $processed, 'inserted_rows' => $inserted, 'ignored_rows' => $ignored, 'invalid_rows' => $invalid, 'resolved_ubigeo_rows' => $resolved, 'unknown_ubigeo_rows' => $unknown, 'progress_percentage' => min(99.99, round($processed * 100 / max(1, $total), 2)), 'current_chunk' => $chunk, 'last_message' => "Lote {$chunk} confirmado.", 'last_heartbeat_at' => now()]);
+            $elapsed = max(.001, microtime(true) - $started);
+            $speed = max(0, ($line - $import->current_line_number) / $elapsed);
+            $eta = $speed > 0 ? (int) max(0, ($total - $line) / $speed) : null;
+            $import->update([
+                'processed_rows' => $line, 'invalid_rows' => $invalid, 'resolved_ubigeo_rows' => $resolved,
+                'unknown_ubigeo_rows' => $unknown, 'address_rows' => $addresses, 'current_byte_offset' => $offset,
+                'current_line_number' => $line, 'last_completed_chunk' => $chunk, 'current_chunk' => $chunk,
+                'progress_percentage' => min(99.99, round($line * 100 / max(1, $total), 2)),
+                'last_message' => sprintf('Lote %d confirmado · %.1f filas/s · ETA %s', $chunk, $speed, $eta === null ? 'calculando' : gmdate('H:i:s', $eta)),
+                'last_heartbeat_at' => now(),
+            ]);
+        });
     }
 
     private function countLines($stream): int
@@ -226,26 +191,16 @@ class ProcessRucImportJob implements ShouldQueue
         return $count;
     }
 
-    private function markCancelled(RucImport $import): void
-    {
-        $import->update([
-            'status' => RucImportStatus::Cancelled,
-            'finished_at' => now(),
-            'last_heartbeat_at' => now(),
-            'last_message' => 'Importación cancelada por solicitud administrativa.',
-        ]);
-    }
-
     private function markFailed(RucImport $import, Throwable $exception): void
     {
-        $message = Str::limit($exception->getMessage(), 2000);
-        $import->forceFill([
-            'status' => RucImportStatus::Failed,
-            'failed_at' => now(),
-            'error_message' => $message,
-            'last_message' => 'La importación falló y el worker detuvo el procesamiento.',
-            'last_heartbeat_at' => now(),
-        ])->save();
+        $import->forceFill(['status' => RucImportStatus::Failed, 'failed_at' => now(), 'error_message' => Str::limit($exception->getMessage(), 2000), 'last_message' => 'La importación RUC falló.', 'last_heartbeat_at' => now()])->save();
         Log::error('Falló la importación RUC', ['import_id' => $import->id, 'exception' => $exception]);
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        if (($import = RucImport::query()->find($this->importId)) !== null) {
+            $this->markFailed($import, $exception);
+        }
     }
 }

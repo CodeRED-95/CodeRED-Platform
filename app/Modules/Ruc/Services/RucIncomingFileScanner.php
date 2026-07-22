@@ -1,14 +1,15 @@
 <?php
 
-namespace App\Modules\Reniec\Services;
+namespace App\Modules\Ruc\Services;
 
-use App\Modules\Reniec\Enums\ReniecImportStatus;
-use App\Modules\Reniec\Models\ReniecImport;
+use App\Modules\Ruc\Enums\RucImportStatus;
+use App\Modules\Ruc\Models\RucImport;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 
-final class ReniecIncomingFileScanner
+final class RucIncomingFileScanner
 {
+    /** @return list<array{path: string, name: string, size: int, last_modified: int, status: string, import_id: int|null}> */
     public function scan(): array
     {
         $disk = $this->disk();
@@ -19,18 +20,18 @@ final class ReniecIncomingFileScanner
         }
 
         $paths = $disk->files($directory);
-        $imports = ReniecImport::query()
-            ->whereIn('source_path', $paths)
+        $imports = RucImport::query()
+            ->whereIn('path', $paths)
             ->latest('id')
             ->get()
-            ->unique('source_path')
-            ->keyBy('source_path');
+            ->unique('path')
+            ->keyBy('path');
 
         return collect($paths)
             ->filter(fn (string $path): bool => strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'txt')
             ->map(function (string $path) use ($disk, $imports): array {
                 $import = $imports->get($path);
-                $imported = $import !== null && in_array($import->status, [ReniecImportStatus::Completed, ReniecImportStatus::CompletedWithErrors], true);
+                $imported = $import !== null && in_array($import->status, [RucImportStatus::Completed, RucImportStatus::CompletedWithErrors], true);
 
                 return [
                     'path' => $path,
@@ -56,8 +57,8 @@ final class ReniecIncomingFileScanner
         $path = $disk->path($directory);
 
         return [
-            'disk' => (string) config('reniec.import.disk'),
-            'configured_directory' => trim((string) config('reniec.import.incoming_directory'), '/'),
+            'disk' => (string) config('ruc.import.disk'),
+            'configured_directory' => trim((string) config('ruc.import.incoming_directory'), '/'),
             'storage_directory' => $directory,
             'physical_path' => $path,
             'exists' => $disk->exists($directory),
@@ -70,7 +71,7 @@ final class ReniecIncomingFileScanner
     public function normalizeIncomingPath(string $path): string
     {
         $path = ltrim($path, '/');
-        $configured = trim((string) config('reniec.import.incoming_directory'), '/');
+        $configured = trim((string) config('ruc.import.incoming_directory'), '/');
         $storage = $this->storageDirectory($this->disk());
 
         if ($configured !== $storage && str_starts_with($path, $configured.'/')) {
@@ -82,7 +83,7 @@ final class ReniecIncomingFileScanner
 
     public function storageDirectory(?FilesystemAdapter $disk = null): string
     {
-        return $this->resolveDirectory((string) config('reniec.import.incoming_directory'), $disk);
+        return $this->resolveDirectory((string) config('ruc.import.incoming_directory'), $disk);
     }
 
     public function resolveDirectory(string $configured, ?FilesystemAdapter $disk = null): string
@@ -98,6 +99,6 @@ final class ReniecIncomingFileScanner
 
     private function disk(): FilesystemAdapter
     {
-        return Storage::disk((string) config('reniec.import.disk'));
+        return Storage::disk((string) config('ruc.import.disk'));
     }
 }

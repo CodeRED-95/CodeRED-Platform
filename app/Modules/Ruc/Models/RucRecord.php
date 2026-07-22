@@ -14,6 +14,16 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $departamento
  * @property string|null $provincia
  * @property string|null $distrito
+ * @property string|null $tipo_via
+ * @property string|null $nombre_via
+ * @property string|null $codigo_zona
+ * @property string|null $tipo_zona
+ * @property string|null $numero
+ * @property string|null $interior
+ * @property string|null $lote
+ * @property string|null $departamento_direccion
+ * @property string|null $manzana
+ * @property string|null $kilometro
  */
 class RucRecord extends Model
 {

@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Modules\Ruc\Enums\RucImportStatus;
 use App\Modules\Ruc\Jobs\ProcessRucImportJob;
 use App\Modules\Ruc\Models\RucImport;
+use App\Modules\Ruc\Services\RucCopyLoader;
+use App\Modules\Ruc\Services\RucIncomingFileScanner;
+use App\Modules\Ruc\Services\RucMergeService;
 use App\Modules\Ruc\Support\RucPadronParser;
 use Database\Seeders\UbigeoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,10 +19,18 @@ class RucImportTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config()->set('ruc.import.validate_checksum', false);
+        config()->set('ruc.import.archive_files', false);
+        config()->set('ruc.import.chunk_size', 2);
+    }
+
     public function test_job_streams_valid_rows_and_keeps_duplicates_unchanged(): void
     {
         Storage::fake('local');
-        config()->set('ruc.import_chunk_size', 2);
+        config()->set('ruc.import.chunk_size', 2);
         Storage::disk('local')->put('private/imports/ruc/sample.txt', "RUC|RAZON_SOCIAL\n20123456789|ORIGINAL\n20123456789|REPETIDA\n123|INVALIDA\n");
         $import = RucImport::query()->create([
             'uuid' => fake()->uuid(), 'original_filename' => 'sample.txt', 'stored_filename' => 'sample.txt', 'disk' => 'local',
@@ -27,7 +38,7 @@ class RucImportTest extends TestCase
             'status' => RucImportStatus::Queued, 'encoding' => 'UTF-8', 'delimiter' => '|',
         ]);
 
-        (new ProcessRucImportJob($import->id))->handle(app(RucPadronParser::class));
+        (new ProcessRucImportJob($import->id))->handle(app(RucPadronParser::class), app(RucCopyLoader::class), app(RucMergeService::class), app(RucIncomingFileScanner::class));
 
         $this->assertDatabaseHas('ruc_records', ['ruc' => '20123456789', 'razon_social' => 'ORIGINAL']);
         $this->assertDatabaseMissing('ruc_records', ['razon_social' => 'REPETIDA']);
@@ -39,13 +50,13 @@ class RucImportTest extends TestCase
     public function test_forty_row_fixture_rewinds_stream_reaches_one_hundred_percent_and_is_idempotent(): void
     {
         Storage::fake('local');
-        config()->set('ruc.import_progress_interval', 10);
+        config()->set('ruc.import.progress_interval', 10);
         $contents = file_get_contents(base_path('tests/Fixtures/ruc/padron-40.txt'));
         $this->assertIsString($contents);
         Storage::disk('local')->put('ruc-imports/padron-40.txt', $contents);
 
         $first = $this->import('ruc-imports/padron-40.txt', 'first-40.txt');
-        (new ProcessRucImportJob($first->id))->handle(app(RucPadronParser::class));
+        (new ProcessRucImportJob($first->id))->handle(app(RucPadronParser::class), app(RucCopyLoader::class), app(RucMergeService::class), app(RucIncomingFileScanner::class));
 
         $first->refresh();
         $this->assertSame(RucImportStatus::CompletedWithErrors, $first->status);
@@ -59,7 +70,7 @@ class RucImportTest extends TestCase
         Storage::disk('local')->assertExists($first->path);
 
         $second = $this->import('ruc-imports/padron-40.txt', 'second-40.txt');
-        (new ProcessRucImportJob($second->id))->handle(app(RucPadronParser::class));
+        (new ProcessRucImportJob($second->id))->handle(app(RucPadronParser::class), app(RucCopyLoader::class), app(RucMergeService::class), app(RucIncomingFileScanner::class));
 
         $second->refresh();
         $this->assertSame(40, $second->processed_rows);
@@ -76,7 +87,7 @@ class RucImportTest extends TestCase
         $import = $this->import('ruc-imports/missing.txt', 'missing.txt');
 
         try {
-            (new ProcessRucImportJob($import->id))->handle(app(RucPadronParser::class));
+            (new ProcessRucImportJob($import->id))->handle(app(RucPadronParser::class), app(RucCopyLoader::class), app(RucMergeService::class), app(RucIncomingFileScanner::class));
             $this->fail('El Job debía fallar porque el archivo no existe.');
         } catch (RuntimeException) {
             $import->refresh();
@@ -95,7 +106,7 @@ class RucImportTest extends TestCase
         Storage::disk('local')->put('ruc-imports/sunat-real.txt', $contents);
         $import = $this->import('ruc-imports/sunat-real.txt', 'sunat-real.txt');
 
-        (new ProcessRucImportJob($import->id))->handle(app(RucPadronParser::class));
+        (new ProcessRucImportJob($import->id))->handle(app(RucPadronParser::class), app(RucCopyLoader::class), app(RucMergeService::class), app(RucIncomingFileScanner::class));
 
         $this->assertDatabaseHas('ruc_records', [
             'ruc' => '20512805478',

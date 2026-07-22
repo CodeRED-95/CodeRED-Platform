@@ -50,7 +50,7 @@ docker compose up -d postgres redis
 
 if [[ "$OLD_COMPOSE" != "$NEW_COMPOSE" || "$OLD_DOCKERFILE" != "$NEW_DOCKERFILE" ]]; then
     info "Cambió la definición Docker. Construyendo imágenes..."
-    docker compose build app queue reniec-queue scheduler
+    docker compose build app queue scheduler
 else
     info "No cambiaron Dockerfile ni Compose."
 fi
@@ -75,13 +75,13 @@ info "Limpiando cachés..."
 docker compose exec -T app php artisan optimize:clear
 
 if [[ "$OLD_COMPOSE" != "$NEW_COMPOSE" || "$OLD_DOCKERFILE" != "$NEW_DOCKERFILE" ]]; then
-    warn "La imagen de queue fue reconstruida, pero codered-queue NO fue recreado para evitar bloqueos."
-    warn "codered-reniec-queue tampoco fue recreado; una importación activa conserva su proceso y checkpoint."
-    warn "Al finalizar RENIEC, ejecuta: docker compose up -d --no-deps --force-recreate reniec-queue"
-    warn "codered-reniec-queue tampoco fue recreado; una importación activa conserva su proceso y checkpoint."
-    warn "Al finalizar RENIEC, ejecuta: docker compose up -d --no-deps --force-recreate reniec-queue"
-    warn "Cuando no haya importaciones RUC activas, ejecuta:"
-    echo "  docker compose up -d --no-deps --force-recreate queue"
+    if docker compose exec -T app php artisan ruc:has-active --quiet; then
+        warn "codered-queue NO fue recreado: existe una importación RUC activa."
+        warn "Recréalo cuando la importación finalice."
+    else
+        info "No hay importaciones RUC activas. Recreando worker de colas..."
+        docker compose up -d --no-deps --force-recreate queue
+    fi
 fi
 
 echo

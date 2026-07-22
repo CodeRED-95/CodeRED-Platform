@@ -1,64 +1,54 @@
 # Módulo RUC
 
-CodeRED Platform integra de forma nativa la consulta del padrón reducido SUNAT. La implementación tomó como referencia funcional `CodeRED-95/api-ruc` en el commit `c48da6c2ef6b6c5a818d9d6c809bcce63a327a53`, sin ejecutar ese proyecto como servicio externo.
+CodeRED Platform integra la consulta y la importación periódica del padrón reducido SUNAT. El TXT puede superar 18 millones de líneas y se procesa fuera de HTTP y Livewire.
 
-## Arquitectura
+## Arquitectura masiva
 
-- `ruc_records` es la fuente interna para las consultas.
-- Redis almacena resultados exactos durante el TTL configurado.
-- `GET /api/v1/ruc/{ruc}` exige `ruc:consultar`.
-- `GET /api/v1/ruc/buscar` exige `ruc:buscar` y limita búsqueda y paginación.
-- Las importaciones TXT se guardan en almacenamiento privado y se procesan en la cola `ruc-imports`.
-- La ruta guardada es relativa al disco local privado (`ruc-imports/<uuid>.txt`) y debe ser visible por `app` y `queue`.
-- Una importación normal solo inserta RUC nuevos. No sobrescribe registros existentes.
+- `ruc_records` es la fuente interna y `ruc` tiene índice único.
+- El operador coloca el TXT en `storage/app/private/ruc/incoming`.
+- `RucIncomingFileScanner` detecta solo TXT mediante el disco Laravel configurado, sin leer su contenido.
+- El worker de `ruc-imports` lee en streaming, normaliza ISO-8859-1/Windows-1252 y construye la dirección desde todos los campos posteriores al UBIGEO.
+- El catálogo `ubigeos` se carga una vez por job; no existe una consulta SQL por contribuyente.
+- Cada lote entra en `ruc_staging` mediante PostgreSQL COPY.
+- Los checkpoints guardan línea y byte offset en la misma transacción que staging.
+- El merge usa `ON CONFLICT (ruc) DO NOTHING`; nunca consulta ni actualiza RUC uno por uno.
+- Al completar, el TXT puede moverse al directorio privado de archivo.
 
-## Importar un padrón
+## Directorios
 
-Desde el panel use **Empresas y RUC > Importaciones RUC**, o ejecute:
-
-```bash
-php artisan ruc:import /ruta/padron.txt
-php artisan ruc:import-status
-php artisan ruc:import-status --id=123
-php artisan ruc:cleanup-imports --dry-run
-php artisan ruc:recalculate-metrics
+```dotenv
+RUC_IMPORT_DISK=local
+RUC_IMPORT_INCOMING_DIRECTORY=private/ruc/incoming
+RUC_IMPORT_WORKING_DIRECTORY=private/ruc/working
+RUC_IMPORT_ARCHIVE_DIRECTORY=private/ruc/archive
+RUC_IMPORT_ERRORS_DIRECTORY=private/ruc/errors
+RUC_IMPORT_QUEUE=ruc-imports
 ```
 
-`--sync` está reservado para archivos controlados y diagnóstico. `--force` vuelve a procesar un archivo con el mismo SHA-256, pero tampoco sobrescribe contribuyentes existentes.
+Con el disco `local` de Laravel 12, la ruta física resuelta dentro del contenedor es `/var/www/html/storage/app/private/ruc/incoming`; en el host normalmente es `~/CodeRED-Platform/storage/app/private/ruc/incoming`. El resolver evita crear accidentalmente `storage/app/private/private`.
 
-El lector trabaja en streaming, valida el encabezado, convierte la codificación configurada a UTF-8, persiste progreso y errores, y escribe por lotes. Los errores pueden descargarse como CSV desde el historial.
+## Operación
 
-## Operación y seguridad
+```bash
+cp padron_reducido_ruc.txt storage/app/private/ruc/incoming/
+php artisan ruc:scan
+php artisan ruc:register-file private/ruc/incoming/padron_reducido_ruc.txt
+php artisan ruc:import ID
+php artisan ruc:status --id=ID
+php artisan ruc:pause ID
+php artisan ruc:resume ID
+php artisan ruc:cancel ID
+php artisan ruc:cleanup --dry-run
+```
 
-- El archivo fuente nunca es público.
-- Solo Super Administrador recibe los permisos `ruc.*` por defecto.
-- Los tokens DNI, agencias y RUC son independientes.
-- Las consultas se auditan sin almacenar el token ni el RUC en texto plano.
-- La cola debe escuchar `ruc-imports,default`; `docker-compose.yml` ya contiene ese orden.
-- `REDIS_QUEUE_RETRY_AFTER` debe superar `RUC_IMPORT_TIMEOUT` (7500 y 7200 segundos por defecto) para impedir reentregas mientras un job sigue activo.
-- Tras modificar el worker, recrear los servicios con `docker compose up -d --build`, reiniciar `queue` y ejecutar `php artisan queue:restart`.
-- Antes de importar un padrón grande, pruebe una muestra y confirme espacio libre, Redis y el worker.
+La misma operación está disponible en `/admin/ruc/importaciones`. El panel muestra TXT disponibles, progreso, nuevos, existentes, inválidos, direcciones construidas, ubigeos resueltos/desconocidos, velocidad, ETA y heartbeat. Los archivos de varios GB nunca se suben mediante Livewire.
 
-## Variables
+## Formato SUNAT y geografía
 
-Consulte `.env.example` para límites, TTL, cola, tamaño de lote, codificación y delimitador. El valor recomendado es `RUC_IMPORT_ENCODING=ISO-8859-1`; `latin-1` se acepta solo como alias normalizado por compatibilidad. Actualice el `.env` de producción y reinicie la cola, sin incluir padrones ni secretos en Git.
+Los índices 0–4 son RUC, razón social, estado, condición y UBIGEO. Todos los valores desde el índice 5 forman la dirección; se omiten vacíos, `-`, `--`, `NULL` y `N/A`. El separador final `|` es válido.
 
-## Recuperación
+La tabla `ubigeos` se sincroniza desde Alanube con `php artisan ubigeos:sync` y dispone del snapshot offline `database/data/ubigeos_alanube.json`. El job precarga código, departamento, provincia y distrito una sola vez.
 
-Si un worker se interrumpe, el progreso y heartbeat permanecen en `ruc_imports`. Puede reintentar el job usando el UUID, o volver a importar con `--force`; el índice único y `ON CONFLICT DO NOTHING RETURNING` mantienen la operación idempotente. Una importación cancelada deja intactos los registros ya insertados.
-# Formato reducido SUNAT y UBIGEO
+## Seguridad y recuperación
 
-El importador acepta el TXT separado por `|` del padrón reducido SUNAT, incluida la columna vacía producida por el separador final. Los índices 0–4 son RUC, razón social, estado, condición y UBIGEO; todos los valores desde el índice 5 forman la dirección. Los marcadores vacíos, `-`, `--`, `NULL` y `N/A` no forman parte de la dirección.
-
-La geografía se resuelve desde la tabla `ubigeos`, precargada una vez por job, y nunca desde las etiquetas ambiguas posteriores al UBIGEO. La fuente sincronizable es la [tabla pública de Alanube](https://developer.alanube.co/v1.0-PER/docs/ubigeo-table); la columna visual “Ciudad” se mapea a provincia y capital se conserva por separado.
-
-El snapshot versionado `database/data/ubigeos_alanube.json` permite instalar sin red y es la única fuente utilizada por `UbigeoSeeder`. La descarga nunca ocurre durante `db:seed` ni al arrancar Docker.
-
-Comandos:
-
-- `php artisan ubigeos:sync --dry-run`: descarga y valida sin escribir.
-- `php artisan ubigeos:sync`: descarga, valida controles y hace upsert.
-- `php artisan ubigeos:sync --no-download`: restaura el snapshot local.
-- `php artisan ruc:rebuild-addresses --dry-run` y `--only-missing`: reconstrucción segura de RUC existentes.
-
-La sincronización exige un mínimo de 1,800 filas, unicidad, códigos de seis dígitos y los controles `010101`, `150137` y `150140`. Nunca trunca ni elimina registros ante una descarga incompleta.
+Solo Super Administrador recibe permisos `ruc.*`. El archivo permanece en almacenamiento privado. El checksum impide reanudar un archivo modificado. Una caída conserva staging y el último checkpoint confirmado; `ruc:resume` continúa desde el byte offset. Update.sh consulta `ruc:has-active` y no recrea `codered-queue` durante una importación activa.

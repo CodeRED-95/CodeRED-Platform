@@ -27,10 +27,22 @@ use Illuminate\Support\Carbon;
  * @property string $queue_name
  * @property string|null $job_uuid
  * @property string|null $last_message
+ * @property string $original_filename
+ * @property string $file_hash
+ * @property string $encoding
+ * @property string $delimiter
+ * @property int $resolved_ubigeo_rows
+ * @property int $unknown_ubigeo_rows
+ * @property int $address_rows
+ * @property int $current_byte_offset
+ * @property int $current_line_number
+ * @property int $last_completed_chunk
+ * @property Carbon|null $failed_at
+ * @property string|null $error_message
  */
 class RucImport extends Model
 {
-    protected $fillable = ['uuid', 'original_filename', 'stored_filename', 'disk', 'path', 'file_size', 'file_hash', 'status', 'total_rows', 'processed_rows', 'inserted_rows', 'updated_rows', 'ignored_rows', 'invalid_rows', 'failed_rows', 'resolved_ubigeo_rows', 'unknown_ubigeo_rows', 'progress_percentage', 'current_chunk', 'total_chunks', 'encoding', 'delimiter', 'errors_path', 'started_at', 'finished_at', 'failed_at', 'last_heartbeat_at', 'error_message', 'queue_name', 'job_uuid', 'last_message', 'cancel_requested_at', 'created_by'];
+    protected $fillable = ['uuid', 'original_filename', 'stored_filename', 'disk', 'path', 'file_size', 'file_hash', 'status', 'total_rows', 'processed_rows', 'inserted_rows', 'updated_rows', 'ignored_rows', 'invalid_rows', 'failed_rows', 'resolved_ubigeo_rows', 'unknown_ubigeo_rows', 'progress_percentage', 'current_chunk', 'total_chunks', 'encoding', 'delimiter', 'errors_path', 'started_at', 'finished_at', 'failed_at', 'last_heartbeat_at', 'error_message', 'queue_name', 'job_uuid', 'last_message', 'cancel_requested_at', 'created_by', 'current_byte_offset', 'current_line_number', 'last_completed_chunk', 'address_rows', 'strategy', 'archive_path'];
 
     protected function casts(): array
     {

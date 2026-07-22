@@ -11,7 +11,11 @@ if [ ! -f .env ]; then
 fi
 
 docker compose up -d --build
-docker compose exec -T app mkdir -p \n    storage/app/private/reniec/incoming \n    storage/app/private/reniec/working \n    storage/app/private/reniec/archive \n    storage/app/private/reniec/errors
+docker compose exec -T app mkdir -p \
+    storage/app/private/ruc/incoming \
+    storage/app/private/ruc/working \
+    storage/app/private/ruc/archive \
+    storage/app/private/ruc/errors
 
 docker compose exec -T app sh -lc '
 set -eu

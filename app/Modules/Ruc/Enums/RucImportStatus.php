@@ -5,9 +5,11 @@ namespace App\Modules\Ruc\Enums;
 enum RucImportStatus: string
 {
     case Pending = 'pending';
+    case Registered = 'registered';
     case Queued = 'queued';
     case Validating = 'validating';
     case Processing = 'processing';
+    case Paused = 'paused';
     case Completed = 'completed';
     case CompletedWithErrors = 'completed_with_errors';
     case Failed = 'failed';
@@ -22,9 +24,11 @@ enum RucImportStatus: string
     {
         return match ($this) {
             self::Pending => 'Pendiente',
+            self::Registered => 'Registrada',
             self::Queued => 'En cola',
             self::Validating => 'Validando archivo',
             self::Processing => 'Procesando',
+            self::Paused => 'Pausada',
             self::Completed => 'Completada',
             self::CompletedWithErrors => 'Completada con errores',
             self::Failed => 'Fallida',
@@ -38,9 +42,9 @@ enum RucImportStatus: string
             self::Completed => 'success',
             self::CompletedWithErrors => 'warning',
             self::Failed => 'danger',
-            self::Cancelled => 'neutral',
+            self::Cancelled, self::Paused => 'neutral',
             self::Processing, self::Validating => 'info',
-            self::Pending, self::Queued => 'neutral',
+            self::Pending, self::Registered, self::Queued => 'neutral',
         };
     }
 }

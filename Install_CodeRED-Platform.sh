@@ -144,7 +144,7 @@ DB_USERNAME="$REPLY"
 read_password "Contraseña de PostgreSQL"
 DB_PASSWORD="$REPLY"
 
-read_value "Nombre del administrador" "Administrador CodeRED" true
+read_value "Nombre del administrador" "Admin" true
 ADMIN_NAME="$REPLY"
 read_value "Correo del administrador" "admin@codered.host" true
 ADMIN_EMAIL="$REPLY"
@@ -165,38 +165,26 @@ set_env DEV_ADMIN_EMAIL "$ADMIN_EMAIL"
 set_env DEV_ADMIN_PASSWORD "$ADMIN_PASSWORD"
 
 set_env QUEUE_CONNECTION "redis"
-set_env REDIS_QUEUE_RETRY_AFTER "7500"
+set_env REDIS_QUEUE_RETRY_AFTER "172900"
 set_env RUC_ENABLED "true"
+set_env RUC_IMPORT_DISK "local"
+set_env RUC_IMPORT_INCOMING_DIRECTORY "private/ruc/incoming"
+set_env RUC_IMPORT_WORKING_DIRECTORY "private/ruc/working"
+set_env RUC_IMPORT_ARCHIVE_DIRECTORY "private/ruc/archive"
+set_env RUC_IMPORT_ERRORS_DIRECTORY "private/ruc/errors"
 set_env RUC_IMPORT_QUEUE "ruc-imports"
-set_env RUC_IMPORT_CHUNK_SIZE "5000"
-set_env RUC_IMPORT_TIMEOUT "7200"
-set_env RUC_IMPORT_LOCK_SECONDS "21600"
+set_env RUC_IMPORT_CHUNK_SIZE "10000"
+set_env RUC_IMPORT_COPY_BATCH_SIZE "100000"
+set_env RUC_IMPORT_PROGRESS_INTERVAL "10000"
+set_env RUC_IMPORT_CHECKPOINT_INTERVAL "50000"
+set_env RUC_IMPORT_TIMEOUT "86400"
+set_env RUC_IMPORT_LOCK_SECONDS "172800"
 set_env RUC_IMPORT_ENCODING "ISO-8859-1"
 set_env RUC_IMPORT_DELIMITER "|"
-set_env RUC_IMPORT_MAX_SIZE_MB "5000"
-set_env RENIEC_ENABLED "true"
-set_env RENIEC_IMPORT_DISK "local"
-set_env RENIEC_IMPORT_INCOMING_DIRECTORY "private/reniec/incoming"
-set_env RENIEC_IMPORT_WORKING_DIRECTORY "private/reniec/working"
-set_env RENIEC_IMPORT_ARCHIVE_DIRECTORY "private/reniec/archive"
-set_env RENIEC_IMPORT_ERRORS_DIRECTORY "private/reniec/errors"
-set_env RENIEC_IMPORT_QUEUE "reniec-imports"
-set_env RENIEC_IMPORT_ENCODING "ISO-8859-1"
-set_env RENIEC_IMPORT_DELIMITER "|"
-set_env RENIEC_IMPORT_CHUNK_SIZE "10000"
-set_env RENIEC_IMPORT_PROGRESS_INTERVAL "10000"
-set_env RENIEC_IMPORT_CHECKPOINT_INTERVAL "50000"
-set_env RENIEC_IMPORT_TIMEOUT "86400"
-set_env RENIEC_IMPORT_LOCK_SECONDS "172800"
-set_env RENIEC_IMPORT_MAX_SIZE_MB "30000"
-set_env RENIEC_IMPORT_RESUME_ENABLED "true"
-set_env RENIEC_IMPORT_ARCHIVE_FILES "true"
-set_env RENIEC_IMPORT_RETENTION_DAYS "180"
-set_env RENIEC_IMPORT_ERROR_RETENTION_DAYS "365"
-set_env RENIEC_IMPORT_STRATEGY "insert_ignore"
-set_env RENIEC_IMPORT_COPY_BATCH_SIZE "100000"
-set_env RENIEC_IMPORT_STAGING_UNLOGGED "true"
-set_env RENIEC_IMPORT_VALIDATE_CHECKSUM "true"
+set_env RUC_IMPORT_MAX_SIZE_MB "30000"
+set_env RUC_IMPORT_RESUME_ENABLED "true"
+set_env RUC_IMPORT_ARCHIVE_FILES "true"
+set_env RUC_IMPORT_STRATEGY "insert_ignore"
 
 if [[ "$APP_URL" == https://*.codered.host ]]; then
     set_env SESSION_DOMAIN ".codered.host"
@@ -233,7 +221,11 @@ for _ in {1..40}; do
     sleep 3
 done
 docker compose exec -T app php artisan about >/dev/null 2>&1 || die "Laravel no respondió a tiempo."
-docker compose exec -T app mkdir -p \n    storage/app/private/reniec/incoming \n    storage/app/private/reniec/working \n    storage/app/private/reniec/archive \n    storage/app/private/reniec/errors
+docker compose exec -T app mkdir -p \
+    storage/app/private/ruc/incoming \
+    storage/app/private/ruc/working \
+    storage/app/private/ruc/archive \
+    storage/app/private/ruc/errors
 
 if [[ -z "$(get_env APP_KEY)" ]]; then
     docker compose exec -T app php artisan key:generate --force
@@ -246,7 +238,7 @@ docker compose exec -T app php artisan storage:link >/dev/null 2>&1 || true
 
 echo
 info "Verificando servicios sin reiniciarlos..."
-for service in app nginx postgres redis queue reniec-queue scheduler; do
+for service in app nginx postgres redis queue scheduler; do
     if docker compose ps --status running --services | grep -qx "$service"; then
         ok "$service activo"
     else

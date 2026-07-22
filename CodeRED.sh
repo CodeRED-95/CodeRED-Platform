@@ -40,7 +40,7 @@ while true; do
             pause
             ;;
         2)
-            bash "$SCRIPT_DIR/Update.sh"
+            bash "$SCRIPT_DIR/update.sh"
             pause
             ;;
         3)
