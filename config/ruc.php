@@ -28,6 +28,7 @@ return [
         'archive_files' => (bool) env('RUC_IMPORT_ARCHIVE_FILES', true),
         'strategy' => env('RUC_IMPORT_STRATEGY', 'insert_ignore'),
         'max_size_mb' => (int) env('RUC_IMPORT_MAX_SIZE_MB', 30000),
+        'sync_hash_max_mb' => (int) env('RUC_IMPORT_SYNC_HASH_MAX_MB', 100),
         'retention_days' => (int) env('RUC_IMPORT_RETENTION_DAYS', 180),
         'error_retention_days' => (int) env('RUC_IMPORT_ERROR_RETENTION_DAYS', 365),
         'staging_unlogged' => (bool) env('RUC_IMPORT_STAGING_UNLOGGED', true),

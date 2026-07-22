@@ -179,6 +179,7 @@ La base de datos prevalece sobre `.env`. Nunca se versiona una API key real.
 | `RUC_SEARCH_RATE_LIMIT_PER_MINUTE` | Límite independiente para `ruc:buscar`. |
 | `RUC_IMPORT_DISK` / `RUC_IMPORT_DIRECTORY` | Almacenamiento privado del TXT. |
 | `RUC_IMPORT_MAX_SIZE_MB` | Tamaño máximo aceptado. |
+| `RUC_IMPORT_SYNC_HASH_MAX_MB` | Umbral para calcular SHA-256 en HTTP; archivos mayores se preparan en cola (100 MB por defecto). |
 | `RUC_IMPORT_ENCODING` / `RUC_IMPORT_DELIMITER` | Contrato de lectura del padrón. |
 | `RUC_IMPORT_CHUNK_SIZE` | Tamaño de cada escritura idempotente. |
 | `RUC_IMPORT_QUEUE` / `RUC_IMPORT_TIMEOUT` | Cola y tiempo máximo del worker. |

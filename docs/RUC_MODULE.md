@@ -23,6 +23,7 @@ RUC_IMPORT_WORKING_DIRECTORY=private/ruc/working
 RUC_IMPORT_ARCHIVE_DIRECTORY=private/ruc/archive
 RUC_IMPORT_ERRORS_DIRECTORY=private/ruc/errors
 RUC_IMPORT_QUEUE=ruc-imports
+RUC_IMPORT_SYNC_HASH_MAX_MB=100
 ```
 
 Con el disco `local` de Laravel 12, la ruta física resuelta dentro del contenedor es `/var/www/html/storage/app/private/ruc/incoming`; en el host normalmente es `~/CodeRED-Platform/storage/app/private/ruc/incoming`. El resolver evita crear accidentalmente `storage/app/private/private`.
@@ -52,3 +53,7 @@ La tabla `ubigeos` se sincroniza desde Alanube con `php artisan ubigeos:sync` y 
 ## Seguridad y recuperación
 
 Solo Super Administrador recibe permisos `ruc.*`. El archivo permanece en almacenamiento privado. El checksum impide reanudar un archivo modificado. Una caída conserva staging y el último checkpoint confirmado; `ruc:resume` continúa desde el byte offset. Update.sh consulta `ruc:has-active` y no recrea `codered-queue` durante una importación activa.
+
+## Validación y registro manual
+
+En `/admin/ruc/importaciones`, **Validar** lee como máximo 64 KB (20 líneas), detecta encoding y delimitador, verifica cabecera y muestra una estimación sin importar datos. **Registrar** vuelve a validar, rechaza rutas fuera de `incoming` y duplicados por SHA-256. Hasta `RUC_IMPORT_SYNC_HASH_MAX_MB` el hash se calcula por streaming en la petición; archivos mayores quedan en estado **Preparando** y `PrepareRucImportJob` calcula la huella en la cola `ruc-imports`.

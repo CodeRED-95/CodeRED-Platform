@@ -3,6 +3,7 @@
 namespace App\Modules\Ruc\Services;
 
 use App\Modules\Ruc\Enums\RucImportStatus;
+use App\Modules\Ruc\Jobs\PrepareRucImportJob;
 use App\Modules\Ruc\Jobs\ProcessRucImportJob;
 use App\Modules\Ruc\Models\RucImport;
 use Illuminate\Http\UploadedFile;
@@ -14,16 +15,22 @@ use Illuminate\Validation\ValidationException;
 
 class RucImportService
 {
-    public function __construct(private readonly RucIncomingFileScanner $scanner) {}
+    public function __construct(private readonly RucIncomingFileScanner $scanner, private readonly RucIncomingFileValidator $validator, private readonly RucFileHasher $hasher) {}
 
     public function registerServerFile(string $path, ?int $actorId = null, bool $force = false): RucImport
     {
         $diskName = (string) config('ruc.import.disk');
-        $disk = Storage::disk($diskName);
-        $path = $this->scanner->normalizeIncomingPath($path);
-        $incoming = $this->scanner->storageDirectory($disk);
-        if (! str_starts_with($path, $incoming.'/') || str_contains($path, '..') || ! $disk->exists($path)) {
-            throw ValidationException::withMessages(['file' => 'El TXT debe encontrarse dentro del directorio RUC incoming configurado.']);
+        $path = $this->scanner->resolveIncomingPath($path);
+        $result = $this->validator->validate($path);
+        if (! $result['valid']) {
+            throw ValidationException::withMessages(['incomingFiles' => $result['message']]);
+        }
+        $size = Storage::disk($diskName)->size($path);
+        if ($size > max(1, (int) config('ruc.import.max_size_mb')) * 1024 * 1024) {
+            throw ValidationException::withMessages(['incomingFiles' => 'El archivo supera el tamaño máximo configurado.']);
+        }
+        if ($size > max(1, (int) config('ruc.import.sync_hash_max_mb')) * 1024 * 1024) {
+            return $this->registerForPreparation($diskName, $path, $size, $result, $actorId);
         }
 
         return $this->createFromStoredFile($diskName, $path, basename($path), $actorId, $force, false);
@@ -82,9 +89,9 @@ class RucImportService
             if ($size > max(1, (int) config('ruc.import.max_size_mb')) * 1024 * 1024) {
                 throw ValidationException::withMessages(['file' => 'El archivo supera el tamaño máximo configurado.']);
             }
-            $hash = hash_file('sha256', $disk->path($path));
-            if (! $force && RucImport::query()->where('file_hash', $hash)->whereIn('status', [RucImportStatus::Completed, RucImportStatus::CompletedWithErrors])->exists()) {
-                throw ValidationException::withMessages(['file' => 'Este archivo ya fue importado.']);
+            $hash = $this->hasher->sha256($diskName, $path);
+            if (! $force && RucImport::query()->where('file_hash', $hash)->exists()) {
+                throw ValidationException::withMessages(['file' => 'Este archivo ya fue registrado anteriormente.']);
             }
             $uuid = (string) Str::uuid();
             $import = RucImport::query()->create([
@@ -111,6 +118,33 @@ class RucImportService
         } finally {
             $lock->release();
         }
+    }
+
+    private function registerForPreparation(string $diskName, string $path, int $size, array $validation, ?int $actorId): RucImport
+    {
+        if (RucImport::query()->where('path', $path)->exists()) {
+            throw ValidationException::withMessages(['incomingFiles' => 'Este archivo ya fue registrado anteriormente.']);
+        }
+        $uuid = (string) Str::uuid();
+        $import = RucImport::query()->create([
+            'uuid' => $uuid,
+            'original_filename' => basename($path),
+            'stored_filename' => basename($path),
+            'disk' => $diskName,
+            'path' => $path,
+            'file_size' => $size,
+            'file_hash' => hash('sha256', 'preparing:'.$uuid),
+            'status' => RucImportStatus::Pending,
+            'encoding' => $validation['encoding'],
+            'delimiter' => $validation['delimiter'],
+            'queue_name' => (string) config('ruc.import.queue'),
+            'last_message' => 'Preparando: calculando hash SHA-256 en segundo plano.',
+            'created_by' => $actorId,
+        ]);
+        PrepareRucImportJob::dispatch($import->id)->onConnection('redis')->onQueue((string) config('ruc.import.queue'));
+        Log::info('Archivo RUC enviado a preparación', ['import_id' => $import->id, 'path' => $path, 'size' => $size]);
+
+        return $import;
     }
 
     private function assertNoActiveImport(): void

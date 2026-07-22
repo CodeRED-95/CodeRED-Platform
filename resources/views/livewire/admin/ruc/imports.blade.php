@@ -15,7 +15,7 @@
         </dl>
     </x-ui.card>
 
-    @if($validationMessage)<x-ui.alert tone="success">{{ $validationMessage }}</x-ui.alert>@endif
+    @error('incomingFiles')<x-ui.alert tone="danger">{{ $message }}</x-ui.alert>@enderror
 
     <x-ui.card title="Archivos TXT disponibles">
         <x-ui.table><thead><tr><th>Nombre</th><th>Tamaño</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
@@ -25,14 +25,30 @@
                 <td>{{ \Carbon\Carbon::createFromTimestamp($file['last_modified'])->format('d/m/Y H:i:s') }}</td>
                 <td><x-ui.badge>{{ str_replace('_', ' ', $file['status']) }}</x-ui.badge></td>
                 <td><div class="flex flex-wrap gap-2">
-                    <x-ui.button size="sm" variant="secondary" wire:click="validateFile(@js($file['path']))">Validar</x-ui.button>
+                    <x-ui.button type="button" size="sm" variant="secondary" wire:click="validateIncomingFile(@js($file['path']))" loading-target="validateIncomingFile" loading-label="Validando…">Validar</x-ui.button>
                     @if($file['status'] === 'no_registrado')
-                        <x-ui.button size="sm" wire:click="registerFile(@js($file['path']))">Registrar</x-ui.button>
+                        <x-ui.button type="button" size="sm" wire:click="registerIncomingFile(@js($file['path']))" loading-target="registerIncomingFile" loading-label="Registrando…">Registrar</x-ui.button>
                     @elseif($file['status'] === 'registrado' && $file['import_id'])
                         <x-ui.button size="sm" variant="success" wire:click="startImport({{ $file['import_id'] }})">Iniciar importación</x-ui.button>
                     @endif
                 </div></td>
             </tr>
+            @if(isset($fileValidation[md5($file['path'])]))
+                @php($result = $fileValidation[md5($file['path'])])
+                <tr wire:key="ruc-validation-{{ md5($file['path']) }}"><td colspan="5">
+                    <x-ui.alert :tone="$result['valid'] ? 'success' : 'danger'" :title="$result['valid'] ? 'Archivo válido' : 'Archivo inválido'">
+                        <dl class="grid gap-2 text-sm md:grid-cols-3">
+                            <div><dt class="font-semibold">Tamaño</dt><dd>{{ number_format($result['size'] / 1048576, 2) }} MB</dd></div>
+                            <div><dt class="font-semibold">Encoding</dt><dd>{{ $result['encoding'] }}</dd></div>
+                            <div><dt class="font-semibold">Delimitador / columnas</dt><dd>{{ $result['delimiter'] === "\t" ? 'TAB' : $result['delimiter'] }} / {{ $result['columns'] }}</dd></div>
+                            <div><dt class="font-semibold">Registros estimados</dt><dd>{{ number_format($result['estimated_rows']) }}</dd></div>
+                            <div class="md:col-span-2"><dt class="font-semibold">Cabecera detectada</dt><dd class="break-all">{{ $result['header'] }}</dd></div>
+                        </dl>
+                        @if($result['warnings'])<ul class="mt-2 list-disc pl-5">@foreach($result['warnings'] as $warning)<li>{{ $warning }}</li>@endforeach</ul>@endif
+                        @if($result['preview'])<details class="mt-2"><summary>Primeras filas</summary><ol class="mt-2 list-decimal space-y-1 pl-5 font-mono text-xs">@foreach($result['preview'] as $row)<li class="break-all">{{ $row }}</li>@endforeach</ol></details>@endif
+                    </x-ui.alert>
+                </td></tr>
+            @endif
         @empty<tr><td colspan="5"><x-ui.empty-state title="No hay TXT disponibles" description="Copia el padrón SUNAT al directorio incoming y pulsa Detectar archivos." /></td></tr>@endforelse
         </tbody></x-ui.table>
     </x-ui.card>

@@ -7,11 +7,14 @@ use App\Modules\Ruc\Jobs\ProcessRucImportJob;
 use App\Modules\Ruc\Models\RucImport;
 use App\Modules\Ruc\Services\RucImportService;
 use App\Modules\Ruc\Services\RucIncomingFileScanner;
-use App\Modules\Ruc\Support\EncodingNormalizer;
+use App\Modules\Ruc\Services\RucIncomingFileValidator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Throwable;
 
 class Imports extends Component
 {
@@ -19,7 +22,7 @@ class Imports extends Component
 
     public array $diagnostics = [];
 
-    public ?string $validationMessage = null;
+    public array $fileValidation = [];
 
     public function mount(RucIncomingFileScanner $scanner): void
     {
@@ -34,21 +37,44 @@ class Imports extends Component
         $this->dispatch('toast', type: 'success', message: count($this->availableFiles).' archivos TXT detectados.');
     }
 
-    public function validateFile(string $path, RucIncomingFileScanner $scanner): void
+    public function validateIncomingFile(string $path, RucIncomingFileValidator $validator): void
     {
         Gate::authorize('ruc.import');
-        $file = collect($scanner->scan())->firstWhere('path', $path);
-        abort_if($file === null, 422, 'El TXT RUC ya no está disponible.');
-        EncodingNormalizer::normalize((string) config('ruc.import.encoding'));
-        $this->validationMessage = 'TXT válido: '.$file['name'].' · '.number_format($file['size'] / 1048576, 2).' MB.';
+        $this->resetErrorBag('incomingFiles');
+        Log::info('Validación manual de archivo RUC iniciada', ['user_id' => auth()->id(), 'path' => $path]);
+        try {
+            $result = $validator->validate($path);
+            $this->fileValidation[md5($path)] = $result;
+            if (! $result['valid']) {
+                $this->addError('incomingFiles', $result['message']);
+            }
+            Log::info('Validación manual de archivo RUC finalizada', ['user_id' => auth()->id(), 'path' => $path, 'valid' => $result['valid']]);
+        } catch (ValidationException $exception) {
+            $this->addError('incomingFiles', $exception->validator->errors()->first());
+        } catch (Throwable $exception) {
+            report($exception);
+            Log::error('Falló la acción del archivo RUC', ['path' => $path, 'exception' => $exception::class, 'message' => $exception->getMessage()]);
+            $this->addError('incomingFiles', 'No fue posible validar el archivo. Revisa los registros.');
+        }
     }
 
-    public function registerFile(string $path, RucImportService $service, RucIncomingFileScanner $scanner): void
+    public function registerIncomingFile(string $path, RucImportService $service, RucIncomingFileScanner $scanner): void
     {
         Gate::authorize('ruc.import');
-        $service->registerServerFile($path, (int) auth()->id());
-        $this->refreshFiles($scanner);
-        $this->dispatch('toast', type: 'success', message: 'Archivo RUC registrado.');
+        $this->resetErrorBag('incomingFiles');
+        try {
+            $import = $service->registerServerFile($path, (int) auth()->id());
+            $this->refreshFiles($scanner);
+            session()->flash('success', 'El archivo RUC fue registrado correctamente.');
+            $this->dispatch('toast', type: 'success', message: 'El archivo RUC fue registrado correctamente.');
+            Log::info('Registro manual de archivo RUC finalizado', ['import_id' => $import->id, 'path' => $path]);
+        } catch (ValidationException $exception) {
+            $this->addError('incomingFiles', $exception->validator->errors()->first());
+        } catch (Throwable $exception) {
+            report($exception);
+            Log::error('Falló la acción del archivo RUC', ['path' => $path, 'exception' => $exception::class, 'message' => $exception->getMessage()]);
+            $this->addError('incomingFiles', 'No fue posible registrar el archivo. Revisa los registros.');
+        }
     }
 
     public function startImport(int $id, RucImportService $service, RucIncomingFileScanner $scanner): void

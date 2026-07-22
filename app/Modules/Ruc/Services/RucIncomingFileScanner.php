@@ -6,6 +6,7 @@ use App\Modules\Ruc\Enums\RucImportStatus;
 use App\Modules\Ruc\Models\RucImport;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 final class RucIncomingFileScanner
 {
@@ -76,6 +77,26 @@ final class RucIncomingFileScanner
 
         if ($configured !== $storage && str_starts_with($path, $configured.'/')) {
             return $storage.'/'.substr($path, strlen($configured) + 1);
+        }
+
+        return $path;
+    }
+
+    public function resolveIncomingPath(string $path): string
+    {
+        if ($path === '' || str_starts_with($path, '/') || str_starts_with($path, '\\') || str_contains($path, '..') || preg_match('/^[A-Za-z]:[\\\\\/]/', $path)) {
+            throw ValidationException::withMessages(['incomingFiles' => 'La ruta del archivo no es válida.']);
+        }
+        $path = $this->normalizeIncomingPath($path);
+        $directory = $this->storageDirectory();
+        if (! str_starts_with($path, $directory.'/')) {
+            throw ValidationException::withMessages(['incomingFiles' => 'El archivo no pertenece al directorio de entrada.']);
+        }
+        if (strtolower(pathinfo($path, PATHINFO_EXTENSION)) !== 'txt') {
+            throw ValidationException::withMessages(['incomingFiles' => 'Solo se permiten archivos TXT.']);
+        }
+        if (! $this->disk()->exists($path)) {
+            throw ValidationException::withMessages(['incomingFiles' => 'El archivo seleccionado ya no existe.']);
         }
 
         return $path;

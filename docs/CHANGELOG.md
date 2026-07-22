@@ -236,3 +236,10 @@ Todas las versiones siguen `Keep a Changelog`.
 - Corregido el quoting seguro del instalador y el flujo de subida temporal del padrón RUC, con límites coherentes entre Nginx, PHP y Livewire.
 
 - La importación masiva SUNAT quedó unificada en RUC: directorio privado, scanner, staging COPY, checkpoints, ubigeos precargados y worker `ruc-imports`.
+
+## 2026-07-22 — Acciones reales para archivos RUC incoming
+
+- Los botones Validar y Registrar invocan métodos Livewire públicos con carga y errores visibles.
+- La validación inspecciona una muestra acotada, detecta encoding/delimitador y bloquea rutas inseguras.
+- El registro evita duplicados por SHA-256 y deriva a cola el hash de archivos masivos.
+- Se añadieron pruebas de formato, rutas hostiles, duplicados y autorización.

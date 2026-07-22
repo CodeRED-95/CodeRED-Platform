@@ -23,7 +23,7 @@ enum RucImportStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Pending => 'Pendiente',
+            self::Pending => 'Preparando',
             self::Registered => 'Registrada',
             self::Queued => 'En cola',
             self::Validating => 'Validando archivo',
