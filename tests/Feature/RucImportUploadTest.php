@@ -49,6 +49,9 @@ class RucImportUploadTest extends TestCase
         $component = Livewire::actingAs($user)->test(Imports::class)->assertSet('availableFiles', []);
         Storage::disk('local')->put('private/ruc/incoming/padron.txt', "RUC|RAZON SOCIAL|\n20512805478|EMPRESA|");
         $component->call('scanFiles')->assertSet('availableFiles.0.name', 'padron.txt');
+        $component->assertDontSee('@js(', false)
+            ->assertSeeHtml('wire:click="validateIncomingFile(&quot;private/ruc/incoming/padron.txt&quot;)"')
+            ->assertSeeHtml('wire:click="registerIncomingFile(&quot;private/ruc/incoming/padron.txt&quot;)"');
         $component->call('registerIncomingFile', 'private/ruc/incoming/padron.txt')->assertHasNoErrors();
         $import = RucImport::query()->sole();
         $component->call('startImport', $import->id)->assertHasNoErrors();

@@ -240,6 +240,7 @@ Todas las versiones siguen `Keep a Changelog`.
 ## 2026-07-22 — Acciones reales para archivos RUC incoming
 
 - Los botones Validar y Registrar invocan métodos Livewire públicos con carga y errores visibles.
+- Se corrigió la expresión de sus acciones: los argumentos se construyen antes de pasarlos al componente Blade para que Livewire reciba JavaScript ejecutable, incluso con espacios o caracteres Unicode en la ruta.
 - La validación inspecciona una muestra acotada, detecta encoding/delimitador y bloquea rutas inseguras.
 - El registro evita duplicados por SHA-256 y deriva a cola el hash de archivos masivos.
 - Se añadieron pruebas de formato, rutas hostiles, duplicados y autorización.

@@ -20,14 +20,16 @@
     <x-ui.card title="Archivos TXT disponibles">
         <x-ui.table><thead><tr><th>Nombre</th><th>Tamaño</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
         @forelse($availableFiles as $file)
+            @php($validateAction = 'validateIncomingFile('.\Illuminate\Support\Js::from($file['path']).')')
+            @php($registerAction = 'registerIncomingFile('.\Illuminate\Support\Js::from($file['path']).')')
             <tr wire:key="ruc-file-{{ md5($file['path']) }}">
                 <td>{{ $file['name'] }}</td><td>{{ number_format($file['size'] / 1048576, 2) }} MB</td>
                 <td>{{ \Carbon\Carbon::createFromTimestamp($file['last_modified'])->format('d/m/Y H:i:s') }}</td>
                 <td><x-ui.badge>{{ str_replace('_', ' ', $file['status']) }}</x-ui.badge></td>
                 <td><div class="flex flex-wrap gap-2">
-                    <x-ui.button type="button" size="sm" variant="secondary" wire:click="validateIncomingFile(@js($file['path']))" loading-target="validateIncomingFile" loading-label="Validando…">Validar</x-ui.button>
+                    <x-ui.button type="button" size="sm" variant="secondary" :wire:click="$validateAction" loading-target="validateIncomingFile" loading-label="Validando…">Validar</x-ui.button>
                     @if($file['status'] === 'no_registrado')
-                        <x-ui.button type="button" size="sm" wire:click="registerIncomingFile(@js($file['path']))" loading-target="registerIncomingFile" loading-label="Registrando…">Registrar</x-ui.button>
+                        <x-ui.button type="button" size="sm" :wire:click="$registerAction" loading-target="registerIncomingFile" loading-label="Registrando…">Registrar</x-ui.button>
                     @elseif($file['status'] === 'registrado' && $file['import_id'])
                         <x-ui.button size="sm" variant="success" wire:click="startImport({{ $file['import_id'] }})">Iniciar importación</x-ui.button>
                     @endif
