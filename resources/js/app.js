@@ -9,11 +9,11 @@ registerClipboardListener();
 
 document.addEventListener("alpine:init", () => {
   window.Alpine.data('mainLayout', () => ({
-      sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
+      sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
       mobileOpen: false,
       toggleSidebar() {
-          this.sidebarOpen = !this.sidebarOpen;
-          localStorage.setItem('sidebarOpen', this.sidebarOpen);
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
       },
   }));
 

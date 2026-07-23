@@ -17,7 +17,7 @@
     <div class="code-red-shell h-dvh min-h-0 overflow-hidden">
         <div class="flex h-dvh min-h-0 overflow-hidden">
             <aside class="layer-sidebar fixed inset-y-0 left-0 z-40 hidden h-dvh min-h-0 w-[264px] flex-col overflow-hidden border-r border-[color:var(--color-border-subtle)] bg-[color:var(--color-sidebar)]/95 backdrop-blur lg:flex transition-transform duration-200 ease-in-out"
-                   :class="sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'">
+                   :class="!sidebarCollapsed ? 'lg:translate-x-0' : 'lg:-translate-x-full'">
                 <div class="shrink-0 border-b border-white/5 px-6 py-6">
                     <x-ui.logo variant="symbol" class="h-11 w-11 rounded-2xl" />
                     <div class="mt-4">
@@ -107,15 +107,25 @@
                 @endauth
             </aside>
 
-            <div class="flex h-dvh min-h-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-in-out"
-                 :class="sidebarOpen ? 'lg:ml-[264px]' : 'lg:ml-0'">
+            <div class="relative flex h-dvh min-h-0 flex-1 flex-col overflow-hidden transition-[margin-left] duration-200 ease-in-out"
+                 :class="!sidebarCollapsed ? 'lg:ml-[264px]' : 'lg:ml-0'">
+
+                <div class="absolute left-0 top-3 z-50 hidden lg:block">
+                     <button
+                        type="button"
+                        class="focus-ring flex h-10 w-10 items-center justify-center rounded-full"
+                        @click="toggleSidebar"
+                        :title="sidebarCollapsed ? 'Mostrar barra lateral' : 'Ocultar barra lateral'"
+                    >
+                        <svg x-show="sidebarCollapsed" x-cloak class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 4h8v4H4V4zm0 6h8v4H4v-4zm0 6h8v4H4v-4zm10 0h6v4h-6v-4zm0-6h6v4h-6v-4zm0-6h6v4h-6V4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <svg x-show="!sidebarCollapsed" class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4h-8v4h8V4zM4 4h2v4H4V4zm0 6h8v4H4v-4zm0 6h8v4H4v-4zm10 0h6v4h-6v-4zm0-6h6v4h-6v-4zM4 10h2v4H4v-4zm0 6h2v4H4v-4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+
+
                 <header class="layer-header shrink-0 border-b border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/90 backdrop-blur">
                     <div class="flex items-center justify-between gap-4 px-4 py-4 lg:px-8">
                         <div class="flex items-center gap-3">
-                            <x-ui.icon-button class="h-11 w-11 hidden lg:flex" x-on:click="toggleSidebar" label="Toggle sidebar">
-                                <span class="text-xl" x-show="!sidebarOpen">☰</span>
-                                <span class="text-xl" x-show="sidebarOpen" x-cloak>✕</span>
-                            </x-ui.icon-button>
                             <x-ui.icon-button class="h-11 w-11 lg:hidden" x-on:click="mobileOpen = true" label="Abrir menú">
                                 <span class="text-xl">☰</span>
                             </x-ui.icon-button>
