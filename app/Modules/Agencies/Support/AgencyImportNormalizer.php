@@ -3,6 +3,7 @@
 namespace App\Modules\Agencies\Support;
 
 use App\Modules\Agencies\Data\AgencyImportRowData;
+use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use Illuminate\Support\Str;
 
@@ -60,6 +61,13 @@ final class AgencyImportNormalizer
             'pequeño', 'pequeno', 'pequeña', 'pequena', 'small' => 'small',
             default => null,
         };
+    }
+
+    public static function normalizeCategory(mixed $value): ?string
+    {
+        $value = is_string($value) ? trim(strtoupper($value)) : null;
+
+        return Category::tryFrom($value)?->value;
     }
 
     public static function slugifyUnique(string $name, string $suffix = ''): string
@@ -140,11 +148,16 @@ final class AgencyImportNormalizer
         }
         $mapUrl = self::normalizeText($row['link_mapa'] ?? null);
         $size = self::normalizeSize($row['tamano'] ?? null);
+        $category = self::normalizeCategory($row['category'] ?? null);
         $isOperationsCenter = self::parseOperationsCenter($row['co'] ?? false, $warnings);
         $status = AgencyStatus::tryFrom((string) ($row['status'] ?? '')) ?? AgencyStatus::UnderReview;
 
         if (($row['tamano'] ?? null) !== null && $size === null) {
             $warnings[] = 'El tamaño no pudo normalizarse.';
+        }
+
+        if (($row['category'] ?? null) !== null && $category === null) {
+            $warnings[] = 'La categoría no es válida.';
         }
 
         [$latitude, $longitude] = self::parseCoordinates($mapUrl);
@@ -170,6 +183,7 @@ final class AgencyImportNormalizer
             'latitude' => $latitude,
             'longitude' => $longitude,
             'size' => $size,
+            'category' => $category ?? 'PEQUEÑA',
             'is_operations_center' => $isOperationsCenter,
             'short_name' => self::normalizeText($row['short_name'] ?? null),
             'reference' => self::normalizeText($row['reference'] ?? null),

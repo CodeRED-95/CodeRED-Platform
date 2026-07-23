@@ -6,6 +6,7 @@ use App\Modules\Agencies\Actions\BulkActivateAgenciesAction;
 use App\Modules\Agencies\Actions\BulkDeleteAgenciesAction;
 use App\Modules\Agencies\Actions\BulkForceDeleteAgenciesAction;
 use App\Modules\Agencies\Actions\BulkRestoreAgenciesAction;
+use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
@@ -42,6 +43,9 @@ class Index extends Component
 
     #[Url]
     public string $size = '';
+
+    #[Url]
+    public string $category = '';
 
     #[Url]
     public string $source = '';
@@ -237,7 +241,7 @@ class Index extends Component
 
     public function render(AgencySearchService $searchService): View
     {
-        $allowedSortFields = ['code', 'name', 'old_name', 'department', 'province', 'district', 'updated_at', 'data_version'];
+        $allowedSortFields = ['code', 'name', 'old_name', 'department', 'province', 'district', 'category', 'updated_at', 'data_version'];
         if (! in_array($this->sortField, $allowedSortFields, true)) {
             $this->sortField = 'updated_at';
         }
@@ -285,6 +289,7 @@ class Index extends Component
             'provinces' => Agency::withTrashed()->select('province')->distinct()->orderBy('province')->pluck('province'),
             'districts' => Agency::withTrashed()->select('district')->distinct()->orderBy('district')->pluck('district'),
             'sizes' => ['' => 'Todos'] + AgencySize::options(),
+            'categories' => ['' => 'Todos'] + collect(Category::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])->all(),
             'statuses' => ['' => 'Todos'] + AgencyStatus::options(),
             'filteredExportUrl' => route('admin.agencies.export', ['scope' => 'filtered'] + array_filter($filters, fn (string $value): bool => $value !== '')),
             'allExportUrl' => route('admin.agencies.export', ['scope' => 'all']),
@@ -297,7 +302,7 @@ class Index extends Component
         return [
             'search' => $this->search, 'status' => $this->status, 'department' => $this->department,
             'province' => $this->province, 'district' => $this->district, 'size' => $this->size,
-            'source' => $this->source, 'operations_center' => $this->operationsCenter, 'moved' => $this->moved,
+            'category' => $this->category, 'source' => $this->source, 'operations_center' => $this->operationsCenter, 'moved' => $this->moved,
             'without_coordinates' => $this->withoutCoordinates, 'without_phone' => $this->withoutPhone,
             'under_review' => $this->underReview, 'trash' => $this->withTrashed,
         ];

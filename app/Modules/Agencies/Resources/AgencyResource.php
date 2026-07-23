@@ -66,6 +66,8 @@ class AgencyResource extends JsonResource
             'map_url' => $agency->map_url,
             'services' => $agency->services ?? [],
             'size' => $agency->size?->value,
+            'category' => $agency->category->value,
+            'category_limitations' => $agency->category->limitations(),
             'status' => $agency->status->value,
             'has_moved' => (bool) ($agency->has_moved ?? false),
             'is_operations_center' => (bool) ($agency->is_operations_center ?? false),

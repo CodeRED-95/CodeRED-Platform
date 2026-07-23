@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
+use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
@@ -62,6 +63,8 @@ class Form extends Component
     public string $status = 'under_review';
 
     public ?string $size = null;
+
+    public string $category = 'PEQUEÑA';
 
     public bool $is_operations_center = false;
 
@@ -124,6 +127,7 @@ class Form extends Component
                 'observations' => $agency->observations,
                 'status' => $agency->status->value,
                 'size' => $agency->size?->value,
+                'category' => $agency->category->value,
                 'is_operations_center' => (bool) $agency->is_operations_center,
                 'source' => $agency->source,
                 'source_reference' => $agency->source_reference,
@@ -267,6 +271,7 @@ class Form extends Component
                 Rule::notIn($this->has_moved ? [] : [AgencyStatus::Moved->value]),
             ],
             'size' => ['nullable', Rule::in(array_map(fn (AgencySize $case) => $case->value, AgencySize::cases()))],
+            'category' => ['required', Rule::in(array_map(fn (Category $case) => $case->value, Category::cases()))],
             'is_operations_center' => ['boolean'],
             'source' => ['required', 'string', 'max:100'],
             'source_reference' => ['nullable', 'string', 'max:255'],
@@ -335,6 +340,7 @@ class Form extends Component
         return view('livewire.admin.agencies.form', [
             'statuses' => AgencyStatus::options(),
             'sizes' => AgencySize::options(),
+            'categories' => Category::cases(),
             'destinations' => $this->getDestinationOptionsProperty(),
         ])->layout('layouts.app', ['pageTitle' => $this->mode === 'edit' ? 'Editar agencia' : 'Nueva agencia']);
     }

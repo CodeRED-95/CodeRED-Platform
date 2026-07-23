@@ -92,13 +92,17 @@
 
             <x-ui.card>
                 <x-ui.section-header title="Clasificación" />
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <x-ui.badge :tone="$agency->is_operations_center ? 'brand' : 'neutral'">
-                        {{ $agency->is_operations_center ? 'Centro de Operaciones' : 'No es CO' }}
-                    </x-ui.badge>
-                    @if ($agency->size)
-                        <x-ui.badge tone="ivory">{{ $agency->size->label() }}</x-ui.badge>
-                    @endif
+                <div class="mt-4 space-y-3">
+                    <div class="flex flex-wrap gap-2">
+                        <x-ui.badge :tone="$agency->is_operations_center ? 'brand' : 'neutral'">
+                            {{ $agency->is_operations_center ? 'Centro de Operaciones' : 'No es CO' }}
+                        </x-ui.badge>
+                        @if ($agency->size)
+                            <x-ui.badge tone="ivory">{{ $agency->size->label() }}</x-ui.badge>
+                        @endif
+                        <x-ui.badge tone="ivory">{{ $agency->category->value }}</x-ui.badge>
+                    </div>
+                    <p class="text-sm text-[color:var(--color-text-secondary)]">{{ $agency->category->limitations() }}</p>
                 </div>
             </x-ui.card>
         </div>

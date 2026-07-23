@@ -3,6 +3,7 @@
 namespace App\Modules\Agencies\Models;
 
 use App\Models\User;
+use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Observers\AgencyObserver;
@@ -20,6 +21,7 @@ use Illuminate\Support\Str;
 /**
  * @property AgencyStatus $status
  * @property AgencySize|null $size
+ * @property Category $category
  * @property Carbon|null $moved_at
  */
 class Agency extends Model
@@ -32,7 +34,7 @@ class Agency extends Model
         'latitude', 'longitude', 'services', 'observations', 'status', 'source',
         'source_reference', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size', 'is_operations_center',
         'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at',
-        'data_version', 'last_verified_at', 'created_by', 'updated_by',
+        'data_version', 'last_verified_at', 'created_by', 'updated_by', 'category',
     ];
 
     protected function casts(): array
@@ -45,6 +47,7 @@ class Agency extends Model
             'last_verified_at' => 'datetime',
             'status' => AgencyStatus::class,
             'size' => AgencySize::class,
+            'category' => Category::class,
             'is_operations_center' => 'boolean',
             'has_moved' => 'boolean',
             'moved_at' => 'date',

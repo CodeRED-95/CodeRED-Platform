@@ -23,7 +23,7 @@
                     'Horario' => ['schedule'],
                     'Servicios' => ['services'],
                     'Mapa y coordenadas' => ['latitude','longitude','map_url'],
-                    'Clasificación' => ['size','is_operations_center'],
+                    'Clasificación' => ['size', 'category', 'is_operations_center'],
                     'Estado' => ['status'],
                     'Traslado' => ['has_moved','moved_to_agency_id','moved_to_address','moved_at','move_notice'],
                     'Fuente y observaciones' => ['observations'],
@@ -70,6 +70,17 @@
                                         :value="$size"
                                         :options="['' => 'Sin especificar'] + $sizes"
                                         :error="$errors->first('size')"
+                                    />
+                                @elseif ($field === 'category')
+                                    <x-ui.dropdown-select
+                                        id="agency-category"
+                                        name="category"
+                                        wire:model="category"
+                                        label="Categoría Operativa"
+                                        :value="$category"
+                                        :options="collect($categories)->mapWithKeys(fn ($c) => [$c->value => $c->value])->all()"
+                                        :error="$errors->first('category')"
+                                        required
                                     />
                                 @elseif ($field === 'moved_to_agency_id')
                                     @if ($has_moved)

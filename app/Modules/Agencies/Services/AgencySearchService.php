@@ -38,7 +38,7 @@ class AgencySearchService
         $query->search($filters['search'] ?? null);
         $query->byLocation($filters['department'] ?? null, $filters['province'] ?? null, $filters['district'] ?? null);
 
-        foreach (['status', 'source', 'size'] as $field) {
+        foreach (['status', 'source', 'size', 'category'] as $field) {
             if (! empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
             }

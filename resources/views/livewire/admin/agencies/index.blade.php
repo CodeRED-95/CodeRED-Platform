@@ -43,6 +43,7 @@
             <x-ui.dropdown-select id="agencies-province-filter" wire:model.live="province" label="Provincia" :value="$province" :options="['' => 'Todas'] + $provinces->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-district-filter" wire:model.live="district" label="Distrito" :value="$district" :options="['' => 'Todos'] + $districts->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-size-filter" wire:model.live="size" label="Tamaño" :value="$size" :options="$sizes" />
+            <x-ui.dropdown-select id="agencies-category-filter" wire:model.live="category" label="Categoría" :value="$category" :options="$categories" />
             <x-ui.dropdown-select id="agencies-operations-filter" wire:model.live="operationsCenter" label="Centro de Operaciones" :value="$operationsCenter" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
             <x-ui.dropdown-select id="agencies-moved-filter" wire:model.live="moved" label="Trasladadas" :value="$moved" :options="['' => 'Todas', '1' => 'Sí', '0' => 'No']" />
             <x-ui.dropdown-select id="agencies-source-filter" wire:model.live="source" label="Fuente" :value="$source" :options="['' => 'Todas', 'github_gist' => 'GitHub Gist', 'manual' => 'Manual', 'seed' => 'Seeder']" />
@@ -119,11 +120,11 @@
         </x-ui.card>
     @endif
 
-    <div wire:loading.delay wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
+    <div wire:loading.delay wire:target="search,status,department,province,district,size,category,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
         <x-ui.skeleton variant="table" :rows="5" />
     </div>
 
-    <x-ui.table id="agencies-list" wire:loading.class="opacity-50" wire:target="search,status,department,province,district,size,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
+    <x-ui.table id="agencies-list" wire:loading.class="opacity-50" wire:target="search,status,department,province,district,size,category,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
         <thead class="bg-white/5 text-xs uppercase tracking-[0.2em] text-[color:var(--color-text-secondary)]">
             <tr>
                 <th class="w-12 px-5 py-4">
@@ -147,6 +148,7 @@
                 <th class="px-5 py-4">Departamento</th>
                 <th class="px-5 py-4">Provincia</th>
                 <th class="px-5 py-4">Distrito</th>
+                <th class="cursor-pointer px-5 py-4" wire:click="sortBy('category')">Categoría</th>
                 <th class="px-5 py-4">Centro de Operaciones</th>
                 <th class="px-5 py-4">Estado</th>
                 <th class="px-5 py-4">Actualización</th>
@@ -181,6 +183,7 @@
                     </td>
                     <td class="px-5 py-4">{{ $agency->province }}</td>
                     <td class="px-5 py-4">{{ $agency->district }}</td>
+                    <td class="px-5 py-4">{{ $agency->category->value }}</td>
                     <td class="px-5 py-4">
                         <x-ui.badge :tone="$agency->is_operations_center ? 'brand' : 'neutral'">
                             {{ $agency->is_operations_center ? 'Centro de Operaciones' : 'No' }}
@@ -222,9 +225,9 @@
                         </div>
                     </td>
                 </tr>
-            @empty
+                @empty
                 <tr>
-                    <td colspan="12" class="px-5 py-12">
+                    <td colspan="13" class="px-5 py-12">
                         <x-ui.empty-state
                             title="No hay agencias registradas"
                             description="Crea una agencia nueva o importa el JSON del Gist para empezar."
