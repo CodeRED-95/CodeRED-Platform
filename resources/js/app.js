@@ -8,13 +8,13 @@ import { registerClipboardListener } from "./clipboard";
 registerClipboardListener();
 
 document.addEventListener("alpine:init", () => {
-  window.Alpine.data('mainLayout', () => ({
-      sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
+  window.Alpine.data('sidebar', () => ({
+      collapsed: localStorage.getItem('codered-sidebar-collapsed') === 'true',
       mobileOpen: false,
-      toggleSidebar() {
-          this.sidebarCollapsed = !this.sidebarCollapsed;
-          localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
-      },
+      toggleCollapse() {
+          this.collapsed = !this.collapsed;
+          localStorage.setItem('codered-sidebar-collapsed', this.collapsed);
+      }
   }));
 
   window.Alpine.data("codeRedSidebarScroll", () => ({
