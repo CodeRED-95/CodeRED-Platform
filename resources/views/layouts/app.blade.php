@@ -20,7 +20,9 @@
                    :class="collapsed ? 'lg:w-[76px]' : 'lg:w-[264px]'">
                 <div class="relative shrink-0 border-b border-white/5 px-4 py-5">
                     <div class="flex items-center justify-center">
-                        <x-ui.logo variant="symbol" class="h-10 w-10 rounded-xl shrink-0" />
+                        <a href="{{ route('dashboard') }}">
+                            <x-ui.logo variant="symbol" class="h-10 w-10 rounded-xl shrink-0" />
+                        </a>
                         <div class="ml-3" x-show="!collapsed" x-cloak>
                             <p class="text-base font-semibold tracking-tight">CodeRED Platform</p>
                             <p class="text-xs text-[color:var(--color-text-secondary)]">Plataforma modular</p>
@@ -89,24 +91,26 @@
                             </p>
                             @foreach ($items as $item)
                               @if ($item['can'])
-                                <a href="{{ route($item['route']) }}"
-                                   class="relative flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-200"
-                                   @if(request()->routeIs($item['route']))
-                                        data-sidebar-active="true"
-                                        aria-current="page"
-                                        :class="collapsed ? 'bg-white/10 text-white' : 'bg-brand-soft text-brand-light'"
-                                   @else
-                                        :class="collapsed ? 'text-gray-400 hover:bg-white/5 hover:text-white' : 'text-gray-400 hover:bg-surface-hover hover:text-white'"
-                                   @endif
-                                   :class="collapsed ? 'justify-center' : ''">
-                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-lg shrink-0">{{ $item['icon'] }}</span>
-                                    <span class="font-medium text-sm" x-show="!collapsed" x-cloak>{{ $item['label'] }}</span>
-
-                                    <div x-show="collapsed" x-cloak class="absolute left-full ml-2 hidden items-center rounded-md border border-border-subtle bg-surface px-3 py-1.5 text-sm font-medium text-text-primary shadow-lg group-hover:flex">
-                                        <div class="absolute -left-1 top-1/2 -translate-y-1/2 h-2 w-2 rotate-45 bg-surface border-l border-b border-border-subtle"></div>
+                                <div class="relative group" x-data="{ active: {{ request()->routeIs($item['route']) ? 'true' : 'false' }} }">
+                                    <a href="{{ route($item['route']) }}"
+                                       :aria-current="active ? 'page' : 'false'"
+                                       class="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-200"
+                                       :class="{
+                                            'justify-center': collapsed,
+                                            'bg-brand-soft text-brand-light': !collapsed && active,
+                                            'text-gray-400 hover:bg-surface-hover hover:text-white': !collapsed && !active,
+                                            'bg-white/10 text-white': collapsed && active,
+                                            'text-gray-400 hover:bg-white/5 hover:text-white': collapsed && !active
+                                       }">
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-lg shrink-0">{{ $item['icon'] }}</span>
+                                        <span class="font-medium text-sm" x-show="!collapsed" x-cloak>{{ $item['label'] }}</span>
+                                    </a>
+                                    <div x-show="collapsed" x-cloak
+                                         class="pointer-events-none absolute left-full top-1/2 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg border border-border-subtle bg-surface px-3 py-2 text-sm text-text-primary opacity-0 invisible shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100 group-hover:delay-500 z-10">
                                         {{ $item['label'] }}
+                                        <div class="absolute -left-1 top-1/2 -translate-y-1/2 h-2 w-2 rotate-45 bg-surface border-l border-b border-border-subtle"></div>
                                     </div>
-                                </a>
+                                </div>
                               @endif
                             @endforeach
                         </div>
