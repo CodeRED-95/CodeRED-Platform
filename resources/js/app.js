@@ -8,17 +8,13 @@ import { registerClipboardListener } from "./clipboard";
 registerClipboardListener();
 
 document.addEventListener("alpine:init", () => {
-  window.Alpine.data('codeRedSidebar', () => ({
-    mobileOpen: false, // For mobile overlay
-    desktopCollapsed: localStorage.getItem('sidebarCollapsed') === 'true', // For desktop
-
-    init() {
-        this.$watch('desktopCollapsed', value => localStorage.setItem('sidebarCollapsed', value));
-    },
-
-    toggleDesktop() {
-        this.desktopCollapsed = !this.desktopCollapsed;
-    }
+  window.Alpine.data('mainLayout', () => ({
+      sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
+      mobileOpen: false,
+      toggleSidebar() {
+          this.sidebarOpen = !this.sidebarOpen;
+          localStorage.setItem('sidebarOpen', this.sidebarOpen);
+      },
   }));
 
   window.Alpine.data("codeRedSidebarScroll", () => ({
