@@ -186,7 +186,7 @@
                     <td class="px-5 py-4">{{ $agency->category->value }}</td>
                     <td class="px-5 py-4">
                         <x-ui.badge :tone="$agency->is_operations_center ? 'brand' : 'neutral'">
-                            {{ $agency->is_operations_center ? 'Centro de Operaciones' : 'No' }}
+                            {{ $agency->is_operations_center ? 'CO' : 'No' }}
                         </x-ui.badge>
                     </td>
                     <td class="px-5 py-4">
