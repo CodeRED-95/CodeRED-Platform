@@ -91,11 +91,10 @@
                             <a href="{{ route($item['route']) }}"
                                :title="desktopCollapsed ? '{{ $item['label'] }}' : ''"
                                @if(request()->routeIs($item['route'])) data-sidebar-active="true" aria-current="page" @endif
-                               class="sidebar-link"
-                               :class="{
-                                   'lg:justify-center': desktopCollapsed,
-                                   'lg:gap-0': desktopCollapsed,
-                               }"
+                               :class="[
+                                   'sidebar-link',
+                                   desktopCollapsed ? 'lg:justify-center lg:gap-0' : ''
+                               ]"
                                >
                                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-[color:var(--color-brand-light)]">{{ $item['icon'] }}</span>
                                 <span class="font-medium" :class="desktopCollapsed ? 'lg:hidden' : ''">{{ $item['label'] }}</span>
@@ -107,7 +106,11 @@
 
                 @auth
                     <div class="shrink-0 border-t border-white/5 p-4" :class="desktopCollapsed ? 'lg:p-2' : ''">
-                        <a href="{{ route('profile.show') }}" aria-label="Abrir mi perfil" class="focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3 transition hover:bg-white/10" :class="desktopCollapsed ? 'lg:p-2 lg:justify-center' : ''" :title="desktopCollapsed ? '{{ auth()->user()->name }}' : ''">
+                        <a href="{{ route('profile.show') }}" aria-label="Abrir mi perfil" :title="desktopCollapsed ? '{{ auth()->user()->name }}' : ''"
+                           :class="[
+                               'focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3 transition hover:bg-white/10',
+                               desktopCollapsed ? 'lg:p-2 lg:justify-center' : ''
+                           ]">
                             <x-ui.avatar :name="auth()->user()->name" size="sm" />
                             <div class="min-w-0 flex-1" :class="desktopCollapsed ? 'lg:hidden' : ''">
                                 <p class="truncate text-sm font-medium">{{ auth()->user()->name }}</p>
@@ -117,10 +120,14 @@
                         </a>
                         <form method="post" action="{{ route('logout') }}" class="mt-3" :class="desktopCollapsed ? 'lg:mt-2' : ''">
                             @csrf
-                            <x-ui.button variant="secondary" size="sm" type="submit" class="w-full" :class="desktopCollapsed ? 'lg:aspect-square' : ''" :title="desktopCollapsed ? 'Cerrar sesión' : ''">
+                            <button type="submit" :title="desktopCollapsed ? 'Cerrar sesión' : ''"
+                                    :class="[
+                                        'focus-ring flex h-10 w-full items-center justify-center rounded-lg bg-white/5 px-4 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white',
+                                        desktopCollapsed ? 'lg:aspect-square' : ''
+                                    ]">
                                 <span :class="desktopCollapsed ? 'lg:hidden' : ''">Cerrar sesión</span>
                                 <svg :class="desktopCollapsed ? '' : 'hidden'" class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 12H3m0 0 3.5-3.5M3 12l3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            </x-ui.button>
+                            </button>
                         </form>
                     </div>
                 @endauth
