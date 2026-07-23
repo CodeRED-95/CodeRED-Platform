@@ -143,6 +143,7 @@
                 <th class="px-5 py-4">ID</th>
                 <th class="cursor-pointer px-5 py-4" wire:click="sortBy('code')">Code</th>
                 <th class="cursor-pointer px-5 py-4" wire:click="sortBy('name')">Nombre</th>
+                <th class="cursor-pointer px-5 py-4" wire:click="sortBy('old_name')">Nombre anterior</th>
                 <th class="px-5 py-4">Departamento</th>
                 <th class="px-5 py-4">Provincia</th>
                 <th class="px-5 py-4">Distrito</th>
@@ -166,6 +167,9 @@
                     <td class="px-5 py-4">
                         <div class="font-medium">{{ $agency->name }}</div>
                         <div class="text-xs text-[color:var(--color-text-secondary)]">{{ $agency->short_name ?? $agency->source_reference ?? '—' }}</div>
+                    </td>
+                    <td class="px-5 py-4">
+                        <div class="font-medium">{{ $agency->old_name ?? '—' }}</div>
                     </td>
                     <td class="px-5 py-4">
                         <div>{{ $agency->department }}</div>
@@ -220,7 +224,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="11" class="px-5 py-12">
+                    <td colspan="12" class="px-5 py-12">
                         <x-ui.empty-state
                             title="No hay agencias registradas"
                             description="Crea una agencia nueva o importa el JSON del Gist para empezar."

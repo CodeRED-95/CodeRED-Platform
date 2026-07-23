@@ -119,6 +119,7 @@ final class AgencyImportNormalizer
             : ($externalId !== false && $externalId !== null ? self::generateCode($externalId) : null);
 
         $name = self::normalizeText($row['agencia'] ?? null);
+        $old_name = self::normalizeText($row['nombre_anterior'] ?? $row['old_name'] ?? null);
         $department = self::normalizeText($row['departamento'] ?? null);
         $province = self::normalizeText($row['provincia'] ?? null);
         $district = self::normalizeText($row['distrito'] ?? null);
@@ -157,6 +158,7 @@ final class AgencyImportNormalizer
             'external_id' => $externalId === false ? null : $externalId,
             'code' => $code,
             'name' => $name,
+            'old_name' => $old_name,
             'department' => $department,
             'province' => $province,
             'district' => $district,

@@ -25,6 +25,7 @@ class AgencyApiTest extends TestCase
     {
         $agency = Agency::factory()->create([
             'status' => AgencyStatus::Active,
+            'old_name' => 'Nombre Viejo',
             'external_id' => 610,
             'texto_chosen_terrestre' => '610 - TERRESTRE',
             'texto_chosen_aereo' => '610 - AEREO',
@@ -36,6 +37,7 @@ class AgencyApiTest extends TestCase
             ->assertJsonPath('data.texto_chosen_terrestre', '610 - TERRESTRE')
             ->assertJsonPath('data.texto_chosen_aereo', '610 - AEREO')
             ->assertJsonPath('data.agencia', $agency->name)
+            ->assertJsonPath('data.agencia_anterior', 'Nombre Viejo')
             ->assertJsonPath('data.departamento', trim($agency->department))
             ->assertJsonPath('data.provincia', trim($agency->province))
             ->assertJsonPath('data.distrito', trim($agency->district))

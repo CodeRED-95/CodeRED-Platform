@@ -237,7 +237,7 @@ class Index extends Component
 
     public function render(AgencySearchService $searchService): View
     {
-        $allowedSortFields = ['code', 'name', 'department', 'province', 'district', 'updated_at', 'data_version'];
+        $allowedSortFields = ['code', 'name', 'old_name', 'department', 'province', 'district', 'updated_at', 'data_version'];
         if (! in_array($this->sortField, $allowedSortFields, true)) {
             $this->sortField = 'updated_at';
         }

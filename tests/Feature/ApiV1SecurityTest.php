@@ -76,7 +76,7 @@ class ApiV1SecurityTest extends TestCase
             ->assertJsonPath('data.0.estado', 'Activa')->assertJsonPath('data.0.centro_operaciones', true)
             ->assertJsonPath('data.0.texto_chosen_aereo', null)->assertJsonPath('meta.per_page', 1);
         $this->assertSame([
-            'internal_id', 'id', 'code', 'agencia', 'departamento', 'provincia', 'distrito', 'direccion',
+            'internal_id', 'id', 'code', 'agencia', 'agencia_anterior', 'departamento', 'provincia', 'distrito', 'direccion',
             'link_mapa', 'tamano', 'estado', 'centro_operaciones', 'texto_chosen_terrestre', 'texto_chosen_aereo',
         ], array_keys($response->json('data.0')));
         $response->assertJsonMissing(['internal_id' => $deleted->id]);

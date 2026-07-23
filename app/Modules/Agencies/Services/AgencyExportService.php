@@ -55,6 +55,7 @@ class AgencyExportService
             'external_id' => $agency->external_id,
             'code' => $agency->code,
             'agencia' => $agency->name,
+            'nombre_anterior' => $agency->old_name,
             'nombre_corto' => $agency->short_name,
             'departamento' => $agency->department,
             'provincia' => $agency->province,

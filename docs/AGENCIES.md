@@ -25,6 +25,7 @@ Campos detectados en `agencies`:
 |---|---|
 | `code` | Código único tipo `SHA-000003` |
 | `name` | Nombre de la agencia |
+| `old_name` | Nombre histórico de la agencia |
 | `short_name` | Nombre corto |
 | `slug` | Slug único |
 | `department` | Departamento |
@@ -67,6 +68,10 @@ Campos detectados en `agencies`:
 | `temporarily_closed` | Cerrada temporalmente |
 | `under_review` | En revisión |
 | `moved` | Trasladada |
+
+## Nombres Históricos
+
+El campo "Nombre anterior" permite conservar el nombre histórico de una agencia y mejora las búsquedas cuando el usuario conoce únicamente el nombre antiguo.
 
 ## Centro de Operaciones
 

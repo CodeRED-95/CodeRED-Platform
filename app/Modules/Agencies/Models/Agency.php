@@ -27,7 +27,7 @@ class Agency extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'external_id', 'code', 'name', 'short_name', 'slug', 'department', 'province', 'district',
+        'external_id', 'code', 'name', 'old_name', 'short_name', 'slug', 'department', 'province', 'district',
         'address', 'reference', 'phone', 'secondary_phone', 'email', 'schedule',
         'latitude', 'longitude', 'services', 'observations', 'status', 'source',
         'source_reference', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size', 'is_operations_center',
@@ -62,7 +62,7 @@ class Agency extends Model
 
         static::saving(function (self $agency): void {
             $agency->code = strtoupper(trim((string) $agency->code));
-            foreach (['name', 'department', 'province', 'district', 'phone', 'email'] as $field) {
+            foreach (['name', 'old_name', 'department', 'province', 'district', 'phone', 'email'] as $field) {
                 if ($agency->$field !== null) {
                     $agency->$field = preg_replace('/\s+/u', ' ', trim((string) $agency->$field));
                 }
@@ -134,7 +134,7 @@ class Agency extends Model
                 $sub->orWhere('external_id', (int) $term);
             }
 
-            foreach (['code', 'name', 'short_name', 'department', 'province', 'district', 'address', 'reference', 'texto_chosen_terrestre', 'texto_chosen_aereo'] as $field) {
+            foreach (['code', 'name', 'old_name', 'short_name', 'department', 'province', 'district', 'address', 'reference', 'texto_chosen_terrestre', 'texto_chosen_aereo'] as $field) {
                 $sub->orWhereRaw("unaccent(lower($field)) ILIKE unaccent(?)", ['%'.$term.'%']);
             }
         });

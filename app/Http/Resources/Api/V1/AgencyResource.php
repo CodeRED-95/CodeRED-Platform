@@ -22,6 +22,7 @@ class AgencyResource extends JsonResource
             'id' => $agency->external_id,
             'code' => $agency->code,
             'agencia' => trim($agency->name),
+            'agencia_anterior' => $agency->old_name ?? null,
             'departamento' => trim($agency->department),
             'provincia' => trim($agency->province),
             'distrito' => trim($agency->district),

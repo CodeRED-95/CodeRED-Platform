@@ -16,7 +16,7 @@
         <div class="grid gap-6 xl:grid-cols-2">
             @php
                 $sections = [
-                    'Identificación' => ['external_id','code','name','short_name','slug'],
+                    'Identificación' => ['external_id','code','name','old_name','short_name','slug'],
                     'Identificadores de extensión' => ['texto_chosen_terrestre','texto_chosen_aereo'],
                     'Ubicación' => ['department','province','district','address','reference'],
                     'Contacto' => ['phone','secondary_phone','email'],
@@ -37,6 +37,15 @@
                             @foreach ($fields as $field)
                                 @if ($field === 'services')
                                     <x-ui.textarea wrapper-class="md:col-span-2" wire:model.blur="servicesInput" rows="3" label="Servicios" :error="$errors->first('servicesInput')" />
+                                @elseif ($field === 'old_name')
+                                    <x-ui.input
+                                        type="text"
+                                        wire:model.blur="old_name"
+                                        label="Nombre anterior"
+                                        placeholder="Ejemplo: Agencia Tacna Centro"
+                                        description="Utilice este campo únicamente cuando la agencia haya cambiado de nombre."
+                                        :error="$errors->first('old_name')"
+                                    />
                                 @elseif ($field === 'is_operations_center')
                                     <div class="md:col-span-2"><x-ui.toggle wire:model="is_operations_center">Centro de Operaciones</x-ui.toggle></div>
                                 @elseif ($field === 'has_moved')

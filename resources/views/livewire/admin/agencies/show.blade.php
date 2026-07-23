@@ -18,6 +18,9 @@
                 <div><dt class="text-sm text-[color:var(--color-text-secondary)]">ID</dt><dd class="mt-1 font-mono">{{ $agency->external_id ?? 'No registrado' }}</dd></div>
                 <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Code</dt><dd class="mt-1 font-mono">{{ $agency->code }}</dd></div>
                 <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Agencia</dt><dd class="mt-1">{{ $agency->name }}</dd></div>
+                @if ($agency->old_name)
+                    <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Nombre anterior</dt><dd class="mt-1">{{ $agency->old_name }}</dd></div>
+                @endif
             </dl>
         </x-ui.card>
         <x-ui.card>

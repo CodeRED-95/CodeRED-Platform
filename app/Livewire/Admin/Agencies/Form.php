@@ -25,6 +25,8 @@ class Form extends Component
 
     public string $name = '';
 
+    public ?string $old_name = null;
+
     public ?string $short_name = null;
 
     public ?string $slug = null;
@@ -103,6 +105,7 @@ class Form extends Component
                 'external_id' => $agency->external_id,
                 'code' => $agency->code,
                 'name' => $agency->name,
+                'old_name' => $agency->old_name,
                 'short_name' => $agency->short_name,
                 'slug' => $agency->slug,
                 'department' => $agency->department,
@@ -234,6 +237,7 @@ class Form extends Component
                 Rule::unique('agencies', 'code')->ignore($this->agency?->id)->whereNull('deleted_at'),
             ],
             'name' => ['required', 'string', 'max:255'],
+            'old_name' => ['nullable', 'string', 'max:255'],
             'short_name' => ['nullable', 'string', 'max:255'],
             'slug' => [
                 'nullable',
@@ -297,7 +301,7 @@ class Form extends Component
     private function normalizePayload(array $data): array
     {
         $payload = $data;
-        foreach (['code', 'name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice'] as $field) {
+        foreach (['code', 'name', 'old_name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice'] as $field) {
             if (array_key_exists($field, $payload) && is_string($payload[$field])) {
                 $payload[$field] = trim(preg_replace('/\s+/u', ' ', $payload[$field]));
                 $payload[$field] = $payload[$field] === '' ? null : $payload[$field];

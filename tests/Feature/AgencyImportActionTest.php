@@ -34,6 +34,22 @@ class AgencyImportActionTest extends TestCase
             'source' => 'github_gist',
             'source_reference' => '7',
             'status' => AgencyStatus::Active->value,
+            'old_name' => null,
+        ]);
+    }
+
+    public function test_import_creates_agency_with_old_name(): void
+    {
+        $import = $this->import(AgencyImportStrategy::IgnoreExisting);
+
+        app(ImportAgenciesAction::class)->execute(
+            $import,
+            [$this->row(8, 'Dirección', 'Nombre Antiguo')]
+        );
+
+        $this->assertDatabaseHas('agencies', [
+            'code' => 'SHA-000008',
+            'old_name' => 'Nombre Antiguo',
         ]);
     }
 
@@ -162,9 +178,9 @@ class AgencyImportActionTest extends TestCase
         ]);
     }
 
-    private function row(int $id, string $address): array
+    private function row(int $id, string $address, ?string $oldName = null): array
     {
-        return [
+        $row = [
             'id' => $id,
             'agencia' => 'Agencia de prueba '.$id,
             'departamento' => 'Lima',
@@ -176,5 +192,11 @@ class AgencyImportActionTest extends TestCase
             'tamano' => 'Mediano',
             'co' => false,
         ];
+
+        if ($oldName) {
+            $row['nombre_anterior'] = $oldName;
+        }
+
+        return $row;
     }
 }

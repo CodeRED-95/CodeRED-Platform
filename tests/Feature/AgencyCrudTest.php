@@ -54,6 +54,65 @@ class AgencyCrudTest extends TestCase
         $this->assertSame(AgencySize::Medium, $agency->size);
         $this->assertTrue($agency->is_operations_center);
         $this->assertTrue($agency->changeLogs()->where('action', 'created')->exists());
+        $this->assertNull($agency->old_name);
+    }
+
+    public function test_authorized_user_creates_agency_with_old_name(): void
+    {
+        $this->actingAs($this->superAdmin());
+
+        $this->validCreateForm()
+            ->set('old_name', '  Nombre   Antiguo  ')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $agency = Agency::query()->where('code', 'AG-NEW-001')->firstOrFail();
+        $this->assertSame('Nombre Antiguo', $agency->old_name);
+    }
+
+    public function test_authorized_user_can_edit_old_name(): void
+    {
+        $this->actingAs($this->superAdmin());
+        $agency = Agency::factory()->create(['old_name' => null]);
+
+        // Test setting old_name from null to a value
+        Livewire::test(Form::class, ['agency' => $agency])
+            ->set('old_name', 'Primer Nombre Antiguo')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $agency->refresh();
+        $this->assertSame('Primer Nombre Antiguo', $agency->old_name);
+
+        // Test changing old_name from one value to another
+        Livewire::test(Form::class, ['agency' => $agency])
+            ->set('old_name', 'Segundo Nombre Antiguo')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $agency->refresh();
+        $this->assertSame('Segundo Nombre Antiguo', $agency->old_name);
+
+        // Test setting old_name back to null
+        Livewire::test(Form::class, ['agency' => $agency])
+            ->set('old_name', '')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $agency->refresh();
+        $this->assertNull($agency->old_name);
+    }
+
+    public function test_listing_searches_by_old_name(): void
+    {
+        $this->actingAs($this->superAdmin());
+        $visible = Agency::factory()->create(['name' => 'Agencia Visoria', 'old_name' => 'Corporacion Imaginaria']);
+        $hidden = Agency::factory()->create(['name' => 'Agencia Norte', 'old_name' => 'Transportes del Sur']);
+
+        Livewire::test(Index::class)
+            ->set('search', 'imaginaria')
+            ->assertSee($visible->code)
+            ->assertDontSee($hidden->code);
     }
 
     public function test_authorized_user_edits_agency_without_changing_provenance(): void

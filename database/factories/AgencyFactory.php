@@ -25,6 +25,7 @@ class AgencyFactory extends Factory
             'external_id' => $externalId,
             'code' => strtoupper('AG'.fake()->unique()->numerify('#####')),
             'name' => $name,
+            'old_name' => fake()->optional(0.3)->company(),
             'short_name' => Str::limit($name, 30, ''),
             'slug' => Str::slug($name.' '.fake()->unique()->numerify('###')),
             'department' => $department,

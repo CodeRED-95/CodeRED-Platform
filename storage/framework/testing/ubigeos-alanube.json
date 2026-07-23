@@ -1,0 +1,23 @@
+[
+    {
+        "codigo": "010101",
+        "departamento": "AMAZONAS",
+        "provincia": "CHACHAPOYAS",
+        "distrito": "CHACHAPOYAS",
+        "capital": "CHACHAPOYAS"
+    },
+    {
+        "codigo": "150137",
+        "departamento": "LIMA",
+        "provincia": "LIMA",
+        "distrito": "SANTA ANITA",
+        "capital": "SANTA ANITA"
+    },
+    {
+        "codigo": "150140",
+        "departamento": "LIMA",
+        "provincia": "LIMA",
+        "distrito": "SANTIAGO DE SURCO",
+        "capital": "SANTIAGO DE SURCO"
+    }
+]
