@@ -16,14 +16,17 @@
     ]" />
     <div class="code-red-shell h-dvh min-h-0 overflow-hidden">
         <div class="flex h-dvh min-h-0 overflow-hidden">
-            <aside class="layer-sidebar fixed inset-y-0 left-0 hidden h-dvh min-h-0 flex-col overflow-hidden border-r border-[color:var(--color-border-subtle)] bg-[color:var(--color-sidebar)]/95 backdrop-blur transition-all duration-300 lg:flex" :class="desktopCollapsed ? 'lg:w-20' : 'lg:w-72'">
-                <div class="relative shrink-0 border-b border-white/5 px-6 py-6">
-                    <x-ui.logo variant="symbol" class="h-11 w-11 rounded-2xl" />
-                    <div class="mt-4" :class="desktopCollapsed ? 'lg:opacity-0 lg:scale-90 lg:hidden' : ''">
-                        <p class="text-lg font-semibold tracking-tight">CodeRED Platform</p>
-                        <p class="text-sm text-[color:var(--color-text-secondary)]">Plataforma modular</p>
+            <aside class="layer-sidebar fixed inset-y-0 left-0 hidden h-dvh min-h-0 flex-col overflow-hidden border-r border-[color:var(--color-border-subtle)] bg-[color:var(--color-sidebar)]/95 backdrop-blur lg:flex transition-[width] duration-200 ease-in-out"
+                   :class="desktopCollapsed ? 'lg:w-[76px]' : 'lg:w-[264px]'">
+                <div class="relative shrink-0 border-b border-white/5" :class="desktopCollapsed ? 'px-3' : 'px-6 py-6'">
+                    <div class="flex items-center" :class="desktopCollapsed ? 'justify-center py-6' : ''">
+                        <x-ui.logo variant="symbol" class="h-11 w-11 rounded-2xl shrink-0" />
+                        <div class="ml-4" x-show="!desktopCollapsed" x-cloak>
+                            <p class="text-lg font-semibold tracking-tight">CodeRED Platform</p>
+                            <p class="text-sm text-[color:var(--color-text-secondary)]">Plataforma modular</p>
+                        </div>
                     </div>
-                    <div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
+                    <div x-show="!desktopCollapsed" x-cloak class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
                         <button
                             type="button"
                             class="focus-ring flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-[color:var(--color-sidebar)] text-[color:var(--color-text-muted)] transition hover:scale-110 hover:text-white"
@@ -31,13 +34,14 @@
                             aria-label="Toggle sidebar"
                             :aria-expanded="!desktopCollapsed"
                         >
-                            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true" :class="desktopCollapsed ? 'rotate-180' : ''"><path d="m7 15 5-5-5-5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <svg class="h-4 w-4 transition-transform" viewBox="0 0 20 20" fill="none" aria-hidden="true" :class="desktopCollapsed ? 'rotate-180' : ''"><path d="m7 15 5-5-5-5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </button>
                     </div>
                 </div>
 
                 <nav
-                    class="sidebar-navigation min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 py-5 text-sm [scrollbar-gutter:stable]"
+                    class="sidebar-navigation min-h-0 flex-1 overflow-y-auto overscroll-contain text-sm [scrollbar-gutter:stable]"
+                    :class="desktopCollapsed ? 'px-2 py-5' : 'px-4 py-5'"
                     data-sidebar-navigation
                     x-data="codeRedSidebarScroll"
                     x-on:scroll.passive="remember"
@@ -78,62 +82,63 @@
                         ];
                     @endphp
 
+                    <div class="flex flex-col gap-y-1">
                     @foreach ($navGroups as $group => $items)
                         @if(collect($items)->contains('can', true))
-                        <div :class="desktopCollapsed ? 'lg:px-0' : 'lg:px-3'">
-                            <p class="pb-1 pt-4 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--color-text-muted)] first:pt-0" :class="desktopCollapsed ? 'lg:text-center' : ''">
-                                <span :class="desktopCollapsed ? 'lg:hidden' : ''">{{ $group }}</span>
+                        <div class="space-y-1">
+                            <p class="px-3 pb-1 pt-4 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--color-text-muted)] first:pt-0" x-show="!desktopCollapsed" x-cloak>
+                                <span>{{ $group }}</span>
                             </p>
+                            @foreach ($items as $item)
+                              @if ($item['can'])
+                                <a href="{{ route($item['route']) }}"
+                                   :title="desktopCollapsed ? '{{ $item['label'] }}' : ''"
+                                   @if(request()->routeIs($item['route'])) data-sidebar-active="true" aria-current="page" @endif
+                                   :class="[
+                                       'sidebar-link',
+                                       desktopCollapsed ? 'lg:justify-center' : ''
+                                   ]"
+                                   >
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-[color:var(--color-brand-light)] shrink-0">{{ $item['icon'] }}</span>
+                                    <span class="font-medium" x-show="!desktopCollapsed" x-cloak>{{ $item['label'] }}</span>
+                                </a>
+                              @endif
+                            @endforeach
                         </div>
                         @endif
-                        @foreach ($items as $item)
-                          @if ($item['can'])
-                            <a href="{{ route($item['route']) }}"
-                               :title="desktopCollapsed ? '{{ $item['label'] }}' : ''"
-                               @if(request()->routeIs($item['route'])) data-sidebar-active="true" aria-current="page" @endif
-                               :class="[
-                                   'sidebar-link',
-                                   desktopCollapsed ? 'lg:justify-center lg:gap-0' : ''
-                               ]"
-                               >
-                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-[color:var(--color-brand-light)]">{{ $item['icon'] }}</span>
-                                <span class="font-medium" :class="desktopCollapsed ? 'lg:hidden' : ''">{{ $item['label'] }}</span>
-                            </a>
-                          @endif
-                        @endforeach
                     @endforeach
+                    </div>
                 </nav>
 
-                @auth
-                    <div class="shrink-0 border-t border-white/5 p-4" :class="desktopCollapsed ? 'lg:p-2' : ''">
-                        <a href="{{ route('profile.show') }}" aria-label="Abrir mi perfil" :title="desktopCollapsed ? '{{ auth()->user()->name }}' : ''"
-                           :class="[
-                               'focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3 transition hover:bg-white/10',
-                               desktopCollapsed ? 'lg:p-2 lg:justify-center' : ''
-                           ]">
-                            <x-ui.avatar :name="auth()->user()->name" size="sm" />
-                            <div class="min-w-0 flex-1" :class="desktopCollapsed ? 'lg:hidden' : ''">
-                                <p class="truncate text-sm font-medium">{{ auth()->user()->name }}</p>
-                                <p class="truncate text-xs text-[color:var(--color-text-secondary)]">{{ auth()->user()->email }}</p>
-                            </div>
-                            <svg class="size-4 shrink-0 text-[color:var(--color-text-muted)]" viewBox="0 0 20 20" fill="none" aria-hidden="true" :class="desktopCollapsed ? 'lg:hidden' : ''"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </a>
-                        <form method="post" action="{{ route('logout') }}" class="mt-3" :class="desktopCollapsed ? 'lg:mt-2' : ''">
-                            @csrf
-                            <button type="submit" :title="desktopCollapsed ? 'Cerrar sesión' : ''"
-                                    :class="[
-                                        'focus-ring flex h-10 w-full items-center justify-center rounded-lg bg-white/5 px-4 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white',
-                                        desktopCollapsed ? 'lg:aspect-square' : ''
-                                    ]">
-                                <span :class="desktopCollapsed ? 'lg:hidden' : ''">Cerrar sesión</span>
-                                <svg :class="desktopCollapsed ? '' : 'hidden'" class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 12H3m0 0 3.5-3.5M3 12l3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            </button>
-                        </form>
-                    </div>
-                @endauth
+                <div class="mt-auto shrink-0 border-t border-white/5" :class="desktopCollapsed ? 'p-2' : 'p-4'">
+                    <a href="{{ route('profile.show') }}" aria-label="Abrir mi perfil" :title="desktopCollapsed ? '{{ auth()->user()->name }}' : ''"
+                       :class="[
+                           'focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3 transition hover:bg-white/10',
+                           desktopCollapsed ? 'lg:justify-center' : ''
+                       ]">
+                        <x-ui.avatar :name="auth()->user()->name" size="sm" class="shrink-0"/>
+                        <div class="min-w-0 flex-1" x-show="!desktopCollapsed" x-cloak>
+                            <p class="truncate text-sm font-medium">{{ auth()->user()->name }}</p>
+                            <p class="truncate text-xs text-[color:var(--color-text-secondary)]">{{ auth()->user()->email }}</p>
+                        </div>
+                        <svg class="size-4 shrink-0 text-[color:var(--color-text-muted)]" viewBox="0 0 20 20" fill="none" aria-hidden="true" x-show="!desktopCollapsed" x-cloak><path d="m8 5 5 5-5-5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                    <form method="post" action="{{ route('logout') }}" :class="desktopCollapsed ? 'mt-2' : 'mt-3'">
+                        @csrf
+                        <button type="submit" :title="desktopCollapsed ? 'Cerrar sesión' : ''"
+                                :class="[
+                                    'focus-ring flex h-10 w-full items-center justify-center rounded-lg bg-white/5 px-4 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white',
+                                    desktopCollapsed ? 'lg:aspect-square' : ''
+                                ]">
+                            <span x-show="!desktopCollapsed">Cerrar sesión</span>
+                            <svg x-show="desktopCollapsed" x-cloak class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 12H3m0 0 3.5-3.5M3 12l3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>
+                    </form>
+                </div>
             </aside>
 
-            <div class="flex h-dvh min-h-0 flex-1 flex-col overflow-hidden transition-all duration-300" :class="desktopCollapsed ? 'lg:pl-20' : 'lg:pl-72'">
+            <div class="flex h-dvh min-h-0 flex-1 flex-col overflow-hidden ease-in-out transition-[padding-left] duration-200"
+                 :class="desktopCollapsed ? 'lg:pl-[76px]' : 'lg:pl-[264px]'">
                 <header class="layer-header shrink-0 border-b border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/90 backdrop-blur">
                     <div class="flex items-center justify-between gap-4 px-4 py-4 lg:px-8">
                         <div class="flex items-center gap-3">
