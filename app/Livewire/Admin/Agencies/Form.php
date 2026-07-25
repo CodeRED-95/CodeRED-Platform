@@ -50,6 +50,10 @@ class Form extends Component
 
     public ?string $schedule = null;
 
+    public ?string $schedule_general = null;
+    
+    public ?string $schedule_sunday = null;
+
     public ?string $latitude = null;
 
     public ?string $longitude = null;
@@ -66,6 +70,12 @@ class Form extends Component
 
     public string $category = 'PEQUEÑA';
 
+    public ?string $classification_category = null;
+
+    public ?string $classification_sends_category = null;
+
+    public ?string $classification_receives_category = null;
+
     public bool $is_operations_center = false;
 
     public string $source = 'manual';
@@ -73,6 +83,10 @@ class Form extends Component
     public ?string $source_reference = null;
 
     public ?string $source_text = null;
+    
+    public ?string $place = null;
+
+    public ?string $zone = null;
 
     public ?string $texto_chosen_terrestre = null;
 
@@ -120,6 +134,8 @@ class Form extends Component
                 'secondary_phone' => $agency->secondary_phone,
                 'email' => $agency->email,
                 'schedule' => $agency->schedule,
+                'schedule_general' => $agency->schedule_general,
+                'schedule_sunday' => $agency->schedule_sunday,
                 'latitude' => $agency->latitude,
                 'longitude' => $agency->longitude,
                 'map_url' => $agency->map_url,
@@ -127,11 +143,16 @@ class Form extends Component
                 'observations' => $agency->observations,
                 'status' => $agency->status->value,
                 'size' => $agency->size?->value,
-                'category' => $agency->category->value,
+                'category' => $agency->category?->value ?? $this->category,
+                'classification_category' => $agency->classification_category,
+                'classification_sends_category' => $agency->classification_sends_category,
+                'classification_receives_category' => $agency->classification_receives_category,
                 'is_operations_center' => (bool) $agency->is_operations_center,
                 'source' => $agency->source,
                 'source_reference' => $agency->source_reference,
                 'source_text' => $agency->source_text,
+                'place' => $agency->place,
+                'zone' => $agency->zone,
                 'texto_chosen_terrestre' => $agency->texto_chosen_terrestre,
                 'texto_chosen_aereo' => $agency->texto_chosen_aereo,
                 'has_moved' => (bool) $agency->has_moved,
@@ -258,9 +279,11 @@ class Form extends Component
             'secondary_phone' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'schedule' => ['nullable', 'string'],
+            'schedule_general' => ['nullable', 'string', 'max:255'],
+            'schedule_sunday' => ['nullable', 'string', 'max:255'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'map_url' => ['nullable', 'url', 'max:2048'],
+            'map_url' => ['nullable', 'string', 'max:2048'],
             'services' => ['array'],
             'services.*' => ['nullable', 'string', 'max:255'],
             'observations' => ['nullable', 'string'],
@@ -272,10 +295,15 @@ class Form extends Component
             ],
             'size' => ['nullable', Rule::in(array_map(fn (AgencySize $case) => $case->value, AgencySize::cases()))],
             'category' => ['required', Rule::in(array_map(fn (Category $case) => $case->value, Category::cases()))],
+            'classification_category' => ['nullable', 'string', 'max:255'],
+            'classification_sends_category' => ['nullable', 'string', 'max:255'],
+            'classification_receives_category' => ['nullable', 'string', 'max:255'],
             'is_operations_center' => ['boolean'],
             'source' => ['required', 'string', 'max:100'],
             'source_reference' => ['nullable', 'string', 'max:255'],
             'source_text' => ['nullable', 'string'],
+            'place' => ['nullable', 'string', 'max:1000'],
+            'zone' => ['nullable', 'string', 'max:255'],
             'texto_chosen_terrestre' => ['nullable', 'string', 'max:10000'],
             'texto_chosen_aereo' => ['nullable', 'string', 'max:10000'],
             'has_moved' => ['boolean'],
@@ -293,8 +321,8 @@ class Form extends Component
             ],
             'move_notice' => ['nullable', 'string'],
             'moved_at' => ['nullable', 'date'],
-        ];
-    }
+            ];
+            }
 
     private function normalizeInput(): void
     {
@@ -306,12 +334,18 @@ class Form extends Component
     private function normalizePayload(array $data): array
     {
         $payload = $data;
-        foreach (['code', 'name', 'old_name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice'] as $field) {
+        foreach (['code', 'name', 'old_name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'schedule_general', 'schedule_sunday', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice', 'place', 'zone', 'classification_category', 'classification_sends_category', 'classification_receives_category'] as $field) {
             if (array_key_exists($field, $payload) && is_string($payload[$field])) {
                 $payload[$field] = trim(preg_replace('/\s+/u', ' ', $payload[$field]));
                 $payload[$field] = $payload[$field] === '' ? null : $payload[$field];
             }
         }
+
+        if (! auth()->user()?->isSuperAdmin()) {
+            unset($payload['old_name']);
+        }
+
+        unset($payload['map_url']);
 
         $payload['code'] = strtoupper((string) $payload['code']);
         $payload['name'] = trim((string) preg_replace('/\s+/u', ' ', $payload['name']));

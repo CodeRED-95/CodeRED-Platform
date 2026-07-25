@@ -12,12 +12,14 @@ use Livewire\Component;
 class Show extends Component
 {
     public Agency $agency;
+    public Collection $nameHistories;
 
     public function mount(Agency $agency): void
     {
         Gate::authorize('view', $agency);
 
-        $this->agency = $agency->load(['createdBy', 'updatedBy', 'movedToAgency']);
+        $this->agency = $agency->load(['createdBy', 'updatedBy', 'movedToAgency', 'nameHistories.changedBy']);
+        $this->nameHistories = $this->agency->nameHistories;
     }
 
     public function render(): View

@@ -16,17 +16,13 @@
         <div class="grid gap-6 xl:grid-cols-2">
             @php
                 $sections = [
-                    'Identificación' => ['external_id','code','name','old_name','short_name','slug'],
-                    'Identificadores de extensión' => ['texto_chosen_terrestre','texto_chosen_aereo'],
-                    'Ubicación' => ['department','province','district','address','reference'],
-                    'Contacto' => ['phone','secondary_phone','email'],
-                    'Horario' => ['schedule'],
-                    'Servicios' => ['services'],
-                    'Mapa y coordenadas' => ['latitude','longitude','map_url'],
-                    'Clasificación' => ['size', 'category', 'is_operations_center'],
-                    'Estado' => ['status'],
-                    'Traslado' => ['has_moved','moved_to_agency_id','moved_to_address','moved_at','move_notice'],
-                    'Fuente y observaciones' => ['observations'],
+                    'Identificación' => ['external_id', 'code', 'name', 'old_name'],
+                    'Ubicación' => ['place', 'zone', 'department', 'province', 'district', 'address'],
+                    'Coordenadas' => ['latitude', 'longitude', 'map_url'],
+                    'Horarios' => ['schedule_general', 'schedule_sunday'],
+                    'Clasificación' => ['classification_category', 'classification_sends_category', 'classification_receives_category'],
+                    'Chosen' => ['texto_chosen_terrestre', 'texto_chosen_aereo'],
+                    'Estado y Traslado' => ['status', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'moved_at', 'move_notice'],
                 ];
             @endphp
             <div class="space-y-6 xl:col-span-2">
@@ -35,19 +31,62 @@
                         <x-ui.section-header :title="$title" />
                         <div class="mt-4 grid gap-4 md:grid-cols-2">
                             @foreach ($fields as $field)
-                                @if ($field === 'services')
-                                    <x-ui.textarea wrapper-class="md:col-span-2" wire:model.blur="servicesInput" rows="3" label="Servicios" :error="$errors->first('servicesInput')" />
-                                @elseif ($field === 'old_name')
+                                @if ($field === 'old_name')
                                     <x-ui.input
                                         type="text"
                                         wire:model.blur="old_name"
                                         label="Nombre anterior"
-                                        placeholder="Ejemplo: Agencia Tacna Centro"
-                                        description="Utilice este campo únicamente cuando la agencia haya cambiado de nombre."
                                         :error="$errors->first('old_name')"
+                                        readonly
                                     />
-                                @elseif ($field === 'is_operations_center')
-                                    <div class="md:col-span-2"><x-ui.toggle wire:model="is_operations_center">Centro de Operaciones</x-ui.toggle></div>
+                                @elseif ($field === 'place')
+                                    <x-ui.input
+                                        type="text"
+                                        wire:model.blur="place"
+                                        label="Place"
+                                        :error="$errors->first('place')"
+                                        readonly
+                                        description="Generado automáticamente."
+                                        wrapper-class="md:col-span-2"
+                                    />
+                                @elseif ($field === 'map_url')
+                                    <div class="md:col-span-2">
+                                        <x-ui.input
+                                            type="text"
+                                            wire:model.blur="map_url"
+                                            label="URL de Google Maps"
+                                            :error="$errors->first('map_url')"
+                                            readonly
+                                        >
+                                            <x-slot:append>
+                                                <a href="{{ $map_url }}" target="_blank" class="text-blue-500">
+                                                    Abrir
+                                                </a>
+                                            </x-slot:append>
+                                        </x-ui.input>
+                                    </div>
+                                @elseif (in_array($field, ['schedule_general', 'schedule_sunday']))
+                                    <x-ui.textarea
+                                        wrapper-class="md:col-span-2"
+                                        wire:model.blur="{{ $field }}"
+                                        rows="2"
+                                        :label="str_replace('_', ' ', ucfirst($field))"
+                                        :error="$errors->first($field)"
+                                    />
+                                @elseif (in_array($field, ['classification_category', 'classification_sends_category', 'classification_receives_category']))
+                                    <x-ui.input
+                                        type="text"
+                                        wire:model.blur="{{ $field }}"
+                                        :label="str_replace('_', ' ', ucfirst($field))"
+                                        :error="$errors->first($field)"
+                                    />
+                                @elseif ($field === 'zone')
+                                    <x-ui.input
+                                        type="text"
+                                        wire:model.blur="{{ $field }}"
+                                        label="Zone"
+                                        :error="$errors->first($field)"
+                                    />
                                 @elseif ($field === 'has_moved')
                                     <div class="md:col-span-2"><x-ui.toggle wire:model.live="has_moved">La agencia se trasladó</x-ui.toggle></div>
                                 @elseif ($field === 'status')
@@ -59,27 +98,6 @@
                                         :value="$status"
                                         :options="$statuses"
                                         :error="$errors->first('status')"
-                                        required
-                                    />
-                                @elseif ($field === 'size')
-                                    <x-ui.dropdown-select
-                                        id="agency-size"
-                                        name="size"
-                                        wire:model="size"
-                                        label="Tamaño"
-                                        :value="$size"
-                                        :options="['' => 'Sin especificar'] + $sizes"
-                                        :error="$errors->first('size')"
-                                    />
-                                @elseif ($field === 'category')
-                                    <x-ui.dropdown-select
-                                        id="agency-category"
-                                        name="category"
-                                        wire:model="category"
-                                        label="Categoría Operativa"
-                                        :value="$category"
-                                        :options="collect($categories)->mapWithKeys(fn ($c) => [$c->value => $c->value])->all()"
-                                        :error="$errors->first('category')"
                                         required
                                     />
                                 @elseif ($field === 'moved_to_agency_id')
@@ -150,15 +168,12 @@
                                         :description="$field === 'texto_chosen_terrestre' ? 'Identificador que utilizará la extensión en operaciones terrestres.' : 'Identificador que utilizará la extensión en operaciones aéreas.'"
                                         :error="$errors->first($field)"
                                     />
-                                @elseif ($field === 'observations')
-                                    <x-ui.textarea wrapper-class="md:col-span-2" wire:model.blur="observations" rows="4" label="Observaciones" :error="$errors->first('observations')" />
                                 @else
                                     <x-ui.input
                                         type="{{ in_array($field, ['external_id','latitude','longitude'], true) ? 'number' : ($field === 'email' ? 'email' : 'text') }}"
                                         step="any"
                                         wire:model.blur="{{ $field }}"
-                                        :label="$field === 'external_id' ? 'ID' : ($field === 'code' ? 'Code' : str_replace('_', ' ', ucfirst($field)))"
-                                        :description="$field === 'external_id' ? 'Identificador numérico proveniente de la fuente externa.' : ($field === 'code' ? 'Código interno utilizado por CodeRED Platform.' : null)"
+                                        :label="str_replace('_', ' ', ucfirst($field))"
                                         :error="$errors->first($field)"
                                     />
                                 @endif

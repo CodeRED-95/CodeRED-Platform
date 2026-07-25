@@ -30,6 +30,9 @@ class Index extends Component
     public string $search = '';
 
     #[Url]
+    public string $old_name = '';
+
+    #[Url]
     public string $status = '';
 
     #[Url]
@@ -46,6 +49,18 @@ class Index extends Component
 
     #[Url]
     public string $category = '';
+
+    #[Url]
+    public string $classification_category = '';
+
+    #[Url]
+    public string $has_chosen_terrestre = '';
+
+    #[Url]
+    public string $has_chosen_aereo = '';
+
+    #[Url]
+    public string $has_changed_name = '';
 
     #[Url]
     public string $source = '';
@@ -305,6 +320,11 @@ class Index extends Component
             'category' => $this->category, 'source' => $this->source, 'operations_center' => $this->operationsCenter, 'moved' => $this->moved,
             'without_coordinates' => $this->withoutCoordinates, 'without_phone' => $this->withoutPhone,
             'under_review' => $this->underReview, 'trash' => $this->withTrashed,
+            'old_name' => $this->old_name,
+            'classification_category' => $this->classification_category,
+            'has_chosen_terrestre' => $this->has_chosen_terrestre,
+            'has_chosen_aereo' => $this->has_chosen_aereo,
+            'has_changed_name' => $this->has_changed_name,
         ];
     }
 

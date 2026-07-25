@@ -38,7 +38,7 @@ class AgencySearchService
         $query->search($filters['search'] ?? null);
         $query->byLocation($filters['department'] ?? null, $filters['province'] ?? null, $filters['district'] ?? null);
 
-        foreach (['status', 'source', 'size', 'category'] as $field) {
+        foreach (['status', 'source', 'size', 'category', 'classification_category', 'old_name'] as $field) {
             if (! empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
             }
@@ -66,6 +66,18 @@ class AgencySearchService
 
         if (! empty($filters['under_review'])) {
             $query->where('status', AgencyStatus::UnderReview->value);
+        }
+
+        if (! empty($filters['has_chosen_terrestre'])) {
+            $query->whereNotNull('texto_chosen_terrestre');
+        }
+
+        if (! empty($filters['has_chosen_aereo'])) {
+            $query->whereNotNull('texto_chosen_aereo');
+        }
+
+        if (! empty($filters['has_changed_name'])) {
+            $query->whereNotNull('old_name');
         }
 
         return $query;

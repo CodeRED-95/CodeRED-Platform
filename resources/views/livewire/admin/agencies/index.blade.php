@@ -23,7 +23,7 @@
                 <x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Nueva agencia</x-ui.button>
             @endcan
             @can('import', \App\Modules\Agencies\Models\Agency::class)
-                <x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Importar</x-ui.button>
+                <x-ui.button href="{{ route('admin.agencies.import.shalom') }}" variant="secondary">Importar</x-ui.button>
             @endcan
             <x-ui.button href="{{ route('admin.agencies.map') }}" variant="secondary">Ver mapa</x-ui.button>
         </x-slot:actions>
@@ -38,19 +38,19 @@
     <x-ui.card>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <x-ui.search-box wire:model.live.debounce.400ms="search" label="Buscar" placeholder="ID, Code, agencia o identificador chosen..." />
+            <x-ui.input wire:model.live.debounce.400ms="old_name" label="Nombre anterior" placeholder="Buscar por nombre anterior" />
             <x-ui.status-select id="agencies-status-filter" wire:model.live="status" label="Estado" :value="$status" :options="$statuses" />
             <x-ui.dropdown-select id="agencies-department-filter" wire:model.live="department" label="Departamento" :value="$department" :options="['' => 'Todos'] + $departments->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-province-filter" wire:model.live="province" label="Provincia" :value="$province" :options="['' => 'Todas'] + $provinces->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-district-filter" wire:model.live="district" label="Distrito" :value="$district" :options="['' => 'Todos'] + $districts->mapWithKeys(fn ($item) => [$item => $item])->all()" />
-            <x-ui.dropdown-select id="agencies-size-filter" wire:model.live="size" label="Tamaño" :value="$size" :options="$sizes" />
-            <x-ui.dropdown-select id="agencies-category-filter" wire:model.live="category" label="Categoría" :value="$category" :options="$categories" />
+            <x-ui.input wire:model.live.debounce.400ms="classification_category" label="Categoría" placeholder="Buscar por categoría" />
             <x-ui.dropdown-select id="agencies-operations-filter" wire:model.live="operationsCenter" label="Centro de Operaciones" :value="$operationsCenter" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
             <x-ui.dropdown-select id="agencies-moved-filter" wire:model.live="moved" label="Trasladadas" :value="$moved" :options="['' => 'Todas', '1' => 'Sí', '0' => 'No']" />
-            <x-ui.dropdown-select id="agencies-source-filter" wire:model.live="source" label="Fuente" :value="$source" :options="['' => 'Todas', 'github_gist' => 'GitHub Gist', 'manual' => 'Manual', 'seed' => 'Seeder']" />
+            <x-ui.dropdown-select id="agencies-chosen-terrestre-filter" wire:model.live="has_chosen_terrestre" label="Chosen Terrestre" :value="$has_chosen_terrestre" :options="['' => 'Todos', '1' => 'Sí']" />
+            <x-ui.dropdown-select id="agencies-chosen-aereo-filter" wire:model.live="has_chosen_aereo" label="Chosen Aéreo" :value="$has_chosen_aereo" :options="['' => 'Todos', '1' => 'Sí']" />
+            <x-ui.dropdown-select id="agencies-changed-name-filter" wire:model.live="has_changed_name" label="Cambió de nombre" :value="$has_changed_name" :options="['' => 'Todos', '1' => 'Sí']" />
             <x-ui.dropdown-select id="agencies-coordinates-filter" wire:model.live="withoutCoordinates" label="Coordenadas" :value="$withoutCoordinates" :options="['' => 'Todas', '1' => 'Sin coordenadas']" />
-            <x-ui.dropdown-select id="agencies-phone-filter" wire:model.live="withoutPhone" label="Teléfono" :value="$withoutPhone" :options="['' => 'Todos', '1' => 'Sin teléfono']" />
             <x-ui.dropdown-select id="agencies-deleted-filter" wire:model.live="withTrashed" label="Eliminadas" :value="$withTrashed" :options="['' => 'Activas', 'only' => 'Papelera', 'with' => 'Todas']" />
-            <x-ui.dropdown-select id="agencies-review-filter" wire:model.live="underReview" label="Revisión" :value="$underReview" :options="['' => 'Todas', '1' => 'Solo en revisión']" />
             <x-ui.dropdown-select id="agencies-per-page" wire:model.live="perPage" label="Por página" :value="$perPage" :options="[15 => '15', 30 => '30', 50 => '50', 100 => '100']" />
         </div>
     </x-ui.card>
@@ -148,8 +148,8 @@
                 <th class="px-5 py-4">Departamento</th>
                 <th class="px-5 py-4">Provincia</th>
                 <th class="px-5 py-4">Distrito</th>
-                <th class="cursor-pointer px-5 py-4" wire:click="sortBy('category')">Categoría</th>
-                <th class="px-5 py-4">Centro de Operaciones</th>
+                <th class="cursor-pointer px-5 py-4" wire:click="sortBy('classification_category')">Categoría</th>
+                <th class="px-5 py-4">Google Maps</th>
                 <th class="px-5 py-4">Estado</th>
                 <th class="px-5 py-4">Actualización</th>
                 <th class="px-5 py-4">Acciones</th>
@@ -168,26 +168,22 @@
                     <td class="px-5 py-4 font-mono text-sm text-[color:var(--color-accent-ivory)]">{{ $agency->code }}</td>
                     <td class="px-5 py-4">
                         <div class="font-medium">{{ $agency->name }}</div>
-                        <div class="text-xs text-[color:var(--color-text-secondary)]">{{ $agency->short_name ?? $agency->source_reference ?? '—' }}</div>
                     </td>
                     <td class="px-5 py-4">
                         <div class="font-medium">{{ $agency->old_name ?? '—' }}</div>
                     </td>
                     <td class="px-5 py-4">
                         <div>{{ $agency->department }}</div>
-                        <div class="mt-1 flex flex-wrap gap-1">
-                            @if ($agency->texto_chosen_terrestre)<x-ui.badge tone="success">Terrestre</x-ui.badge>@endif
-                            @if ($agency->texto_chosen_aereo)<x-ui.badge tone="info">Aéreo</x-ui.badge>@endif
-                            @if (! $agency->texto_chosen_terrestre && ! $agency->texto_chosen_aereo)<x-ui.badge tone="neutral">Sin canal</x-ui.badge>@endif
-                        </div>
                     </td>
                     <td class="px-5 py-4">{{ $agency->province }}</td>
                     <td class="px-5 py-4">{{ $agency->district }}</td>
-                    <td class="px-5 py-4">{{ $agency->category->value }}</td>
+                    <td class="px-5 py-4">{{ $agency->classification_category }}</td>
                     <td class="px-5 py-4">
-                        <x-ui.badge :tone="$agency->is_operations_center ? 'brand' : 'neutral'">
-                            {{ $agency->is_operations_center ? 'CO' : 'No' }}
-                        </x-ui.badge>
+                        @if($agency->map_url)
+                            <a href="{{ $agency->map_url }}" target="_blank" class="text-blue-500">
+                                Abrir mapa
+                            </a>
+                        @endif
                     </td>
                     <td class="px-5 py-4">
                         <div class="flex flex-wrap gap-2">

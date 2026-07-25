@@ -3,10 +3,13 @@
 namespace App\Modules\Agencies\Models;
 
 use App\Models\User;
+use App\Modules\Agencies\Actions\UpdateAgencyNameAction;
 use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Observers\AgencyObserver;
+use App\Modules\Agencies\Services\AgencyMapUrlGenerator;
+use App\Modules\Agencies\Services\AgencyPlaceGenerator;
 use Database\Factories\AgencyFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -35,6 +38,7 @@ class Agency extends Model
         'source_reference', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size', 'is_operations_center',
         'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at',
         'data_version', 'last_verified_at', 'created_by', 'updated_by', 'category',
+        'place', 'zone', 'schedule_general', 'schedule_sunday', 'classification_category', 'classification_sends_category', 'classification_receives_category',
     ];
 
     protected function casts(): array
@@ -64,8 +68,16 @@ class Agency extends Model
         static::observe(AgencyObserver::class);
 
         static::saving(function (self $agency): void {
+            if ($agency->isDirty('name') && $agency->getOriginal('name')) {
+                $action = new UpdateAgencyNameAction();
+                $action($agency, $agency->name, 'manual');
+            }
+
+            $agency->place = (new AgencyPlaceGenerator())($agency);
+            $agency->map_url = (new AgencyMapUrlGenerator())($agency);
+
             $agency->code = strtoupper(trim((string) $agency->code));
-            foreach (['name', 'old_name', 'department', 'province', 'district', 'phone', 'email'] as $field) {
+            foreach (['old_name', 'department', 'province', 'district', 'phone', 'email'] as $field) {
                 if ($agency->$field !== null) {
                     $agency->$field = preg_replace('/\s+/u', ' ', trim((string) $agency->$field));
                 }
@@ -120,6 +132,56 @@ class Agency extends Model
             ->when($department, fn (Builder $query) => $query->where('department', $department))
             ->when($province, fn (Builder $query) => $query->where('province', $province))
             ->when($district, fn (Builder $query) => $query->where('district', $district));
+    }
+
+    public function scopeWithCoordinates(Builder $query): Builder
+    {
+        return $query
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereBetween('latitude', [-90, 90])
+            ->whereBetween('longitude', [-180, 180]);
+    }
+
+    public function scopeWithoutCoordinates(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->whereNull('latitude')
+                ->orWhereNull('longitude')
+                ->orWhereNotBetween('latitude', [-90, 90])
+                ->orWhereNotBetween('longitude', [-180, 180]);
+        });
+    }
+
+    public function scopeWithChosenTerrestre(Builder $query): Builder
+    {
+        return $query->whereNotNull('texto_chosen_terrestre')->where('texto_chosen_terrestre', '<>', '');
+    }
+
+    public function scopeWithChosenAereo(Builder $query): Builder
+    {
+        return $query->whereNotNull('texto_chosen_aereo')->where('texto_chosen_aereo', '<>', '');
+    }
+
+    public function scopeByDepartment(Builder $query, ?string $department): Builder
+    {
+        return $query->when($department, fn (Builder $query) => $query->where('department', $department));
+    }
+
+    public function scopeByProvince(Builder $query, ?string $province): Builder
+    {
+        return $query->when($province, fn (Builder $query) => $query->where('province', $province));
+    }
+
+    public function scopeByDistrict(Builder $query, ?string $district): Builder
+    {
+        return $query->when($district, fn (Builder $query) => $query->where('district', $district));
+    }
+
+    public function scopeByClassification(Builder $query, ?string $classification): Builder
+    {
+        return $query->when($classification, fn (Builder $query) => $query->where('classification_category', $classification));
     }
 
     public function scopeSearch(Builder $query, ?string $term = null): Builder
@@ -205,5 +267,10 @@ class Agency extends Model
     public function movedFromAgencies(): HasMany
     {
         return $this->hasMany(self::class, 'moved_to_agency_id');
+    }
+
+    public function nameHistories(): HasMany
+    {
+        return $this->hasMany(AgencyNameHistory::class)->orderBy('changed_at', 'desc');
     }
 }

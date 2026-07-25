@@ -84,6 +84,12 @@ services:
       - redis
       - postgres
 
+  shalom-extractor:
+    build:
+      context: ./shalom-extractor
+    container_name: codered-shalom-extractor
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:

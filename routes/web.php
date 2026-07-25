@@ -10,6 +10,8 @@ use App\Livewire\Admin\Agencies\Form as AgencyForm;
 use App\Livewire\Admin\Agencies\Import as AgencyImport;
 use App\Livewire\Admin\Agencies\Index as AgenciesIndex;
 use App\Livewire\Admin\Agencies\Map as AgenciesMap;
+use App\Livewire\Admin\Agencies\ShalomSync;
+use App\Livewire\Admin\Agencies\ShalomSyncRun;
 use App\Livewire\Admin\Agencies\Show as AgencyShow;
 use App\Livewire\Admin\ApiDocumentation;
 use App\Livewire\Admin\ApiTokens\Index as ApiTokensIndex;
@@ -49,6 +51,8 @@ Route::get('/admin/agencies/backups', AgencyBackups::class)->middleware(['auth']
 Route::get('/admin/agencies/backups/{backup}/download', AgencyBackupDownloadController::class)->middleware(['auth'])->name('admin.agencies.backups.download');
 Route::get('/admin/agencies/map', AgenciesMap::class)->middleware(['auth'])->name('admin.agencies.map');
 Route::get('/admin/agencies/import', AgencyImport::class)->middleware(['auth'])->name('admin.agencies.import');
+Route::get('/admin/agencies/import/shalom', ShalomSync::class)->middleware(['auth'])->name('admin.agencies.import.shalom');
+Route::get('/admin/agencies/import/run/{importRun}', ShalomSyncRun::class)->middleware(['auth'])->name('admin.agencies.import.run');
 Route::get('/admin/agencies/create', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.create');
 Route::get('/admin/agencies/{agency}/edit', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.edit');
 Route::get('/admin/agencies/{agency}', AgencyShow::class)->middleware(['auth'])->name('admin.agencies.show');
