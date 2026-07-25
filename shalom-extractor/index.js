@@ -30,34 +30,69 @@ const first = (row, keys) => {
   return null;
 };
 
+function parseMaybeJson(value) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed || !['[', '{'].includes(trimmed[0])) return value;
+  try { return JSON.parse(trimmed); } catch (_) { return value; }
+}
+
+function looksLikeAgency(row) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
+  const keys = Object.keys(row).map((key) => key.toLowerCase());
+  const hasId = keys.some((key) => ['external_id', 'id', 'id_agencia', 'agencia_id', 'idagencia', 'idagencias'].includes(key));
+  const hasName = keys.some((key) => ['name', 'nombre', 'agencia', 'nombre_agencia', 'nombreagencia'].includes(key));
+  const hasLocation = keys.some((key) => ['direccion', 'address', 'departamento', 'department', 'latitud', 'latitude'].includes(key));
+  return (hasId && hasName) || (hasName && hasLocation);
+}
+
+function findAgencyArrays(value, path = 'root', depth = 0, found = []) {
+  if (depth > 10 || value === null || value === undefined) return found;
+  value = parseMaybeJson(value);
+
+  if (Array.isArray(value)) {
+    const objects = value.filter((item) => item && typeof item === 'object' && !Array.isArray(item));
+    if (objects.length > 0 && objects.some(looksLikeAgency)) found.push({ path, rows: objects });
+    value.forEach((item, index) => findAgencyArrays(item, `${path}[${index}]`, depth + 1, found));
+    return found;
+  }
+
+  if (typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      findAgencyArrays(child, `${path}.${key}`, depth + 1, found);
+    }
+  }
+  return found;
+}
+
 function normalizeAgency(row) {
-  const schedule = row.schedule || row.horario || {};
-  const classification = row.classification || row.clasificacion || {};
+  const schedule = row.schedule || row.horario || row.horarios || {};
+  const classification = row.classification || row.clasificacion || row.clasificación || {};
   return {
-    external_id: Number(first(row, ['external_id', 'id', 'id_agencia', 'agencia_id'])) || null,
-    code: clean(first(row, ['code', 'codigo', 'cod_agencia'])),
-    name: clean(first(row, ['name', 'nombre', 'agencia', 'nombre_agencia'])),
-    place: clean(first(row, ['place', 'lugar'])),
+    external_id: Number(first(row, ['external_id', 'id', 'id_agencia', 'agencia_id', 'idAgencia', 'idagencia'])) || null,
+    code: clean(first(row, ['code', 'codigo', 'código', 'cod_agencia', 'codAgencia'])),
+    name: clean(first(row, ['name', 'nombre', 'agencia', 'nombre_agencia', 'nombreAgencia'])),
+    place: clean(first(row, ['place', 'lugar', 'ubicacion', 'ubicación'])),
     zone: clean(first(row, ['zone', 'zona'])),
-    department: clean(first(row, ['department', 'departamento'])),
-    province: clean(first(row, ['province', 'provincia'])),
-    district: clean(first(row, ['district', 'distrito'])),
-    address: clean(first(row, ['address', 'direccion'])),
-    latitude: first(row, ['latitude', 'latitud', 'lat']),
-    longitude: first(row, ['longitude', 'longitud', 'lng', 'lon']),
+    department: clean(first(row, ['department', 'departamento', 'depa'])),
+    province: clean(first(row, ['province', 'provincia', 'prov'])),
+    district: clean(first(row, ['district', 'distrito', 'dist'])),
+    address: clean(first(row, ['address', 'direccion', 'dirección', 'domicilio'])),
+    latitude: first(row, ['latitude', 'latitud', 'lat', 'coordenada_latitud']),
+    longitude: first(row, ['longitude', 'longitud', 'lng', 'lon', 'coordenada_longitud']),
     schedule: {
-      general: clean(first(schedule, ['general']) || first(row, ['schedule_general', 'horario_general', 'horario'])),
-      sunday: clean(first(schedule, ['sunday', 'domingo']) || first(row, ['schedule_sunday', 'horario_domingo'])),
+      general: clean(first(schedule, ['general', 'principal']) || first(row, ['schedule_general', 'horario_general', 'horario', 'horario_atencion'])),
+      sunday: clean(first(schedule, ['sunday', 'domingo']) || first(row, ['schedule_sunday', 'horario_domingo', 'horario_domingos'])),
     },
     classification: {
-      category: clean(first(classification, ['category', 'categoria']) || first(row, ['classification_category', 'categoria'])),
-      sends_category: clean(first(classification, ['sends_category', 'envios']) || first(row, ['classification_sends_category'])),
-      receives_category: clean(first(classification, ['receives_category', 'recepciones']) || first(row, ['classification_receives_category'])),
+      category: clean(first(classification, ['category', 'categoria']) || first(row, ['classification_category', 'categoria', 'tipo_agencia'])),
+      sends_category: clean(first(classification, ['sends_category', 'envios']) || first(row, ['classification_sends_category', 'categoria_envio'])),
+      receives_category: clean(first(classification, ['receives_category', 'recepciones']) || first(row, ['classification_receives_category', 'categoria_recepcion'])),
     },
   };
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'shalom-extractor' }));
 
 app.post('/extract', async (req, res) => {
   if (typeof req.body?.chosenFileContent !== 'string' || !req.body.chosenFileContent.trim()) {
@@ -66,27 +101,57 @@ app.post('/extract', async (req, res) => {
 
   let browser;
   try {
+    console.log(`[extractor] Starting extraction at ${new Date().toISOString()}`);
     browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
     const context = await browser.newContext({ locale: 'es-PE' });
     const page = await context.newPage();
     page.setDefaultTimeout(Number(process.env.SHALOM_PAGE_TIMEOUT_MS || 120000));
+
+    const networkPayloads = [];
+    page.on('response', async (response) => {
+      const url = response.url().toLowerCase();
+      if (!url.includes('agencias/listar')) return;
+      try { networkPayloads.push(await response.json()); } catch (_) {}
+    });
 
     await page.goto('https://shalom.com.pe/agencias/', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.Service && typeof window.Service.sendPost === 'function');
 
     const result = await page.evaluate(async () => {
       let version = null;
-      try { version = await window.Service.sendPost('agencias/version'); } catch (_) {}
-      const agencies = await window.Service.sendPost('agencias/listar');
+      try { version = await window.Service.sendPost('agencias/version', {}); } catch (_) {}
+      let agencies = null;
+      try { agencies = await window.Service.sendPost('agencias/listar', {}); }
+      catch (firstError) {
+        try { agencies = await window.Service.sendPost('agencias/listar'); }
+        catch (secondError) { throw secondError || firstError; }
+      }
       return { version, agencies };
     });
 
-    const raw = Array.isArray(result.agencies)
-      ? result.agencies
-      : (result.agencies?.data || result.agencies?.resultado || result.agencies?.agencias || []);
+    const candidates = [
+      ...findAgencyArrays(result.agencies, 'service.agencies'),
+      ...networkPayloads.flatMap((payload, index) => findAgencyArrays(payload, `network[${index}]`)),
+    ].sort((a, b) => b.rows.length - a.rows.length);
 
-    const agencies = raw.map(normalizeAgency).filter((row) => row.name && row.external_id);
-    return res.json({ version: result.version, total: agencies.length, agencies });
+    const selected = candidates[0] || { path: null, rows: [] };
+    const agencies = selected.rows
+      .map(normalizeAgency)
+      .filter((row) => row.name && row.external_id)
+      .filter((row, index, all) => all.findIndex((candidate) => candidate.external_id === row.external_id) === index);
+
+    console.log(`[extractor] Finished: ${agencies.length} agencies; source=${selected.path || 'none'}`);
+    return res.json({
+      version: result.version,
+      total: agencies.length,
+      agencies,
+      diagnostics: {
+        source_path: selected.path,
+        candidate_arrays: candidates.length,
+        candidate_sizes: candidates.slice(0, 5).map((candidate) => ({ path: candidate.path, total: candidate.rows.length })),
+        service_response_type: Array.isArray(result.agencies) ? 'array' : typeof result.agencies,
+      },
+    });
   } catch (error) {
     console.error(`[extractor] ${error.name}: ${error.message}`);
     return res.status(502).json({ error: 'Failed to extract agencies', detail: error.message });

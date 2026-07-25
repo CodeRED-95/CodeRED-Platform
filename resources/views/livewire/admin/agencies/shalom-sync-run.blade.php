@@ -19,7 +19,17 @@
     </div>
 
     @if($importRun->error_message)
-        <div class="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">{{ $importRun->error_message }}</div>
+        <div class="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+            <p>{{ $importRun->error_message }}</p>
+            @if(in_array($importRun->status, ['pending', 'failed'], true))
+                <button wire:click="retry" class="btn-secondary mt-3">Reintentar análisis</button>
+            @endif
+        </div>
+    @elseif($importRun->status === 'pending')
+        <div class="mb-6 rounded-lg border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+            La ejecución sigue en cola. Si permanece así más de un minuto, reinicia el contenedor <code>codered-queue</code> y confirma que escucha <code>agency-imports</code>.
+            <button wire:click="retry" class="btn-secondary ml-3">Enviar nuevamente</button>
+        </div>
     @endif
 
     <div class="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">

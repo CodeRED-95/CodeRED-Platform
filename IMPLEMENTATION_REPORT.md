@@ -46,3 +46,13 @@ docker compose config
 - Confirmar con una respuesta real actual de Shalom los nombres exactos de sus propiedades; el extractor admite varios aliases comunes, pero la web externa puede cambiar.
 - Revisar duplicados de `external_id`. La migración crea el índice único seguro únicamente si no encuentra duplicados.
 - Probar la extensión Chrome con la respuesta API compatible antes de retirar aliases heredados.
+
+## Corrección v3: integración y extracción Shalom
+
+- Se agregó acceso visible a “Sincronización automática Shalom” dentro de `/admin/agencies/import`.
+- Los Jobs se envían explícitamente a la conexión Redis y cola `agency-imports`.
+- Se agregó reintento desde la vista de ejecución para estados pendientes o fallidos.
+- Una respuesta vacía del extractor ahora falla de forma explícita; ya no crea una vista previa 100 % con cero agencias.
+- El extractor busca arreglos de agencias recursivamente en respuestas anidadas y captura como respaldo la respuesta de red de `agencias/listar`.
+- `extractor.log` incluye total y diagnóstico de la ruta interna encontrada, sin cookies ni credenciales.
+- La pantalla informa cómo detectar un worker que no está escuchando la cola correcta.

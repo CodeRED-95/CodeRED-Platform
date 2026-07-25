@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Actions\ConfirmAgencyImportRunAction;
+use App\Modules\Agencies\Jobs\SyncShalomAgenciesJob;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImportRun;
 use Illuminate\Support\Facades\Gate;
@@ -38,6 +39,31 @@ class ShalomSyncRun extends Component
         abort_unless($this->importRun->status === 'ready_for_review', 409);
         abort_unless(in_array($action, ['create', 'update', 'rename'], true), 422);
         $this->importRun->items()->where('action', $action)->update(['selected' => $selected]);
+    }
+
+
+    public function retry(): void
+    {
+        Gate::authorize('import', Agency::class);
+
+        abort_unless(in_array($this->importRun->status, ['pending', 'failed'], true), 409);
+        abort_unless(filled($this->importRun->chosen_storage_path), 422);
+
+        $this->importRun->forceFill([
+            'status' => 'pending',
+            'stage' => 'En cola',
+            'progress' => 0,
+            'started_at' => null,
+            'finished_at' => null,
+            'error_message' => null,
+        ])->save();
+
+        SyncShalomAgenciesJob::dispatch($this->importRun->id, $this->importRun->chosen_storage_path)
+            ->onConnection('redis')
+            ->onQueue('agency-imports')
+            ->afterCommit();
+
+        $this->dispatch('toast', type: 'success', message: 'La sincronización fue enviada nuevamente a la cola agency-imports.');
     }
 
     public function confirm(ConfirmAgencyImportRunAction $confirm): void

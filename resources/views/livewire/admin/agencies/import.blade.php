@@ -1,4 +1,13 @@
 <div class="space-y-6">
+    <x-ui.card class="border-blue-500/30 bg-blue-500/5">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-white">Sincronización automática Shalom</h2>
+                <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">Extrae las agencias oficiales, combina el archivo Chosen y prepara una vista previa antes de modificar datos.</p>
+            </div>
+            <x-ui.button href="{{ route('admin.agencies.import.shalom') }}" variant="primary">Abrir sincronización Shalom</x-ui.button>
+        </div>
+    </x-ui.card>
     <x-ui.page-header title="Importar agencias" subtitle="Asistente seguro para GitHub Gist, JSON o archivo local.">
         <x-slot:actions>
             <x-ui.button href="{{ route('admin.agencies.index') }}" variant="secondary">Volver</x-ui.button>

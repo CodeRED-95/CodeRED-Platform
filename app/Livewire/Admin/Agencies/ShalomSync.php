@@ -42,7 +42,10 @@ class ShalomSync extends Component
         $run->update(['chosen_storage_path' => $path]);
         Storage::put($directory.'/extractor.log', '['.now()->toIso8601String()."] Ejecución creada.\n");
 
-        SyncShalomAgenciesJob::dispatch($run->id, $path)->onQueue('agency-imports');
+        SyncShalomAgenciesJob::dispatch($run->id, $path)
+            ->onConnection('redis')
+            ->onQueue('agency-imports')
+            ->afterCommit();
 
         return redirect()->route('admin.agencies.import.run', $run);
     }

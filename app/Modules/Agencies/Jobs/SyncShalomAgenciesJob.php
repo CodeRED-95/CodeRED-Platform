@@ -18,6 +18,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Throwable;
 
 class SyncShalomAgenciesJob implements ShouldQueue
@@ -38,6 +39,11 @@ class SyncShalomAgenciesJob implements ShouldQueue
     public function handle(ChosenFileParser $chosenParser, AgencyPlaceGenerator $placeGenerator, AgencyMapUrlGenerator $mapUrlGenerator, UpdateAgencyNameAction $nameAction): void
     {
         $run = AgencyImportRun::query()->findOrFail($this->importRunId);
+
+        if (! config('services.shalom_extractor.enabled', true)) {
+            throw new RuntimeException('El extractor Shalom está deshabilitado. Revisa SHALOM_EXTRACTOR_ENABLED.');
+        }
+
         $run->update(['status' => 'running', 'stage' => 'Extrayendo agencias Shalom', 'started_at' => now(), 'progress' => 10]);
 
         try {
@@ -47,7 +53,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
             $timeout = (int) config('services.shalom_extractor.timeout', env('SHALOM_EXTRACTOR_TIMEOUT', 180));
             $url = rtrim((string) config('services.shalom_extractor.url', env('SHALOM_EXTRACTOR_URL', 'http://shalom-extractor:3000')), '/');
 
-            $response = Http::timeout($timeout)->post($url.'/extract', [
+            $response = Http::connectTimeout(15)->timeout($timeout)->retry(2, 1500)->post($url.'/extract', [
                 'chosenFileContent' => $chosenFileContent,
             ]);
 
@@ -57,6 +63,13 @@ class SyncShalomAgenciesJob implements ShouldQueue
 
             $payload = $response->json();
             $incomingRows = collect($payload['agencies'] ?? $payload)->filter(fn ($row) => is_array($row))->values();
+
+            $basePath = 'imports/shalom/'.$run->id;
+            Storage::append($basePath.'/extractor.log', '['.now()->toIso8601String().'] Respuesta recibida. Total reportado: '.($payload['total'] ?? 'desconocido').'. Diagnóstico: '.json_encode($payload['diagnostics'] ?? [], JSON_UNESCAPED_UNICODE));
+
+            if ($incomingRows->isEmpty()) {
+                throw new RuntimeException('El extractor respondió correctamente, pero no encontró agencias. Revisa extractor.log y los logs del contenedor codered-shalom-extractor; la ejecución no se marcará como lista para revisión.');
+            }
             $processedRows = [];
             $counts = ['new_count' => 0, 'updated_count' => 0, 'renamed_count' => 0, 'unchanged_count' => 0, 'conflict_count' => 0, 'missing_count' => 0, 'error_count' => 0];
 
@@ -94,7 +107,6 @@ class SyncShalomAgenciesJob implements ShouldQueue
                 $processedRows[] = $incoming;
             }
 
-            $basePath = 'imports/shalom/'.$run->id;
             Storage::put($basePath.'/agencies-processed.json', json_encode($processedRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             Storage::put($basePath.'/report.json', json_encode($counts, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
@@ -108,6 +120,8 @@ class SyncShalomAgenciesJob implements ShouldQueue
                 'report_json_path' => $basePath.'/report.json',
             ]));
         } catch (Throwable $exception) {
+            Storage::append('imports/shalom/'.$run->id.'/extractor.log', '['.now()->toIso8601String().'] ERROR: '.$exception->getMessage());
+
             $run->update([
                 'status' => 'failed',
                 'stage' => 'Error',

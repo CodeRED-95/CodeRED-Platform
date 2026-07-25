@@ -1,6 +1,6 @@
 {
   "name": "codered-shalom-extractor",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Internal Shalom agency extractor for CodeRED Platform",
   "main": "index.js",
