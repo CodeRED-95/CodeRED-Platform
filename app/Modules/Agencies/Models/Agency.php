@@ -4,6 +4,7 @@ namespace App\Modules\Agencies\Models;
 
 use App\Models\User;
 use App\Modules\Agencies\Actions\UpdateAgencyNameAction;
+use App\Modules\Agencies\Casts\NullableCoordinate;
 use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
@@ -50,8 +51,8 @@ class Agency extends Model
         return [
             'services' => 'array',
             'external_id' => 'integer',
-            'latitude' => 'decimal:12',
-            'longitude' => 'decimal:12',
+            'latitude' => NullableCoordinate::class,
+            'longitude' => NullableCoordinate::class,
             'last_verified_at' => 'datetime',
             'status' => AgencyStatus::class,
             'size' => AgencySize::class,
