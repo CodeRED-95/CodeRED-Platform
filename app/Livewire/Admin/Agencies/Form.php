@@ -22,7 +22,7 @@ class Form extends Component
 
     public ?int $external_id = null;
 
-    public string $code = '';
+    public ?string $code = null;
 
     public string $name = '';
 
@@ -32,13 +32,13 @@ class Form extends Component
 
     public ?string $slug = null;
 
-    public string $department = '';
+    public ?string $department = null;
 
-    public string $province = '';
+    public ?string $province = null;
 
-    public string $district = '';
+    public ?string $district = null;
 
-    public string $address = '';
+    public ?string $address = null;
 
     public ?string $reference = null;
 
@@ -78,7 +78,7 @@ class Form extends Component
 
     public bool $is_operations_center = false;
 
-    public string $source = 'manual';
+    public ?string $source = 'manual';
 
     public ?string $source_reference = null;
 
@@ -326,7 +326,7 @@ class Form extends Component
 
     private function normalizeInput(): void
     {
-        $this->code = strtoupper(trim($this->code));
+        $this->code = filled($this->code) ? strtoupper(trim((string) $this->code)) : null;
         $this->slug = filled($this->slug) ? Str::slug((string) $this->slug) : null;
         $this->email = filled($this->email) ? mb_strtolower(trim((string) $this->email)) : null;
     }
