@@ -31,6 +31,10 @@ class Agency extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public string $nameChangeSource = 'manual';
+    public ?int $nameChangeImportRunId = null;
+    public ?int $nameChangeUserId = null;
+
     protected $fillable = [
         'external_id', 'code', 'name', 'old_name', 'short_name', 'slug', 'department', 'province', 'district',
         'address', 'reference', 'phone', 'secondary_phone', 'email', 'schedule',
@@ -46,8 +50,8 @@ class Agency extends Model
         return [
             'services' => 'array',
             'external_id' => 'integer',
-            'latitude' => 'decimal:7',
-            'longitude' => 'decimal:7',
+            'latitude' => 'decimal:12',
+            'longitude' => 'decimal:12',
             'last_verified_at' => 'datetime',
             'status' => AgencyStatus::class,
             'size' => AgencySize::class,
@@ -70,13 +74,13 @@ class Agency extends Model
         static::saving(function (self $agency): void {
             if ($agency->isDirty('name') && $agency->getOriginal('name')) {
                 $action = new UpdateAgencyNameAction();
-                $action($agency, $agency->name, 'manual');
+                $action($agency, $agency->name, $agency->nameChangeSource, $agency->nameChangeImportRunId, $agency->nameChangeUserId);
             }
 
             $agency->place = (new AgencyPlaceGenerator())($agency);
             $agency->map_url = (new AgencyMapUrlGenerator())($agency);
 
-            $agency->code = strtoupper(trim((string) $agency->code));
+            $agency->code = filled($agency->code) ? strtoupper(trim((string) $agency->code)) : null;
             foreach (['old_name', 'department', 'province', 'district', 'phone', 'email'] as $field) {
                 if ($agency->$field !== null) {
                     $agency->$field = preg_replace('/\s+/u', ' ', trim((string) $agency->$field));

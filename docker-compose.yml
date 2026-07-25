@@ -60,7 +60,7 @@ services:
     container_name: codered-queue
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["php", "artisan", "queue:work", "redis", "--queue=ruc-imports,default", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768"]
+    command: ["php", "artisan", "queue:work", "redis", "--queue=agency-imports,ruc-imports,default", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768"]
     stop_grace_period: 2h
     volumes:
       - ./:/var/www/html
@@ -89,6 +89,16 @@ services:
       context: ./shalom-extractor
     container_name: codered-shalom-extractor
     restart: unless-stopped
+    environment:
+      PORT: 3000
+      SHALOM_EXTRACTOR_MAX_FILE_MB: ${SHALOM_EXTRACTOR_MAX_FILE_MB:-10}
+      SHALOM_PAGE_TIMEOUT_MS: ${SHALOM_PAGE_TIMEOUT_MS:-120000}
+    expose:
+      - "3000"
+    networks:
+      - default
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   pgdata:

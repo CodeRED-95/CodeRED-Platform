@@ -34,6 +34,7 @@ use App\Livewire\PublicAgencies\Show as PublicAgencyShow;
 use App\Modules\Agencies\Http\Controllers\AgencyBackupDownloadController;
 use App\Modules\Agencies\Http\Controllers\AgencyExportController;
 use App\Modules\Agencies\Http\Controllers\AgencyImportPreviewController;
+use App\Modules\Agencies\Http\Controllers\AgencyImportRunDownloadController;
 use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use App\Modules\Ruc\Http\Controllers\RucImportErrorsController;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +54,7 @@ Route::get('/admin/agencies/map', AgenciesMap::class)->middleware(['auth'])->nam
 Route::get('/admin/agencies/import', AgencyImport::class)->middleware(['auth'])->name('admin.agencies.import');
 Route::get('/admin/agencies/import/shalom', ShalomSync::class)->middleware(['auth'])->name('admin.agencies.import.shalom');
 Route::get('/admin/agencies/import/run/{importRun}', ShalomSyncRun::class)->middleware(['auth'])->name('admin.agencies.import.run');
+Route::get('/admin/agencies/import/run/{importRun}/download/{file}', AgencyImportRunDownloadController::class)->middleware(['auth'])->whereIn('file', ['processed', 'report'])->name('admin.agencies.import.run.download');
 Route::get('/admin/agencies/create', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.create');
 Route::get('/admin/agencies/{agency}/edit', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.edit');
 Route::get('/admin/agencies/{agency}', AgencyShow::class)->middleware(['auth'])->name('admin.agencies.show');
