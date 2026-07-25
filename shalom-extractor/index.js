@@ -40,8 +40,8 @@ function parseMaybeJson(value) {
 function looksLikeAgency(row) {
   if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
   const keys = Object.keys(row).map((key) => key.toLowerCase());
-  const hasId = keys.some((key) => ['external_id', 'id', 'id_agencia', 'agencia_id', 'idagencia', 'idagencias'].includes(key));
-  const hasName = keys.some((key) => ['name', 'nombre', 'agencia', 'nombre_agencia', 'nombreagencia'].includes(key));
+  const hasId = keys.some((key) => ['external_id', 'id', 'id_agencia', 'agencia_id', 'idagencia', 'idagencias', 'ter_id'].includes(key));
+  const hasName = keys.some((key) => ['name', 'nombre', 'agencia', 'nombre_agencia', 'nombreagencia', 'lugar_over'].includes(key));
   const hasLocation = keys.some((key) => ['direccion', 'address', 'departamento', 'department', 'latitud', 'latitude'].includes(key));
   return (hasId && hasName) || (hasName && hasLocation);
 }
@@ -69,10 +69,10 @@ function normalizeAgency(row) {
   const schedule = row.schedule || row.horario || row.horarios || {};
   const classification = row.classification || row.clasificacion || row.clasificación || {};
   return {
-    external_id: Number(first(row, ['external_id', 'id', 'id_agencia', 'agencia_id', 'idAgencia', 'idagencia'])) || null,
-    code: clean(first(row, ['code', 'codigo', 'código', 'cod_agencia', 'codAgencia'])),
-    name: clean(first(row, ['name', 'nombre', 'agencia', 'nombre_agencia', 'nombreAgencia'])),
-    place: clean(first(row, ['place', 'lugar', 'ubicacion', 'ubicación'])),
+    external_id: Number(first(row, ['external_id', 'id', 'id_agencia', 'agencia_id', 'idAgencia', 'idagencia', 'ter_id'])) || null,
+    code: clean(first(row, ['code', 'codigo', 'código', 'cod_agencia', 'codAgencia', 'ter_abrebiatura', 'ter_abreviatura'])),
+    name: clean(first(row, ['name', 'lugar_over', 'nombre', 'agencia', 'nombre_agencia', 'nombreAgencia'])),
+    place: clean(first(row, ['place', 'nombre', 'lugar', 'ubicacion', 'ubicación'])),
     zone: clean(first(row, ['zone', 'zona'])),
     department: clean(first(row, ['department', 'departamento', 'depa'])),
     province: clean(first(row, ['province', 'provincia', 'prov'])),
@@ -81,13 +81,13 @@ function normalizeAgency(row) {
     latitude: first(row, ['latitude', 'latitud', 'lat', 'coordenada_latitud']),
     longitude: first(row, ['longitude', 'longitud', 'lng', 'lon', 'coordenada_longitud']),
     schedule: {
-      general: clean(first(schedule, ['general', 'principal']) || first(row, ['schedule_general', 'horario_general', 'horario', 'horario_atencion'])),
-      sunday: clean(first(schedule, ['sunday', 'domingo']) || first(row, ['schedule_sunday', 'horario_domingo', 'horario_domingos'])),
+      general: clean(first(schedule, ['general', 'principal']) || first(row, ['schedule_general', 'horario_general', 'horario', 'horario_atencion', 'hora_atencion'])),
+      sunday: clean(first(schedule, ['sunday', 'domingo']) || first(row, ['schedule_sunday', 'horario_domingo', 'horario_domingos', 'hora_domingo'])),
     },
     classification: {
-      category: clean(first(classification, ['category', 'categoria']) || first(row, ['classification_category', 'categoria', 'tipo_agencia'])),
-      sends_category: clean(first(classification, ['sends_category', 'envios']) || first(row, ['classification_sends_category', 'categoria_envio'])),
-      receives_category: clean(first(classification, ['receives_category', 'recepciones']) || first(row, ['classification_receives_category', 'categoria_recepcion'])),
+      category: clean(first(classification, ['category', 'categoria']) || first(row, ['classification_category', 'categoria', 'tipo_agencia', 'ter_categoria'])),
+      sends_category: clean(first(classification, ['sends_category', 'envios']) || first(row, ['classification_sends_category', 'categoria_envio', 'ter_categoria_envia'])),
+      receives_category: clean(first(classification, ['receives_category', 'recepciones']) || first(row, ['classification_receives_category', 'categoria_recepcion', 'ter_categoria_recibe'])),
     },
   };
 }
@@ -129,7 +129,12 @@ app.post('/extract', async (req, res) => {
       return { version, agencies };
     });
 
+    const directRows = result.agencies?.success === true && Array.isArray(result.agencies?.data)
+      ? [{ path: 'service.agencies.data', rows: result.agencies.data }]
+      : [];
+
     const candidates = [
+      ...directRows,
       ...findAgencyArrays(result.agencies, 'service.agencies'),
       ...networkPayloads.flatMap((payload, index) => findAgencyArrays(payload, `network[${index}]`)),
     ].sort((a, b) => b.rows.length - a.rows.length);
@@ -140,7 +145,7 @@ app.post('/extract', async (req, res) => {
       .filter((row) => row.name && row.external_id)
       .filter((row, index, all) => all.findIndex((candidate) => candidate.external_id === row.external_id) === index);
 
-    console.log(`[extractor] Finished: ${agencies.length} agencies; source=${selected.path || 'none'}`);
+    console.log(`[extractor] Finished: ${agencies.length} agencies; source=${selected.path || 'none'}; candidates=${candidates.length}; sizes=${JSON.stringify(candidates.slice(0, 5).map((candidate) => ({ path: candidate.path, total: candidate.rows.length })))}`);
     return res.json({
       version: result.version,
       total: agencies.length,
