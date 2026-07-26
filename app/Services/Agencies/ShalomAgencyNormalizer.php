@@ -12,51 +12,24 @@ final class ShalomAgencyNormalizer
         $geographicIds = is_array($row['geographic_ids'] ?? null) ? $row['geographic_ids'] : [];
         $services = is_array($row['services'] ?? null) ? $row['services'] : [];
 
-        $externalId = $this->firstInteger([
-            $row['external_id'] ?? null,
-            $sourceRecord['ter_id'] ?? null,
-        ]);
-
-        $code = $this->firstText([
-            $row['code'] ?? null,
-            $sourceRecord['ter_abrebiatura'] ?? null,
-        ], uppercase: true);
-
-        $name = $this->firstText([
-            $row['name'] ?? null,
-            $sourceRecord['lugar_over'] ?? null,
-        ], uppercase: true);
-
-        $place = $this->firstText([
-            $row['place'] ?? null,
-            $sourceRecord['nombre'] ?? null,
-        ]);
-
-        $department = $this->firstText([
-            $row['department'] ?? null,
-            $sourceRecord['departamento'] ?? null,
-        ], uppercase: true);
-
-        $province = $this->firstText([
-            $row['province'] ?? null,
-            $sourceRecord['provincia'] ?? null,
-        ], uppercase: true);
-
+        $externalId = $this->firstInteger([$row['external_id'] ?? null, $sourceRecord['ter_id'] ?? null]);
+        $code = $this->firstText([$row['code'] ?? null, $sourceRecord['ter_abrebiatura'] ?? null], uppercase: true);
+        $name = $this->firstText([$row['name'] ?? null, $sourceRecord['lugar_over'] ?? null], uppercase: true);
+        $place = $this->firstText([$row['place'] ?? null, $sourceRecord['nombre'] ?? null]);
+        $department = $this->firstText([$row['department'] ?? null, $sourceRecord['departamento'] ?? null], uppercase: true);
+        $province = $this->firstText([$row['province'] ?? null, $sourceRecord['provincia'] ?? null], uppercase: true);
         $district = $this->resolveDistrict($row, $sourceRecord, $place);
-        $address = $this->firstText([
-            $row['address'] ?? null,
-            $sourceRecord['direccion'] ?? null,
-        ]);
+        $address = $this->firstText([$row['address'] ?? null, $sourceRecord['direccion'] ?? null]);
 
-        $latitude = $this->firstFloat([
+        $latitude = $this->nullableFloat($this->firstFilled(
             $row['latitude'] ?? null,
             $sourceRecord['latitud'] ?? null,
-        ]);
+        ));
 
-        $longitude = $this->firstFloat([
+        $longitude = $this->nullableFloat($this->firstFilled(
             $row['longitude'] ?? null,
             $sourceRecord['longitud'] ?? null,
-        ]);
+        ));
 
         $general = $this->firstText([
             $schedule['general'] ?? null,
@@ -68,7 +41,7 @@ final class ShalomAgencyNormalizer
             $sourceRecord['hora_domingo'] ?? null,
         ], uppercase: true);
 
-        $tamano = $this->firstText([
+        $classificationCategory = $this->firstText([
             $classification['category'] ?? null,
             $sourceRecord['ter_categoria'] ?? null,
         ], uppercase: true);
@@ -83,10 +56,7 @@ final class ShalomAgencyNormalizer
             $sourceRecord['ter_categoria_recibe'] ?? null,
         ], uppercase: true);
 
-        $ubigeoId = $this->firstInteger([
-            $geographicIds['ubigeo_id'] ?? null,
-            $sourceRecord['ubi_id'] ?? null,
-        ]);
+        $ubigeoId = $this->firstInteger([$geographicIds['ubigeo_id'] ?? null, $sourceRecord['ubi_id'] ?? null]);
 
         $hasTerrestrial = filled($row['texto_chosen_terrestre'] ?? null)
             || filled($sourceRecord['ter_terrestre'] ?? null)
@@ -99,8 +69,13 @@ final class ShalomAgencyNormalizer
             || $this->truthy($services['air'] ?? null)
             || $this->truthy($sourceRecord['ter_aereo'] ?? null);
 
-        $textoChosenTerrestre = $hasTerrestrial ? $this->buildChosenText($externalId, $department, $province, $district, $name, 'TERRESTRE') : null;
-        $textoChosenAereo = $hasAir ? $this->buildChosenText($externalId, $department, $province, $district, $name, 'AEREO') : null;
+        $textoChosenTerrestre = $hasTerrestrial
+            ? $this->buildChosenText($externalId, $department, $province, $district, $name, 'TERRESTRE')
+            : null;
+
+        $textoChosenAereo = $hasAir
+            ? $this->buildChosenText($externalId, $department, $province, $district, $name, 'AEREO')
+            : null;
 
         $mapUrl = $latitude !== null && $longitude !== null
             ? "https://www.google.com/maps/dir/?api=1&destination={$latitude},{$longitude}"
@@ -117,11 +92,11 @@ final class ShalomAgencyNormalizer
             'address' => $address,
             'latitude' => $latitude,
             'longitude' => $longitude,
-            'general' => $general,
-            'sunday' => $sunday,
-            'tamano' => $tamano,
-            'sends_category' => $sendsCategory,
-            'receives_category' => $receivesCategory,
+            'schedule_general' => $general,
+            'schedule_sunday' => $sunday,
+            'classification_category' => $classificationCategory,
+            'classification_sends_category' => $sendsCategory,
+            'classification_receives_category' => $receivesCategory,
             'ubigeo_id' => $ubigeoId,
             'texto_chosen_terrestre' => $textoChosenTerrestre,
             'texto_chosen_aereo' => $textoChosenAereo,
@@ -139,7 +114,7 @@ final class ShalomAgencyNormalizer
             $sourceRecord['zona'] ?? null,
         ], uppercase: true);
 
-        if ($district !== null) {
+        if (filled($district)) {
             return $district;
         }
 
@@ -147,9 +122,9 @@ final class ShalomAgencyNormalizer
             return null;
         }
 
-        $segments = array_values(array_filter(array_map('trim', explode('/', $place)), static fn ($value) => $value !== ''));
+        $parts = array_values(array_filter(array_map('trim', explode('/', (string) $place)), static fn ($value) => $value !== ''));
 
-        return $segments[2] ?? null;
+        return $parts[2] ?? null;
     }
 
     private function buildChosenText(?int $externalId, ?string $department, ?string $province, ?string $district, ?string $name, string $mode): ?string
@@ -164,6 +139,23 @@ final class ShalomAgencyNormalizer
         ], static fn ($value) => $value !== null && $value !== '');
 
         return count($parts) >= 2 ? implode(' - ', $parts) : null;
+    }
+
+    private function firstFilled(mixed ...$values): mixed
+    {
+        foreach ($values as $value) {
+            if ($value === null) {
+                continue;
+            }
+
+            if (is_string($value) && trim($value) === '') {
+                continue;
+            }
+
+            return $value;
+        }
+
+        return null;
     }
 
     private function firstText(array $values, bool $uppercase = false): ?string
@@ -205,23 +197,21 @@ final class ShalomAgencyNormalizer
         return null;
     }
 
-    private function firstFloat(array $values): ?float
+    private function nullableFloat(mixed $value): ?float
     {
-        foreach ($values as $value) {
-            if (is_string($value)) {
-                $value = trim($value);
-            }
+        if ($value === null) {
+            return null;
+        }
 
-            if ($value === '' || $value === null || strtolower((string) $value) === 'null') {
-                continue;
-            }
+        if (is_string($value)) {
+            $value = trim($value);
 
-            if (is_numeric($value)) {
-                return (float) $value;
+            if ($value === '' || strtolower($value) === 'null') {
+                return null;
             }
         }
 
-        return null;
+        return is_numeric($value) ? (float) $value : null;
     }
 
     private function truthy(mixed $value): bool

@@ -54,7 +54,7 @@ class ShalomAgencyNormalizerTest extends TestCase
         ]);
 
         $this->assertSame('CORONEL GREGORIO ALBARRACIN LANCHIPA', $row['district']);
-        $this->assertSame('PEQUEÑA', $row['tamano']);
+        $this->assertSame('PEQUEÑA', $row['classification_category']);
         $this->assertSame(230110, $row['ubigeo_id']);
         $this->assertSame('674 - TACNA - TACNA - CORONEL GREGORIO ALBARRACIN LANCHIPA - VIÑANIS - TERRESTRE', $row['texto_chosen_terrestre']);
         $this->assertSame('674 - TACNA - TACNA - CORONEL GREGORIO ALBARRACIN LANCHIPA - VIÑANIS - AEREO', $row['texto_chosen_aereo']);

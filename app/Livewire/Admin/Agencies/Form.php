@@ -3,7 +3,6 @@
 namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
-use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Models\Agency;
@@ -308,7 +307,7 @@ class Form extends Component
             ],
             'size' => ['nullable', Rule::in(array_map(fn (AgencySize $case) => $case->value, AgencySize::cases()))],
             'category' => ['required', Rule::in(array_map(fn (Category $case) => $case->value, Category::cases()))],
-            'classification_category' => ['nullable', 'string', 'max:255'],
+            'classification_category' => ['required', 'string', 'max:255'],
             'classification_sends_category' => ['nullable', 'string', 'max:255'],
             'classification_receives_category' => ['nullable', 'string', 'max:255'],
             'is_operations_center' => ['boolean'],
