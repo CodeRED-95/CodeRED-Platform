@@ -17,7 +17,7 @@
             @php
                 $sections = [
                     'Identificación' => ['external_id', 'code', 'name', 'old_name'],
-                    'Ubicación' => ['place', 'department', 'province', 'district', 'address'],
+                    'Ubicación' => ['ubigeo_control', 'department', 'province', 'district', 'place', 'address'],
                     'Coordenadas' => ['latitude', 'longitude', 'map_url'],
                     'Horarios' => ['schedule_general', 'schedule_sunday'],
                     'Clasificación' => ['is_operations_center', 'classification_category', 'classification_sends_category', 'classification_receives_category'],
@@ -39,6 +39,37 @@
                                         :error="$errors->first('old_name')"
                                         readonly
                                     />
+                                @elseif ($field === 'ubigeo_control')
+                                    <div class="md:col-span-2 space-y-3">
+                                        <div class="flex items-end gap-3">
+                                            <div class="flex-1">
+                                                <x-ui.input
+                                                    type="text"
+                                                    wire:model.live.debounce.300ms="ubigeoSearch"
+                                                    label="Ubigeo"
+                                                    :error="$errors->first('ubigeoSearch')"
+                                                    placeholder="230110 - TACNA / TACNA / CORONEL GREGORIO ALBARRACIN LANCHIPA"
+                                                    description="Busca por código, departamento, provincia o distrito."
+                                                />
+                                            </div>
+                                            <x-ui.button type="button" wire:click="syncUbigeo" variant="secondary">Sincronizar</x-ui.button>
+                                        </div>
+                                        @if ($ubigeos->isNotEmpty())
+                                            <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)] p-2">
+                                                <div class="space-y-1">
+                                                    @foreach ($ubigeos as $ubigeo)
+                                                        <button
+                                                            type="button"
+                                                            class="flex w-full flex-col rounded-[var(--radius-control)] px-3 py-2 text-left text-sm transition hover:bg-white/5 focus-ring"
+                                                            wire:click="$set('ubigeoSearch', '{{ trim($ubigeo->codigo . ' - ' . $ubigeo->departamento . ' / ' . $ubigeo->provincia . ' / ' . $ubigeo->distrito) }}')"
+                                                        >
+                                                            <span class="font-medium text-[color:var(--color-text-primary)]">{{ $ubigeo->codigo }} - {{ $ubigeo->departamento }} / {{ $ubigeo->provincia }} / {{ $ubigeo->distrito }}</span>
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
                                 @elseif ($field === 'place')
                                     <x-ui.input
                                         type="text"
@@ -46,7 +77,7 @@
                                         label="Ubicación completa"
                                         :error="$errors->first('place')"
                                         readonly
-                                        description="Generado automáticamente."
+                                        description="Generado automáticamente desde Departamento / Provincia / Distrito / Nombre."
                                         wrapper-class="md:col-span-2"
                                     />
                                 @elseif ($field === 'map_url')

@@ -348,90 +348,92 @@ class SyncShalomAgenciesJob implements ShouldQueue
     private function toApiFormat(array $normalized, ?Agency $agency, array $rawData = []): array
     {
         $agencyData = [
-            'external_id' => $agency?->external_id
+            'external_id' => data_get($agency, 'external_id')
                 ?? data_get($normalized, 'external_id')
                 ?? data_get($rawData, 'external_id')
                 ?? data_get($rawData, 'source_record.ter_id'),
             'internal_id' => $agency?->id,
-            'code' => $agency?->code
+            'code' => data_get($agency, 'code')
                 ?? data_get($normalized, 'code')
                 ?? data_get($rawData, 'code')
                 ?? data_get($rawData, 'source_record.ter_abrebiatura'),
-            'name' => $agency?->name
+            'name' => data_get($agency, 'name')
                 ?? data_get($normalized, 'name')
                 ?? data_get($rawData, 'name')
                 ?? data_get($rawData, 'source_record.lugar_over'),
-            'old_name' => $agency?->old_name,
-            'place' => $agency?->place
+            'old_name' => data_get($agency, 'old_name'),
+            'place' => data_get($agency, 'place')
                 ?? data_get($normalized, 'place')
                 ?? data_get($rawData, 'place')
                 ?? data_get($rawData, 'source_record.nombre'),
-            'department' => $agency?->department
+            'department' => data_get($agency, 'department')
                 ?? data_get($normalized, 'department')
                 ?? data_get($rawData, 'department')
                 ?? data_get($rawData, 'source_record.departamento'),
-            'province' => $agency?->province
+            'province' => data_get($agency, 'province')
                 ?? data_get($normalized, 'province')
                 ?? data_get($rawData, 'province')
                 ?? data_get($rawData, 'source_record.provincia'),
-            'district' => $agency?->district
+            'district' => data_get($agency, 'district')
                 ?? data_get($normalized, 'district')
                 ?? data_get($rawData, 'district')
                 ?? data_get($rawData, 'zone')
                 ?? data_get($rawData, 'source_record.zona'),
-            'address' => $agency?->address
+            'address' => data_get($agency, 'address')
                 ?? data_get($normalized, 'address')
                 ?? data_get($rawData, 'address')
                 ?? data_get($rawData, 'source_record.direccion'),
-            'latitude' => $agency?->latitude
+            'latitude' => data_get($agency, 'latitude')
                 ?? data_get($normalized, 'latitude')
                 ?? data_get($rawData, 'latitude')
                 ?? data_get($rawData, 'source_record.latitud'),
-            'longitude' => $agency?->longitude
+            'longitude' => data_get($agency, 'longitude')
                 ?? data_get($normalized, 'longitude')
                 ?? data_get($rawData, 'longitude')
                 ?? data_get($rawData, 'source_record.longitud'),
-            'map_url' => $agency?->map_url
+            'map_url' => data_get($agency, 'map_url')
                 ?? data_get($normalized, 'map_url')
                 ?? data_get($rawData, 'map_url'),
             'schedule' => [
-                'general' => $agency?->schedule_general
+                'general' => data_get($agency, 'schedule_general')
                     ?? data_get($normalized, 'schedule.general')
                     ?? data_get($rawData, 'schedule.general')
                     ?? data_get($rawData, 'source_record.hora_atencion'),
-                'sunday' => $agency?->schedule_sunday
+                'sunday' => data_get($agency, 'schedule_sunday')
                     ?? data_get($normalized, 'schedule.sunday')
                     ?? data_get($rawData, 'schedule.sunday')
                     ?? data_get($rawData, 'source_record.hora_domingo'),
             ],
             'classification' => [
-                'tamano' => $agency?->classification_category
+                'category' => data_get($agency, 'classification_category')
+                    ?? data_get($normalized, 'classification.category')
                     ?? data_get($normalized, 'classification.tamano')
                     ?? data_get($normalized, 'tamano')
+                    ?? data_get($rawData, 'classification.category')
                     ?? data_get($rawData, 'classification.tamano')
                     ?? data_get($rawData, 'source_record.ter_categoria'),
-                'sends_category' => $agency?->classification_sends_category
+                'sends_category' => data_get($agency, 'classification_sends_category')
                     ?? data_get($normalized, 'classification.sends_category')
                     ?? data_get($normalized, 'sends_category')
                     ?? data_get($rawData, 'classification.sends_category')
                     ?? data_get($rawData, 'source_record.ter_categoria_envia'),
-                'receives_category' => $agency?->classification_receives_category
+                'receives_category' => data_get($agency, 'classification_receives_category')
                     ?? data_get($normalized, 'classification.receives_category')
                     ?? data_get($normalized, 'receives_category')
                     ?? data_get($rawData, 'classification.receives_category')
                     ?? data_get($rawData, 'source_record.ter_categoria_recibe'),
             ],
-            'chosen_terrestre' => $agency?->texto_chosen_terrestre
+            'chosen_terrestre' => data_get($agency, 'texto_chosen_terrestre')
                 ?? data_get($normalized, 'chosen_terrestre')
                 ?? data_get($normalized, 'texto_chosen_terrestre')
                 ?? data_get($rawData, 'chosen_terrestre'),
-            'chosen_aereo' => $agency?->texto_chosen_aereo
+            'chosen_aereo' => data_get($agency, 'texto_chosen_aereo')
                 ?? data_get($normalized, 'chosen_aereo')
                 ?? data_get($normalized, 'texto_chosen_aereo')
                 ?? data_get($rawData, 'chosen_aereo'),
-            'status' => $agency?->status?->value,
-            'estado' => $agency?->status?->label(),
-            'centro_operaciones' => (bool) ($agency?->is_operations_center ?? false),
+            'status' => data_get($agency, 'status.value'),
+            'estado' => data_get($agency, 'status')?->label(),
+            'centro_operaciones' => (bool) (data_get($agency, 'is_operations_center') ?? data_get($normalized, 'is_operations_center', false)),
         ];
 
         return [

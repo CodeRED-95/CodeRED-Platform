@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Modules\Ruc\Models\Ubigeo;
 use App\Services\Agencies\ShalomAgencyNormalizer;
 use Tests\TestCase;
 
@@ -9,8 +10,12 @@ class ShalomAgencyNormalizerTest extends TestCase
 {
     public function test_normalizes_example_payload_and_recovers_district_from_zone(): void
     {
-        $normalizer = new ShalomAgencyNormalizer;
-        $row = $normalizer->normalize([
+        $ubigeo = Ubigeo::query()->updateOrCreate(
+            ['codigo' => '230110'],
+            ['departamento' => 'TACNA', 'provincia' => 'TACNA', 'distrito' => 'CORONEL GREGORIO ALBARRACIN LANCHIPA']
+        );
+
+        $row = (new ShalomAgencyNormalizer)->normalize([
             'external_id' => 674,
             'code' => 'VNNS',
             'name' => 'VIÑANIS',
@@ -55,7 +60,8 @@ class ShalomAgencyNormalizerTest extends TestCase
 
         $this->assertSame('CORONEL GREGORIO ALBARRACIN LANCHIPA', $row['district']);
         $this->assertSame('PEQUEÑA', $row['classification_category']);
-        $this->assertSame(230110, $row['ubigeo_id']);
+        $this->assertSame($ubigeo->id, $row['ubigeo_id']);
+        $this->assertSame('230110', $row['ubigeo_code']);
         $this->assertSame('674 - TACNA - TACNA - CORONEL GREGORIO ALBARRACIN LANCHIPA - VIÑANIS - TERRESTRE', $row['texto_chosen_terrestre']);
         $this->assertSame('674 - TACNA - TACNA - CORONEL GREGORIO ALBARRACIN LANCHIPA - VIÑANIS - AEREO', $row['texto_chosen_aereo']);
         $this->assertSame('https://www.google.com/maps/dir/?api=1&destination=-18.062945787541,-70.251860014921', $row['map_url']);

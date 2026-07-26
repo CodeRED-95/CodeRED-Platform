@@ -45,7 +45,7 @@ class Agency extends Model
         'source_reference', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size', 'is_operations_center',
         'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at',
         'data_version', 'last_verified_at', 'created_by', 'updated_by', 'category',
-        'place', 'schedule_general', 'schedule_sunday', 'classification_category', 'classification_sends_category', 'classification_receives_category',
+        'place', 'schedule_general', 'schedule_sunday', 'classification_category', 'classification_sends_category', 'classification_receives_category', 'ubigeo_id',
     ];
 
     protected function casts(): array
@@ -60,6 +60,7 @@ class Agency extends Model
             'size' => AgencySize::class,
             'category' => Category::class,
             'is_operations_center' => 'boolean',
+            'ubigeo_id' => 'integer',
             'has_moved' => 'boolean',
             'moved_at' => 'date',
         ];
@@ -82,6 +83,7 @@ class Agency extends Model
 
             $agency->place = (new AgencyPlaceGenerator)($agency);
             $agency->map_url = (new AgencyMapUrlGenerator)($agency);
+            $agency->is_operations_center = mb_strtoupper(trim((string) $agency->classification_category), 'UTF-8') === 'GRANDE / CO';
 
             $agency->code = filled($agency->code) ? strtoupper(trim((string) $agency->code)) : null;
             foreach (['old_name', 'department', 'province', 'district', 'phone', 'email'] as $field) {
