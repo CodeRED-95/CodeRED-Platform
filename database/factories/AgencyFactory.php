@@ -42,6 +42,7 @@ class AgencyFactory extends Factory
             'services' => ['Envíos', 'Paquetería'],
             'observations' => fake()->optional()->paragraph(),
             'status' => fake()->randomElement(AgencyStatus::cases())->value,
+            'category' => 'PEQUEÑA',
             'source' => 'seed',
             'source_reference' => (string) $externalId,
             'texto_chosen_terrestre' => fake()->boolean() ? fake()->sentence().' - TERRESTRE' : null,

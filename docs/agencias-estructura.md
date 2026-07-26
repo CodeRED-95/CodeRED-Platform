@@ -2,9 +2,10 @@
 
 ## Estructura principal
 
-La entidad `Agency` usa como campos principales `external_id`, `code`, `name`, `old_name`, `place`, `zone`, ubicación administrativa, dirección, coordenadas, horarios, clasificación, Chosen, estado y traslado. Las columnas heredadas se conservan para compatibilidad durante esta primera etapa.
+La entidad `Agency` usa como campos principales `external_id`, `code`, `name`, `old_name`, `place`, ubicación administrativa, dirección, coordenadas, horarios, clasificación, Chosen, estado y traslado. Las columnas heredadas se conservan para compatibilidad durante esta primera etapa.
 
 `place` se genera automáticamente con `department / province / district / name`. `map_url` se genera exclusivamente dentro de CodeRED Platform cuando ambas coordenadas son válidas.
+La columna física `zone` se conserva temporalmente como dato histórico obsoleto, pero no participa en formularios, búsquedas, importaciones, sincronización, API, exportaciones ni generación de ubicación. Podrá eliminarse mediante una migración destructiva futura únicamente después de verificar que ningún consumidor antiguo la utilice. `zone` nunca se copia automáticamente a `district`.
 
 ## Nombres anteriores
 

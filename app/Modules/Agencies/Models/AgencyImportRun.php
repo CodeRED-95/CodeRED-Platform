@@ -54,6 +54,7 @@ class AgencyImportRun extends Model
         return $this->belongsTo(User::class, 'confirmed_by');
     }
 
+    /** @return HasMany<AgencyImportItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(AgencyImportItem::class, 'import_run_id');

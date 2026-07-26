@@ -53,12 +53,8 @@
                 <x-ui.section-header title="Ubicación" />
                 <div class="mt-5 grid gap-4 md:grid-cols-2">
                     <div>
-                        <p class="text-sm text-[color:var(--color-text-secondary)]">Place</p>
+                        <p class="text-sm text-[color:var(--color-text-secondary)]">Ubicación completa</p>
                         <p class="mt-1">{{ $agency->place }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-[color:var(--color-text-secondary)]">Zone</p>
-                        <p class="mt-1">{{ $agency->zone ?? '—' }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-[color:var(--color-text-secondary)]">Dirección</p>

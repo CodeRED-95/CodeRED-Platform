@@ -17,10 +17,10 @@
             @php
                 $sections = [
                     'Identificación' => ['external_id', 'code', 'name', 'old_name'],
-                    'Ubicación' => ['place', 'zone', 'department', 'province', 'district', 'address'],
+                    'Ubicación' => ['place', 'department', 'province', 'district', 'address'],
                     'Coordenadas' => ['latitude', 'longitude', 'map_url'],
                     'Horarios' => ['schedule_general', 'schedule_sunday'],
-                    'Clasificación' => ['classification_category', 'classification_sends_category', 'classification_receives_category'],
+                    'Clasificación' => ['size', 'category', 'is_operations_center', 'classification_category', 'classification_sends_category', 'classification_receives_category'],
                     'Chosen' => ['texto_chosen_terrestre', 'texto_chosen_aereo'],
                     'Estado y Traslado' => ['status', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'moved_at', 'move_notice'],
                 ];
@@ -43,7 +43,7 @@
                                     <x-ui.input
                                         type="text"
                                         wire:model.blur="place"
-                                        label="Place"
+                                        label="Ubicación completa"
                                         :error="$errors->first('place')"
                                         readonly
                                         description="Generado automáticamente."
@@ -73,18 +73,17 @@
                                         :label="str_replace('_', ' ', ucfirst($field))"
                                         :error="$errors->first($field)"
                                     />
+                                @elseif ($field === "size")
+                                    <x-ui.dropdown-select id="agency-size" name="size" wire:model="size" label="Tamaño" :value="$size" :options="["" => "Sin definir"] + $sizes" :error="$errors->first("size")" />
+                                @elseif ($field === "category")
+                                    <x-ui.dropdown-select id="agency-category" name="category" wire:model="category" label="Categoría" :value="$category" :options="collect($categories)->mapWithKeys(fn ($item) => [$item->value => $item->value])->all()" :error="$errors->first("category")" required />
+                                @elseif ($field === "is_operations_center")
+                                    <div class="md:col-span-2"><x-ui.toggle wire:model="is_operations_center">Centro de Operaciones</x-ui.toggle></div>
                                 @elseif (in_array($field, ['classification_category', 'classification_sends_category', 'classification_receives_category']))
                                     <x-ui.input
                                         type="text"
                                         wire:model.blur="{{ $field }}"
                                         :label="str_replace('_', ' ', ucfirst($field))"
-                                        :error="$errors->first($field)"
-                                    />
-                                @elseif ($field === 'zone')
-                                    <x-ui.input
-                                        type="text"
-                                        wire:model.blur="{{ $field }}"
-                                        label="Zone"
                                         :error="$errors->first($field)"
                                     />
                                 @elseif ($field === 'has_moved')
@@ -173,7 +172,7 @@
                                         type="{{ in_array($field, ['external_id','latitude','longitude'], true) ? 'number' : ($field === 'email' ? 'email' : 'text') }}"
                                         step="any"
                                         wire:model.blur="{{ $field }}"
-                                        :label="str_replace('_', ' ', ucfirst($field))"
+                                        :label="['department' => 'Departamento', 'province' => 'Provincia', 'district' => 'Distrito', 'address' => 'Dirección'][$field] ?? str_replace('_', ' ', ucfirst($field))"
                                         :error="$errors->first($field)"
                                     />
                                 @endif

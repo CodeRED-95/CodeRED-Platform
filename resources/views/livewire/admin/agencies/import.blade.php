@@ -112,6 +112,7 @@
                                 <div>
                                     <p class="font-medium">Fila {{ $item['row_number'] }} · {{ $item['code'] ?? 'SIN CÓDIGO' }} · {{ $item['name'] ?? 'Sin nombre' }}</p>
                                     <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">{{ $item['department'] ?? '—' }} / {{ $item['province'] ?? '—' }} / {{ $item['district'] ?? '—' }}</p>
+                                    <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">Ubicación completa: {{ $item['place'] ?? '—' }}</p>
                                 </div>
                                 <div class="flex gap-2">
                                     <x-ui.badge :tone="($item['valid'] ?? false) ? 'success' : 'danger'">{{ ($item['valid'] ?? false) ? 'Válida' : 'Inválida' }}</x-ui.badge>

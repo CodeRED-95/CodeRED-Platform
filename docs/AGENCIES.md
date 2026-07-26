@@ -31,6 +31,7 @@ Campos detectados en `agencies`:
 | `department` | Departamento |
 | `province` | Provincia |
 | `district` | Distrito |
+| `place` | Ubicación completa generada como departamento / provincia / distrito / agencia |
 | `address` | Dirección |
 | `reference` | Referencia |
 | `phone` | Teléfono |
@@ -58,6 +59,12 @@ Campos detectados en `agencies`:
 | `created_by` | Usuario creador |
 | `updated_by` | Usuario actualizador |
 | `deleted_at` | Soft delete |
+
+## Ubicación administrativa
+
+`department`, `province` y `district` son las únicas fuentes de ubicación administrativa. `place` se regenera internamente en el orden `department / province / district / name`; el valor recibido desde fuentes externas no es autoritativo. La columna histórica `zone` está obsoleta, permanece físicamente por seguridad y no forma parte del flujo activo.
+
+Para revisar registros antiguos con distrito vacío se usa `php artisan agencies:repair-location-fields --dry-run`. La aplicación explícita se realiza con `--apply`, usa únicamente distritos confirmados en importaciones recientes, solicita confirmación y genera un reporte JSON. Nunca copia `zone` automáticamente.
 
 ## Estados
 

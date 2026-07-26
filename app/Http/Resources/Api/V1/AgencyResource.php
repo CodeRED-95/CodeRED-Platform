@@ -23,7 +23,6 @@ class AgencyResource extends JsonResource
             'name' => $agency->name,
             'old_name' => $agency->old_name,
             'place' => $agency->place,
-            'zone' => $agency->zone,
             'department' => $agency->department,
             'province' => $agency->province,
             'district' => $agency->district,

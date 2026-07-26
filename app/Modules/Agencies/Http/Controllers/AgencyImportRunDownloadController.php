@@ -3,6 +3,7 @@
 namespace App\Modules\Agencies\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImportRun;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -13,7 +14,7 @@ class AgencyImportRunDownloadController extends Controller
 {
     public function __invoke(Request $request, AgencyImportRun $importRun, string $file): StreamedResponse
     {
-        Gate::authorize('import', \App\Modules\Agencies\Models\Agency::class);
+        Gate::authorize('import', Agency::class);
         abort_unless($importRun->created_by === $request->user()->id || $request->user()->hasPermission('agencies.import'), 403);
 
         $path = match ($file) {

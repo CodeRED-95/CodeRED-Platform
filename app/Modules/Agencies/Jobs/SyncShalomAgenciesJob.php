@@ -27,9 +27,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
 
     public int $timeout = 240;
 
-    public function __construct(public int $importRunId, public string $chosenPath)
-    {
-    }
+    public function __construct(public int $importRunId, public string $chosenPath) {}
 
     public function middleware(): array
     {
@@ -50,15 +48,15 @@ class SyncShalomAgenciesJob implements ShouldQueue
             $chosenFileContent = Storage::get($this->chosenPath);
             $chosenRows = collect($chosenParser($chosenFileContent))->keyBy('external_id');
 
-            $timeout = (int) config('services.shalom_extractor.timeout', env('SHALOM_EXTRACTOR_TIMEOUT', 180));
-            $url = rtrim((string) config('services.shalom_extractor.url', env('SHALOM_EXTRACTOR_URL', 'http://shalom-extractor:3000')), '/');
+            $timeout = (int) config('services.shalom_extractor.timeout', 180);
+            $url = rtrim((string) config('services.shalom_extractor.url', 'http://shalom-extractor:3000'), '/');
 
             $response = Http::connectTimeout(15)->timeout($timeout)->retry(2, 1500)->post($url.'/extract', [
                 'chosenFileContent' => $chosenFileContent,
             ]);
 
             if ($response->failed()) {
-                throw new \RuntimeException('El extractor Shalom respondió con estado '.$response->status().'.');
+                throw new RuntimeException('El extractor Shalom respondió con estado '.$response->status().'.');
             }
 
             $payload = $response->json();
@@ -143,8 +141,6 @@ class SyncShalomAgenciesJob implements ShouldQueue
             'external_id' => filled($row['external_id'] ?? null) ? (int) $row['external_id'] : null,
             'code' => $this->clean($row['code'] ?? null),
             'name' => $this->clean($row['name'] ?? null),
-            'place' => $this->clean($row['place'] ?? null),
-            'zone' => $this->clean($row['zone'] ?? null),
             'department' => $this->clean($row['department'] ?? null),
             'province' => $this->clean($row['province'] ?? null),
             'district' => $this->clean($row['district'] ?? null),
@@ -225,6 +221,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
                 if ($nameAction->normalizeName((string) $current) !== $nameAction->normalizeName((string) $value)) {
                     $differences['name'] = ['current' => $current, 'incoming' => $value, 'proposed_old_name' => $current];
                 }
+
                 continue;
             }
 

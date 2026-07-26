@@ -4,7 +4,6 @@ namespace App\Modules\Agencies\Actions;
 
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
-use App\Modules\Agencies\Models\AgencyImportItem;
 use App\Modules\Agencies\Models\AgencyImportRun;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +34,7 @@ class ConfirmAgencyImportRunAction
                 foreach ($items as $index => $item) {
                     if (in_array($item->action, ['conflict', 'unchanged', 'invalid', 'missing'], true)) {
                         $result['skipped']++;
+
                         continue;
                     }
 
@@ -50,7 +50,7 @@ class ConfirmAgencyImportRunAction
                         }
 
                         if (! $agency) {
-                            $agency = new Agency();
+                            $agency = new Agency;
                             $agency->status = AgencyStatus::UnderReview;
                             $agency->source = 'shalom_sync';
                             $agency->created_by = $userId;
@@ -58,12 +58,14 @@ class ConfirmAgencyImportRunAction
                             $agency->save();
                             $item->update(['matched_agency_id' => $agency->id]);
                             $result['created']++;
+
                             continue;
                         }
                     }
 
                     if (! $agency) {
                         $result['skipped']++;
+
                         continue;
                     }
 
@@ -121,7 +123,7 @@ class ConfirmAgencyImportRunAction
     private function writableData(array $data): array
     {
         return Arr::only($data, [
-            'external_id', 'code', 'name', 'place', 'zone', 'department', 'province', 'district',
+            'external_id', 'code', 'name', 'department', 'province', 'district',
             'address', 'latitude', 'longitude', 'schedule_general', 'schedule_sunday',
             'classification_category', 'classification_sends_category', 'classification_receives_category',
             'texto_chosen_terrestre', 'texto_chosen_aereo',

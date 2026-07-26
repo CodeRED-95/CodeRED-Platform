@@ -72,8 +72,6 @@ function normalizeAgency(row) {
     external_id: Number(first(row, ['external_id', 'id', 'id_agencia', 'agencia_id', 'idAgencia', 'idagencia', 'ter_id'])) || null,
     code: clean(first(row, ['code', 'codigo', 'código', 'cod_agencia', 'codAgencia', 'ter_abrebiatura', 'ter_abreviatura'])),
     name: clean(first(row, ['name', 'lugar_over', 'nombre', 'agencia', 'nombre_agencia', 'nombreAgencia'])),
-    place: clean(first(row, ['place', 'nombre', 'lugar', 'ubicacion', 'ubicación'])),
-    zone: clean(first(row, ['zone', 'zona'])),
     department: clean(first(row, ['department', 'departamento', 'depa'])),
     province: clean(first(row, ['province', 'provincia', 'prov'])),
     district: clean(first(row, ['district', 'distrito', 'dist'])),

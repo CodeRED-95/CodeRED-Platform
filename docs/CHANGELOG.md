@@ -1,5 +1,7 @@
 - API UI: nueva guía API basada en tarjetas, tester same-origin, autorización efímera y Swagger bajo demanda como referencia avanzada.
 - API: sincronización incremental append-only con cursor HMAC, ETag/304, metadata de revisión, retención de cambios y Gzip en Nginx.
+- Agencias: `zone` quedó fuera del flujo activo; la ubicación usa `department / province / district`, `place` añade el nombre de agencia, Shalom e importaciones priorizan `district`, y se añadió `agencies:repair-location-fields` para reparación manual auditada y no destructiva.
+
 - API: Swagger UI renderiza el contrato OpenAPI con Authorize Sanctum, Try it out, duración y snippets; la copia de tokens usa Clipboard API con selección manual segura como fallback.
 # Changelog
 

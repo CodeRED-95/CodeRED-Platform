@@ -15,7 +15,9 @@ class ShalomSyncRun extends Component
     use WithPagination;
 
     public AgencyImportRun $importRun;
+
     public string $action = '';
+
     public int $perPage = 25;
 
     public function mount(AgencyImportRun $importRun): void
@@ -40,7 +42,6 @@ class ShalomSyncRun extends Component
         abort_unless(in_array($action, ['create', 'update', 'rename'], true), 422);
         $this->importRun->items()->where('action', $action)->update(['selected' => $selected]);
     }
-
 
     public function retry(): void
     {

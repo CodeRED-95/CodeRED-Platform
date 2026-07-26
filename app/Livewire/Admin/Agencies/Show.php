@@ -12,6 +12,7 @@ use Livewire\Component;
 class Show extends Component
 {
     public Agency $agency;
+
     public Collection $nameHistories;
 
     public function mount(Agency $agency): void

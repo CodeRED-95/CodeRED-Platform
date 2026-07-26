@@ -3,10 +3,11 @@
 namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
-use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
+use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Models\Agency;
+use App\Modules\Agencies\Services\AgencyPlaceGenerator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -51,7 +52,7 @@ class Form extends Component
     public ?string $schedule = null;
 
     public ?string $schedule_general = null;
-    
+
     public ?string $schedule_sunday = null;
 
     public ?string $latitude = null;
@@ -83,10 +84,8 @@ class Form extends Component
     public ?string $source_reference = null;
 
     public ?string $source_text = null;
-    
-    public ?string $place = null;
 
-    public ?string $zone = null;
+    public ?string $place = null;
 
     public ?string $texto_chosen_terrestre = null;
 
@@ -143,7 +142,7 @@ class Form extends Component
                 'observations' => $agency->observations,
                 'status' => $agency->status->value,
                 'size' => $agency->size?->value,
-                'category' => $agency->category?->value ?? $this->category,
+                'category' => $agency->category->value,
                 'classification_category' => $agency->classification_category,
                 'classification_sends_category' => $agency->classification_sends_category,
                 'classification_receives_category' => $agency->classification_receives_category,
@@ -152,7 +151,6 @@ class Form extends Component
                 'source_reference' => $agency->source_reference,
                 'source_text' => $agency->source_text,
                 'place' => $agency->place,
-                'zone' => $agency->zone,
                 'texto_chosen_terrestre' => $agency->texto_chosen_terrestre,
                 'texto_chosen_aereo' => $agency->texto_chosen_aereo,
                 'has_moved' => (bool) $agency->has_moved,
@@ -163,6 +161,21 @@ class Form extends Component
             ]);
             $this->servicesInput = implode(', ', $agency->services ?? []);
         }
+    }
+
+    public function updated(string $property): void
+    {
+        if (! in_array($property, ['department', 'province', 'district', 'name'], true)) {
+            return;
+        }
+
+        $probe = new Agency([
+            'department' => $this->department,
+            'province' => $this->province,
+            'district' => $this->district,
+            'name' => $this->name,
+        ]);
+        $this->place = app(AgencyPlaceGenerator::class)($probe);
     }
 
     public function save(ApplyAgencyMoveAction $moveAction): void
@@ -303,7 +316,6 @@ class Form extends Component
             'source_reference' => ['nullable', 'string', 'max:255'],
             'source_text' => ['nullable', 'string'],
             'place' => ['nullable', 'string', 'max:1000'],
-            'zone' => ['nullable', 'string', 'max:255'],
             'texto_chosen_terrestre' => ['nullable', 'string', 'max:10000'],
             'texto_chosen_aereo' => ['nullable', 'string', 'max:10000'],
             'has_moved' => ['boolean'],
@@ -321,8 +333,8 @@ class Form extends Component
             ],
             'move_notice' => ['nullable', 'string'],
             'moved_at' => ['nullable', 'date'],
-            ];
-            }
+        ];
+    }
 
     private function normalizeInput(): void
     {
@@ -334,7 +346,7 @@ class Form extends Component
     private function normalizePayload(array $data): array
     {
         $payload = $data;
-        foreach (['code', 'name', 'old_name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'schedule_general', 'schedule_sunday', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice', 'place', 'zone', 'classification_category', 'classification_sends_category', 'classification_receives_category'] as $field) {
+        foreach (['code', 'name', 'old_name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'schedule_general', 'schedule_sunday', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice', 'place', 'classification_category', 'classification_sends_category', 'classification_receives_category'] as $field) {
             if (array_key_exists($field, $payload) && is_string($payload[$field])) {
                 $payload[$field] = trim(preg_replace('/\s+/u', ' ', $payload[$field]));
                 $payload[$field] = $payload[$field] === '' ? null : $payload[$field];

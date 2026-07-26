@@ -51,7 +51,7 @@ class Map extends Component
             'department' => $agency->department,
             'province' => $agency->province,
             'district' => $agency->district,
-            'location' => collect([$agency->district, $agency->province, $agency->department])->filter()->join(', '),
+            'location' => collect([$agency->department, $agency->province, $agency->district])->filter()->join(', '),
             'address' => $agency->address,
             'latitude' => (float) $agency->latitude,
             'longitude' => (float) $agency->longitude,

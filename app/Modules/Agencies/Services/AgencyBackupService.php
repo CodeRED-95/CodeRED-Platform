@@ -49,6 +49,7 @@ class AgencyBackupService
             foreach (Agency::withTrashed()->orderBy('id')->lazyById(500) as $agency) {
                 $attributes = $agency->getAttributes();
                 unset($attributes['created_by'], $attributes['updated_by']);
+                unset($attributes['zone']);
                 $this->write($handle, ($first ? '' : ',').json_encode($attributes, $this->jsonFlags()));
                 $first = false;
             }

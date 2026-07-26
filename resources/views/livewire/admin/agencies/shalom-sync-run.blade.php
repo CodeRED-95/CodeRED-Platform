@@ -14,7 +14,7 @@
         </div>
     </div>
 
-    <div class="mb-6 h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+    <div class="mb-6 h-3 overflow-hidden rounded-full bg-[color:var(--color-border-subtle)]">
         <div class="h-full bg-blue-600 transition-all" style="width: {{ max(0, min(100, $importRun->progress)) }}%"></div>
     </div>
 
@@ -34,7 +34,7 @@
 
     <div class="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
         @foreach(['create' => 'Nuevas', 'update' => 'Actualizadas', 'rename' => 'Renombradas', 'unchanged' => 'Sin cambios', 'conflict' => 'Conflictos', 'missing' => 'No encontradas', 'invalid' => 'Inválidas'] as $key => $label)
-            <button wire:click="$set('action', '{{ $key }}')" class="rounded-lg border p-3 text-left {{ $action === $key ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 dark:border-slate-700' }}">
+            <button wire:click="$set('action', '{{ $key }}')" class="rounded-lg border p-3 text-left {{ $action === $key ? 'border-[color:var(--color-brand)] ring-2 ring-[color:var(--color-focus-ring)]' : 'border-[color:var(--color-border)]' }}">
                 <span class="block text-xs text-slate-500">{{ $label }}</span>
                 <strong class="text-xl">{{ $counts[$key] ?? 0 }}</strong>
             </button>
@@ -53,12 +53,12 @@
         </div>
     @endif
 
-    <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-        <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
-            <thead class="bg-slate-50 dark:bg-slate-800">
+    <div class="overflow-x-auto rounded-xl border border-[color:var(--color-border)]">
+        <table class="min-w-full divide-y divide-[color:var(--color-border-subtle)] text-sm">
+            <thead class="bg-[color:var(--color-background-elevated)]">
                 <tr><th class="p-3">Aplicar</th><th class="p-3">Acción</th><th class="p-3">ID externo</th><th class="p-3">Agencia</th><th class="p-3">Cambios</th><th class="p-3">Conflicto</th></tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody class="divide-y divide-[color:var(--color-border-subtle)]">
                 @forelse($items as $item)
                     <tr>
                         <td class="p-3 text-center">

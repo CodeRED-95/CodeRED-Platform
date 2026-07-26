@@ -12,7 +12,7 @@ class AgencyMapUrlGenerator
         $longitude = $agency->longitude;
 
         if (
-            !is_numeric($latitude) || !is_numeric($longitude) ||
+            ! is_numeric($latitude) || ! is_numeric($longitude) ||
             $latitude < -90 || $latitude > 90 ||
             $longitude < -180 || $longitude > 180
         ) {

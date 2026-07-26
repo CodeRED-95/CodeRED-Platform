@@ -5,9 +5,9 @@ namespace App\Modules\Agencies\Models;
 use App\Models\User;
 use App\Modules\Agencies\Actions\UpdateAgencyNameAction;
 use App\Modules\Agencies\Casts\NullableCoordinate;
-use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
+use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Observers\AgencyObserver;
 use App\Modules\Agencies\Services\AgencyMapUrlGenerator;
 use App\Modules\Agencies\Services\AgencyPlaceGenerator;
@@ -33,7 +33,9 @@ class Agency extends Model
     use HasFactory, SoftDeletes;
 
     public string $nameChangeSource = 'manual';
+
     public ?int $nameChangeImportRunId = null;
+
     public ?int $nameChangeUserId = null;
 
     protected $fillable = [
@@ -43,7 +45,7 @@ class Agency extends Model
         'source_reference', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'map_url', 'size', 'is_operations_center',
         'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at',
         'data_version', 'last_verified_at', 'created_by', 'updated_by', 'category',
-        'place', 'zone', 'schedule_general', 'schedule_sunday', 'classification_category', 'classification_sends_category', 'classification_receives_category',
+        'place', 'schedule_general', 'schedule_sunday', 'classification_category', 'classification_sends_category', 'classification_receives_category',
     ];
 
     protected function casts(): array
@@ -74,12 +76,12 @@ class Agency extends Model
 
         static::saving(function (self $agency): void {
             if ($agency->isDirty('name') && $agency->getOriginal('name')) {
-                $action = new UpdateAgencyNameAction();
+                $action = new UpdateAgencyNameAction;
                 $action($agency, $agency->name, $agency->nameChangeSource, $agency->nameChangeImportRunId, $agency->nameChangeUserId);
             }
 
-            $agency->place = (new AgencyPlaceGenerator())($agency);
-            $agency->map_url = (new AgencyMapUrlGenerator())($agency);
+            $agency->place = (new AgencyPlaceGenerator)($agency);
+            $agency->map_url = (new AgencyMapUrlGenerator)($agency);
 
             $agency->code = filled($agency->code) ? strtoupper(trim((string) $agency->code)) : null;
             foreach (['old_name', 'department', 'province', 'district', 'phone', 'email'] as $field) {

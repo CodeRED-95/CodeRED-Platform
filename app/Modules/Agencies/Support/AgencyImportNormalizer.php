@@ -3,8 +3,9 @@
 namespace App\Modules\Agencies\Support;
 
 use App\Modules\Agencies\Data\AgencyImportRowData;
-use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Enums\AgencyStatus;
+use App\Modules\Agencies\Enums\Category;
+use App\Modules\Agencies\Services\AgencyPlaceGenerator;
 use Illuminate\Support\Str;
 
 final class AgencyImportNormalizer
@@ -110,7 +111,7 @@ final class AgencyImportNormalizer
             $errors[] = 'El id debe ser un entero mayor que cero.';
         }
 
-        if (! array_key_exists('agencia', $row) || self::normalizeText($row['agencia'] ?? null) === null) {
+        if (self::normalizeText($row['agencia'] ?? $row['name'] ?? null) === null) {
             $errors[] = 'El registro no contiene agencia.';
         }
 
@@ -126,12 +127,12 @@ final class AgencyImportNormalizer
             ? strtoupper($providedCode)
             : ($externalId !== false && $externalId !== null ? self::generateCode($externalId) : null);
 
-        $name = self::normalizeText($row['agencia'] ?? null);
+        $name = self::normalizeText($row['agencia'] ?? $row['name'] ?? null);
         $old_name = self::normalizeText($row['nombre_anterior'] ?? $row['old_name'] ?? null);
-        $department = self::normalizeText($row['departamento'] ?? null);
-        $province = self::normalizeText($row['provincia'] ?? null);
-        $district = self::normalizeText($row['distrito'] ?? null);
-        $address = self::normalizeText($row['direccion'] ?? null);
+        $department = self::normalizeText($row['departamento'] ?? $row['department'] ?? null);
+        $province = self::normalizeText($row['provincia'] ?? $row['province'] ?? null);
+        $district = self::normalizeText($row['distrito'] ?? $row['district'] ?? null);
+        $address = self::normalizeText($row['direccion'] ?? $row['address'] ?? null);
         $sourceText = self::normalizeText($row['texto_chosen'] ?? null);
         $chosenTerrestre = self::normalizeText($row['texto_chosen_terrestre'] ?? null);
         $chosenAereo = self::normalizeText($row['texto_chosen_aereo'] ?? null);
@@ -172,6 +173,7 @@ final class AgencyImportNormalizer
             'code' => $code,
             'name' => $name,
             'old_name' => $old_name,
+            'place' => AgencyPlaceGenerator::fromSegments([$department, $province, $district, $name]),
             'department' => $department,
             'province' => $province,
             'district' => $district,

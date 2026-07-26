@@ -57,6 +57,7 @@ class AgencyExportService
             'agencia' => $agency->name,
             'nombre_anterior' => $agency->old_name,
             'nombre_corto' => $agency->short_name,
+            'ubicacion_completa' => $agency->place,
             'departamento' => $agency->department,
             'provincia' => $agency->province,
             'distrito' => $agency->district,

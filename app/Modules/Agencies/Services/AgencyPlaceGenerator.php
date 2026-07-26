@@ -8,19 +8,20 @@ class AgencyPlaceGenerator
 {
     public function __invoke(Agency $agency): ?string
     {
-        $parts = [
+        return self::fromSegments([
             $agency->department,
             $agency->province,
             $agency->district,
             $agency->name,
-        ];
+        ]);
+    }
 
-        $nonEmptyParts = array_filter($parts, fn ($part) => !empty(trim((string)$part)));
+    public static function fromSegments(array $segments): ?string
+    {
+        $parts = collect($segments)
+            ->map(fn (mixed $value): mixed => is_string($value) ? trim($value) : $value)
+            ->filter(fn (mixed $value): bool => $value !== null && $value !== '');
 
-        if (empty($nonEmptyParts)) {
-            return null;
-        }
-
-        return implode(' / ', $nonEmptyParts);
+        return $parts->isEmpty() ? null : $parts->implode(' / ');
     }
 }
