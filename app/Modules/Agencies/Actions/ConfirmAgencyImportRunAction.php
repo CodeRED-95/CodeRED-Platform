@@ -39,28 +39,19 @@ class ConfirmAgencyImportRunAction
                     }
 
                     $incoming = $this->writableData($item->incoming_data ?? []);
-                    $agency = $item->matched_agency_id ? Agency::query()->lockForUpdate()->find($item->matched_agency_id) : null;
+                    $agency = $this->matchAgencyForWrite($incoming);
 
-                    if ($item->action === 'create') {
-                        if (! empty($incoming['external_id'])) {
-                            $agency = Agency::query()->where('external_id', $incoming['external_id'])->lockForUpdate()->first();
-                        }
-                        if (! $agency && ! empty($incoming['code'])) {
-                            $agency = Agency::query()->where('code', $incoming['code'])->lockForUpdate()->first();
-                        }
+                    if ($item->action === 'create' && ! $agency) {
+                        $agency = new Agency;
+                        $agency->status = AgencyStatus::UnderReview;
+                        $agency->source = 'shalom_sync';
+                        $agency->created_by = $userId;
+                        $this->fillNonEmpty($agency, $incoming);
+                        $agency->save();
+                        $item->update(['matched_agency_id' => $agency->id]);
+                        $result['created']++;
 
-                        if (! $agency) {
-                            $agency = new Agency;
-                            $agency->status = AgencyStatus::UnderReview;
-                            $agency->source = 'shalom_sync';
-                            $agency->created_by = $userId;
-                            $this->fillNonEmpty($agency, $incoming);
-                            $agency->save();
-                            $item->update(['matched_agency_id' => $agency->id]);
-                            $result['created']++;
-
-                            continue;
-                        }
+                        continue;
                     }
 
                     if (! $agency) {
@@ -128,5 +119,29 @@ class ConfirmAgencyImportRunAction
             'classification_category', 'classification_sends_category', 'classification_receives_category',
             'texto_chosen_terrestre', 'texto_chosen_aereo',
         ]);
+    }
+
+    private function matchAgencyForWrite(array $incoming): ?Agency
+    {
+        if (! empty($incoming['external_id'])) {
+            $agency = Agency::query()->lockForUpdate()->where('external_id', $incoming['external_id'])->first();
+            if ($agency) {
+                if (! empty($incoming['code']) && filled($agency->code) && $agency->code !== $incoming['code']) {
+                    logger()->warning('Conflicto Shalom: external_id y code apuntan a agencias distintas.', [
+                        'external_id' => $incoming['external_id'],
+                        'code' => $incoming['code'],
+                        'matched_agency_id' => $agency->id,
+                    ]);
+                }
+
+                return $agency;
+            }
+        }
+
+        if (! empty($incoming['code'])) {
+            return Agency::query()->lockForUpdate()->where('code', $incoming['code'])->first();
+        }
+
+        return null;
     }
 }

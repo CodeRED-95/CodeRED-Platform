@@ -32,18 +32,18 @@ class AgencyApiTest extends TestCase
             'is_operations_center' => true,
         ]);
 
-        $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/'.$agency->code)->assertOk()->assertJsonPath('data.id', 610)
+        $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/'.$agency->code)->assertOk()->assertJsonPath('data.external_id', 610)
             ->assertJsonPath('data.internal_id', $agency->id)->assertJsonPath('data.code', $agency->code)
-            ->assertJsonPath('data.texto_chosen_terrestre', '610 - TERRESTRE')
-            ->assertJsonPath('data.texto_chosen_aereo', '610 - AEREO')
-            ->assertJsonPath('data.agencia', $agency->name)
-            ->assertJsonPath('data.agencia_anterior', 'Nombre Viejo')
-            ->assertJsonPath('data.departamento', trim($agency->department))
-            ->assertJsonPath('data.provincia', trim($agency->province))
-            ->assertJsonPath('data.distrito', trim($agency->district))
-            ->assertJsonPath('data.direccion', trim($agency->address))
-            ->assertJsonPath('data.link_mapa', $agency->map_url)
-            ->assertJsonPath('data.tamano', $agency->size?->label())
+            ->assertJsonPath('data.chosen_terrestre', '610 - TERRESTRE')
+            ->assertJsonPath('data.chosen_aereo', '610 - AEREO')
+            ->assertJsonPath('data.name', $agency->name)
+            ->assertJsonPath('data.old_name', 'Nombre Viejo')
+            ->assertJsonPath('data.department', trim($agency->department))
+            ->assertJsonPath('data.province', trim($agency->province))
+            ->assertJsonPath('data.district', trim($agency->district))
+            ->assertJsonPath('data.address', trim($agency->address))
+            ->assertJsonPath('data.map_url', $agency->map_url)
+            ->assertJsonPath('data.classification.tamano', $agency->classification_category)
             ->assertJsonPath('data.estado', 'Activa')
             ->assertJsonPath('data.centro_operaciones', true);
 
@@ -58,16 +58,11 @@ class AgencyApiTest extends TestCase
             'is_operations_center' => true,
         ]);
 
-        $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/snapshot')->assertOk()
-            ->assertJsonFragment([
-                'internal_id' => $agency->id,
-                'id' => 614,
-                'code' => $agency->code,
-                'estado' => 'Activa',
-                'centro_operaciones' => true,
-                'texto_chosen_aereo' => '614 - AEREO',
-                'texto_chosen' => '614 - AEREO',
-            ]);
+        $response = $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/snapshot')->assertOk();
+        $response->assertJsonPath('agencies.0.external_id', $agency->external_id)
+            ->assertJsonPath('agencies.0.internal_id', $agency->id)
+            ->assertJsonPath('agencies.0.chosen_aereo', '614 - AEREO')
+            ->assertJsonPath('agencies.0.centro_operaciones', true);
     }
 
     public function test_contract_maps_every_real_status_and_boolean_operations_center(): void

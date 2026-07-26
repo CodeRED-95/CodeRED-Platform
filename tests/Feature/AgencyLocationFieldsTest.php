@@ -6,7 +6,6 @@ use App\Http\Resources\Api\V1\AgencyResource as PrivateAgencyResource;
 use App\Modules\Agencies\Actions\ImportAgenciesAction;
 use App\Modules\Agencies\Enums\AgencyImportStatus;
 use App\Modules\Agencies\Enums\AgencyImportStrategy;
-use App\Modules\Agencies\Jobs\SyncShalomAgenciesJob;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
 use App\Modules\Agencies\Models\AgencyImportItem;
@@ -14,10 +13,10 @@ use App\Modules\Agencies\Models\AgencyImportRun;
 use App\Modules\Agencies\Resources\AgencyResource;
 use App\Modules\Agencies\Services\AgencyExportService;
 use App\Modules\Agencies\Services\AgencyPlaceGenerator;
+use App\Services\Agencies\ShalomAgencyNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use ReflectionMethod;
 use Tests\TestCase;
 
 class AgencyLocationFieldsTest extends TestCase
@@ -92,8 +91,7 @@ class AgencyLocationFieldsTest extends TestCase
 
     public function test_shalom_normalizer_prioritizes_district_and_omits_zone_and_received_place(): void
     {
-        $method = new ReflectionMethod(SyncShalomAgenciesJob::class, 'normalizeIncoming');
-        $result = $method->invoke(new SyncShalomAgenciesJob(1, 'chosen.txt'), [
+        $result = app(ShalomAgencyNormalizer::class)->normalize([
             'name' => 'VIÑANIS',
             'category' => 'PEQUEÑA',
             'department' => 'TACNA',
@@ -101,11 +99,12 @@ class AgencyLocationFieldsTest extends TestCase
             'district' => 'CORONEL GREGORIO ALBARRACIN LANCHIPA',
             'zone' => 'NO USAR',
             'place' => 'PLACE EXTERNO INCOMPLETO',
+            'source_record' => [],
         ]);
 
         $this->assertSame('CORONEL GREGORIO ALBARRACIN LANCHIPA', $result['district']);
         $this->assertArrayNotHasKey('zone', $result);
-        $this->assertArrayNotHasKey('place', $result);
+        $this->assertSame('PLACE EXTERNO INCOMPLETO', $result['place']);
     }
 
     public function test_resources_export_map_and_search_use_district_without_zone(): void

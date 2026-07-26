@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Resources\Api\AgencyResource;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Resources\AgencyCollection;
-use App\Modules\Agencies\Resources\AgencyResource;
 use App\Modules\Agencies\Services\AgencySearchService;
 use App\Modules\Agencies\Support\AgencyVersion;
 use Illuminate\Http\JsonResponse;
@@ -81,44 +81,26 @@ class AgenciesController
             ->where('status', AgencyStatus::Active->value)
             ->where('has_moved', false)
             ->orderBy('name')
-            ->get(['id', 'external_id', 'code', 'name', 'short_name', 'slug', 'department', 'province', 'district', 'address', 'reference', 'phone', 'secondary_phone', 'schedule', 'latitude', 'longitude', 'map_url', 'size', 'is_operations_center', 'status', 'updated_at', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo'])
-            ->map(fn (Agency $agency): array => [
-                'internal_id' => (int) $agency->getKey(),
-                'id' => $agency->external_id,
-                ...$agency->only(['code', 'name', 'short_name', 'slug', 'department', 'province', 'district', 'address', 'reference', 'phone', 'secondary_phone', 'schedule', 'latitude', 'longitude', 'map_url', 'size', 'is_operations_center', 'status', 'updated_at', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at']),
-                'texto_chosen_terrestre' => $agency->texto_chosen_terrestre,
-                'texto_chosen_aereo' => $agency->texto_chosen_aereo,
-                'texto_chosen' => $agency->legacyChosenText(),
-                'agencia' => trim($agency->name),
-                'departamento' => trim($agency->department),
-                'provincia' => trim($agency->province),
-                'distrito' => trim($agency->district),
-                'direccion' => trim($agency->address),
-                'link_mapa' => $agency->map_url,
-                'tamano' => $agency->size?->label(),
-                'estado' => $agency->status->label(),
-                'centro_operaciones' => (bool) $agency->is_operations_center,
-            ]);
-
-        $movedAgencies = Agency::query()
-            ->where('has_moved', true)
-            ->with('movedToAgency')
-            ->orderBy('name')
-            ->get(['code', 'name', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at']);
+            ->get();
 
         return response()->json([
             'success' => true,
             'version' => $version,
             'generated_at' => now()->toIso8601String(),
-            'agencies' => $agencies,
-            'moved_agencies' => $movedAgencies->map(fn (Agency $agency) => [
-                'code' => $agency->code,
-                'name' => $agency->name,
-                'destination_code' => optional($agency->movedToAgency)->code,
-                'destination_address' => $agency->moved_to_address,
-                'notice' => $agency->move_notice,
-                'moved_at' => optional($agency->moved_at)?->toDateString(),
-            ])->values(),
+            'agencies' => AgencyResource::collection($agencies),
+            'moved_agencies' => Agency::query()
+                ->where('has_moved', true)
+                ->with('movedToAgency')
+                ->orderBy('name')
+                ->get(['code', 'name', 'moved_to_agency_id', 'moved_to_address', 'move_notice', 'moved_at'])
+                ->map(fn (Agency $agency) => [
+                    'code' => $agency->code,
+                    'name' => $agency->name,
+                    'destination_code' => optional($agency->movedToAgency)->code,
+                    'destination_address' => $agency->moved_to_address,
+                    'notice' => $agency->move_notice,
+                    'moved_at' => optional($agency->moved_at)?->toDateString(),
+                ])->values(),
         ])->header('ETag', $etag)->header('Last-Modified', $lastModified ? Carbon::parse($lastModified)->toRfc7231String() : now()->toRfc7231String());
     }
 }

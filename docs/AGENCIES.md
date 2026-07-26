@@ -249,3 +249,5 @@ El listado permite seleccionar filas individualmente o todas las agencias de la 
 ## Mapa administrativo
 
 El mapa usa Leaflet 1.9, tiles de OpenStreetMap con attribution y clustering visual propio sin dependencias adicionales. Solo genera marcadores para coordenadas numéricas dentro de los rangos geográficos válidos. El contenedor usa `wire:ignore`, actualiza marcadores al filtrar y destruye mapa, observers y listeners al navegar para evitar instancias duplicadas. Las agencias sin coordenadas permanecen en un estado vacío separado y nunca se ubican en `0,0`.
+
+- Agencias Shalom: el flujo nuevo normaliza los datos en `App\Services\Agencies\ShalomAgencyNormalizer`, persiste por `external_id` con respaldo en `code` y expone la API pública mediante `App\Http\Resources\Api\AgencyResource`.

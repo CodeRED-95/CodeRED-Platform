@@ -46,3 +46,11 @@ Interfaz: `/admin/agencies/import/shalom`.
 ## Solución de problemas
 
 Compruebe `docker compose logs shalom-extractor`, conectividad desde `app` hacia `http://shalom-extractor:3000/health`, Redis y que `queue` escuche `agency-imports`. Un fallo durante confirmación revierte toda la transacción y deja la ejecución lista para revisión.
+
+
+## Sincronización Shalom 2026-07-26
+
+- La extracción genera `base_agencias.json`, la normalización `clean_agencias.json` y la salida pública `formato_api.json`.
+- La API pública usa `App\Http\Resources\Api\AgencyResource` como contrato canónico.
+- `district` prioriza `zone` / `source_record.zona` y `place` queda intacto como cadena completa.
+- `map_url` solo se regenera con coordenadas válidas; en ausencia de ellas, se preserva el valor existente en actualizaciones.

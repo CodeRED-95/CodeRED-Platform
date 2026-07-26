@@ -6,16 +6,14 @@ use App\Modules\Agencies\Actions\UpdateAgencyNameAction;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImportItem;
 use App\Modules\Agencies\Models\AgencyImportRun;
-use App\Modules\Agencies\Services\AgencyMapUrlGenerator;
-use App\Modules\Agencies\Services\AgencyPlaceGenerator;
 use App\Modules\Agencies\Services\ChosenFileParser;
+use App\Services\Agencies\ShalomAgencyNormalizer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -34,7 +32,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
         return [(new WithoutOverlapping('shalom-agencies-sync'))->expireAfter(600)];
     }
 
-    public function handle(ChosenFileParser $chosenParser, AgencyPlaceGenerator $placeGenerator, AgencyMapUrlGenerator $mapUrlGenerator, UpdateAgencyNameAction $nameAction): void
+    public function handle(ChosenFileParser $chosenParser, ShalomAgencyNormalizer $normalizer, UpdateAgencyNameAction $nameAction): void
     {
         $run = AgencyImportRun::query()->findOrFail($this->importRunId);
 
@@ -68,45 +66,79 @@ class SyncShalomAgenciesJob implements ShouldQueue
             if ($incomingRows->isEmpty()) {
                 throw new RuntimeException('El extractor respondió correctamente, pero no encontró agencias. Revisa extractor.log y los logs del contenedor codered-shalom-extractor; la ejecución no se marcará como lista para revisión.');
             }
+
             $processedRows = [];
+            $normalizedRows = [];
+            $baseRows = [];
             $counts = ['new_count' => 0, 'updated_count' => 0, 'renamed_count' => 0, 'unchanged_count' => 0, 'conflict_count' => 0, 'missing_count' => 0, 'error_count' => 0];
+            $stats = ['total_extracted' => $incomingRows->count(), 'total_normalized' => 0, 'created' => 0, 'updated' => 0, 'ignored' => 0, 'conflicts' => 0, 'district_from_place' => 0, 'without_district' => 0, 'without_coordinates' => 0];
 
             $run->items()->delete();
             $run->update(['stage' => 'Preparando vista previa', 'progress' => 50, 'total_received' => $incomingRows->count()]);
 
             foreach ($incomingRows as $row) {
-                $incoming = $this->normalizeIncoming($row);
-                if ($incoming['external_id'] && $chosenRows->has($incoming['external_id'])) {
-                    $incoming = array_merge($incoming, Arr::only($chosenRows[$incoming['external_id']], ['texto_chosen_terrestre', 'texto_chosen_aereo']));
+                $baseRow = $this->extractBaseRow($row);
+                $normalized = $normalizer->normalize($row);
+                $externalIdKey = $normalized['external_id'] ?? null;
+
+                if ($externalIdKey !== null && $chosenRows->has($externalIdKey)) {
+                    $chosen = $chosenRows->get($externalIdKey);
+                    $normalized['texto_chosen_terrestre'] = $chosen['texto_chosen_terrestre'] ?? $normalized['texto_chosen_terrestre'] ?? null;
+                    $normalized['texto_chosen_aereo'] = $chosen['texto_chosen_aereo'] ?? $normalized['texto_chosen_aereo'] ?? null;
                 }
 
-                $probe = new Agency($incoming);
-                $incoming['place'] = $placeGenerator($probe);
-                $incoming['map_url'] = $mapUrlGenerator($probe);
+                $normalized['place'] = $baseRow['place'] ?? $normalized['place'] ?? null;
+                $normalized['map_url'] = $this->resolveMapUrl($normalized, $row);
 
-                [$agency, $conflictReason] = $this->matchAgency($incoming);
-                [$action, $differences, $proposedOldName] = $this->classify($agency, $incoming, $conflictReason, $nameAction);
+                if (($normalized['district'] ?? null) === null && filled($normalized['place'] ?? null)) {
+                    $stats['district_from_place']++;
+                }
+                if (($normalized['district'] ?? null) === null) {
+                    $stats['without_district']++;
+                }
+                if (($normalized['latitude'] ?? null) === null || ($normalized['longitude'] ?? null) === null) {
+                    $stats['without_coordinates']++;
+                }
+
+                $stats['total_normalized']++;
+                $baseRows[] = $baseRow;
+                $normalizedRows[] = $normalized;
+
+                [$agency, $conflictReason] = $this->matchAgency($normalized);
+                [$action, $differences, $proposedOldName] = $this->classify($agency, $normalized, $conflictReason, $nameAction);
                 $counts[$this->counterFor($action)]++;
+                if ($action === 'create') {
+                    $stats['created']++;
+                } elseif ($action === 'update') {
+                    $stats['updated']++;
+                } elseif (in_array($action, ['conflict', 'invalid', 'unchanged', 'missing'], true)) {
+                    $stats['ignored']++;
+                }
+                if ($action === 'conflict') {
+                    $stats['conflicts']++;
+                }
 
                 AgencyImportItem::create([
                     'import_run_id' => $run->id,
-                    'external_id' => $incoming['external_id'],
+                    'external_id' => $normalized['external_id'] ?? null,
                     'matched_agency_id' => $agency?->id,
                     'action' => $action,
                     'confidence' => $agency ? 100 : 0,
-                    'incoming_data' => $incoming,
-                    'current_data' => $agency?->only(array_keys($incoming)),
+                    'incoming_data' => $normalized,
+                    'current_data' => $agency?->only(array_keys($normalized)),
                     'differences' => $differences,
                     'proposed_old_name' => $proposedOldName,
                     'conflict_reason' => $conflictReason,
                     'selected' => ! in_array($action, ['conflict', 'unchanged', 'invalid'], true),
                 ]);
 
-                $processedRows[] = $incoming;
+                $processedRows[] = $this->toApiFormat($normalized, $agency);
             }
 
-            Storage::put($basePath.'/agencies-processed.json', json_encode($processedRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            Storage::put($basePath.'/report.json', json_encode($counts, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            Storage::put($basePath.'/base_agencias.json', json_encode($baseRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            Storage::put($basePath.'/clean_agencias.json', json_encode($normalizedRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            Storage::put($basePath.'/formato_api.json', json_encode($processedRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            Storage::put($basePath.'/report.json', json_encode(array_merge($counts, $stats), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
             $run->update(array_merge($counts, [
                 'status' => 'ready_for_review',
@@ -114,7 +146,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
                 'progress' => 100,
                 'finished_at' => now(),
                 'total_processed' => count($processedRows),
-                'extracted_json_path' => $basePath.'/agencies-processed.json',
+                'extracted_json_path' => $basePath.'/clean_agencias.json',
                 'report_json_path' => $basePath.'/report.json',
             ]));
         } catch (Throwable $exception) {
@@ -132,34 +164,39 @@ class SyncShalomAgenciesJob implements ShouldQueue
         }
     }
 
-    private function normalizeIncoming(array $row): array
+    private function extractBaseRow(array $row): array
     {
-        $schedule = $row['schedule'] ?? [];
-        $classification = $row['classification'] ?? [];
-
         return [
-            'external_id' => filled($row['external_id'] ?? null) ? (int) $row['external_id'] : null,
-            'code' => $this->clean($row['code'] ?? null),
-            'name' => $this->clean($row['name'] ?? null),
-            'department' => $this->clean($row['department'] ?? null),
-            'province' => $this->clean($row['province'] ?? null),
-            'district' => $this->clean($row['district'] ?? null),
-            'address' => $this->clean($row['address'] ?? null),
-            'latitude' => is_numeric($row['latitude'] ?? null) ? (string) $row['latitude'] : null,
-            'longitude' => is_numeric($row['longitude'] ?? null) ? (string) $row['longitude'] : null,
-            'schedule_general' => $this->clean($schedule['general'] ?? $row['schedule_general'] ?? null),
-            'schedule_sunday' => $this->clean($schedule['sunday'] ?? $row['schedule_sunday'] ?? null),
-            'classification_category' => $this->clean($classification['category'] ?? $row['classification_category'] ?? null),
-            'classification_sends_category' => $this->clean($classification['sends_category'] ?? $row['classification_sends_category'] ?? null),
-            'classification_receives_category' => $this->clean($classification['receives_category'] ?? $row['classification_receives_category'] ?? null),
-            'texto_chosen_terrestre' => $this->clean($row['chosen_terrestre'] ?? $row['texto_chosen_terrestre'] ?? null),
-            'texto_chosen_aereo' => $this->clean($row['chosen_aereo'] ?? $row['texto_chosen_aereo'] ?? null),
+            'external_id' => $row['external_id'] ?? data_get($row, 'source_record.ter_id'),
+            'code' => $row['code'] ?? data_get($row, 'source_record.ter_abrebiatura'),
+            'name' => $row['name'] ?? data_get($row, 'source_record.lugar_over'),
+            'place' => $row['place'] ?? data_get($row, 'source_record.nombre'),
+            'zone' => $row['zone'] ?? data_get($row, 'source_record.zona'),
+            'department' => $row['department'] ?? data_get($row, 'source_record.departamento'),
+            'province' => $row['province'] ?? data_get($row, 'source_record.provincia'),
+            'address' => $row['address'] ?? data_get($row, 'source_record.direccion'),
+            'latitude' => $row['latitude'] ?? data_get($row, 'source_record.latitud'),
+            'longitude' => $row['longitude'] ?? data_get($row, 'source_record.longitud'),
+            'schedule' => $row['schedule'] ?? [
+                'general' => data_get($row, 'source_record.hora_atencion'),
+                'sunday' => data_get($row, 'source_record.hora_domingo'),
+            ],
+            'services' => $row['services'] ?? [],
+            'classification' => $row['classification'] ?? [
+                'category' => data_get($row, 'source_record.ter_categoria'),
+                'sends_category' => data_get($row, 'source_record.ter_categoria_envia'),
+                'receives_category' => data_get($row, 'source_record.ter_categoria_recibe'),
+            ],
+            'geographic_ids' => $row['geographic_ids'] ?? ['ubigeo_id' => data_get($row, 'source_record.ubi_id')],
+            'status' => $row['status'] ?? data_get($row, 'source_record.status'),
+            'source' => $row['source'] ?? data_get($row, 'source_record.source'),
+            'source_record' => $row['source_record'] ?? [],
         ];
     }
 
     private function matchAgency(array $incoming): array
     {
-        if ($incoming['external_id']) {
+        if (! empty($incoming['external_id'])) {
             $matches = Agency::query()->where('external_id', $incoming['external_id'])->limit(2)->get();
             if ($matches->count() === 1) {
                 return [$matches->first(), null];
@@ -169,7 +206,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
             }
         }
 
-        if ($incoming['code']) {
+        if (! empty($incoming['code'])) {
             $agency = Agency::query()->where('code', $incoming['code'])->first();
             if ($agency) {
                 return [$agency, null];
@@ -218,45 +255,79 @@ class SyncShalomAgenciesJob implements ShouldQueue
 
             $current = $agency->{$field};
             if ($field === 'name') {
-                if ($nameAction->normalizeName((string) $current) !== $nameAction->normalizeName((string) $value)) {
-                    $differences['name'] = ['current' => $current, 'incoming' => $value, 'proposed_old_name' => $current];
-                }
-
-                continue;
+                $current = app(UpdateAgencyNameAction::class)->normalizeName((string) $current);
+                $value = $nameAction->normalizeName((string) $value);
             }
 
-            if ((string) $current !== (string) $value) {
+            if ($current !== $value) {
                 $differences[$field] = ['current' => $current, 'incoming' => $value];
             }
         }
 
-        if (isset($differences['name'])) {
-            return ['rename', $differences, $differences['name']['proposed_old_name']];
+        if ($differences === []) {
+            return ['unchanged', [], null];
         }
 
-        return $differences === [] ? ['unchanged', [], null] : ['update', $differences, null];
+        $proposedOldName = null;
+        if (array_key_exists('name', $differences)) {
+            $proposedOldName = $agency->name;
+            $differences['old_name'] = ['current' => $agency->old_name, 'incoming' => $proposedOldName];
+        }
+
+        return ['update', $differences, $proposedOldName];
     }
 
     private function counterFor(string $action): string
     {
         return match ($action) {
             'create' => 'new_count',
-            'update' => 'updated_count',
-            'rename' => 'renamed_count',
+            'update', 'rename' => 'updated_count',
             'conflict' => 'conflict_count',
+            'missing' => 'missing_count',
             'invalid' => 'error_count',
             default => 'unchanged_count',
         };
     }
 
-    private function clean(mixed $value): ?string
+    private function resolveMapUrl(array $normalized, array $row): ?string
     {
-        if (! is_scalar($value)) {
-            return null;
+        if (filled($normalized['latitude'] ?? null) && filled($normalized['longitude'] ?? null)) {
+            return 'https://www.google.com/maps/dir/?api=1&destination='.(string) $normalized['latitude'].','.(string) $normalized['longitude'];
         }
 
-        $value = trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $value, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? '');
+        return $row['map_url'] ?? data_get($row, 'source_record.link_mapa') ?? null;
+    }
 
-        return $value === '' ? null : $value;
+    private function toApiFormat(array $normalized, ?Agency $agency): array
+    {
+        return [
+            'external_id' => $agency->external_id ?? $normalized['external_id'] ?? null,
+            'internal_id' => $agency->id ?? null,
+            'code' => $agency->code ?? $normalized['code'] ?? null,
+            'name' => $agency->name ?? $normalized['name'] ?? null,
+            'old_name' => $agency->old_name ?? null,
+            'place' => $agency->place ?? $normalized['place'] ?? null,
+            'department' => $agency->department ?? $normalized['department'] ?? null,
+            'province' => $agency->province ?? $normalized['province'] ?? null,
+            'district' => $agency->district ?? $normalized['district'] ?? null,
+            'address' => $agency->address ?? $normalized['address'] ?? null,
+            'latitude' => $agency->latitude !== null ? (float) $agency->latitude : ($normalized['latitude'] ?? null),
+            'longitude' => $agency->longitude !== null ? (float) $agency->longitude : ($normalized['longitude'] ?? null),
+            'map_url' => $agency->map_url ?? $normalized['map_url'] ?? null,
+            'schedule' => [
+                'general' => $agency->schedule_general ?? null,
+                'sunday' => $agency->schedule_sunday ?? null,
+            ],
+            'classification' => [
+                'tamano' => $agency->classification_category ?? $normalized['tamano'] ?? null,
+                'sends_category' => $agency->classification_sends_category ?? $normalized['sends_category'] ?? null,
+                'receives_category' => $agency->classification_receives_category ?? $normalized['receives_category'] ?? null,
+            ],
+            'chosen_terrestre' => $agency->texto_chosen_terrestre ?? $normalized['texto_chosen_terrestre'] ?? null,
+            'chosen_aereo' => $agency->texto_chosen_aereo ?? $normalized['texto_chosen_aereo'] ?? null,
+            'status' => $agency->status->value,
+            'estado' => $agency->status->label(),
+            'centro_operaciones' => (bool) $agency->is_operations_center,
+        ];
     }
 }
