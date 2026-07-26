@@ -40,35 +40,17 @@
                                         readonly
                                     />
                                 @elseif ($field === 'ubigeo_control')
-                                    <div class="md:col-span-2 space-y-3">
-                                        <div class="flex items-end gap-3">
-                                            <div class="flex-1">
-                                                <x-ui.input
-                                                    type="text"
-                                                    wire:model.live.debounce.300ms="ubigeoSearch"
-                                                    label="Ubigeo"
-                                                    :error="$errors->first('ubigeoSearch')"
-                                                    placeholder="230110 - TACNA / TACNA / CORONEL GREGORIO ALBARRACIN LANCHIPA"
-                                                    description="Busca por código, departamento, provincia o distrito."
-                                                />
-                                            </div>
-                                            <x-ui.button type="button" wire:click="syncUbigeo" variant="secondary">Sincronizar</x-ui.button>
+                                    <div class="md:col-span-2 flex items-end gap-3">
+                                        <div class="flex-1">
+                                            <x-ui.input
+                                                type="text"
+                                                wire:model="ubigeo_code"
+                                                label="Ubigeo"
+                                                :error="$errors->first('ubigeo_code')"
+                                                readonly
+                                            />
                                         </div>
-                                        @if ($ubigeos->isNotEmpty())
-                                            <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)] p-2">
-                                                <div class="space-y-1">
-                                                    @foreach ($ubigeos as $ubigeo)
-                                                        <button
-                                                            type="button"
-                                                            class="flex w-full flex-col rounded-[var(--radius-control)] px-3 py-2 text-left text-sm transition hover:bg-white/5 focus-ring"
-                                                            wire:click="$set('ubigeoSearch', '{{ trim($ubigeo->codigo . ' - ' . $ubigeo->departamento . ' / ' . $ubigeo->provincia . ' / ' . $ubigeo->distrito) }}')"
-                                                        >
-                                                            <span class="font-medium text-[color:var(--color-text-primary)]">{{ $ubigeo->codigo }} - {{ $ubigeo->departamento }} / {{ $ubigeo->provincia }} / {{ $ubigeo->distrito }}</span>
-                                                        </button>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-                                        @endif
+                                        <x-ui.button type="button" wire:click="syncUbigeo" variant="secondary">Sincronizar</x-ui.button>
                                     </div>
                                 @elseif ($field === 'place')
                                     <x-ui.input

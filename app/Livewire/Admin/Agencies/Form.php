@@ -6,7 +6,6 @@ use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Ruc\Models\Ubigeo;
-use App\Services\Ubigeos\UbigeoResolver;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -60,7 +59,7 @@ class Form extends Component
 
     public ?int $ubigeo_id = null;
 
-    public ?string $ubigeoSearch = null;
+    public ?string $ubigeo_code = null;
 
     public ?string $map_url = null;
 
@@ -137,7 +136,7 @@ class Form extends Component
                 'latitude' => $agency->latitude,
                 'longitude' => $agency->longitude,
                 'ubigeo_id' => $agency->ubigeo_id,
-                'ubigeoSearch' => $this->formatUbigeoLabel(data_get($agency, 'ubigeo')),
+                'ubigeo_code' => $this->resolveUbigeoCode($agency),
                 'map_url' => $agency->map_url,
                 'services' => $agency->services ?? [],
                 'observations' => $agency->observations,
@@ -169,25 +168,9 @@ class Form extends Component
         }
     }
 
-    public function updatedUbigeoId(): void
+    public function updatedUbigeoCode(): void
     {
         $this->syncUbigeo();
-    }
-
-    public function updatedUbigeoSearch(): void
-    {
-        if ($this->ubigeoSearch === null || trim($this->ubigeoSearch) === '') {
-            return;
-        }
-
-        $resolver = app(UbigeoResolver::class);
-        $code = $resolver->normalizeCode($this->ubigeoSearch);
-        if ($code !== null) {
-            $ubigeo = $resolver->findByCode($code);
-            if ($ubigeo) {
-                $this->ubigeo_id = $ubigeo->id;
-            }
-        }
     }
 
     public function updatedClassificationCategory(): void
@@ -220,7 +203,7 @@ class Form extends Component
         $ubigeo = $this->resolveUbigeo();
 
         if (! $ubigeo) {
-            $this->addError('ubigeoSearch', 'Selecciona un ubigeo válido antes de sincronizar.');
+            $this->addError('ubigeo_code', 'La agencia no tiene un código de ubigeo válido.');
 
             return;
         }
@@ -253,12 +236,44 @@ class Form extends Component
             }
         }
 
-        return app(UbigeoResolver::class)->findByCode($this->ubigeoSearch);
+        return $this->resolveUbigeoByCode($this->ubigeo_code);
     }
 
     private function normalizedOperationsCenterValue(): bool
     {
         return mb_strtoupper(trim((string) $this->classification_category), 'UTF-8') === 'GRANDE / CO';
+    }
+
+    private function resolveUbigeoCode(?Agency $agency): ?string
+    {
+        if ($agency && filled($agency->ubigeo_id)) {
+            $ubigeo = Ubigeo::query()->find($agency->ubigeo_id);
+
+            if ($ubigeo) {
+                return $ubigeo->codigo;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveUbigeoByCode(?string $code): ?Ubigeo
+    {
+        $code = trim((string) $code);
+
+        if ($code === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/\\D+/', '', $code);
+
+        if ($digits === '') {
+            return null;
+        }
+
+        $normalized = str_pad($digits, 6, '0', STR_PAD_LEFT);
+
+        return Ubigeo::query()->where('codigo', $normalized)->first();
     }
 
     public function save(ApplyAgencyMoveAction $moveAction): void
@@ -319,35 +334,6 @@ class Form extends Component
             ->orderBy('name')
             ->limit(20)
             ->get(['id', 'code', 'name', 'department', 'province', 'district', 'address']);
-    }
-
-    /** @return Collection<int, Ubigeo> */
-    public function getUbigeoOptionsProperty(): Collection
-    {
-        $term = trim((string) $this->ubigeoSearch);
-
-        return Ubigeo::query()
-            ->when($term !== '', function ($query) use ($term): void {
-                $search = mb_strtolower($term);
-                $query->where(function ($sub) use ($search): void {
-                    $sub->orWhereRaw('unaccent(lower(codigo)) ILIKE unaccent(?)', ['%'.$search.'%']);
-                    foreach (['departamento', 'provincia', 'distrito'] as $field) {
-                        $sub->orWhereRaw("unaccent(lower($field)) ILIKE unaccent(?)", ['%'.$search.'%']);
-                    }
-                });
-            })
-            ->orderBy('codigo')
-            ->limit(15)
-            ->get();
-    }
-
-    private function formatUbigeoLabel(?Ubigeo $ubigeo): ?string
-    {
-        if (! $ubigeo) {
-            return null;
-        }
-
-        return trim(($ubigeo->codigo ?? '').' - '.($ubigeo->departamento ?? '').' / '.($ubigeo->provincia ?? '').' / '.($ubigeo->distrito ?? ''));
     }
 
     public function getSelectedDestinationProperty(): ?Agency
@@ -419,6 +405,7 @@ class Form extends Component
                 Rule::notIn($this->has_moved ? [] : [AgencyStatus::Moved->value]),
             ],
             'ubigeo_id' => ['nullable', 'integer', 'exists:ubigeos,id'],
+            'ubigeo_code' => ['nullable', 'string', 'max:20'],
             'classification_category' => ['required', 'string', 'max:255'],
             'classification_sends_category' => ['nullable', 'string', 'max:255'],
             'classification_receives_category' => ['nullable', 'string', 'max:255'],
@@ -457,7 +444,7 @@ class Form extends Component
     private function normalizePayload(array $data): array
     {
         $payload = $data;
-        foreach (['code', 'name', 'old_name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'schedule_general', 'schedule_sunday', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice', 'place', 'classification_category', 'classification_sends_category', 'classification_receives_category', 'ubigeoSearch'] as $field) {
+        foreach (['code', 'name', 'old_name', 'short_name', 'department', 'province', 'district', 'phone', 'secondary_phone', 'email', 'reference', 'schedule', 'schedule_general', 'schedule_sunday', 'map_url', 'observations', 'source_text', 'texto_chosen_terrestre', 'texto_chosen_aereo', 'moved_to_address', 'move_notice', 'place', 'classification_category', 'classification_sends_category', 'classification_receives_category', 'ubigeo_code'] as $field) {
             if (array_key_exists($field, $payload) && is_string($payload[$field])) {
                 $payload[$field] = trim(preg_replace('/\s+/u', ' ', $payload[$field]));
                 $payload[$field] = $payload[$field] === '' ? null : $payload[$field];
@@ -480,6 +467,7 @@ class Form extends Component
         )));
         unset($payload['servicesInput']);
         $payload['is_operations_center'] = $this->normalizedOperationsCenterValue();
+        $payload['ubigeo_code'] = $this->normalizeUbigeoCode($payload['ubigeo_code'] ?? null);
         $payload['has_moved'] = (bool) ($payload['has_moved'] ?? false);
 
         if (! $payload['has_moved']) {
@@ -497,7 +485,6 @@ class Form extends Component
         return view('livewire.admin.agencies.form', [
             'statuses' => AgencyStatus::options(),
             'destinations' => $this->getDestinationOptionsProperty(),
-            'ubigeos' => $this->getUbigeoOptionsProperty(),
         ])->layout('layouts.app', ['pageTitle' => $this->mode === 'edit' ? 'Editar agencia' : 'Nueva agencia']);
     }
 }
