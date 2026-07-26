@@ -139,7 +139,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
                     'selected' => ! in_array($action, ['conflict', 'unchanged', 'invalid'], true),
                 ]);
 
-                $processedRows[] = $this->toApiFormat($normalized, $agency);
+                $processedRows[] = $this->toApiFormat($normalized, $agency, $baseRow);
             }
 
             Storage::put($basePath.'/base_agencias.json', json_encode($baseRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
@@ -345,36 +345,116 @@ class SyncShalomAgenciesJob implements ShouldQueue
         return is_numeric($value) ? (float) $value : null;
     }
 
-    private function toApiFormat(array $normalized, ?Agency $agency): array
+    private function toApiFormat(array $normalized, ?Agency $agency, array $rawData = []): array
     {
-        return [
-            'external_id' => $agency->external_id ?? $normalized['external_id'] ?? null,
-            'internal_id' => $agency->id ?? null,
-            'code' => $agency->code ?? $normalized['code'] ?? null,
-            'name' => $agency->name ?? $normalized['name'] ?? null,
-            'old_name' => $agency->old_name ?? null,
-            'place' => $agency->place ?? $normalized['place'] ?? null,
-            'department' => $agency->department ?? $normalized['department'] ?? null,
-            'province' => $agency->province ?? $normalized['province'] ?? null,
-            'district' => $agency->district ?? $normalized['district'] ?? null,
-            'address' => $agency->address ?? $normalized['address'] ?? null,
-            'latitude' => $agency->latitude !== null ? (float) $agency->latitude : ($normalized['latitude'] ?? null),
-            'longitude' => $agency->longitude !== null ? (float) $agency->longitude : ($normalized['longitude'] ?? null),
-            'map_url' => $agency->map_url ?? $normalized['map_url'] ?? null,
+        $agencyData = [
+            'external_id' => $agency?->external_id
+                ?? data_get($normalized, 'external_id')
+                ?? data_get($rawData, 'external_id')
+                ?? data_get($rawData, 'source_record.ter_id'),
+            'internal_id' => $agency?->id,
+            'code' => $agency?->code
+                ?? data_get($normalized, 'code')
+                ?? data_get($rawData, 'code')
+                ?? data_get($rawData, 'source_record.ter_abrebiatura'),
+            'name' => $agency?->name
+                ?? data_get($normalized, 'name')
+                ?? data_get($rawData, 'name')
+                ?? data_get($rawData, 'source_record.lugar_over'),
+            'old_name' => $agency?->old_name,
+            'place' => $agency?->place
+                ?? data_get($normalized, 'place')
+                ?? data_get($rawData, 'place')
+                ?? data_get($rawData, 'source_record.nombre'),
+            'department' => $agency?->department
+                ?? data_get($normalized, 'department')
+                ?? data_get($rawData, 'department')
+                ?? data_get($rawData, 'source_record.departamento'),
+            'province' => $agency?->province
+                ?? data_get($normalized, 'province')
+                ?? data_get($rawData, 'province')
+                ?? data_get($rawData, 'source_record.provincia'),
+            'district' => $agency?->district
+                ?? data_get($normalized, 'district')
+                ?? data_get($rawData, 'district')
+                ?? data_get($rawData, 'zone')
+                ?? data_get($rawData, 'source_record.zona'),
+            'address' => $agency?->address
+                ?? data_get($normalized, 'address')
+                ?? data_get($rawData, 'address')
+                ?? data_get($rawData, 'source_record.direccion'),
+            'latitude' => $agency?->latitude
+                ?? data_get($normalized, 'latitude')
+                ?? data_get($rawData, 'latitude')
+                ?? data_get($rawData, 'source_record.latitud'),
+            'longitude' => $agency?->longitude
+                ?? data_get($normalized, 'longitude')
+                ?? data_get($rawData, 'longitude')
+                ?? data_get($rawData, 'source_record.longitud'),
+            'map_url' => $agency?->map_url
+                ?? data_get($normalized, 'map_url')
+                ?? data_get($rawData, 'map_url'),
             'schedule' => [
-                'general' => $agency->schedule_general ?? null,
-                'sunday' => $agency->schedule_sunday ?? null,
+                'general' => $agency?->schedule_general
+                    ?? data_get($normalized, 'schedule.general')
+                    ?? data_get($rawData, 'schedule.general')
+                    ?? data_get($rawData, 'source_record.hora_atencion'),
+                'sunday' => $agency?->schedule_sunday
+                    ?? data_get($normalized, 'schedule.sunday')
+                    ?? data_get($rawData, 'schedule.sunday')
+                    ?? data_get($rawData, 'source_record.hora_domingo'),
             ],
             'classification' => [
-                'tamano' => $agency->classification_category ?? $normalized['tamano'] ?? null,
-                'sends_category' => $agency->classification_sends_category ?? $normalized['sends_category'] ?? null,
-                'receives_category' => $agency->classification_receives_category ?? $normalized['receives_category'] ?? null,
+                'tamano' => $agency?->classification_category
+                    ?? data_get($normalized, 'classification.tamano')
+                    ?? data_get($normalized, 'tamano')
+                    ?? data_get($rawData, 'classification.tamano')
+                    ?? data_get($rawData, 'source_record.ter_categoria'),
+                'sends_category' => $agency?->classification_sends_category
+                    ?? data_get($normalized, 'classification.sends_category')
+                    ?? data_get($normalized, 'sends_category')
+                    ?? data_get($rawData, 'classification.sends_category')
+                    ?? data_get($rawData, 'source_record.ter_categoria_envia'),
+                'receives_category' => $agency?->classification_receives_category
+                    ?? data_get($normalized, 'classification.receives_category')
+                    ?? data_get($normalized, 'receives_category')
+                    ?? data_get($rawData, 'classification.receives_category')
+                    ?? data_get($rawData, 'source_record.ter_categoria_recibe'),
             ],
-            'chosen_terrestre' => $agency->texto_chosen_terrestre ?? $normalized['texto_chosen_terrestre'] ?? null,
-            'chosen_aereo' => $agency->texto_chosen_aereo ?? $normalized['texto_chosen_aereo'] ?? null,
-            'status' => $agency->status->value,
-            'estado' => $agency->status->label(),
-            'centro_operaciones' => (bool) $agency->is_operations_center,
+            'chosen_terrestre' => $agency?->texto_chosen_terrestre
+                ?? data_get($normalized, 'chosen_terrestre')
+                ?? data_get($normalized, 'texto_chosen_terrestre')
+                ?? data_get($rawData, 'chosen_terrestre'),
+            'chosen_aereo' => $agency?->texto_chosen_aereo
+                ?? data_get($normalized, 'chosen_aereo')
+                ?? data_get($normalized, 'texto_chosen_aereo')
+                ?? data_get($rawData, 'chosen_aereo'),
+            'status' => $agency?->status?->value,
+            'estado' => $agency?->status?->label(),
+            'centro_operaciones' => (bool) ($agency?->is_operations_center ?? false),
+        ];
+
+        return [
+            'external_id' => $agencyData['external_id'],
+            'internal_id' => $agencyData['internal_id'],
+            'code' => $agencyData['code'],
+            'name' => $agencyData['name'],
+            'old_name' => $agencyData['old_name'],
+            'place' => $agencyData['place'],
+            'department' => $agencyData['department'],
+            'province' => $agencyData['province'],
+            'district' => $agencyData['district'],
+            'address' => $agencyData['address'],
+            'latitude' => $agencyData['latitude'] !== null ? (float) $agencyData['latitude'] : null,
+            'longitude' => $agencyData['longitude'] !== null ? (float) $agencyData['longitude'] : null,
+            'map_url' => $agencyData['map_url'],
+            'schedule' => $agencyData['schedule'],
+            'classification' => $agencyData['classification'],
+            'chosen_terrestre' => $agencyData['chosen_terrestre'],
+            'chosen_aereo' => $agencyData['chosen_aereo'],
+            'status' => $agencyData['status'],
+            'estado' => $agencyData['estado'],
+            'centro_operaciones' => $agencyData['centro_operaciones'],
         ];
     }
 }
