@@ -305,7 +305,6 @@ class Form extends Component
                 Rule::in(array_map(fn (AgencyStatus $case) => $case->value, AgencyStatus::cases())),
                 Rule::notIn($this->has_moved ? [] : [AgencyStatus::Moved->value]),
             ],
-            'size' => ['nullable', Rule::in(array_map(fn (AgencySize $case) => $case->value, AgencySize::cases()))],
             'category' => ['required', Rule::in(array_map(fn (Category $case) => $case->value, Category::cases()))],
             'classification_category' => ['required', 'string', 'max:255'],
             'classification_sends_category' => ['nullable', 'string', 'max:255'],
@@ -384,7 +383,6 @@ class Form extends Component
     {
         return view('livewire.admin.agencies.form', [
             'statuses' => AgencyStatus::options(),
-            'sizes' => AgencySize::options(),
             'categories' => Category::cases(),
             'destinations' => $this->getDestinationOptionsProperty(),
         ])->layout('layouts.app', ['pageTitle' => $this->mode === 'edit' ? 'Editar agencia' : 'Nueva agencia']);

@@ -20,7 +20,7 @@
                     'Ubicación' => ['place', 'department', 'province', 'district', 'address'],
                     'Coordenadas' => ['latitude', 'longitude', 'map_url'],
                     'Horarios' => ['schedule_general', 'schedule_sunday'],
-                    'Clasificación' => ['size', 'category', 'is_operations_center', 'classification_category', 'classification_sends_category', 'classification_receives_category'],
+                    'Clasificación' => ['category', 'is_operations_center', 'classification_category', 'classification_sends_category', 'classification_receives_category'],
                     'Chosen' => ['texto_chosen_terrestre', 'texto_chosen_aereo'],
                     'Estado y Traslado' => ['status', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'moved_at', 'move_notice'],
                 ];
@@ -73,19 +73,7 @@
                                         :label="str_replace('_', ' ', ucfirst($field))"
                                         :error="$errors->first($field)"
                                     />
-                                @elseif ($field === 'size')
-                                    @php
-                                        $sizeOptions = ['' => 'Sin definir'] + ($sizes ?? []);
-                                    @endphp
-                                    <x-ui.dropdown-select
-                                        id="agency-size"
-                                        name="size"
-                                        wire:model="size"
-                                        label="Tamaño"
-                                        :value="$size"
-                                        :options="$sizeOptions"
-                                        :error="$errors->first('size')"
-                                    />
+
                                 @elseif ($field === 'category')
                                     <x-ui.dropdown-select
                                         id="agency-category"

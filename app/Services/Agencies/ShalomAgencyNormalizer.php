@@ -2,6 +2,8 @@
 
 namespace App\Services\Agencies;
 
+use App\Services\Ubigeos\UbigeoResolver;
+
 final class ShalomAgencyNormalizer
 {
     public function normalize(array $row): array
@@ -16,10 +18,32 @@ final class ShalomAgencyNormalizer
         $code = $this->firstText([$row['code'] ?? null, $sourceRecord['ter_abrebiatura'] ?? null], uppercase: true);
         $name = $this->firstText([$row['name'] ?? null, $sourceRecord['lugar_over'] ?? null], uppercase: true);
         $place = $this->firstText([$row['place'] ?? null, $sourceRecord['nombre'] ?? null]);
-        $department = $this->firstText([$row['department'] ?? null, $sourceRecord['departamento'] ?? null], uppercase: true);
-        $province = $this->firstText([$row['province'] ?? null, $sourceRecord['provincia'] ?? null], uppercase: true);
-        $district = $this->resolveDistrict($row, $sourceRecord, $place);
         $address = $this->firstText([$row['address'] ?? null, $sourceRecord['direccion'] ?? null]);
+
+        $ubigeoCode = $this->normalizeUbigeoCode($this->firstFilled(
+            data_get($row, 'ubigeo_id'),
+            data_get($geographicIds, 'ubigeo_id'),
+            data_get($sourceRecord, 'ubi_id'),
+            data_get($row, 'source_record.ubi_id')
+        ));
+        $ubigeo = app(UbigeoResolver::class)->findByCode($ubigeoCode);
+
+        $department = $this->firstFilled(
+            $this->normalizeText(data_get($ubigeo, 'departamento')),
+            $this->normalizeText(data_get($row, 'department')),
+            $this->normalizeText(data_get($sourceRecord, 'departamento')),
+        );
+        $province = $this->firstFilled(
+            $this->normalizeText(data_get($ubigeo, 'provincia')),
+            $this->normalizeText(data_get($row, 'province')),
+            $this->normalizeText(data_get($sourceRecord, 'provincia')),
+        );
+        $district = $this->firstFilled(
+            $this->normalizeText(data_get($ubigeo, 'distrito')),
+            $this->normalizeText(data_get($row, 'zone')),
+            $this->normalizeText(data_get($sourceRecord, 'zona')),
+            $this->districtFromPlace($this->firstFilled($place, data_get($sourceRecord, 'nombre')))
+        );
 
         $latitude = $this->nullableFloat($this->firstFilled(
             $row['latitude'] ?? null,
@@ -56,24 +80,8 @@ final class ShalomAgencyNormalizer
             $sourceRecord['ter_categoria_recibe'] ?? null,
         ], uppercase: true);
 
-        $ubigeoId = $this->firstInteger([$geographicIds['ubigeo_id'] ?? null, $sourceRecord['ubi_id'] ?? null]);
-
-        $hasTerrestrial = filled($row['texto_chosen_terrestre'] ?? null)
-            || filled($sourceRecord['ter_terrestre'] ?? null)
-            || filled($sourceRecord['ter_destino'] ?? null)
-            || filled($sourceRecord['ter_origen'] ?? null)
-            || $externalId !== null
-            || $name !== null;
-
-        $hasAir = filled($row['texto_chosen_aereo'] ?? null)
-            || $this->truthy($services['air'] ?? null)
-            || $this->truthy($sourceRecord['ter_aereo'] ?? null);
-
-        $textoChosenTerrestre = $hasTerrestrial
-            ? $this->buildChosenText($externalId, $department, $province, $district, $name, 'TERRESTRE')
-            : null;
-
-        $textoChosenAereo = $hasAir
+        $textoChosenTerrestre = $this->buildChosenText($externalId, $department, $province, $district, $name, 'TERRESTRE');
+        $textoChosenAereo = filled($row['services']['air'] ?? null) || filled($sourceRecord['ter_aereo'] ?? null)
             ? $this->buildChosenText($externalId, $department, $province, $district, $name, 'AEREO')
             : null;
 
@@ -97,7 +105,7 @@ final class ShalomAgencyNormalizer
             'classification_category' => $classificationCategory,
             'classification_sends_category' => $sendsCategory,
             'classification_receives_category' => $receivesCategory,
-            'ubigeo_id' => $ubigeoId,
+            'ubigeo_id' => $ubigeoCode,
             'texto_chosen_terrestre' => $textoChosenTerrestre,
             'texto_chosen_aereo' => $textoChosenAereo,
             'map_url' => $mapUrl,
@@ -106,39 +114,36 @@ final class ShalomAgencyNormalizer
         ];
     }
 
-    private function resolveDistrict(array $row, array $sourceRecord, ?string $place): ?string
+    private function normalizeUbigeoCode(mixed $value): ?string
     {
-        $district = $this->firstText([
-            $row['district'] ?? null,
-            $row['zone'] ?? null,
-            $sourceRecord['zona'] ?? null,
-        ], uppercase: true);
-
-        if (filled($district)) {
-            return $district;
+        if ($value === null) {
+            return null;
         }
 
-        if (! is_string($place) || trim($place) === '') {
+        $value = trim((string) $value);
+
+        if ($value === '' || strtolower($value) === 'null') {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $value);
+
+        if ($digits === '') {
+            return null;
+        }
+
+        return str_pad($digits, 6, '0', STR_PAD_LEFT);
+    }
+
+    private function districtFromPlace(?string $place): ?string
+    {
+        if (! filled($place)) {
             return null;
         }
 
         $parts = array_values(array_filter(array_map('trim', explode('/', (string) $place)), static fn ($value) => $value !== ''));
 
         return $parts[2] ?? null;
-    }
-
-    private function buildChosenText(?int $externalId, ?string $department, ?string $province, ?string $district, ?string $name, string $mode): ?string
-    {
-        $parts = array_filter([
-            $externalId !== null ? (string) $externalId : null,
-            $department,
-            $province,
-            $district,
-            $name,
-            $mode,
-        ], static fn ($value) => $value !== null && $value !== '');
-
-        return count($parts) >= 2 ? implode(' - ', $parts) : null;
     }
 
     private function firstFilled(mixed ...$values): mixed
@@ -158,19 +163,28 @@ final class ShalomAgencyNormalizer
         return null;
     }
 
+    private function normalizeText(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '' || strtolower($value) === 'null') {
+            return null;
+        }
+
+        return preg_replace('/\s+/u', ' ', $value);
+    }
+
     private function firstText(array $values, bool $uppercase = false): ?string
     {
         foreach ($values as $value) {
-            if (! is_string($value) && ! is_numeric($value)) {
+            $value = $this->normalizeText($value);
+            if ($value === null) {
                 continue;
             }
-
-            $value = trim((string) $value);
-            if ($value === '' || strtolower($value) === 'null') {
-                continue;
-            }
-
-            $value = preg_replace('/\s+/u', ' ', $value);
 
             return $uppercase ? mb_strtoupper($value) : $value;
         }
@@ -214,8 +228,17 @@ final class ShalomAgencyNormalizer
         return is_numeric($value) ? (float) $value : null;
     }
 
-    private function truthy(mixed $value): bool
+    private function buildChosenText(?int $externalId, ?string $department, ?string $province, ?string $district, ?string $name, string $mode): ?string
     {
-        return in_array($value, [true, 1, '1', 'true', 'TRUE', 'yes', 'YES'], true);
+        $parts = array_filter([
+            $externalId !== null ? (string) $externalId : null,
+            $department,
+            $province,
+            $district,
+            $name,
+            $mode,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        return count($parts) >= 2 ? implode(' - ', $parts) : null;
     }
 }
