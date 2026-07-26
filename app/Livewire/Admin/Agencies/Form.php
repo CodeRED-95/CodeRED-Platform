@@ -4,7 +4,6 @@ namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
 use App\Modules\Agencies\Enums\AgencyStatus;
-use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Services\AgencyPlaceGenerator;
 use Illuminate\Database\Eloquent\Collection;
@@ -67,8 +66,6 @@ class Form extends Component
     public string $status = 'under_review';
 
     public ?string $size = null;
-
-    public string $category = 'PEQUEÑA';
 
     public ?string $classification_category = null;
 
@@ -141,7 +138,6 @@ class Form extends Component
                 'observations' => $agency->observations,
                 'status' => $agency->status->value,
                 'size' => $agency->size?->value,
-                'category' => $agency->category->value,
                 'classification_category' => $agency->classification_category,
                 'classification_sends_category' => $agency->classification_sends_category,
                 'classification_receives_category' => $agency->classification_receives_category,
@@ -305,7 +301,6 @@ class Form extends Component
                 Rule::in(array_map(fn (AgencyStatus $case) => $case->value, AgencyStatus::cases())),
                 Rule::notIn($this->has_moved ? [] : [AgencyStatus::Moved->value]),
             ],
-            'category' => ['required', Rule::in(array_map(fn (Category $case) => $case->value, Category::cases()))],
             'classification_category' => ['required', 'string', 'max:255'],
             'classification_sends_category' => ['nullable', 'string', 'max:255'],
             'classification_receives_category' => ['nullable', 'string', 'max:255'],
@@ -383,7 +378,6 @@ class Form extends Component
     {
         return view('livewire.admin.agencies.form', [
             'statuses' => AgencyStatus::options(),
-            'categories' => Category::cases(),
             'destinations' => $this->getDestinationOptionsProperty(),
         ])->layout('layouts.app', ['pageTitle' => $this->mode === 'edit' ? 'Editar agencia' : 'Nueva agencia']);
     }

@@ -20,7 +20,7 @@
                     'Ubicación' => ['place', 'department', 'province', 'district', 'address'],
                     'Coordenadas' => ['latitude', 'longitude', 'map_url'],
                     'Horarios' => ['schedule_general', 'schedule_sunday'],
-                    'Clasificación' => ['category', 'is_operations_center', 'classification_category', 'classification_sends_category', 'classification_receives_category'],
+                    'Clasificación' => ['is_operations_center', 'classification_category', 'classification_sends_category', 'classification_receives_category'],
                     'Chosen' => ['texto_chosen_terrestre', 'texto_chosen_aereo'],
                     'Estado y Traslado' => ['status', 'has_moved', 'moved_to_agency_id', 'moved_to_address', 'moved_at', 'move_notice'],
                 ];
@@ -74,17 +74,6 @@
                                         :error="$errors->first($field)"
                                     />
 
-                                @elseif ($field === 'category')
-                                    <x-ui.dropdown-select
-                                        id="agency-category"
-                                        name="category"
-                                        wire:model="category"
-                                        label="Categoría de agencia"
-                                        :value="$category"
-                                        :options="collect($categories)->mapWithKeys(fn ($item) => [$item->value => $item->value])->all()"
-                                        :error="$errors->first('category')"
-                                        required
-                                    />
                                 @elseif ($field === 'is_operations_center')
                                     <div class="md:col-span-2"><x-ui.toggle wire:model="is_operations_center">Centro de Operaciones</x-ui.toggle></div>
                                 @elseif ($field === 'classification_category')
