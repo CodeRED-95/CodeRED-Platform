@@ -47,7 +47,13 @@ class ShalomSyncRun extends Component
     {
         Gate::authorize('import', Agency::class);
 
-        abort_unless(in_array($this->importRun->status, ['pending', 'failed'], true), 409);
+        if (in_array($this->importRun->status, ['pending', 'processing'], true)) {
+            $this->dispatch('notify', type: 'warning', message: 'El análisis ya está en cola o en proceso.');
+
+            return;
+        }
+
+        abort_unless($this->importRun->status === 'failed', 409);
         abort_unless(filled($this->importRun->chosen_storage_path), 422);
 
         $this->importRun->forceFill([

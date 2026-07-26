@@ -87,6 +87,8 @@ class SyncShalomAgenciesJob implements ShouldQueue
                     $normalized['texto_chosen_aereo'] = $chosen['texto_chosen_aereo'] ?? $normalized['texto_chosen_aereo'] ?? null;
                 }
 
+                $normalized['latitude'] = $this->nullableFloat($normalized['latitude'] ?? null);
+                $normalized['longitude'] = $this->nullableFloat($normalized['longitude'] ?? null);
                 $normalized['place'] = $baseRow['place'] ?? $normalized['place'] ?? null;
                 $normalized['map_url'] = $this->resolveMapUrl($normalized, $row);
 
@@ -98,6 +100,11 @@ class SyncShalomAgenciesJob implements ShouldQueue
                 }
                 if (($normalized['latitude'] ?? null) === null || ($normalized['longitude'] ?? null) === null) {
                     $stats['without_coordinates']++;
+                }
+
+                $analysisAgency = $this->resolveAnalysisAgency($normalized);
+                if (! $analysisAgency && empty(array_filter($normalized, static fn ($value) => $value !== null && $value !== ''))) {
+                    throw new RuntimeException('No se encontró una agencia vinculada ni datos normalizados para reintentar el análisis.');
                 }
 
                 $stats['total_normalized']++;
@@ -192,6 +199,29 @@ class SyncShalomAgenciesJob implements ShouldQueue
             'source' => $row['source'] ?? data_get($row, 'source_record.source'),
             'source_record' => $row['source_record'] ?? [],
         ];
+    }
+
+    private function resolveAnalysisAgency(array $normalized): ?Agency
+    {
+        if (! empty($normalized['agency_id'])) {
+            $agency = Agency::query()->find($normalized['agency_id']);
+            if ($agency) {
+                return $agency;
+            }
+        }
+
+        if (filled($normalized['external_id'] ?? null)) {
+            $agency = Agency::query()->where('external_id', $normalized['external_id'])->first();
+            if ($agency) {
+                return $agency;
+            }
+        }
+
+        if (filled($normalized['code'] ?? null)) {
+            return Agency::query()->where('code', $normalized['code'])->first();
+        }
+
+        return null;
     }
 
     private function matchAgency(array $incoming): array
@@ -296,6 +326,23 @@ class SyncShalomAgenciesJob implements ShouldQueue
         }
 
         return $row['map_url'] ?? data_get($row, 'source_record.link_mapa') ?? null;
+    }
+
+    private function nullableFloat(mixed $value): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+
+            if ($value === '' || strtolower($value) === 'null') {
+                return null;
+            }
+        }
+
+        return is_numeric($value) ? (float) $value : null;
     }
 
     private function toApiFormat(array $normalized, ?Agency $agency): array
