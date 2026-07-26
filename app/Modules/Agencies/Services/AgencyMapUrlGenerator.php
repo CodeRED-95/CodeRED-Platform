@@ -6,8 +6,12 @@ use App\Modules\Agencies\Models\Agency;
 
 class AgencyMapUrlGenerator
 {
-    public function __invoke(Agency $agency): ?string
+    public function __invoke(?Agency $agency): ?string
     {
+        if ($agency === null) {
+            return null;
+        }
+
         $latitude = $agency->latitude;
         $longitude = $agency->longitude;
 

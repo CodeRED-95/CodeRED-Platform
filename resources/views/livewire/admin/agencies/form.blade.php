@@ -73,18 +73,52 @@
                                         :label="str_replace('_', ' ', ucfirst($field))"
                                         :error="$errors->first($field)"
                                     />
-                                @elseif ($field === "size")
-                                    <x-ui.dropdown-select id="agency-size" name="size" wire:model="size" label="Tamaño" :value="$size" :options="["" => "Sin definir"] + $sizes" :error="$errors->first("size")" />
-                                @elseif ($field === "category")
-                                    <x-ui.dropdown-select id="agency-category" name="category" wire:model="category" label="Categoría" :value="$category" :options="collect($categories)->mapWithKeys(fn ($item) => [$item->value => $item->value])->all()" :error="$errors->first("category")" required />
-                                @elseif ($field === "is_operations_center")
+                                @elseif ($field === 'size')
+                                    @php
+                                        $sizeOptions = ['' => 'Sin definir'] + ($sizes ?? []);
+                                    @endphp
+                                    <x-ui.dropdown-select
+                                        id="agency-size"
+                                        name="size"
+                                        wire:model="size"
+                                        label="Tamaño"
+                                        :value="$size"
+                                        :options="$sizeOptions"
+                                        :error="$errors->first('size')"
+                                    />
+                                @elseif ($field === 'category')
+                                    <x-ui.dropdown-select
+                                        id="agency-category"
+                                        name="category"
+                                        wire:model="category"
+                                        label="Categoría de agencia"
+                                        :value="$category"
+                                        :options="collect($categories)->mapWithKeys(fn ($item) => [$item->value => $item->value])->all()"
+                                        :error="$errors->first('category')"
+                                        required
+                                    />
+                                @elseif ($field === 'is_operations_center')
                                     <div class="md:col-span-2"><x-ui.toggle wire:model="is_operations_center">Centro de Operaciones</x-ui.toggle></div>
-                                @elseif (in_array($field, ['classification_category', 'classification_sends_category', 'classification_receives_category']))
+                                @elseif ($field === 'classification_category')
                                     <x-ui.input
                                         type="text"
-                                        wire:model.blur="{{ $field }}"
-                                        :label="str_replace('_', ' ', ucfirst($field))"
-                                        :error="$errors->first($field)"
+                                        wire:model.blur="classification_category"
+                                        label="Categoría de agencia"
+                                        :error="$errors->first('classification_category')"
+                                    />
+                                @elseif ($field === 'classification_sends_category')
+                                    <x-ui.input
+                                        type="text"
+                                        wire:model.blur="classification_sends_category"
+                                        label="Capacidad de envío"
+                                        :error="$errors->first('classification_sends_category')"
+                                    />
+                                @elseif ($field === 'classification_receives_category')
+                                    <x-ui.input
+                                        type="text"
+                                        wire:model.blur="classification_receives_category"
+                                        label="Capacidad de recepción"
+                                        :error="$errors->first('classification_receives_category')"
                                     />
                                 @elseif ($field === 'has_moved')
                                     <div class="md:col-span-2"><x-ui.toggle wire:model.live="has_moved">La agencia se trasladó</x-ui.toggle></div>
