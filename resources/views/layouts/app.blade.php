@@ -79,7 +79,7 @@
                                 ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
                                 ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
                                 ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => auth()->user()->hasPermission('settings.ubigeos.update')],
-                                ['label' => 'n8n y Telegram', 'route' => 'admin.settings.n8n-telegram', 'icon' => '↗', 'can' => auth()->user()->hasPermission('api-token-requests.configure')],
+                                ['label' => 'n8n', 'route' => 'admin.integrations.n8n', 'icon' => '↗', 'can' => auth()->user()->hasPermission('integrations.n8n.manage')],
                             ],
                         ];
                     @endphp
@@ -218,7 +218,7 @@
                                 ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
                                 ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
                                 ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => auth()->user()->hasPermission('settings.ubigeos.update')],
-                                ['label' => 'n8n y Telegram', 'route' => 'admin.settings.n8n-telegram', 'icon' => '↗', 'can' => auth()->user()->hasPermission('api-token-requests.configure')],
+                                ['label' => 'n8n', 'route' => 'admin.integrations.n8n', 'icon' => '↗', 'can' => auth()->user()->hasPermission('integrations.n8n.manage')],
                             ],
                         ];
                     @endphp

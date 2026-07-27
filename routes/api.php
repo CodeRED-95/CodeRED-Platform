@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AgencyChangesController;
 use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\DniApiController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Integrations\IntegrationDiscoveryController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Modules\Ruc\Http\Controllers\RucApiController;
@@ -14,7 +15,13 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/health', HealthController::class)->name('health');
-    Route::middleware(['n8n.hmac'])->prefix('integrations/n8n')->name('integrations.n8n.')->group(function (): void {
+    Route::get('/integrations/discovery', [IntegrationDiscoveryController::class, 'index'])->name('integrations.discovery');
+    Route::post('/integrations/pair', [IntegrationDiscoveryController::class, 'pair'])->middleware('throttle:api')->name('integrations.pair');
+    Route::middleware('integration.hmac')->prefix('integrations/{integration_uuid}')->name('integrations.instances.')->group(function (): void {
+        Route::post('/discovery', [IntegrationDiscoveryController::class, 'register'])->name('discovery.register');
+        Route::post('/heartbeat', [IntegrationDiscoveryController::class, 'heartbeat'])->name('heartbeat');
+        Route::post('/secret/rotate', [IntegrationDiscoveryController::class, 'rotateSecret'])->name('secret.rotate');
+        Route::post('/challenge', [IntegrationDiscoveryController::class, 'challenge'])->name('challenge');
         Route::post('/token-requests', [N8nTokenRequestController::class, 'store'])->name('token-requests.store');
         Route::get('/token-requests/{request_uuid}', [N8nTokenRequestController::class, 'show'])->name('token-requests.show');
         Route::post('/token-requests/{request_uuid}/retrieve', [N8nTokenRequestController::class, 'retrieve'])->name('token-requests.retrieve');

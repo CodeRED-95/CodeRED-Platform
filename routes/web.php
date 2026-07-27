@@ -25,7 +25,7 @@ use App\Livewire\Admin\Ruc\Show as RucShow;
 use App\Livewire\Admin\Settings\AgencyBackups as AgencyBackupSettings;
 use App\Livewire\Admin\Settings\ApiDocumentation as ApiDocumentationSettings;
 use App\Livewire\Admin\Settings\Dni as DniSettings;
-use App\Livewire\Admin\Settings\N8nTelegram as N8nTelegramSettings;
+use App\Livewire\Admin\Settings\N8n as N8nSettings;
 use App\Livewire\Admin\Settings\Ubigeos as UbigeoSettings;
 use App\Livewire\Admin\Users\Form as UsersForm;
 use App\Livewire\Admin\Users\Index as UsersIndex;
@@ -91,7 +91,7 @@ Route::get('/admin/settings/dni', DniSettings::class)->middleware(['auth'])->nam
 Route::get('/admin/settings/api-documentation', ApiDocumentationSettings::class)->middleware(['auth'])->name('admin.settings.api-documentation');
 Route::get('/admin/settings/agency-backups', AgencyBackupSettings::class)->middleware(['auth'])->name('admin.settings.agency-backups');
 Route::get('/admin/settings/ubigeos', UbigeoSettings::class)->middleware(['auth'])->name('admin.settings.ubigeos');
-Route::get('/admin/settings/integrations/n8n-telegram', N8nTelegramSettings::class)->middleware(['auth'])->name('admin.settings.n8n-telegram');
+Route::get('/admin/integrations/n8n', N8nSettings::class)->middleware(['auth'])->name('admin.integrations.n8n');
 Route::get('/admin/design-system', DesignSystem::class)
     ->middleware(['auth'])
     ->name('admin.design-system');

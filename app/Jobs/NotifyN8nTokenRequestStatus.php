@@ -4,7 +4,8 @@ namespace App\Jobs;
 
 use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
-use App\Services\Integrations\N8nTelegramTokenSettings;
+use App\Models\Integration;
+use App\Services\Integrations\IntegrationProtocolService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -32,21 +33,36 @@ class NotifyN8nTokenRequestStatus implements ShouldQueue
         return [30, 120, 300, 900];
     }
 
-    public function handle(N8nTelegramTokenSettings $settings): void
+    public function handle(IntegrationProtocolService $protocol): void
     {
         $request = ApiTokenRequest::query()->findOrFail($this->tokenRequestId);
-        $url = $settings->webhookUrl();
-        if ($url === '') {
+        $service = match ($this->event) {
+            'token_request.approved' => 'token.request.approved',
+            'token_request.rejected' => 'token.request.rejected',
+            'token_request.cancelled' => 'token.request.cancelled',
+            'token_request.expired' => 'token.request.expired',
+            'token_request.revoked' => 'token.request.revoked',
+            default => 'token.request.status',
+        };
+        $integration = Integration::query()->where('provider', 'n8n')->whereNotNull('last_seen_at')->latest('last_seen_at')->first();
+        $capability = $integration?->capabilities()->where('service', $service)->where('enabled', true)->first();
+        if (! $integration || ! $capability || blank($integration->instance_url)) {
+            ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notification_skipped', 'description' => 'No existe una capacidad discovery para '.$service.'.', 'metadata' => ['service' => $service], 'created_at' => now()]);
+
             return;
         }
-        $payload = ['event' => $this->event, 'event_uuid' => $this->eventUuid, 'request_uuid' => $request->request_uuid, 'telegram_user_id' => $request->telegram_user_id, 'telegram_chat_id' => $request->telegram_chat_id, 'status' => $request->statusValue(), 'occurred_at' => now()->toIso8601String()];
+
+        $payload = ['event' => $this->event, 'event_uuid' => $this->eventUuid, 'service' => $service, 'request_uuid' => $request->request_uuid, 'telegram_user_id' => $request->telegram_user_id, 'telegram_chat_id' => $request->telegram_chat_id, 'status' => $request->statusValue(), 'occurred_at' => now()->toIso8601String()];
         $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
+
         try {
-            $response = Http::timeout(8)->withHeaders($settings->signedHeaders($body))->withBody($body, 'application/json')->post($url);
-            ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notified', 'description' => 'Notificación enviada a n8n.', 'metadata' => ['event_uuid' => $this->eventUuid, 'http_status' => $response->status()], 'created_at' => now()]);
+            $method = (string) $capability->getAttribute('method');
+            $path = (string) $capability->getAttribute('path');
+            $response = Http::timeout(8)->withHeaders($protocol->signedHeaders($integration, $body))->withBody($body, 'application/json')->send($method, rtrim((string) $integration->instance_url, '/').$path);
+            ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notified', 'description' => 'Notificación enviada mediante Capability Registry.', 'metadata' => ['event_uuid' => $this->eventUuid, 'service' => $service, 'integration_uuid' => $integration->integration_uuid, 'http_status' => $response->status()], 'created_at' => now()]);
             $response->throw();
         } catch (Throwable $e) {
-            ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notification_failed', 'description' => 'No se pudo notificar a n8n.', 'metadata' => ['event_uuid' => $this->eventUuid, 'error' => $e->getMessage()], 'created_at' => now()]);
+            ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notification_failed', 'description' => 'No se pudo notificar a n8n.', 'metadata' => ['event_uuid' => $this->eventUuid, 'service' => $service, 'error' => $e->getMessage()], 'created_at' => now()]);
             throw $e;
         }
     }

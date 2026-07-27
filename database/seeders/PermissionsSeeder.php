@@ -68,6 +68,8 @@ class PermissionsSeeder extends Seeder
             ['slug' => 'api-token-requests.revoke', 'name' => 'Revocar tokens originados en Telegram'],
             ['slug' => 'api-token-requests.retry-notification', 'name' => 'Reintentar notificaciones n8n'],
             ['slug' => 'api-token-requests.configure', 'name' => 'Configurar integración n8n y Telegram'],
+            ['slug' => 'integrations.n8n.manage', 'name' => 'Gestionar integración n8n empresarial'],
+            ['slug' => 'integrations.view', 'name' => 'Ver integraciones'],
         ])->each(fn (array $item) => Permission::query()->updateOrCreate(
             ['slug' => $item['slug']],
             ['name' => $item['name'], 'description' => null]
