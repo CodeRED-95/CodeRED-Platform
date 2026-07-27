@@ -259,21 +259,27 @@ class Form extends Component
 
     private function resolveUbigeoByCode(?string $code): ?Ubigeo
     {
-        $code = trim((string) $code);
-
-        if ($code === '') {
+        $normalized = $this->normalizeUbigeoCode($code);
+        if ($normalized === null) {
             return null;
         }
-
-        $digits = preg_replace('/\\D+/', '', $code);
-
-        if ($digits === '') {
-            return null;
-        }
-
-        $normalized = str_pad($digits, 6, '0', STR_PAD_LEFT);
 
         return Ubigeo::query()->where('codigo', $normalized)->first();
+    }
+
+    private function normalizeUbigeoCode(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = preg_replace('/\D+/', '', trim((string) $value));
+
+        if ($value === '') {
+            return null;
+        }
+
+        return strlen($value) === 6 ? $value : null;
     }
 
     public function save(ApplyAgencyMoveAction $moveAction): void
@@ -405,7 +411,11 @@ class Form extends Component
                 Rule::notIn($this->has_moved ? [] : [AgencyStatus::Moved->value]),
             ],
             'ubigeo_id' => ['nullable', 'integer', 'exists:ubigeos,id'],
-            'ubigeo_code' => ['nullable', 'string', 'max:20'],
+            'ubigeo_code' => ['nullable', 'string', 'max:20', function (string $attribute, mixed $value, \Closure $fail): void {
+                if ($value !== null && trim((string) $value) !== '' && $this->normalizeUbigeoCode($value) === null) {
+                    $fail('El código oficial de ubigeo debe tener exactamente seis dígitos.');
+                }
+            }],
             'classification_category' => ['required', 'string', 'max:255'],
             'classification_sends_category' => ['nullable', 'string', 'max:255'],
             'classification_receives_category' => ['nullable', 'string', 'max:255'],
@@ -468,6 +478,10 @@ class Form extends Component
         unset($payload['servicesInput']);
         $payload['is_operations_center'] = $this->normalizedOperationsCenterValue();
         $payload['ubigeo_code'] = $this->normalizeUbigeoCode($payload['ubigeo_code'] ?? null);
+        if ($payload['ubigeo_code'] !== null) {
+            $payload['ubigeo_id'] = Ubigeo::query()->where('codigo', $payload['ubigeo_code'])->value('id');
+        }
+        unset($payload['ubigeo_code']);
         $payload['has_moved'] = (bool) ($payload['has_moved'] ?? false);
 
         if (! $payload['has_moved']) {

@@ -68,6 +68,7 @@
                             ],
                             'API' => [
                                 ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
+                                ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-token-requests.view')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
                             'Administración' => [
@@ -78,6 +79,7 @@
                                 ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
                                 ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
                                 ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => auth()->user()->hasPermission('settings.ubigeos.update')],
+                                ['label' => 'n8n y Telegram', 'route' => 'admin.settings.n8n-telegram', 'icon' => '↗', 'can' => auth()->user()->hasPermission('api-token-requests.configure')],
                             ],
                         ];
                     @endphp
@@ -205,6 +207,7 @@
                             ],
                             'API' => [
                                 ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
+                                ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-token-requests.view')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
                             'Administración' => [
@@ -215,6 +218,7 @@
                                 ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
                                 ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
                                 ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => auth()->user()->hasPermission('settings.ubigeos.update')],
+                                ['label' => 'n8n y Telegram', 'route' => 'admin.settings.n8n-telegram', 'icon' => '↗', 'can' => auth()->user()->hasPermission('api-token-requests.configure')],
                             ],
                         ];
                     @endphp

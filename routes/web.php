@@ -14,6 +14,7 @@ use App\Livewire\Admin\Agencies\ShalomSync;
 use App\Livewire\Admin\Agencies\ShalomSyncRun;
 use App\Livewire\Admin\Agencies\Show as AgencyShow;
 use App\Livewire\Admin\ApiDocumentation;
+use App\Livewire\Admin\ApiTokenRequests\Index as ApiTokenRequestsIndex;
 use App\Livewire\Admin\ApiTokens\Index as ApiTokensIndex;
 use App\Livewire\Admin\ApiTools\DniTester;
 use App\Livewire\Admin\ApiTools\RucTester;
@@ -24,6 +25,7 @@ use App\Livewire\Admin\Ruc\Show as RucShow;
 use App\Livewire\Admin\Settings\AgencyBackups as AgencyBackupSettings;
 use App\Livewire\Admin\Settings\ApiDocumentation as ApiDocumentationSettings;
 use App\Livewire\Admin\Settings\Dni as DniSettings;
+use App\Livewire\Admin\Settings\N8nTelegram as N8nTelegramSettings;
 use App\Livewire\Admin\Settings\Ubigeos as UbigeoSettings;
 use App\Livewire\Admin\Users\Form as UsersForm;
 use App\Livewire\Admin\Users\Index as UsersIndex;
@@ -78,6 +80,7 @@ Route::middleware(EnsureApiDocumentationAccess::class)->group(function (): void 
     Route::get('/docs/api/openapi.yaml', ApiDocumentationSpecController::class)->name('api.docs.spec');
 });
 Route::get('/admin/api-tokens', ApiTokensIndex::class)->middleware(['auth'])->name('admin.api-tokens.index');
+Route::get('/admin/security/token-requests', ApiTokenRequestsIndex::class)->middleware(['auth'])->name('admin.api-token-requests.index');
 Route::get('/admin/api-tools/dni', DniTester::class)->middleware(['auth'])->name('admin.api-tools.dni');
 Route::get('/admin/api-tools/ruc', RucTester::class)->middleware(['auth', 'throttle:ruc-admin-test'])->name('admin.api-tools.ruc');
 Route::get('/admin/ruc', RucRecords::class)->middleware(['auth'])->name('admin.ruc.records');
@@ -88,6 +91,7 @@ Route::get('/admin/settings/dni', DniSettings::class)->middleware(['auth'])->nam
 Route::get('/admin/settings/api-documentation', ApiDocumentationSettings::class)->middleware(['auth'])->name('admin.settings.api-documentation');
 Route::get('/admin/settings/agency-backups', AgencyBackupSettings::class)->middleware(['auth'])->name('admin.settings.agency-backups');
 Route::get('/admin/settings/ubigeos', UbigeoSettings::class)->middleware(['auth'])->name('admin.settings.ubigeos');
+Route::get('/admin/settings/integrations/n8n-telegram', N8nTelegramSettings::class)->middleware(['auth'])->name('admin.settings.n8n-telegram');
 Route::get('/admin/design-system', DesignSystem::class)
     ->middleware(['auth'])
     ->name('admin.design-system');
