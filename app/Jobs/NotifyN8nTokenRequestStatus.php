@@ -58,7 +58,7 @@ class NotifyN8nTokenRequestStatus implements ShouldQueue
         try {
             $method = (string) $capability->getAttribute('method');
             $path = (string) $capability->getAttribute('path');
-            $response = Http::timeout(8)->withHeaders($protocol->signedHeaders($integration, $body))->withBody($body, 'application/json')->send($method, rtrim((string) $integration->instance_url, '/').$path);
+            $response = Http::timeout(8)->withHeaders($protocol->signedHeaders($integration, $method, $path, $body))->withBody($body, 'application/json')->send($method, rtrim((string) $integration->instance_url, '/').$path);
             ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notified', 'description' => 'Notificación enviada mediante Capability Registry.', 'metadata' => ['event_uuid' => $this->eventUuid, 'service' => $service, 'integration_uuid' => $integration->integration_uuid, 'http_status' => $response->status()], 'created_at' => now()]);
             $response->throw();
         } catch (Throwable $e) {

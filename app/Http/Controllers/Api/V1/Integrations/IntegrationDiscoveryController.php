@@ -17,52 +17,57 @@ class IntegrationDiscoveryController extends Controller
 
     public function pair(Request $request, IntegrationProtocolService $protocol): JsonResponse
     {
-        $data = $request->validate(['pair_code' => ['required', 'string', 'max:20'], 'instance_name' => ['required', 'string', 'max:150'], 'instance_url' => ['nullable', 'url', 'max:500'], 'version' => ['nullable', 'string', 'max:80'], 'hostname' => ['nullable', 'string', 'max:120'], 'environment' => ['nullable', 'string', 'max:80']]);
-        $integration = $protocol->claimPairing($data['pair_code'], $data, $request->ip(), $request->userAgent());
+        $data = $request->validate(['pair_code' => ['required', 'string', 'max:20'], 'instance_name' => ['required', 'string', 'max:150'], 'instance_url' => ['required', 'url', 'max:500'], 'environment' => ['required', 'string', 'max:80'], 'n8n_version' => ['nullable', 'string', 'max:80'], 'connector_version' => ['required', 'string', 'max:40'], 'protocol_version' => ['required', 'string', 'max:20']]);
+        [$integration, $secret] = $protocol->claimPairing($data['pair_code'], $data, $request->ip(), $request->userAgent());
 
-        return response()->json(['success' => true, 'message' => 'Integración conectada.', 'data' => ['integration_uuid' => $integration->integration_uuid, 'provider' => $integration->provider, 'secret' => $integration->secret(), 'discovery_url' => url('/api/v1/integrations/'.$integration->integration_uuid.'/discovery'), 'heartbeat_url' => url('/api/v1/integrations/'.$integration->integration_uuid.'/heartbeat')]]);
+        return response()->json(['success' => true, 'data' => ['integration_uuid' => $integration->integration_uuid, 'shared_secret' => $secret, 'protocol_version' => $integration->protocol_version ?: '1.0', 'paired_at' => now()->toIso8601String(), 'discovery_url' => '/api/v1/integrations/n8n/discovery', 'heartbeat_url' => '/api/v1/integrations/n8n/heartbeat', 'challenge_url' => '/api/v1/integrations/n8n/challenge']]);
     }
 
-    public function register(Request $request, string $uuid, IntegrationProtocolService $protocol): JsonResponse
+    public function register(Request $request, IntegrationProtocolService $protocol): JsonResponse
     {
         /** @var Integration $integration */
         $integration = $request->attributes->get('integration');
-        abort_unless($integration->integration_uuid === $uuid, 404);
-        $data = $request->validate(['version' => ['nullable', 'string', 'max:40'], 'capabilities' => ['nullable', 'array'], 'services' => ['nullable', 'array'], 'plugins' => ['nullable', 'array']]);
+        $data = $request->validate(['protocol_version' => ['nullable', 'string', 'max:20'], 'connector_version' => ['nullable', 'string', 'max:40'], 'n8n_version' => ['nullable', 'string', 'max:80'], 'capabilities' => ['nullable', 'array'], 'services' => ['nullable', 'array'], 'plugins' => ['nullable', 'array']]);
         $protocol->registerDiscovery($integration, $data, $request->ip(), $request->userAgent());
 
         return response()->json(['success' => true, 'message' => 'Discovery actualizado.', 'data' => ['integration_uuid' => $integration->integration_uuid, 'capabilities' => $integration->capabilities()->count(), 'services' => $integration->services()->count(), 'plugins' => $integration->plugins()->count()]]);
     }
 
-    public function heartbeat(Request $request, string $uuid, IntegrationProtocolService $protocol): JsonResponse
+    public function heartbeat(Request $request, IntegrationProtocolService $protocol): JsonResponse
     {
         /** @var Integration $integration */
         $integration = $request->attributes->get('integration');
-        abort_unless($integration->integration_uuid === $uuid, 404);
         $started = microtime(true);
-        $data = $request->validate(['integration_uuid' => ['required', 'uuid'], 'uptime' => ['nullable', 'integer', 'min:0'], 'version' => ['nullable', 'string', 'max:80'], 'running_workflows' => ['nullable', 'integer', 'min:0'], 'memory_usage' => ['nullable', 'integer', 'min:0'], 'cpu_usage' => ['nullable', 'integer', 'min:0'], 'hostname' => ['nullable', 'string', 'max:120'], 'environment' => ['nullable', 'string', 'max:80']]);
-        abort_unless($data['integration_uuid'] === $integration->integration_uuid, 422);
+        $data = $request->validate(['instance_uuid' => ['required', 'uuid'], 'n8n_version' => ['nullable', 'string', 'max:80'], 'connector_version' => ['nullable', 'string', 'max:40'], 'protocol_version' => ['nullable', 'string', 'max:20'], 'environment' => ['nullable', 'string', 'max:80'], 'sent_at' => ['nullable', 'date']]);
+        abort_unless($data['instance_uuid'] === $integration->integration_uuid, 422);
         $latency = (int) round((microtime(true) - $started) * 1000);
         $protocol->heartbeat($integration, $data, $latency, $request->ip(), $request->userAgent());
 
         return response()->json(['success' => true, 'message' => 'Heartbeat registrado.', 'data' => ['server_time' => now()->toIso8601String(), 'latency_ms' => $latency]]);
     }
 
-    public function rotateSecret(Request $request, string $uuid, IntegrationProtocolService $protocol): JsonResponse
+    public function rotateSecret(Request $request, IntegrationProtocolService $protocol): JsonResponse
     {
         /** @var Integration $integration */
         $integration = $request->attributes->get('integration');
-        abort_unless($integration->integration_uuid === $uuid, 404);
-        $secret = $protocol->rotateSecret($integration);
+        $secret = $protocol->claimPendingSecret($integration);
 
-        return response()->json(['success' => true, 'message' => 'Secreto rotado.', 'data' => ['integration_uuid' => $integration->integration_uuid, 'secret' => $secret, 'rotated_at' => $integration->fresh()?->secretRotatedAt()?->toIso8601String()]]);
+        return response()->json(['success' => true, 'message' => 'Secreto pendiente entregado.', 'data' => ['integration_uuid' => $integration->integration_uuid, 'shared_secret' => $secret, 'expires_at' => $integration->pendingSecretExpiresAt()?->toIso8601String()]]);
     }
 
-    public function challenge(Request $request, string $uuid): JsonResponse
+    public function confirmSecret(Request $request, IntegrationProtocolService $protocol): JsonResponse
     {
         /** @var Integration $integration */
         $integration = $request->attributes->get('integration');
-        abort_unless($integration->integration_uuid === $uuid, 404);
+        $protocol->confirmPendingSecret($integration);
+
+        return response()->json(['success' => true, 'message' => 'Secreto confirmado.']);
+    }
+
+    public function challenge(Request $request): JsonResponse
+    {
+        /** @var Integration $integration */
+        $integration = $request->attributes->get('integration');
         $data = $request->validate(['challenge' => ['required', 'string', 'max:255']]);
 
         return response()->json(['success' => true, 'data' => ['challenge' => $data['challenge'], 'signature' => hash_hmac('sha256', (string) $data['challenge'], $integration->secret())]]);

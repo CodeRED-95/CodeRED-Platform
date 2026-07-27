@@ -1,0 +1,43 @@
+{
+  "name": "CodeRED Token Status Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "codered-token-status",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "name": "Webhook token status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fetch approved token only when needed; do not pin token data.\nreturn items;"
+      },
+      "name": "Handle Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        300,
+        0
+      ]
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "active": false,
+  "versionId": "codered-template",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

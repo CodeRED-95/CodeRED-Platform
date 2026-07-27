@@ -1,0 +1,31 @@
+{
+  "name": "CodeRED Admin Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "codered-admin-notifications",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "name": "Webhook admin notifications",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "active": false,
+  "versionId": "codered-template",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

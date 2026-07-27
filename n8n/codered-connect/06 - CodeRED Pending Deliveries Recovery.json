@@ -1,0 +1,50 @@
+{
+  "name": "CodeRED Pending Deliveries Recovery",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendCustomServiceEvent",
+        "service": "token.delivery.recovery",
+        "payloadJson": "{}"
+      },
+      "name": "Recover Pending Deliveries",
+      "type": "@n8n-nodes-codered/codered.codeRed",
+      "typeVersion": 1,
+      "position": [
+        300,
+        0
+      ]
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "active": false,
+  "versionId": "codered-template",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

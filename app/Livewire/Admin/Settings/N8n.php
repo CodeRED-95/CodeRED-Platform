@@ -44,8 +44,8 @@ class N8n extends Component
     {
         Gate::authorize('integrations.n8n.manage');
         $integration = Integration::query()->where('provider', 'n8n')->findOrFail($integrationId);
-        $protocol->rotateSecret($integration);
-        $this->dispatch('toast', type: 'success', message: 'Secreto regenerado. n8n lo recibirá por el protocolo de rotación.');
+        $protocol->createPendingSecret($integration);
+        $this->dispatch('toast', type: 'success', message: 'Secreto pendiente generado. El nodo CodeRED debe reclamarlo y confirmar la rotación.');
     }
 
     public function testConnection(int $integrationId, IntegrationProtocolService $protocol): void

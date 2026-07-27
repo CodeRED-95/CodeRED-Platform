@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Integration;
+use App\Services\Integrations\IntegrationProtocolService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -17,6 +18,9 @@ class VerifyIntegrationRequest
         $integration = Integration::query()->where('integration_uuid', $uuid)->first();
         if (! $integration) {
             return $this->deny('Integración no reconocida.', 401);
+        }
+        if ($integration->isRevoked()) {
+            return $this->deny('Integración revocada.', 403);
         }
 
         $allowlist = (array) ($integration->ip_allowlist ?? []);
@@ -40,7 +44,10 @@ class VerifyIntegrationRequest
             return $this->deny('Solicitud repetida.', 409);
         }
 
-        $expected = hash_hmac('sha256', $timestamp.'.'.$nonce.'.'.$request->getContent(), $integration->secret());
+        $path = '/'.ltrim($request->getPathInfo(), '/');
+        $body = $request->getContent();
+        $canonical = app(IntegrationProtocolService::class)->canonicalPayload($request->getMethod(), $path, $timestamp, $nonce, $body);
+        $expected = hash_hmac('sha256', $canonical, $integration->secret());
         if (! hash_equals($expected, $signature)) {
             return $this->deny('Firma inválida.', 401);
         }

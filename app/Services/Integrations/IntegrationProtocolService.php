@@ -12,13 +12,21 @@ use App\Models\IntegrationPlugin;
 use App\Models\IntegrationService;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class IntegrationProtocolService
 {
-    public const REQUIRED_CAPABILITIES = ['token.request.created', 'token.request.approved', 'heartbeat'];
+    public const PROTOCOL_VERSION = '1.0';
+
+    public const REQUIRED_CAPABILITIES = ['token.request.created', 'token.request.status', 'token.request.approved', 'integration.challenge', 'heartbeat'];
+
+    public function canonicalPayload(string $method, string $path, string $timestamp, string $nonce, string $body): string
+    {
+        return strtoupper($method)."\n".$path."\n".$timestamp."\n".$nonce."\n".hash('sha256', $body);
+    }
 
     public function createPairing(string $provider = 'n8n', ?int $userId = null, ?Integration $existing = null): IntegrationPairing
     {
@@ -35,34 +43,40 @@ class IntegrationProtocolService
         ]);
     }
 
-    public function claimPairing(string $pairCode, array $payload, ?string $ip = null, ?string $userAgent = null): Integration
+    /** @return array{0: Integration, 1: string} */
+    public function claimPairing(string $pairCode, array $payload, ?string $ip = null, ?string $userAgent = null): array
     {
-        $pairing = IntegrationPairing::query()->where('pair_code', strtoupper(trim($pairCode)))->latest()->first();
-        if (! $pairing || $pairing->statusValue() !== IntegrationPairingStatus::Pending->value || $pairing->expiresAt()->isPast()) {
-            throw ValidationException::withMessages(['pair_code' => 'El código de pairing no existe o ya venció.']);
-        }
-
-        $secret = $pairing->temporarySecret();
-        $integration = Integration::query()->updateOrCreate(
-            ['id' => $pairing->integration_id],
-            [
-                'integration_uuid' => $pairing->integration_id ? (string) Integration::query()->find($pairing->integration_id)?->integration_uuid : (string) Str::uuid(),
-                'provider' => $pairing->provider,
+        return DB::transaction(function () use ($pairCode, $payload, $ip, $userAgent): array {
+            $pairing = IntegrationPairing::query()->where('provider', 'n8n')->where('pair_code', strtoupper(trim($pairCode)))->lockForUpdate()->first();
+            if (! $pairing || $pairing->statusValue() !== IntegrationPairingStatus::Pending->value || $pairing->expiresAt()->isPast()) {
+                throw ValidationException::withMessages(['pair_code' => 'El código de pairing no existe, ya fue utilizado o venció.']);
+            }
+            $secret = bin2hex(random_bytes(32));
+            $existingUuid = $pairing->integration_id ? Integration::query()->find($pairing->integration_id)?->integration_uuid : null;
+            $integration = Integration::query()->updateOrCreate(['id' => $pairing->integration_id], [
+                'integration_uuid' => $existingUuid ?: (string) Str::uuid(),
+                'provider' => 'n8n',
                 'instance_name' => (string) $payload['instance_name'],
                 'instance_url' => $payload['instance_url'] ?? null,
-                'hostname' => $payload['hostname'] ?? null,
                 'environment' => $payload['environment'] ?? null,
-                'version' => $payload['version'] ?? null,
+                'version' => $payload['n8n_version'] ?? null,
+                'n8n_version' => $payload['n8n_version'] ?? null,
+                'connector_version' => $payload['connector_version'] ?? null,
+                'protocol_version' => $payload['protocol_version'] ?? self::PROTOCOL_VERSION,
                 'status' => IntegrationStatus::Connected,
                 'encrypted_secret' => Crypt::encryptString($secret),
+                'pending_encrypted_secret' => null,
+                'pending_secret_expires_at' => null,
                 'last_seen_at' => now(),
+                'connected_at' => now(),
+                'last_ip' => $ip,
                 'created_by' => $pairing->created_by,
-            ]
-        );
-        $pairing->forceFill(['status' => IntegrationPairingStatus::Claimed, 'integration_id' => $integration->id, 'claimed_at' => now()])->save();
-        $this->log($integration, 'Pairing', 'Instancia conectada por pairing.', ['pair_uuid' => $pairing->pair_uuid], ip: $ip, userAgent: $userAgent);
+            ]);
+            $pairing->forceFill(['status' => IntegrationPairingStatus::Claimed, 'integration_id' => $integration->id, 'claimed_at' => now(), 'encrypted_temporary_secret' => Crypt::encryptString('invalidated')])->save();
+            $this->log($integration, 'Pairing', 'Instancia n8n conectada por pairing.', ['pair_uuid' => $pairing->pair_uuid], ip: $ip, userAgent: $userAgent);
 
-        return $integration;
+            return [$integration, $secret];
+        });
     }
 
     public function registerDiscovery(Integration $integration, array $document, ?string $ip = null, ?string $userAgent = null): void
@@ -73,13 +87,14 @@ class IntegrationProtocolService
             }
             $service = (string) ($definition['service'] ?? $capability);
             $method = strtoupper((string) ($definition['method'] ?? 'POST'));
-            $path = (string) ($definition['path'] ?? '');
+            $urlPath = parse_url((string) ($definition['url'] ?? ''), PHP_URL_PATH) ?: '';
+            $path = (string) ($definition['path'] ?? $urlPath);
             if ($path === '') {
                 continue;
             }
             $checksum = hash('sha256', json_encode([$service, $method, $path, $definition['version'] ?? null], JSON_UNESCAPED_SLASHES));
             $existing = IntegrationCapability::query()->where('integration_id', $integration->id)->where('capability', (string) $capability)->first();
-            IntegrationCapability::query()->updateOrCreate(['integration_id' => $integration->id, 'capability' => (string) $capability], ['service' => $service, 'method' => $method, 'path' => $path, 'version' => $definition['version'] ?? null, 'enabled' => (bool) ($definition['enabled'] ?? true), 'last_seen' => now(), 'checksum' => $checksum]);
+            IntegrationCapability::query()->updateOrCreate(['integration_id' => $integration->id, 'capability' => $service], ['service' => $service, 'method' => $method, 'path' => $path, 'version' => $definition['version'] ?? null, 'enabled' => (bool) ($definition['enabled'] ?? true), 'last_seen' => now(), 'checksum' => $checksum]);
             if ($existing && $existing->checksum !== $checksum) {
                 $this->log($integration, 'Webhook Updated', 'Capacidad actualizada automáticamente.', ['capability' => $capability, 'service' => $service]);
             }
@@ -96,31 +111,47 @@ class IntegrationProtocolService
             IntegrationPlugin::query()->updateOrCreate(['integration_id' => $integration->id, 'plugin_id' => (string) $plugin['id']], ['name' => (string) ($plugin['name'] ?? $plugin['id']), 'version' => $plugin['version'] ?? null, 'enabled' => (bool) ($plugin['enabled'] ?? true), 'metadata' => $plugin, 'last_seen' => now()]);
         }
 
-        $integration->forceFill(['last_seen_at' => now(), 'version' => $document['version'] ?? $integration->version])->save();
+        $integration->forceFill(['last_seen_at' => now(), 'last_ip' => $ip, 'protocol_version' => $document['protocol_version'] ?? $integration->protocol_version, 'connector_version' => $document['connector_version'] ?? $integration->connector_version, 'n8n_version' => $document['n8n_version'] ?? $integration->n8n_version, 'version' => $document['n8n_version'] ?? $document['version'] ?? $integration->version])->save();
         $this->log($integration, 'Discovery', 'Discovery actualizado.', ['capabilities' => count((array) ($document['capabilities'] ?? [])), 'services' => count((array) ($document['services'] ?? [])), 'plugins' => count((array) ($document['plugins'] ?? []))], ip: $ip, userAgent: $userAgent);
     }
 
     public function heartbeat(Integration $integration, array $payload, int $latencyMs, ?string $ip = null, ?string $userAgent = null): void
     {
-        $integration->forceFill(['status' => IntegrationStatus::Connected, 'last_seen_at' => now(), 'latency_ms' => $latencyMs, 'version' => $payload['version'] ?? $integration->version, 'uptime' => $payload['uptime'] ?? null, 'running_workflows' => $payload['running_workflows'] ?? null, 'memory_usage' => $payload['memory_usage'] ?? null, 'cpu_usage' => $payload['cpu_usage'] ?? null, 'hostname' => $payload['hostname'] ?? $integration->hostname, 'environment' => $payload['environment'] ?? $integration->environment])->save();
+        $integration->forceFill(['status' => IntegrationStatus::Connected, 'last_seen_at' => now(), 'latency_ms' => $latencyMs, 'last_ip' => $ip, 'protocol_version' => $payload['protocol_version'] ?? $integration->protocol_version, 'connector_version' => $payload['connector_version'] ?? $integration->connector_version, 'n8n_version' => $payload['n8n_version'] ?? $integration->n8n_version, 'version' => $payload['n8n_version'] ?? $payload['version'] ?? $integration->version, 'environment' => $payload['environment'] ?? $integration->environment])->save();
         $this->log($integration, 'Heartbeat', 'Heartbeat recibido.', ['latency_ms' => $latencyMs], ip: $ip, userAgent: $userAgent);
     }
 
-    public function rotateSecret(Integration $integration): string
+    public function createPendingSecret(Integration $integration): void
     {
-        $secret = Str::random(64);
-        $integration->forceFill(['encrypted_secret' => Crypt::encryptString($secret), 'secret_rotated_at' => now()])->save();
-        $this->log($integration, 'Secret Rotation', 'Secreto regenerado automáticamente.');
-
-        return $secret;
+        $secret = bin2hex(random_bytes(32));
+        $integration->forceFill(['pending_encrypted_secret' => Crypt::encryptString($secret), 'pending_secret_expires_at' => now()->addMinutes(10)])->save();
+        $this->log($integration, 'Secret Rotation', 'Secreto pendiente generado.');
     }
 
-    public function signedHeaders(Integration $integration, string $body): array
+    public function claimPendingSecret(Integration $integration): string
+    {
+        if (blank($integration->pending_encrypted_secret) || $integration->pendingSecretExpiresAt()?->isPast()) {
+            throw ValidationException::withMessages(['secret' => 'No hay una rotación pendiente vigente.']);
+        }
+
+        return Crypt::decryptString($integration->pending_encrypted_secret);
+    }
+
+    public function confirmPendingSecret(Integration $integration): void
+    {
+        if (blank($integration->pending_encrypted_secret)) {
+            return;
+        }
+        $integration->forceFill(['encrypted_secret' => $integration->pending_encrypted_secret, 'pending_encrypted_secret' => null, 'pending_secret_expires_at' => null, 'secret_rotated_at' => now()])->save();
+        $this->log($integration, 'Secret Rotation', 'Secreto pendiente confirmado.');
+    }
+
+    public function signedHeaders(Integration $integration, string $method, string $path, string $body, ?string $secret = null): array
     {
         $timestamp = (string) now()->timestamp;
         $nonce = (string) Str::uuid();
 
-        return ['X-CodeRED-Integration' => $integration->integration_uuid, 'X-CodeRED-Timestamp' => $timestamp, 'X-CodeRED-Nonce' => $nonce, 'X-CodeRED-Signature' => hash_hmac('sha256', $timestamp.'.'.$nonce.'.'.$body, $integration->secret())];
+        return ['X-CodeRED-Integration' => $integration->integration_uuid, 'X-CodeRED-Timestamp' => $timestamp, 'X-CodeRED-Nonce' => $nonce, 'X-CodeRED-Protocol-Version' => self::PROTOCOL_VERSION, 'X-CodeRED-Signature' => hash_hmac('sha256', $this->canonicalPayload($method, $path, $timestamp, $nonce, $body), $secret ?: $integration->secret())];
     }
 
     public function challenge(Integration $integration): array
@@ -135,7 +166,7 @@ class IntegrationProtocolService
         $method = (string) $capability->getAttribute('method');
         $path = (string) $capability->getAttribute('path');
         /** @var Response $response */
-        $response = Http::timeout(8)->withHeaders($this->signedHeaders($integration, $body))->withBody($body, 'application/json')->send($method, rtrim((string) $integration->instance_url, '/').$path);
+        $response = Http::timeout(8)->withHeaders($this->signedHeaders($integration, $method, $path, $body))->withBody($body, 'application/json')->send($method, rtrim((string) $integration->instance_url, '/').$path);
         $latency = (int) round((microtime(true) - $started) * 1000);
         $json = $response->json();
         $valid = is_array($json) && ($json['challenge'] ?? null) === $challenge && hash_equals(hash_hmac('sha256', $challenge, $integration->secret()), (string) ($json['signature'] ?? ''));

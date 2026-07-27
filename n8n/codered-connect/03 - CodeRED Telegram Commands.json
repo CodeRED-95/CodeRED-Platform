@@ -1,0 +1,56 @@
+{
+  "name": "CodeRED Telegram Commands",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse /token, /estado_token, /cancelar_token, /ayuda without logging secrets\nreturn items;"
+      },
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "createTokenRequest",
+        "payloadJson": "={{ JSON.stringify($json) }}"
+      },
+      "name": "CodeRED Operation",
+      "type": "@n8n-nodes-codered/codered.codeRed",
+      "typeVersion": 1,
+      "position": [
+        560,
+        0
+      ]
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "active": false,
+  "versionId": "codered-template",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

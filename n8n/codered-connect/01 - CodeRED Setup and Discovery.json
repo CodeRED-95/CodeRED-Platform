@@ -1,0 +1,54 @@
+{
+  "name": "CodeRED Setup and Discovery",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "testConnection"
+      },
+      "name": "CodeRED Test Connection",
+      "type": "@n8n-nodes-codered/codered.codeRed",
+      "typeVersion": 1,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "registerDiscovery",
+        "capabilitiesJson": "[{\"service\":\"token.request.status\",\"method\":\"POST\",\"url\":\"{{$credentials.instanceUrl}}/webhook/codered-token-status\",\"version\":\"1.0\"},{\"service\":\"token.request.created\",\"method\":\"POST\",\"url\":\"{{$credentials.instanceUrl}}/webhook/codered-new-token-request\",\"version\":\"1.0\"},{\"service\":\"integration.challenge\",\"method\":\"POST\",\"url\":\"{{$credentials.instanceUrl}}/webhook/codered-challenge\",\"version\":\"1.0\"}]",
+        "servicesJson": "{\"telegram\":{\"enabled\":true,\"version\":\"1.0\"},\"token_requests\":{\"enabled\":true,\"version\":\"1.0\"}}",
+        "pluginsJson": "[{\"id\":\"telegram-token-requests\",\"name\":\"Telegram Token Requests\",\"version\":\"1.0.0\"}]"
+      },
+      "name": "CodeRED Register Discovery",
+      "type": "@n8n-nodes-codered/codered.codeRed",
+      "typeVersion": 1,
+      "position": [
+        560,
+        0
+      ]
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "saveExecutionProgress": false,
+    "saveManualExecutions": false,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "active": false,
+  "versionId": "codered-template",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
