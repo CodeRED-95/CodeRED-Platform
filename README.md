@@ -95,9 +95,9 @@ curl http://127.0.0.1:5680/healthz
 
 Durante la instalación, `Install_CodeRED-Platform.sh` puede configurar automáticamente PostgreSQL para n8n dentro de `codered-postgres`. El flujo crea o actualiza de forma idempotente el rol `n8n`, la base `n8n`, el propietario, privilegios sobre la base, permisos del esquema `public`, privilegios predeterminados y el archivo de entorno de n8n definido por `N8N_ENV_FILE`.
 
-El instalador solicita la contraseña de `n8n` con entrada oculta y confirmación. No imprime la contraseña y puede ejecutarse nuevamente para rotarla sin borrar datos existentes.
+El instalador solicita la contraseña de `n8n` con entrada oculta y confirmación. Normaliza un par de comillas externas accidentales, no imprime la contraseña y puede ejecutarse nuevamente para rotarla sin borrar datos existentes. El formato correcto es `DB_POSTGRESDB_PASSWORD=valor`, sin comillas añadidas por el instalador.
 
-Variables relevantes:
+Para cambiar la contraseña PostgreSQL de n8n, vuelva a ejecutar el instalador y acepte la configuración de n8n, o aplique el mismo flujo: actualizar el rol `n8n`, escribir `/opt/n8n/.env` sin comillas externas y recrear el contenedor con `docker compose up -d --force-recreate`. No use `docker compose down -v`.\n\nVariables relevantes:
 
 ```env
 N8N_ENV_FILE=/opt/n8n/.env
@@ -106,7 +106,7 @@ DB_POSTGRESDB_HOST=codered-postgres
 DB_POSTGRESDB_PORT=5432
 DB_POSTGRESDB_DATABASE=n8n
 DB_POSTGRESDB_USER=n8n
-DB_POSTGRESDB_PASSWORD=
+DB_POSTGRESDB_PASSWORD=change_me
 ```
 ## Actualización
 

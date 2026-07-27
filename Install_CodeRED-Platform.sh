@@ -107,13 +107,15 @@ ask_yes_no() {
 }
 
 prompt_secret_with_confirmation() {
-    local prompt="$1" first second
+    local prompt="$1" first second normalized_first normalized_second
     while true; do
         read -r -s -p "$prompt: " first; echo
         read -r -s -p "Confirme la contraseña para PostgreSQL n8n: " second; echo
-        [[ -z "$first" ]] && { warn "La contraseña no puede estar vacía."; continue; }
-        [[ "$first" != "$second" ]] && { warn "Las contraseñas no coinciden."; continue; }
-        REPLY="$first"
+        normalized_first="$(normalize_env_secret "$first")"
+        normalized_second="$(normalize_env_secret "$second")"
+        validate_n8n_db_password "$normalized_first" || { warn "La contraseña no puede estar vacía ni contener saltos de línea."; continue; }
+        [[ "$normalized_first" != "$normalized_second" ]] && { warn "Las contraseñas no coinciden."; continue; }
+        REPLY="$normalized_first"
         return
     done
 }
@@ -144,25 +146,37 @@ postgres_database_exists() {
     [[ "$(docker exec codered-postgres psql -U "$db_user" -d postgres -Atqc "SELECT 1 FROM pg_database WHERE datname = 'n8n';" 2>/dev/null | tr -d '[:space:]')" == "1" ]]
 }
 
-quote_env_value() {
+normalize_env_secret() {
     local value="$1"
-    value="${value//\\/\\\\}"
-    value="${value//\"/\\\"}"
-    value="${value//\$/\\\$}"
-    value="${value//\`/\\\`}"
-    printf '"%s"' "$value"
+    if [[ ${#value} -ge 2 ]]; then
+        if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+            value="${value:1:${#value}-2}"
+        elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+            value="${value:1:${#value}-2}"
+        fi
+    fi
+    printf '%s' "$value"
 }
 
-update_env_value_file() {
-    local file="$1" key="$2" value="$3" quote="${4:-false}" tmp
+validate_n8n_db_password() {
+    local value="$1"
+    [[ -n "$value" ]] || return 1
+    [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || return 1
+}
+
+set_env_value_raw() {
+    local file="$1" key="$2" value="$3" tmp backup
+    [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || die "Valor inválido para $key."
     mkdir -p "$(dirname "$file")"
     touch "$file"
     chmod 600 "$file" 2>/dev/null || true
-    if [[ "$quote" == "true" ]]; then value="$(quote_env_value "$value")"; fi
+    backup="${file}.backup-${STAMP}"
+    cp "$file" "$backup"
+    chmod 600 "$backup" 2>/dev/null || true
     tmp="$(mktemp)"
     awk -v k="$key" -v v="$value" '
         BEGIN{done=0}
-        index($0,k"=")==1 {print k"="v; done=1; next}
+        index($0,k"=")==1 {if(!done){print k"="v; done=1}; next}
         {print}
         END{if(!done) print k"="v}
     ' "$file" > "$tmp"
@@ -170,17 +184,75 @@ update_env_value_file() {
     chmod 600 "$file" 2>/dev/null || true
 }
 
-configure_n8n_env() {
-    local password="$1" n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"
-    update_env_value_file "$n8n_env_file" DB_TYPE postgresdb
-    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_HOST codered-postgres
-    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_PORT 5432
-    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_DATABASE n8n
-    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_USER n8n
-    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_PASSWORD "$password" true
-    ok "Archivo de configuración de n8n actualizado."
+
+secret_hash() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$1" | sha256sum | awk '{print $1}'
+    else
+        printf '%s' "$1" | openssl dgst -sha256 -r | awk '{print $1}'
+    fi
 }
 
+validate_n8n_env_password_value() {
+    local file="$1" expected="$2" actual expected_hash actual_hash count
+    count="$(grep -c '^DB_POSTGRESDB_PASSWORD=' "$file" 2>/dev/null || true)"
+    [[ "$count" == "1" ]] || die "El archivo de n8n no contiene exactamente una línea DB_POSTGRESDB_PASSWORD."
+    actual="$(grep '^DB_POSTGRESDB_PASSWORD=' "$file" | head -n1 | cut -d= -f2-)"
+    expected_hash="$(secret_hash "$expected")"
+    actual_hash="$(secret_hash "$actual")"
+    [[ "$expected_hash" == "$actual_hash" ]] || die "El valor escrito para DB_POSTGRESDB_PASSWORD no coincide con el valor normalizado."
+    ok "Valor DB_POSTGRESDB_PASSWORD validado sin mostrar secretos."
+}
+
+validate_n8n_compose_config() {
+    local n8n_env_file="$1" n8n_dir
+    n8n_dir="$(dirname "$n8n_env_file")"
+    if [[ -f "$n8n_dir/docker-compose.yml" || -f "$n8n_dir/compose.yml" ]]; then
+        (cd "$n8n_dir" && docker compose config >/dev/null) || die "docker compose config falló para n8n."
+        ok "docker compose config de n8n validado sin imprimir secretos."
+    else
+        warn "No se encontró compose de n8n en $n8n_dir; se omite validación Docker Compose de n8n."
+    fi
+}
+
+
+verify_n8n_schema_objects() {
+    local password="$1" result
+    result="$(docker exec -e PGPASSWORD="$password" codered-postgres psql -h 127.0.0.1 -U n8n -d n8n -Atqc "SELECT coalesce(to_regclass('public.migrations')::text,''), coalesce(to_regclass('public.workflow_entity')::text,''), coalesce(to_regclass('public.credentials_entity')::text,''), coalesce(to_regclass('public.execution_entity')::text,''), coalesce(to_regclass('public.workflow_statistics_delta')::text,'');" 2>/dev/null || true)"
+    if [[ "$result" == *"workflow_entity"* && "$result" == *"credentials_entity"* ]]; then
+        ok "Tablas principales de n8n detectadas."
+    else
+        warn "Las tablas de n8n todavía no aparecen; n8n puede crearlas al terminar su arranque inicial."
+    fi
+}
+recreate_n8n_if_compose_present() {
+    local n8n_env_file="$1" n8n_dir
+    n8n_dir="$(dirname "$n8n_env_file")"
+    if [[ -f "$n8n_dir/docker-compose.yml" || -f "$n8n_dir/compose.yml" ]]; then
+        (cd "$n8n_dir" && docker compose up -d --force-recreate) || die "No se pudo recrear codered-n8n."
+        (cd "$n8n_dir" && docker compose ps)
+        if docker logs --since 5m codered-n8n 2>&1 | grep -F 'password authentication failed for user "n8n"' >/dev/null; then
+            die "codered-n8n reportó fallo de autenticación PostgreSQL para n8n."
+        fi
+        ok "codered-n8n recreado sin fallo de autenticación PostgreSQL detectado."
+    else
+        warn "No se recreó codered-n8n porque no se encontró compose en $n8n_dir."
+    fi
+}
+configure_n8n_env() {
+    local password="$1" n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"
+    password="$(normalize_env_secret "$password")"
+    validate_n8n_db_password "$password" || die "La contraseña PostgreSQL n8n es inválida."
+    set_env_value_raw "$n8n_env_file" DB_TYPE postgresdb
+    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_HOST codered-postgres
+    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_PORT 5432
+    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_DATABASE n8n
+    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_USER n8n
+    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_PASSWORD "$password"
+    validate_n8n_env_password_value "$n8n_env_file" "$password"
+    validate_n8n_compose_config "$n8n_env_file"
+    ok "Archivo de configuración de n8n actualizado."
+}
 verify_n8n_network() {
     if ! docker inspect codered-n8n >/dev/null 2>&1; then
         warn "El contenedor codered-n8n no existe todavía; se omite verificación de red."
@@ -199,6 +271,8 @@ verify_n8n_network() {
 
 configure_n8n_postgres() {
     local password="$1" db_user role_exists validation
+    password="$(normalize_env_secret "$password")"
+    validate_n8n_db_password "$password" || die "La contraseña PostgreSQL n8n es inválida."
     info "Configurando PostgreSQL para n8n..."
     db_user="$(get_env DB_USERNAME)"
     db_user="${db_user:-codered}"
@@ -269,11 +343,13 @@ SQL
     ok "Propietario y privilegios de la base n8n configurados."
 
     configure_n8n_env "$password"
+    recreate_n8n_if_compose_present "${N8N_ENV_FILE:-/opt/n8n/.env}"
     verify_n8n_network
 
     validation="$(docker exec -e PGPASSWORD="$password" codered-postgres psql -h 127.0.0.1 -U n8n -d n8n -Atqc "SELECT current_user || ':' || current_database();" 2>/dev/null || true)"
     [[ "$validation" == "n8n:n8n" ]] || die "No se pudo validar la conexión PostgreSQL como usuario n8n."
     ok "Conexión PostgreSQL n8n validada."
+    verify_n8n_schema_objects "$password"
     ok "Configuración PostgreSQL de n8n completada."
 }
 validate_env_file() {

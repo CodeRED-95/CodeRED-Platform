@@ -201,3 +201,4 @@ El instalador pregunta si desea configurar la base PostgreSQL de n8n. Si se acep
 La operación es idempotente y no ejecuta comandos destructivos. En ejecuciones posteriores permite rotar la contraseña de PostgreSQL `n8n` y vuelve a aplicar privilegios sin borrar la base.
 
 El contenedor `codered-n8n`, si ya existe, debe compartir red Docker con `codered-postgres` para resolver el host `codered-postgres`.
+El archivo de entorno de n8n debe quedar con `DB_POSTGRESDB_PASSWORD=valor`, sin comillas externas añadidas. El instalador elimina solo un par de comillas externas accidentales introducidas por el usuario y preserva comillas internas reales.
