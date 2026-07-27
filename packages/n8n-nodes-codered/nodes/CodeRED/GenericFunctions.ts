@@ -10,6 +10,9 @@ export interface CodeREDCredentials {
   protocolVersion?: string;
   connectorVersion?: string;
   pairCode?: string;
+  connectionMode?: string;
+  agentUrl?: string;
+  agentLocalApiToken?: string;
 }
 
 export function stableJson(value: unknown): string { return JSON.stringify(sortValue(value)); }

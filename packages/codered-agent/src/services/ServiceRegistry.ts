@@ -1,0 +1,1 @@
+export class ServiceRegistry{services(){return{n8n:{enabled:true,version:'2.x'},agent:{enabled:true,version:'1.0.0'}}}}

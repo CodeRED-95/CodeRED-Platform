@@ -8,6 +8,9 @@ export interface CodeREDCredentials {
     protocolVersion?: string;
     connectorVersion?: string;
     pairCode?: string;
+    connectionMode?: string;
+    agentUrl?: string;
+    agentLocalApiToken?: string;
 }
 export declare function stableJson(value: unknown): string;
 export declare function sha256Hex(body: string): string;

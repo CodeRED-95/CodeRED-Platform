@@ -105,6 +105,31 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  codered-agent:
+    build:
+      context: .
+      dockerfile: packages/codered-agent/Dockerfile
+    container_name: codered-agent
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      CODERED_PLATFORM_URL: https://platform.codered.host
+      CODERED_AGENT_PUBLIC_URL: https://agent.codered.host
+      CODERED_AGENT_DATA_PATH: /data
+    volumes:
+      - codered-agent-data:/data
+    ports:
+      - "127.0.0.1:5680:5680"
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5680/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   pgdata:
   redisdata:
+  codered-agent-data:

@@ -1,0 +1,1 @@
+export class PluginRegistry{plugins(){return [] as Array<{id:string;name:string;version:string}>}}
