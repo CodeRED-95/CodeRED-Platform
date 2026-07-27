@@ -27,6 +27,8 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Fixed
 
+- Seeders de roles y permisos idempotentes: se normalizan permisos, se deduplican IDs antes de `sync()` y se evita la violación de `permission_role_pkey` al reejecutar `db:seed --force`.
+- Mensaje del instalador cuando falla `php artisan db:seed --force`, con indicación directa a `database/seeders` sin ocultar el error.
 - Normalización de comillas externas en `DB_POSTGRESDB_PASSWORD` de n8n y escritura raw sin comillas añadidas.
 - Pruebas shell para contraseñas n8n con `#`, `$`, `=`, espacios y comillas internas.
 - Reinicio del agente cada ciclo de discovery cuando el estado local estaba unpaired.

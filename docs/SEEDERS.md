@@ -18,7 +18,8 @@ Los seeders del proyecto preparan datos iniciales para desarrollo y pruebas sin 
 ## Reglas
 
 - `DatabaseSeeder` no debe contener toda la lógica de negocio.
-- Los seeders deben ser idempotentes.
+- Los seeders deben ser idempotentes y poder ejecutarse varias veces consecutivas.
+- Las relaciones many-to-many deben sincronizar IDs normalizados, filtrados y únicos en una sola llamada a `sync()` por rol.
 - Los datos de administración deben usar `updateOrCreate()`.
 - Las contraseñas siempre deben pasar por `Hash::make()`.
 - Los datos demo deben crearse solo si la tabla está vacía.
@@ -39,4 +40,4 @@ Las seeders que crean datos demo deben usar factories del proyecto. En módulos 
 
 `RolesSeeder` conserva únicamente `super-admin`, `viewer` y `editor`. `PermissionsSeeder` sincroniza la matriz exacta: Super Administrador recibe todos los permisos, Consulta solo `agencies.view` y Editor recibe Dashboard y gestión no destructiva de Agencias. Los usuarios heredados con `admin` pasan a Editor salvo que ya sean Super Administrador.
 
-Los permisos `api-tokens.*` se crean idempotentemente y solo quedan asociados a Super Administrador mediante la sincronización total; Editor y Consulta conservan sus matrices cerradas.
+Los permisos `api-tokens.*` se crean idempotentemente y solo quedan asociados a Super Administrador mediante la sincronización total; Editor y Consulta conservan sus matrices cerradas. `PermissionsSeeder` normaliza slugs, descarta entradas vacías, deduplica IDs antes de tocar `permission_role` y ejecuta una única sincronización por rol para evitar violaciones de `permission_role_pkey` al reanudar instalaciones.

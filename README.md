@@ -55,6 +55,8 @@ chmod +x Install_CodeRED-Platform.sh
 
 El instalador configura Laravel, PostgreSQL, Redis, administrador inicial y, opcionalmente, CodeRED Agent. Si se habilita el agente, genera automáticamente `CODERED_AGENT_ENCRYPTION_KEY` y `CODERED_AGENT_LOCAL_API_TOKEN` con `openssl rand -hex 32`, sin mostrarlos en pantalla.
 
+Los seeders de roles y permisos son reejecutables: `RolesAndPermissionsSeeder` puede correrse varias veces durante instalación o recuperación sin duplicar `permission_role` ni borrar relaciones ajenas. Si el seeding falla, el instalador muestra un error explícito y puede reanudarse después de corregir el problema.
+
 ## Variables de CodeRED Agent
 
 ```env
@@ -97,7 +99,9 @@ Durante la instalación, `Install_CodeRED-Platform.sh` puede configurar automát
 
 El instalador solicita la contraseña de `n8n` con entrada oculta y confirmación. Normaliza un par de comillas externas accidentales, no imprime la contraseña y puede ejecutarse nuevamente para rotarla sin borrar datos existentes. El formato correcto es `DB_POSTGRESDB_PASSWORD=valor`, sin comillas añadidas por el instalador.
 
-Para cambiar la contraseña PostgreSQL de n8n, vuelva a ejecutar el instalador y acepte la configuración de n8n, o aplique el mismo flujo: actualizar el rol `n8n`, escribir `/opt/n8n/.env` sin comillas externas y recrear el contenedor con `docker compose up -d --force-recreate`. No use `docker compose down -v`.\n\nVariables relevantes:
+Para cambiar la contraseña PostgreSQL de n8n, vuelva a ejecutar el instalador y acepte la configuración de n8n, o aplique el mismo flujo: actualizar el rol `n8n`, escribir `/opt/n8n/.env` sin comillas externas y recrear el contenedor con `docker compose up -d --force-recreate`. No use `docker compose down -v`.
+
+Variables relevantes:
 
 ```env
 N8N_ENV_FILE=/opt/n8n/.env

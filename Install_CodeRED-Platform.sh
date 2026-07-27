@@ -417,7 +417,12 @@ docker compose exec -T app php artisan about >/dev/null 2>&1 || die "Laravel no 
 docker compose exec -T app mkdir -p storage/app/private/ruc/incoming storage/app/private/ruc/working storage/app/private/ruc/archive storage/app/private/ruc/errors
 if [[ -z "$(get_env APP_KEY)" ]]; then docker compose exec -T app php artisan key:generate --force; fi
 docker compose exec -T app php artisan migrate --force
-docker compose exec -T app php artisan db:seed --force
+if ! docker compose exec -T app php artisan db:seed --force; then
+    echo "[ERROR] Falló la ejecución de los seeders de Laravel." >&2
+    echo "[INFO] Revise database/seeders y los registros anteriores." >&2
+    echo "[INFO] La instalación puede reanudarse después de corregir el seeder." >&2
+    exit 1
+fi
 docker compose exec -T app php artisan optimize:clear
 docker compose exec -T app php artisan storage:link >/dev/null 2>&1 || true
 
