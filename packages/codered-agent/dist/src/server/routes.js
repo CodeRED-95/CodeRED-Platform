@@ -1,53 +1,142 @@
-import { sign } from '../protocol/RequestSigner.js';
+import crypto from 'node:crypto';
+import { canonicalPayload, sign } from '../protocol/RequestSigner.js';
 const nonces = new Map();
 let pairHits = [];
-async function body(req) { const chunks = []; for await (const c of req)
-    chunks.push(Buffer.from(c)); return chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}; }
-function json(res, status, payload) { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(payload)); }
-export function createRouter(config, storage, pairing, discovery, heartbeat, reconnect) { return async (req, res) => { try {
-    const url = req.url?.split('?')[0] || '/';
-    if (req.method === 'GET' && url === '/v1/health')
-        return json(res, 200, { status: 'ok', version: '1.0.0' });
-    if (req.method === 'GET' && url === '/v1/status') {
-        const i = await storage.readIntegration();
-        return json(res, 200, { status: heartbeat.status, paired: !!i, integration_uuid: i?.integration_uuid || null, platform_url: config.platformUrl, agent_version: '1.0.0', protocol_version: i?.protocol_version || '1.0', last_heartbeat_at: heartbeat.lastHeartbeatAt, last_discovery_at: discovery.lastDiscoveryAt });
+async function readBody(req) {
+    const chunks = [];
+    for await (const chunk of req) {
+        chunks.push(Buffer.from(chunk));
     }
-    if (req.method === 'POST' && url === '/v1/pair') {
-        const now = Date.now();
-        pairHits = pairHits.filter(t => now - t < 60000);
-        if (pairHits.length >= 5)
-            return json(res, 429, { success: false, message: 'Rate limit exceeded' });
-        pairHits.push(now);
-        const b = await body(req);
-        return json(res, 200, await pairing.pair(String(b.pair_code || '')));
+    const raw = chunks.length ? Buffer.concat(chunks).toString('utf8') : '{}';
+    try {
+        return { raw, json: JSON.parse(raw) };
     }
-    if (req.method === 'POST' && url === '/v1/discovery/sync')
-        return json(res, 200, { success: true, registered: await discovery.sync(true) });
-    if (req.method === 'POST' && url === '/v1/heartbeat/send')
-        return json(res, 200, { success: await heartbeat.send(), status: heartbeat.status });
-    if (req.method === 'POST' && url === '/v1/reconnect')
-        return json(res, 200, { success: true, status: await reconnect.start() });
-    if (req.method === 'POST' && url === '/v1/integration/disconnect') {
-        await storage.clearIntegration();
-        heartbeat.status = 'unpaired';
-        return json(res, 200, { success: true });
+    catch {
+        return { raw, json: {} };
     }
-    if (req.method === 'POST' && url === '/v1/challenge') {
-        const i = await storage.readIntegration();
-        if (!i)
-            return json(res, 409, { success: false, message: 'Unpaired' });
-        const b = await body(req);
-        if (!b.challenge_id || !b.challenge)
-            return json(res, 422, { success: false, message: 'Invalid challenge' });
-        if (b.expires_at && Date.parse(b.expires_at) < Date.now())
-            return json(res, 422, { success: false, message: 'Challenge expired' });
-        if (nonces.has(b.challenge_id))
-            return json(res, 409, { success: false, message: 'Challenge already used' });
-        nonces.set(b.challenge_id, Date.now() + 300000);
-        return json(res, 200, { challenge_id: b.challenge_id, challenge: b.challenge, signature: sign(i.shared_secret, String(b.challenge)), responded_at: new Date().toISOString() });
-    }
-    return json(res, 404, { success: false, message: 'Not found' });
 }
-catch (e) {
-    return json(res, 500, { success: false, message: e.message || 'Agent error' });
-} }; }
+function json(res, status, payload) {
+    res.writeHead(status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(payload));
+}
+function consumeNonce(nonce) {
+    const now = Date.now();
+    for (const [key, expiresAt] of nonces.entries()) {
+        if (expiresAt <= now) {
+            nonces.delete(key);
+        }
+    }
+    if (nonces.has(nonce)) {
+        return false;
+    }
+    nonces.set(nonce, now + 300_000);
+    return true;
+}
+function header(req, name) {
+    const value = req.headers[name.toLowerCase()];
+    return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
+}
+function validSignedRequest(req, integration, rawBody, path) {
+    const integrationUuid = header(req, 'X-CodeRED-Integration');
+    const timestamp = header(req, 'X-CodeRED-Timestamp');
+    const nonce = header(req, 'X-CodeRED-Nonce');
+    const signature = header(req, 'X-CodeRED-Signature');
+    const protocolVersion = header(req, 'X-CodeRED-Protocol-Version');
+    if (!integrationUuid || !timestamp || !nonce || !signature || !protocolVersion) {
+        return false;
+    }
+    if (integrationUuid !== integration.integration_uuid || protocolVersion !== integration.protocol_version) {
+        return false;
+    }
+    const timestampMs = Number(timestamp) * 1000;
+    if (!Number.isFinite(timestampMs) || Math.abs(Date.now() - timestampMs) > 300_000) {
+        return false;
+    }
+    if (!consumeNonce(nonce)) {
+        return false;
+    }
+    const expected = sign(integration.shared_secret, canonicalPayload(req.method || 'POST', path, timestamp, nonce, rawBody));
+    if (!/^[0-9a-f]{64}$/.test(signature)) {
+        return false;
+    }
+    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'));
+}
+export function createRouter(config, storage, pairing, discovery, heartbeat, reconnect) {
+    return async (req, res) => {
+        try {
+            const url = req.url?.split('?')[0] || '/';
+            if (req.method === 'GET' && url === '/v1/health') {
+                return json(res, 200, { status: 'ok', version: '1.0.0' });
+            }
+            if (req.method === 'GET' && url === '/v1/status') {
+                const integration = await storage.readIntegration();
+                return json(res, 200, {
+                    status: heartbeat.status,
+                    paired: !!integration,
+                    integration_uuid: integration?.integration_uuid || null,
+                    platform_url: config.platformUrl,
+                    agent_version: '1.0.0',
+                    protocol_version: integration?.protocol_version || '1.0',
+                    last_heartbeat_at: heartbeat.lastHeartbeatAt,
+                    last_discovery_at: discovery.lastDiscoveryAt,
+                });
+            }
+            if (req.method === 'POST' && url === '/v1/pair') {
+                const now = Date.now();
+                pairHits = pairHits.filter((hit) => now - hit < 60_000);
+                if (pairHits.length >= 5) {
+                    return json(res, 429, { success: false, message: 'Rate limit exceeded' });
+                }
+                pairHits.push(now);
+                const { json: payload } = await readBody(req);
+                return json(res, 200, await pairing.pair(String(payload.pair_code || '')));
+            }
+            if (req.method === 'POST' && url === '/v1/discovery/sync') {
+                return json(res, 200, { success: true, registered: await discovery.sync(true) });
+            }
+            if (req.method === 'POST' && url === '/v1/heartbeat/send') {
+                return json(res, 200, { success: await heartbeat.send(), status: heartbeat.status });
+            }
+            if (req.method === 'POST' && url === '/v1/reconnect') {
+                return json(res, 200, { success: true, status: await reconnect.start() });
+            }
+            if (req.method === 'POST' && url === '/v1/integration/disconnect') {
+                await storage.clearIntegration();
+                heartbeat.status = 'unpaired';
+                return json(res, 200, { success: true });
+            }
+            if (req.method === 'POST' && url === '/v1/challenge') {
+                const integration = await storage.readIntegration();
+                if (!integration) {
+                    return json(res, 409, { success: false, message: 'Unpaired' });
+                }
+                const { raw, json: payload } = await readBody(req);
+                if (!validSignedRequest(req, integration, raw, url)) {
+                    return json(res, 401, { success: false, message: 'Invalid signature' });
+                }
+                if (!payload.challenge_id || !payload.challenge) {
+                    return json(res, 422, { success: false, message: 'Invalid challenge' });
+                }
+                if (payload.expires_at && Date.parse(String(payload.expires_at)) < Date.now()) {
+                    return json(res, 422, { success: false, message: 'Challenge expired' });
+                }
+                const challengeId = String(payload.challenge_id);
+                if (!consumeNonce(`challenge:${challengeId}`)) {
+                    return json(res, 409, { success: false, message: 'Challenge already used' });
+                }
+                const challenge = String(payload.challenge);
+                return json(res, 200, {
+                    challenge_id: challengeId,
+                    challenge,
+                    signature: sign(integration.shared_secret, challenge),
+                    responded_at: new Date().toISOString(),
+                });
+            }
+            return json(res, 404, { success: false, message: 'Not found' });
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : 'Agent error';
+            return json(res, 500, { success: false, message });
+        }
+    };
+}

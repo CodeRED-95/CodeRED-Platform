@@ -114,9 +114,9 @@ services:
     env_file:
       - .env
     environment:
-      CODERED_PLATFORM_URL: https://platform.codered.host
-      CODERED_AGENT_PUBLIC_URL: https://agent.codered.host
-      CODERED_AGENT_DATA_PATH: /data
+      CODERED_PLATFORM_URL: ${APP_URL}
+      CODERED_AGENT_PUBLIC_URL: ${CODERED_AGENT_PUBLIC_URL}
+      CODERED_AGENT_DATA_PATH: ${CODERED_AGENT_DATA_PATH:-/data}
     volumes:
       - codered-agent-data:/data
     ports:

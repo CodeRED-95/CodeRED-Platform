@@ -17,6 +17,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/health', HealthController::class)->name('health');
     Route::get('/integrations/discovery', [IntegrationDiscoveryController::class, 'index'])->name('integrations.discovery');
     Route::post('/integrations/n8n/pair', [IntegrationDiscoveryController::class, 'pair'])->middleware('throttle:api')->name('integrations.n8n.pair');
+    Route::post('/integrations/pair', [IntegrationDiscoveryController::class, 'pair'])->middleware('throttle:api')->name('integrations.pair');
+    Route::middleware('integration.hmac')->prefix('integrations')->name('integrations.')->group(function (): void {
+        Route::post('/discovery', [IntegrationDiscoveryController::class, 'register'])->name('discovery.register');
+        Route::post('/heartbeat', [IntegrationDiscoveryController::class, 'heartbeat'])->name('heartbeat');
+        Route::post('/challenge', [IntegrationDiscoveryController::class, 'challenge'])->name('challenge');
+        Route::post('/rotate-secret', [IntegrationDiscoveryController::class, 'rotateSecret'])->name('secret.rotate');
+        Route::post('/rotate-secret/confirm', [IntegrationDiscoveryController::class, 'confirmSecret'])->name('secret.confirm');
+        Route::post('/disconnect', [IntegrationDiscoveryController::class, 'disconnect'])->name('disconnect');
+    });
     Route::middleware('integration.hmac')->prefix('integrations/n8n')->name('integrations.n8n.')->group(function (): void {
         Route::post('/discovery', [IntegrationDiscoveryController::class, 'register'])->name('discovery.register');
         Route::post('/heartbeat', [IntegrationDiscoveryController::class, 'heartbeat'])->name('heartbeat');

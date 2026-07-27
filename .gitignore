@@ -19,3 +19,16 @@
 /storage/app/private/ruc-imports/
 /storage/framework/testing/disks/local/backups/
 /storage/framework/testing/disks/local/imports/agencies/previews/*.json
+.env
+.env.*
+!.env.example
+/opt/
+/data/
+integration.enc
+*.enc
+*.key
+*.pem
+packages/codered-agent/data/
+packages/codered-agent/*.enc
+n8n-data/
+codered-agent-data/

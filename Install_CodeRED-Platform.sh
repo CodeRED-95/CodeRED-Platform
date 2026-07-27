@@ -4,47 +4,29 @@ set -Eeuo pipefail
 REPO_URL="https://github.com/CodeRED-95/CodeRED-Platform.git"
 PROJECT_DIR="${PROJECT_DIR:-$HOME/CodeRED-Platform}"
 ENV_FILE="$PROJECT_DIR/.env"
+STAMP="$(date +%Y%m%d-%H%M%S)"
 
 ok(){ echo "[OK] $*"; }
 info(){ echo "[INFO] $*"; }
 warn(){ echo "[AVISO] $*"; }
 die(){ echo "[ERROR] $*" >&2; exit 1; }
 
-trap 'echo "[ERROR] Fallo en la línea $LINENO" >&2' ERR
+trap 'code=$?; echo "[ERROR] Fallo en la línea $LINENO" >&2; echo "[ERROR] Comando: ${BASH_COMMAND}" >&2; echo "[ERROR] Código de salida: $code" >&2; echo "[INFO] Revise el mensaje anterior. Si se modificó .env, restaure el backup .env.backup-* y reintente." >&2; exit $code' ERR
 
 confirm() {
     local q="$1" d="${2:-n}" a
     while true; do
-        if [[ "$d" == "s" ]]; then
-            read -r -p "$q [S/n]: " a
-            a="${a:-s}"
-        else
-            read -r -p "$q [s/N]: " a
-            a="${a:-n}"
-        fi
-        case "${a,,}" in
-            s|si|sí|y|yes) return 0 ;;
-            n|no) return 1 ;;
-            *) warn "Responde s o n." ;;
-        esac
+        if [[ "$d" == "s" ]]; then read -r -p "$q [S/n]: " a; a="${a:-s}"; else read -r -p "$q [s/N]: " a; a="${a:-n}"; fi
+        case "${a,,}" in s|si|sí|y|yes) return 0 ;; n|no) return 1 ;; *) warn "Responde s o n." ;; esac
     done
 }
 
 read_value() {
     local q="$1" def="${2:-}" req="${3:-false}" v
     while true; do
-        if [[ -n "$def" ]]; then
-            read -r -p "$q [$def]: " v
-            v="${v:-$def}"
-        else
-            read -r -p "$q: " v
-        fi
-        if [[ "$req" == "true" && -z "$v" ]]; then
-            warn "Este campo es obligatorio."
-            continue
-        fi
-        REPLY="$v"
-        return
+        if [[ -n "$def" ]]; then read -r -p "$q [$def]: " v; v="${v:-$def}"; else read -r -p "$q: " v; fi
+        if [[ "$req" == "true" && -z "$v" ]]; then warn "Este campo es obligatorio."; continue; fi
+        REPLY="$v"; return
     done
 }
 
@@ -58,200 +40,134 @@ read_password() {
         (( ${#a} < 12 )) && { warn "Usa al menos 12 caracteres."; continue; }
         [[ "$a" == *$'\n'* || "$a" == *$'\r'* ]] && { warn "No se permiten saltos de línea."; continue; }
         [[ "$a" == *[[:space:]]* || "$a" == *"#"* || "$a" == *"="* || "$a" == *"\""* || "$a" == *"'"* ]] && { warn "La contraseña contiene caracteres incompatibles con el .env. No uses espacios, comillas, # ni =."; continue; }
-        REPLY="$a"
-        return
+        REPLY="$a"; return
     done
 }
 
 set_env() {
     local key="$1" value="$2" quote="${3:-false}" tmp
     [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]] && { echo "[ERROR] El valor de $key contiene saltos de línea." >&2; return 1; }
-    if [[ "$quote" == "true" ]]; then
-        value="${value//\\/\\\\}"
-        value="${value//\"/\\\"}"
-        value="\"${value}\""
-    fi
+    if [[ "$quote" == "true" ]]; then value="${value//\\/\\\\}"; value="${value//\"/\\\"}"; value="\"${value}\""; fi
     tmp="$(mktemp)"
-    awk -v k="$key" -v v="$value" '
-        BEGIN{done=0}
-        index($0,k"=")==1 {print k"="v; done=1; next}
-        {print}
-        END{if(!done) print k"="v}
-    ' "$ENV_FILE" > "$tmp"
+    awk -v k="$key" -v v="$value" 'BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}' "$ENV_FILE" > "$tmp"
     mv "$tmp" "$ENV_FILE"
+}
+
+get_env() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | head -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/' || true; }
+
+generate_secret(){
+    command -v openssl >/dev/null || die "openssl es requerido para generar secretos de CodeRED Agent."
+    local value
+    value="$(openssl rand -hex 32)"
+    [[ "$value" =~ ^[0-9a-f]{64}$ ]] || die "openssl generó un secreto con formato inválido."
+    printf '%s' "$value"
+}
+
+configure_agent(){
+    if ! confirm "¿Desea habilitar CodeRED Agent?" s; then
+        info "CodeRED Agent quedará sin secretos configurados. Puede habilitarlo luego con ./CodeRED.sh o ./update.sh."
+        return
+    fi
+    read_value "Nombre del agente" "$(get_env CODERED_AGENT_NAME || true)" false; AGENT_NAME="${REPLY:-CodeRED n8n Agent}"
+    read_value "URL pública del agente" "$(get_env CODERED_AGENT_PUBLIC_URL || true)" false; AGENT_URL="${REPLY:-https://agent.codered.host}"
+    read_value "Entorno" "$(get_env CODERED_AGENT_ENVIRONMENT || true)" false; AGENT_ENV="${REPLY:-production}"
+    read_value "Puerto" "$(get_env CODERED_AGENT_PORT || true)" false; AGENT_PORT="${REPLY:-5680}"
+    read_value "Data path" "$(get_env CODERED_AGENT_DATA_PATH || true)" false; AGENT_DATA="${REPLY:-/data}"
+    read_value "Heartbeat en segundos" "$(get_env CODERED_AGENT_HEARTBEAT_SECONDS || true)" false; AGENT_HEARTBEAT="${REPLY:-30}"
+    read_value "Discovery en segundos" "$(get_env CODERED_AGENT_DISCOVERY_SECONDS || true)" false; AGENT_DISCOVERY="${REPLY:-300}"
+    read_value "Timeout HTTP en ms" "$(get_env CODERED_AGENT_REQUEST_TIMEOUT_MS || true)" false; AGENT_TIMEOUT="${REPLY:-15000}"
+    read_value "Log level" "$(get_env CODERED_AGENT_LOG_LEVEL || true)" false; AGENT_LOG="${REPLY:-info}"
+
+    set_env CODERED_AGENT_NAME "$AGENT_NAME" true
+    set_env CODERED_AGENT_PUBLIC_URL "${AGENT_URL%/}"
+    set_env CODERED_AGENT_ENVIRONMENT "$AGENT_ENV"
+    set_env CODERED_AGENT_PORT "$AGENT_PORT"
+    set_env CODERED_AGENT_DATA_PATH "$AGENT_DATA"
+    set_env CODERED_AGENT_HEARTBEAT_SECONDS "$AGENT_HEARTBEAT"
+    set_env CODERED_AGENT_DISCOVERY_SECONDS "$AGENT_DISCOVERY"
+    set_env CODERED_AGENT_REQUEST_TIMEOUT_MS "$AGENT_TIMEOUT"
+    set_env CODERED_AGENT_LOG_LEVEL "$AGENT_LOG"
+
+    local enc token
+    enc="$(get_env CODERED_AGENT_ENCRYPTION_KEY)"
+    token="$(get_env CODERED_AGENT_LOCAL_API_TOKEN)"
+    if [[ -n "$enc" && ! "$enc" =~ ^[0-9a-f]{64}$ ]]; then warn "La clave de cifrado existente tiene formato inválido y no se sobrescribirá sin confirmación."; if confirm "¿Regenerar clave de cifrado?" n; then enc=""; fi; fi
+    if [[ -n "$token" && ! "$token" =~ ^[0-9a-f]{64}$ ]]; then warn "El token local existente tiene formato inválido y no se sobrescribirá sin confirmación."; if confirm "¿Regenerar token local?" n; then token=""; fi; fi
+    if [[ -z "$enc" ]]; then enc="$(generate_secret)"; set_env CODERED_AGENT_ENCRYPTION_KEY "$enc"; ok "Clave de cifrado: generada correctamente"; else ok "Clave de cifrado: preservada"; fi
+    if [[ -z "$token" ]]; then token="$(generate_secret)"; set_env CODERED_AGENT_LOCAL_API_TOKEN "$token"; ok "Token de API local: generado correctamente"; else ok "Token de API local: preservado"; fi
+    [[ "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" != "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] || die "Los secretos del agente deben ser diferentes."
 }
 
 validate_env_file() {
     local invalid
     invalid="$(awk '/\r$/ {print NR ": retorno CR"; next} /^[[:space:]]*($|#)/ {next} !/^[A-Za-z_][A-Za-z0-9_]*=/ {print NR ": clave inválida"; next} {key=$0; sub(/=.*/, "", key); value=substr($0,index($0,"=")+1); if ((key=="DB_PASSWORD" || key=="DEV_ADMIN_PASSWORD" || key ~ /(_API_KEY|_TOKEN)$/) && value ~ /^"/) {print key; next} if (value ~ /^"([^"\\]|\\.)*"$/) next; if (value ~ /[[:space:]]/) print key}' "$ENV_FILE")"
-    if [[ -n "$invalid" ]]; then
-        while IFS= read -r key; do [[ -n "$key" ]] && echo "[ERROR] El archivo .env contiene un valor inválido en $key" >&2; done <<< "$invalid"
-        return 1
-    fi
+    if [[ -n "$invalid" ]]; then while IFS= read -r key; do [[ -n "$key" ]] && echo "[ERROR] El archivo .env contiene un valor inválido en $key" >&2; done <<< "$invalid"; return 1; fi
     ok "Archivo .env válido"
-}
-
-get_env() {
-    grep -E "^$1=" "$ENV_FILE" 2>/dev/null | head -n1 | cut -d= -f2- || true
 }
 
 echo "============================================================"
 echo "        Instalador de CodeRED Platform"
 echo "============================================================"
-
 command -v git >/dev/null || die "Git no está instalado."
 command -v docker >/dev/null || die "Docker no está instalado."
 docker compose version >/dev/null 2>&1 || die "Docker Compose v2 no está disponible."
 docker info >/dev/null 2>&1 || die "Docker no está iniciado o faltan permisos."
 
-if [[ -e "$PROJECT_DIR" ]]; then
-    die "Ya existe $PROJECT_DIR. Renómbralo o elimínalo antes de instalar."
-fi
+if [[ -e "$PROJECT_DIR" ]]; then die "Ya existe $PROJECT_DIR. Renómbralo o elimínalo antes de instalar."; fi
 
 info "Clonando repositorio..."
 git clone --depth=1 "$REPO_URL" "$PROJECT_DIR"
 cd "$PROJECT_DIR"
-
 [[ -f .env.example ]] || die "No se encontró .env.example."
 cp .env.example .env
-ok "Archivo .env creado."
+cp .env ".env.backup-$STAMP"
+ok "Archivo .env creado. Backup: .env.backup-$STAMP"
 
-echo
-echo "1) Producción"
-echo "2) Desarrollo"
-read -r -p "Modo [1]: " mode
-mode="${mode:-1}"
+echo; echo "1) Producción"; echo "2) Desarrollo"; read -r -p "Modo [1]: " mode; mode="${mode:-1}"
+if [[ "$mode" == "2" ]]; then APP_ENV="local"; APP_DEBUG="true"; LOG_LEVEL="debug"; DEFAULT_URL="http://192.168.18.124:8090"; else APP_ENV="production"; APP_DEBUG="false"; LOG_LEVEL="info"; DEFAULT_URL="https://platform.codered.host"; fi
 
-if [[ "$mode" == "2" ]]; then
-    APP_ENV="local"
-    APP_DEBUG="true"
-    LOG_LEVEL="debug"
-    DEFAULT_URL="http://192.168.18.124:8090"
-else
-    APP_ENV="production"
-    APP_DEBUG="false"
-    LOG_LEVEL="info"
-    DEFAULT_URL="https://platform.codered.host"
-fi
+read_value "URL principal" "$DEFAULT_URL" true; APP_URL="${REPLY%/}"
+read_value "Nombre de la base de datos" "$(get_env DB_DATABASE)" true; DB_DATABASE="$REPLY"
+read_value "Usuario de la base de datos" "$(get_env DB_USERNAME)" true; DB_USERNAME="$REPLY"
+read_password "Contraseña de PostgreSQL"; DB_PASSWORD="$REPLY"
+read_value "Nombre del administrador" "Admin" true; ADMIN_NAME="$REPLY"
+read_value "Correo del administrador" "admin@codered.host" true; ADMIN_EMAIL="$REPLY"
+read_password "Contraseña del administrador"; ADMIN_PASSWORD="$REPLY"
 
-read_value "URL principal" "$DEFAULT_URL" true
-APP_URL="${REPLY%/}"
-
-read_value "Nombre de la base de datos" "$(get_env DB_DATABASE)" true
-DB_DATABASE="$REPLY"
-read_value "Usuario de la base de datos" "$(get_env DB_USERNAME)" true
-DB_USERNAME="$REPLY"
-read_password "Contraseña de PostgreSQL"
-DB_PASSWORD="$REPLY"
-
-read_value "Nombre del administrador" "Admin" true
-ADMIN_NAME="$REPLY"
-read_value "Correo del administrador" "admin@codered.host" true
-ADMIN_EMAIL="$REPLY"
-read_password "Contraseña del administrador"
-ADMIN_PASSWORD="$REPLY"
-
-set_env APP_NAME "CodeRED Platform" true
-set_env VITE_APP_NAME "CodeRED Platform" true
-set_env APP_ENV "$APP_ENV"
-set_env APP_DEBUG "$APP_DEBUG"
-set_env APP_URL "$APP_URL"
-set_env LOG_LEVEL "$LOG_LEVEL"
-set_env DB_DATABASE "$DB_DATABASE"
-set_env DB_USERNAME "$DB_USERNAME"
-set_env DB_PASSWORD "$DB_PASSWORD"
-set_env DEV_ADMIN_NAME "$ADMIN_NAME" true
-set_env DEV_ADMIN_EMAIL "$ADMIN_EMAIL"
-set_env DEV_ADMIN_PASSWORD "$ADMIN_PASSWORD"
-
-set_env QUEUE_CONNECTION "redis"
-set_env REDIS_QUEUE_RETRY_AFTER "172900"
-set_env RUC_ENABLED "true"
-set_env RUC_IMPORT_DISK "local"
-set_env RUC_IMPORT_INCOMING_DIRECTORY "private/ruc/incoming"
-set_env RUC_IMPORT_WORKING_DIRECTORY "private/ruc/working"
-set_env RUC_IMPORT_ARCHIVE_DIRECTORY "private/ruc/archive"
-set_env RUC_IMPORT_ERRORS_DIRECTORY "private/ruc/errors"
-set_env RUC_IMPORT_QUEUE "ruc-imports"
-set_env RUC_IMPORT_CHUNK_SIZE "10000"
-set_env RUC_IMPORT_COPY_BATCH_SIZE "100000"
-set_env RUC_IMPORT_PROGRESS_INTERVAL "10000"
-set_env RUC_IMPORT_CHECKPOINT_INTERVAL "50000"
-set_env RUC_IMPORT_TIMEOUT "86400"
-set_env RUC_IMPORT_LOCK_SECONDS "172800"
-set_env RUC_IMPORT_ENCODING "ISO-8859-1"
-set_env RUC_IMPORT_DELIMITER "|"
-set_env RUC_IMPORT_MAX_SIZE_MB "30000"
-set_env RUC_IMPORT_RESUME_ENABLED "true"
-set_env RUC_IMPORT_ARCHIVE_FILES "true"
-set_env RUC_IMPORT_STRATEGY "insert_ignore"
-
-if [[ "$APP_URL" == https://*.codered.host ]]; then
-    set_env SESSION_DOMAIN ".codered.host"
-else
-    set_env SESSION_DOMAIN "null"
-fi
-
+set_env APP_NAME "CodeRED Platform" true; set_env VITE_APP_NAME "CodeRED Platform" true; set_env APP_ENV "$APP_ENV"; set_env APP_DEBUG "$APP_DEBUG"; set_env APP_URL "$APP_URL"; set_env LOG_LEVEL "$LOG_LEVEL"
+set_env DB_DATABASE "$DB_DATABASE"; set_env DB_USERNAME "$DB_USERNAME"; set_env DB_PASSWORD "$DB_PASSWORD"; set_env DEV_ADMIN_NAME "$ADMIN_NAME" true; set_env DEV_ADMIN_EMAIL "$ADMIN_EMAIL"; set_env DEV_ADMIN_PASSWORD "$ADMIN_PASSWORD"
+set_env QUEUE_CONNECTION "redis"; set_env REDIS_QUEUE_RETRY_AFTER "172900"; set_env RUC_ENABLED "true"; set_env RUC_IMPORT_DISK "local"; set_env RUC_IMPORT_INCOMING_DIRECTORY "private/ruc/incoming"; set_env RUC_IMPORT_WORKING_DIRECTORY "private/ruc/working"; set_env RUC_IMPORT_ARCHIVE_DIRECTORY "private/ruc/archive"; set_env RUC_IMPORT_ERRORS_DIRECTORY "private/ruc/errors"; set_env RUC_IMPORT_QUEUE "ruc-imports"; set_env RUC_IMPORT_CHUNK_SIZE "10000"; set_env RUC_IMPORT_COPY_BATCH_SIZE "100000"; set_env RUC_IMPORT_PROGRESS_INTERVAL "10000"; set_env RUC_IMPORT_CHECKPOINT_INTERVAL "50000"; set_env RUC_IMPORT_TIMEOUT "86400"; set_env RUC_IMPORT_LOCK_SECONDS "172800"; set_env RUC_IMPORT_ENCODING "ISO-8859-1"; set_env RUC_IMPORT_DELIMITER "|"; set_env RUC_IMPORT_MAX_SIZE_MB "30000"; set_env RUC_IMPORT_RESUME_ENABLED "true"; set_env RUC_IMPORT_ARCHIVE_FILES "true"; set_env RUC_IMPORT_STRATEGY "insert_ignore"
+if [[ "$APP_URL" == https://*.codered.host ]]; then set_env SESSION_DOMAIN ".codered.host"; else set_env SESSION_DOMAIN "null"; fi
 set_env SANCTUM_STATEFUL_DOMAINS "platform.codered.host,localhost:8090,127.0.0.1:8090,192.168.18.124:8090,chrome-extension://jpfcfljmbaijaajjdhblinjgblnfpign"
 set_env API_ALLOWED_ORIGINS "https://platform.codered.host,http://192.168.18.124:8090,http://localhost:8090,chrome-extension://jpfcfljmbaijaajjdhblinjgblnfpign"
 
-if confirm "¿Activar PeruDevs para consultas DNI?" n; then
-    read_value "URL PeruDevs" "https://api.perudevs.com/api/v1/dni/complete" true
-    set_env DNI_PERUDEVS_BASE_URL "${REPLY%/}"
-    read_password "Token/API key PeruDevs"
-    set_env DNI_PERUDEVS_API_KEY "$REPLY"
-    set_env DNI_PERUDEVS_ENABLED "true"
-else
-    set_env DNI_PERUDEVS_ENABLED "false"
-    set_env DNI_PERUDEVS_API_KEY ""
-fi
+if confirm "¿Activar PeruDevs para consultas DNI?" n; then read_value "URL PeruDevs" "https://api.perudevs.com/api/v1/dni/complete" true; set_env DNI_PERUDEVS_BASE_URL "${REPLY%/}"; read_password "Token/API key PeruDevs"; set_env DNI_PERUDEVS_API_KEY "$REPLY"; set_env DNI_PERUDEVS_ENABLED "true"; else set_env DNI_PERUDEVS_ENABLED "false"; set_env DNI_PERUDEVS_API_KEY ""; fi
 
+configure_agent
 validate_env_file || die "Corrige las claves indicadas antes de continuar."
-
 unset DB_PASSWORD ADMIN_PASSWORD REPLY || true
 
 info "Construyendo e iniciando contenedores..."
 docker compose up -d --build
-
 info "Esperando Laravel..."
-for _ in {1..40}; do
-    if docker compose exec -T app php artisan about >/dev/null 2>&1; then
-        break
-    fi
-    sleep 3
-done
+for _ in {1..40}; do if docker compose exec -T app php artisan about >/dev/null 2>&1; then break; fi; sleep 3; done
 docker compose exec -T app php artisan about >/dev/null 2>&1 || die "Laravel no respondió a tiempo."
-docker compose exec -T app mkdir -p \
-    storage/app/private/ruc/incoming \
-    storage/app/private/ruc/working \
-    storage/app/private/ruc/archive \
-    storage/app/private/ruc/errors
-
-if [[ -z "$(get_env APP_KEY)" ]]; then
-    docker compose exec -T app php artisan key:generate --force
-fi
-
+docker compose exec -T app mkdir -p storage/app/private/ruc/incoming storage/app/private/ruc/working storage/app/private/ruc/archive storage/app/private/ruc/errors
+if [[ -z "$(get_env APP_KEY)" ]]; then docker compose exec -T app php artisan key:generate --force; fi
 docker compose exec -T app php artisan migrate --force
 docker compose exec -T app php artisan db:seed --force
 docker compose exec -T app php artisan optimize:clear
 docker compose exec -T app php artisan storage:link >/dev/null 2>&1 || true
 
-echo
-info "Verificando servicios sin reiniciarlos..."
-for service in app nginx postgres redis queue scheduler; do
-    if docker compose ps --status running --services | grep -qx "$service"; then
-        ok "$service activo"
-    else
-        warn "$service todavía no aparece activo"
-    fi
-done
+if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]]; then
+    info "Construyendo CodeRED Agent..."
+    docker compose build codered-agent
+    docker compose up -d codered-agent
+    docker compose ps codered-agent
+    if curl --fail --silent http://127.0.0.1:5680/v1/health >/dev/null; then ok "CodeRED Agent saludable."; else warn "CodeRED Agent no respondió al healthcheck. Últimos logs:"; docker compose logs --tail=100 codered-agent || true; fi
+fi
 
-echo
-echo "============================================================"
-echo " CodeRED Platform instalada correctamente"
-echo "============================================================"
-echo "URL: $APP_URL"
-echo "Administrador: $ADMIN_EMAIL"
-echo "Directorio: $PROJECT_DIR"
-echo
-docker compose ps
+echo; info "Verificando servicios sin reiniciarlos..."
+for service in app nginx postgres redis queue scheduler; do if docker compose ps --status running --services | grep -qx "$service"; then ok "$service activo"; else warn "$service todavía no aparece activo"; fi; done
+
+echo; echo "============================================================"; echo " CodeRED Platform instalada correctamente"; echo "============================================================"; echo "URL: $APP_URL"; echo "Administrador: $ADMIN_EMAIL"; echo "Directorio: $PROJECT_DIR"; echo; docker compose ps

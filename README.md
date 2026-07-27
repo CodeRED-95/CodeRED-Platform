@@ -1,123 +1,145 @@
 # CodeRED Platform
 
-Base técnica modular en Laravel para administración y consulta de agencias de Shalom.
+CodeRED Platform es el centro de control modular para administración y consulta de agencias de Shalom, APIs DNI/RUC, tokens Sanctum e integraciones empresariales. La plataforma combina Laravel 12, Livewire 3, PostgreSQL, Redis, Docker Compose, n8n 2.x y CodeRED Agent para operar Pairing, Discovery, Heartbeat y Capability Registry sin depender de secretos visibles en workflows.
 
-## Características principales
+## Capacidades principales
 
-- Arquitectura modular preparada para nuevos dominios.
-- Autenticación web y API versionada.
-- Catálogo API con ETag, compresión y sincronización incremental mediante cursores firmados.
-- PostgreSQL como base de datos principal.
-- Redis para caché, colas y versión global.
-- Livewire, TailwindCSS y AlpineJS para la interfaz.
-- Docker Compose con servicios separados para aplicación, web, base de datos, caché, cola y scheduler.
-- Módulo `Agencies` con soporte para importación desde GitHub Gist, snapshot público y agencias trasladadas.
-- Módulo `Users` para administración de cuentas, roles, estado y actividad.
-- CodeRED Design System con componentes Blade, tokens semánticos y branding unificado.
-- Login tradicional por sesión con `POST /login`, dashboard y panel administrativo unificados bajo un layout oscuro y responsivo.
-- PHP-FPM ejecuta el master como root y los workers como `www`.
-- Git Safe Directory se configura automáticamente para `/var/www/html`.
-- `composer.lock` debe existir y versionarse para instalaciones reproducibles.
-- `package-lock.json` debe existir y versionarse para instalaciones frontend reproducibles.
-- PostgreSQL se inicializa desde las variables `DB_*` del archivo `.env`.
+- Gestión administrativa y pública de agencias Shalom.
+- APIs versionadas para agencias, DNI y RUC con Sanctum, abilities, rate limiting y documentación OpenAPI.
+- Solicitudes de tokens API con aprobación administrativa y auditoría.
+- Integración n8n mediante Pairing, Discovery, Heartbeat, Challenge Response y Capability Registry.
+- CodeRED Agent como daemon persistente para mantener estado, firmar solicitudes y desacoplar n8n de secretos compartidos.
+- Arquitectura extensible para futuros conectores: Telegram, WhatsApp, Discord, IA y MCP.
+- Docker Compose con servicios separados para app, Nginx, PostgreSQL, Redis, queue, scheduler, extractor y agente.
 
-## Arquitectura resumida
+## Arquitectura
 
-- `app/Core`: utilidades transversales.
-- `app/Modules`: módulos de negocio.
-- `app/Modules/Agencies`: módulo principal de agencias.
-- `routes/api.php`: API base y rutas versionadas.
-- `routes/web.php`: panel y web pública.
-- `database/migrations`: esquema relacional.
-- `docker/`: configuración de contenedores.
+```mermaid
+flowchart LR
+    Platform[CodeRED Platform]
+    Agent[CodeRED Agent]
+    N8N[n8n]
+    Telegram[Telegram]
+    WhatsApp[WhatsApp]
+    Discord[Discord]
+    AI[AI / MCP]
 
-## Tecnologías utilizadas
+    Platform <--> Agent
+    Agent <--> N8N
+    Agent <--> Telegram
+    Agent <--> WhatsApp
+    Agent <--> Discord
+    Agent <--> AI
+```
 
-- Laravel 12
-- PHP 8.2+
-- PostgreSQL 16
-- Redis 7
-- Nginx 1.27
-- Livewire 3
-- TailwindCSS 3
-- AlpineJS 3
-- Leaflet 1.9 con tiles de OpenStreetMap
-- Laravel Sanctum 4
+CodeRED Platform conserva la autoridad de usuarios, permisos, tokens, auditoría y registro de capacidades. CodeRED Agent mantiene la conexión persistente, el estado cifrado local y la comunicación firmada. n8n y los conectores futuros consumen el agente como cliente local, sin recibir ni exponer el `shared_secret`.
 
-## Instalación rápida
+## Requisitos
 
-1. Revisa [docs/INSTALL.md](docs/INSTALL.md).
-2. Configura variables en [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
-3. Levanta Docker según [docs/DOCKER.md](docs/DOCKER.md).
-4. Revisa el modelo de datos en [docs/DATABASE.md](docs/DATABASE.md).
-5. Recuerda que la URL pública local actual es `http://localhost:8090`; en la LAN puede ser `http://192.168.18.124:8090`.
-6. El bootstrap de Laravel se ejecuta automáticamente al iniciar los contenedores.
+- Docker y Docker Compose v2.
+- Git.
+- OpenSSL para generar secretos seguros.
+- DNS público para `APP_URL` y, si se expone, `CODERED_AGENT_PUBLIC_URL`.
+- PostgreSQL y Redis mediante los servicios incluidos.
+- Cloudflare, red privada o firewall cuando el agente sea accesible desde fuera del host.
+- Puertos habituales: `8090` para Nginx local y `5680` para CodeRED Agent ligado por defecto a `127.0.0.1`.
 
-## Desarrollo y pruebas
+## Instalación
 
-La guía para VS Code, Dev Containers, tareas, Composer, PHPUnit, Pint y PHPStan está en [docs/development-testing.md](docs/development-testing.md).
+```bash
+git clone https://github.com/CodeRED-95/CodeRED-Platform.git
+cd CodeRED-Platform
+chmod +x Install_CodeRED-Platform.sh
+./Install_CodeRED-Platform.sh
+```
 
-## Capturas
+El instalador configura Laravel, PostgreSQL, Redis, administrador inicial y, opcionalmente, CodeRED Agent. Si se habilita el agente, genera automáticamente `CODERED_AGENT_ENCRYPTION_KEY` y `CODERED_AGENT_LOCAL_API_TOKEN` con `openssl rand -hex 32`, sin mostrarlos en pantalla.
 
-PENDIENTE DE CONFIGURAR
+## Variables de CodeRED Agent
+
+```env
+CODERED_AGENT_NAME="CodeRED n8n Agent"
+CODERED_AGENT_PUBLIC_URL=https://agent.codered.host
+CODERED_AGENT_ENVIRONMENT=production
+CODERED_AGENT_PORT=5680
+CODERED_AGENT_DATA_PATH=/data
+CODERED_AGENT_ENCRYPTION_KEY=
+CODERED_AGENT_LOCAL_API_TOKEN=
+CODERED_AGENT_HEARTBEAT_SECONDS=30
+CODERED_AGENT_DISCOVERY_SECONDS=300
+CODERED_AGENT_REQUEST_TIMEOUT_MS=15000
+CODERED_AGENT_LOG_LEVEL=info
+```
+
+Genere cada secreto con:
+
+```bash
+openssl rand -hex 32
+```
+
+Cada valor debe tener 64 caracteres hexadecimales. No comparta `.env`, no suba secretos reales y no cambie `CODERED_AGENT_ENCRYPTION_KEY` sin migrar antes `/data/integration.enc`; de lo contrario, el estado cifrado queda ilegible.
+
+## Comandos principales
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose logs -f
+docker compose build codered-agent
+docker compose up -d codered-agent
+curl http://127.0.0.1:5680/v1/health
+```
+
+## Actualización
+
+```bash
+./update.sh
+```
+
+El actualizador crea backup de `.env`, aplica `git pull --ff-only`, agrega variables faltantes del agente sin sobrescribir secretos, reconstruye solo servicios necesarios cuando puede y ejecuta migraciones/cachés Laravel sin borrar volúmenes.
+
+## Administración
+
+```bash
+./CodeRED.sh
+```
+
+El menú incluye operaciones de plataforma y un submenú de CodeRED Agent para ver estado, logs, reiniciar, reconstruir, probar healthcheck, consultar `/v1/status`, generar Pair Codes y rotar el token local. La rotación de la clave de cifrado se bloquea hasta disponer de una utilidad de migración segura de `integration.enc`.
+
+## Seguridad
+
+- No compartir ni versionar `.env`.
+- No regenerar `CODERED_AGENT_ENCRYPTION_KEY` sin migración de `integration.enc`.
+- No mostrar secretos en outputs de n8n; el modo Legacy queda deprecado.
+- Rotar cualquier secreto que haya aparecido en una ejecución n8n.
+- Proteger el agente por red privada, firewall o Cloudflare.
+- Usar Pairing, HMAC SHA-256, timestamp, nonce y replay protection para integraciones.
+
+## Solución de problemas
+
+- `Missing required configuration: CODERED_AGENT_ENCRYPTION_KEY`: genere un secreto con `openssl rand -hex 32` y persístalo en `.env`.
+- `NodeOperationError`: revise si la credencial n8n usa modo Agent o Legacy y confirme que no espera `shared_secret` en outputs.
+- `Duplicate column`: no edite migraciones antiguas; cree una migración nueva o revise `php artisan migrate:status`.
+- `integration.challenge no publicado`: ejecute discovery desde el agente o revise la capacidad `integration.challenge`.
+- Heartbeat antiguo: verifique `docker compose logs -f codered-agent` y `/v1/status`.
+- Discovery vacío: confirme que el agente esté emparejado y que `CODERED_AGENT_PUBLIC_URL` sea accesible por CodeRED Platform.
 
 ## Documentación
 
-- [Guía para IAs](AGENTS.md)
 - [Instalación](docs/INSTALL.md)
 - [Entorno](docs/ENVIRONMENT.md)
 - [Docker](docs/DOCKER.md)
-- [Base de datos](docs/DATABASE.md)
-- [Seeders](docs/SEEDERS.md)
 - [API](docs/API.md)
 - [Agencies](docs/AGENCIES.md)
-- [Users](docs/USERS.md)
-- [Importador](docs/IMPORTER.md)
-- [Auditoría](docs/AUDIT.md)
-- [Redis](docs/REDIS.md)
-- [Autorización](docs/AUTHORIZATION.md)
-- [Design System](docs/DESIGN_SYSTEM.md)
-- [Arquitectura](docs/ARCHITECTURE.md)
-- [Desarrollo](docs/DEVELOPMENT.md)
-- [Testing](docs/TESTING.md)
-- [Seguridad](docs/SECURITY.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Contribución](docs/CONTRIBUTING.md)
-- [Roadmap](docs/ROADMAP.md)
+- [API DNI](docs/api/dni.md)
+- [API RUC](docs/api/ruc.md)
+- [CodeRED Agent: arquitectura](docs/agent/architecture.md)
+- [CodeRED Agent: instalación](docs/agent/installation.md)
+- [CodeRED Agent: seguridad](docs/agent/security.md)
+- [Migración n8n](docs/agent/n8n-migration.md)
 - [Changelog](docs/CHANGELOG.md)
-- [FAQ](docs/FAQ.md)
 - [ADR](docs/adr/README.md)
-
-## Roadmap resumido
-
-- Core y autenticación base.
-- Módulo `Agencies`.
-- Importación desde GitHub Gist.
-- Web pública y panel administrativo.
-- Exportación, caché y snapshot compacto.
-- Próximos módulos: Clientes, Trabajadores, Reportes, Estadísticas, Chrome Extension y App móvil.
 
 ## Licencia
 
 Proprietary
-
-## Estado actual
-
-- El módulo **Agencias Shalom** ya incluye panel administrativo, detalle, importación y vista pública.
-- El módulo **Usuarios** ya prepara la administración de cuentas internas bajo el mismo Design System.
-- La documentación viva se mantiene en `/docs`.
-- Las decisiones técnicas relevantes se registran en `/docs/adr`.
-
-- [API de agencias, DNI y tokens separados](docs/API_DNI_AND_TOKENS.md)
-
-- [Migración del servicio DNI legado](docs/DNI_LEGACY_MIGRATION.md)
-- [API DNI](docs/api/dni.md)
-- [Módulo RUC e importaciones](docs/RUC_MODULE.md)
-- [API RUC](docs/api/ruc.md)
-
-
-- [Documentación API web](/docs/api)
-- [Documentación DNI](docs/api/dni.md)
-- [Documentación Agencias](docs/api/agencies.md)
-- [OpenAPI](docs/openapi.yaml)
-- [Colección Postman](docs/postman/CodeRED-Platform-API.postman_collection.json)

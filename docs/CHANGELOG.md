@@ -1,3 +1,32 @@
+# Changelog
+
+Todas las versiones siguen `Keep a Changelog`.
+
+## [Unreleased]
+
+### Added
+
+- CodeRED Agent documentado como daemon persistente para Pairing, Discovery, Heartbeat y Capability Registry.
+- Configuración segura del agente en `.env.example` con secretos vacíos y guía `openssl rand -hex 32`.
+- Flujo interactivo del agente en `Install_CodeRED-Platform.sh`.
+- Actualización por etapas en `update.sh` con backups, detección de cambios y healthcheck condicional del agente.
+- Submenú administrativo de CodeRED Agent en `CodeRED.sh`.
+- Comando Artisan `integrations:n8n-pair-code` para generar códigos temporales sin exponer secretos.
+- Auditoría técnica en `docs/audits/technical-audit-2026-07-27.md`.
+
+### Changed
+
+- `docker-compose.yml` ahora toma URLs del agente desde `.env` en lugar de valores hardcodeados.
+- `README.md` describe la arquitectura actual con CodeRED Agent, n8n y conectores futuros.
+- La API local del agente valida challenge-response firmado desde CodeRED Platform.
+- El almacenamiento cifrado del agente escribe `integration.enc` de forma atómica.
+
+### Fixed
+
+- Placeholder inseguro de secretos en `.env.example`.
+- Riesgo de corrupción de `integration.enc` por escritura directa.
+- Challenge del agente sin validación HMAC de entrada.
+- Falta de herramientas operativas para healthcheck, pairing y rotación del token local del agente.
 - API UI: nueva guía API basada en tarjetas, tester same-origin, autorización efímera y Swagger bajo demanda como referencia avanzada.
 - API: sincronización incremental append-only con cursor HMAC, ETag/304, metadata de revisión, retención de cambios y Gzip en Nginx.
 - Agencias: `zone` quedó fuera del flujo activo; la ubicación usa `department / province / district`, `place` añade el nombre de agencia, Shalom e importaciones priorizan `district`, y se añadió `agencies:repair-location-fields` para reparación manual auditada y no destructiva.

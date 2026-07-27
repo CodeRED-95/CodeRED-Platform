@@ -1,2 +1,27 @@
 import js from '@eslint/js';
-export default [js.configs.recommended,{files:['**/*.ts'],languageOptions:{parserOptions:{ecmaVersion:'latest',sourceType:'module'},globals:{process:'readonly',console:'readonly',Buffer:'readonly',URL:'readonly',fetch:'readonly',setTimeout:'readonly',setInterval:'readonly',clearInterval:'readonly'}}}];
+import tseslint from 'typescript-eslint';
+
+export default [
+  { ignores: ['dist/**', 'node_modules/**'] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ['src/**/*.ts', 'test/**/*.ts'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        AbortController: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+        clearInterval: 'readonly',
+        clearTimeout: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        process: 'readonly',
+        setInterval: 'readonly',
+        setTimeout: 'readonly',
+      },
+    },
+  },
+];
