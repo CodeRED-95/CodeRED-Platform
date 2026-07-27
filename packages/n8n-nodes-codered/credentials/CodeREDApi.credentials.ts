@@ -8,6 +8,7 @@ export class CodeREDApi implements ICredentialType {
     { displayName: 'Connection Mode', name: 'connectionMode', type: 'options', default: 'agent', options: [{ name: 'Through CodeRED Agent', value: 'agent' }, { name: 'Direct to Platform (Legacy)', value: 'direct' }] },
     { displayName: 'Agent URL', name: 'agentUrl', type: 'string', default: 'http://codered-agent:5680', required: true },
     { displayName: 'Agent Local API Token', name: 'agentLocalApiToken', type: 'string', typeOptions: { password: true }, default: '' },
+    { displayName: 'Agent Timeout (ms)', name: 'timeoutMs', type: 'number', default: 15000 },
     { displayName: 'CodeRED Platform URL', name: 'baseUrl', type: 'string', default: '', placeholder: 'https://codered.example.com', required: true },
     { displayName: 'Instance Name', name: 'instanceName', type: 'string', default: 'n8n Production', required: true },
     { displayName: 'Public n8n URL', name: 'instanceUrl', type: 'string', default: '', placeholder: 'https://n8n.example.com', required: true },

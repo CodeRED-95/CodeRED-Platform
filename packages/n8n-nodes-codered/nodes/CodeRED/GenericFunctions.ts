@@ -13,7 +13,9 @@ export interface CodeREDCredentials {
   connectionMode?: string;
   agentUrl?: string;
   agentLocalApiToken?: string;
+  timeoutMs?: number | string;
 }
+
 
 export function stableJson(value: unknown): string { return JSON.stringify(sortValue(value)); }
 function sortValue(value: unknown): unknown {

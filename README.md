@@ -87,7 +87,7 @@ docker compose ps
 docker compose logs -f
 docker compose build codered-agent
 docker compose up -d codered-agent
-curl http://127.0.0.1:5680/v1/health
+curl http://127.0.0.1:5680/healthz
 ```
 
 ## Actualización
@@ -104,7 +104,7 @@ El actualizador crea backup de `.env`, aplica `git pull --ff-only`, agrega varia
 ./CodeRED.sh
 ```
 
-El menú incluye operaciones de plataforma y un submenú de CodeRED Agent para ver estado, logs, reiniciar, reconstruir, probar healthcheck, consultar `/v1/status`, generar Pair Codes y rotar el token local. La rotación de la clave de cifrado se bloquea hasta disponer de una utilidad de migración segura de `integration.enc`.
+El menú incluye operaciones de plataforma y un submenú de CodeRED Agent para ver estado, logs, reiniciar, reconstruir, probar healthcheck, consultar `/api/v1/status`, generar Pair Codes y rotar el token local. La rotación de la clave de cifrado se bloquea hasta disponer de una utilidad de migración segura de `integration.enc`.
 
 ## Seguridad
 
@@ -121,7 +121,7 @@ El menú incluye operaciones de plataforma y un submenú de CodeRED Agent para v
 - `NodeOperationError`: revise si la credencial n8n usa modo Agent o Legacy y confirme que no espera `shared_secret` en outputs.
 - `Duplicate column`: no edite migraciones antiguas; cree una migración nueva o revise `php artisan migrate:status`.
 - `integration.challenge no publicado`: ejecute discovery desde el agente o revise la capacidad `integration.challenge`.
-- Heartbeat antiguo: verifique `docker compose logs -f codered-agent` y `/v1/status`.
+- Heartbeat antiguo: verifique `docker compose logs -f codered-agent` y `/api/v1/status`.
 - Discovery vacío: confirme que el agente esté emparejado y que `CODERED_AGENT_PUBLIC_URL` sea accesible por CodeRED Platform.
 
 ## Documentación
@@ -143,3 +143,16 @@ El menú incluye operaciones de plataforma y un submenú de CodeRED Agent para v
 ## Licencia
 
 Proprietary
+### Diagnóstico del agente
+
+CodeRED Agent expone tres endpoints locales:
+
+```bash
+curl http://127.0.0.1:5680/healthz
+curl http://127.0.0.1:5680/readyz
+curl -H "Authorization: Bearer $CODERED_AGENT_LOCAL_API_TOKEN" http://127.0.0.1:5680/api/v1/status
+```
+
+`/healthz` confirma que el proceso vive. `/readyz` confirma que el servidor cargó configuración y puede estar `paired` o `unpaired`. `/api/v1/status` es la fuente de verdad para n8n: muestra `paired`, `platformConnected`, `instanceId`, `lastHeartbeatAt`, `lastDiscoveryAt`, `capabilities`, `workflows` y `lastError` sin exponer secretos.
+
+Si aparece `Error: Agent is unpaired`, revise que el volumen `codered-agent-data:/data` esté montado y que exista `/data/integration.enc` con permisos restrictivos. El agente ya no debe terminar por ese estado: discovery y heartbeat se omiten hasta completar Pair Instance.

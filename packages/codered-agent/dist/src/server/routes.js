@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { Logger } from '../logging/Logger.js';
 import { canonicalPayload, sign } from '../protocol/RequestSigner.js';
 const nonces = new Map();
 let pairHits = [];
@@ -55,31 +56,54 @@ function validSignedRequest(req, integration, rawBody, path) {
     if (!consumeNonce(nonce)) {
         return false;
     }
-    const expected = sign(integration.shared_secret, canonicalPayload(req.method || 'POST', path, timestamp, nonce, rawBody));
     if (!/^[0-9a-f]{64}$/.test(signature)) {
         return false;
     }
+    const expected = sign(integration.shared_secret, canonicalPayload(req.method || 'POST', path, timestamp, nonce, rawBody));
     return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'));
 }
-export function createRouter(config, storage, pairing, discovery, heartbeat, reconnect) {
+function statusPayload(config, integration, heartbeat, discovery, client) {
+    return {
+        status: client.isPaired() ? heartbeat.status : 'unpaired',
+        paired: client.isPaired(),
+        platformConnected: heartbeat.status === 'connected',
+        instanceId: integration?.integration_uuid || null,
+        integration_uuid: integration?.integration_uuid || null,
+        platform_url: config.platformUrl,
+        agent_version: '1.0.0',
+        protocol_version: integration?.protocol_version || '1.0',
+        lastHeartbeatAt: heartbeat.lastHeartbeatAt,
+        last_heartbeat_at: heartbeat.lastHeartbeatAt,
+        lastDiscoveryAt: discovery.lastDiscoveryAt,
+        last_discovery_at: discovery.lastDiscoveryAt,
+        latencyMs: heartbeat.latencyMs,
+        capabilities: discovery.capabilityCount,
+        workflows: discovery.workflowCount,
+        lastError: heartbeat.lastError || discovery.lastError,
+    };
+}
+export function createRouter(config, storage, pairing, discovery, heartbeat, reconnect, client) {
+    const logger = new Logger(config.logLevel);
     return async (req, res) => {
         try {
             const url = req.url?.split('?')[0] || '/';
-            if (req.method === 'GET' && url === '/v1/health') {
+            if (req.method === 'GET' && (url === '/healthz' || url === '/v1/health')) {
                 return json(res, 200, { status: 'ok', version: '1.0.0' });
             }
-            if (req.method === 'GET' && url === '/v1/status') {
-                const integration = await storage.readIntegration();
+            if (req.method === 'GET' && url === '/readyz') {
+                const integration = client.currentIntegration() ?? await storage.readIntegration();
                 return json(res, 200, {
-                    status: heartbeat.status,
+                    status: 'ready',
                     paired: !!integration,
-                    integration_uuid: integration?.integration_uuid || null,
-                    platform_url: config.platformUrl,
-                    agent_version: '1.0.0',
-                    protocol_version: integration?.protocol_version || '1.0',
-                    last_heartbeat_at: heartbeat.lastHeartbeatAt,
-                    last_discovery_at: discovery.lastDiscoveryAt,
+                    platformConnected: heartbeat.status === 'connected',
+                    degraded: heartbeat.status === 'degraded',
                 });
+            }
+            if (req.method === 'GET' && (url === '/v1/status' || url === '/api/v1/status')) {
+                if (!client.isPaired()) {
+                    await client.restorePairing();
+                }
+                return json(res, 200, statusPayload(config, client.currentIntegration(), heartbeat, discovery, client));
             }
             if (req.method === 'POST' && url === '/v1/pair') {
                 const now = Date.now();
@@ -92,39 +116,47 @@ export function createRouter(config, storage, pairing, discovery, heartbeat, rec
                 return json(res, 200, await pairing.pair(String(payload.pair_code || '')));
             }
             if (req.method === 'POST' && url === '/v1/discovery/sync') {
-                return json(res, 200, { success: true, registered: await discovery.sync(true) });
+                const registered = await discovery.sync(true);
+                return json(res, 200, { success: true, registered, capabilities: discovery.capabilityCount, workflows: discovery.workflowCount });
             }
             if (req.method === 'POST' && url === '/v1/heartbeat/send') {
-                return json(res, 200, { success: await heartbeat.send(), status: heartbeat.status });
+                return json(res, 200, { success: await heartbeat.send(), status: heartbeat.status, latencyMs: heartbeat.latencyMs });
             }
             if (req.method === 'POST' && url === '/v1/reconnect') {
                 return json(res, 200, { success: true, status: await reconnect.start() });
             }
             if (req.method === 'POST' && url === '/v1/integration/disconnect') {
                 await storage.clearIntegration();
+                client.clearPairing();
                 heartbeat.status = 'unpaired';
                 return json(res, 200, { success: true });
             }
             if (req.method === 'POST' && url === '/v1/challenge') {
-                const integration = await storage.readIntegration();
+                const integration = client.currentIntegration() ?? await storage.readIntegration();
                 if (!integration) {
+                    logger.warn('challenge.failed', { reason: 'agent_unpaired' });
                     return json(res, 409, { success: false, message: 'Unpaired' });
                 }
                 const { raw, json: payload } = await readBody(req);
                 if (!validSignedRequest(req, integration, raw, url)) {
+                    logger.warn('challenge.failed', { instanceId: integration.integration_uuid, reason: 'invalid_signature' });
                     return json(res, 401, { success: false, message: 'Invalid signature' });
                 }
                 if (!payload.challenge_id || !payload.challenge) {
+                    logger.warn('challenge.failed', { instanceId: integration.integration_uuid, reason: 'invalid_payload' });
                     return json(res, 422, { success: false, message: 'Invalid challenge' });
                 }
                 if (payload.expires_at && Date.parse(String(payload.expires_at)) < Date.now()) {
+                    logger.warn('challenge.failed', { instanceId: integration.integration_uuid, reason: 'expired' });
                     return json(res, 422, { success: false, message: 'Challenge expired' });
                 }
                 const challengeId = String(payload.challenge_id);
                 if (!consumeNonce(`challenge:${challengeId}`)) {
+                    logger.warn('challenge.failed', { instanceId: integration.integration_uuid, reason: 'replay' });
                     return json(res, 409, { success: false, message: 'Challenge already used' });
                 }
                 const challenge = String(payload.challenge);
+                logger.info('challenge.completed', { instanceId: integration.integration_uuid, challengeId });
                 return json(res, 200, {
                     challenge_id: challengeId,
                     challenge,
@@ -136,6 +168,7 @@ export function createRouter(config, storage, pairing, discovery, heartbeat, rec
         }
         catch (error) {
             const message = error instanceof Error ? error.message : 'Agent error';
+            logger.error('agent.request_failed', { error: message });
             return json(res, 500, { success: false, message });
         }
     };

@@ -41,17 +41,55 @@ class CodeRED {
     }
 }
 exports.CodeRED = CodeRED;
+async function agentRequest(c, method, path, body) {
+    return this.helpers.httpRequest({
+        method,
+        url: (0, GenericFunctions_1.joinUrl)(c.agentUrl || '', path),
+        body: body === undefined ? undefined : (0, GenericFunctions_1.stableJson)(body),
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (c.agentLocalApiToken || '') },
+        json: true,
+        timeout: Number(c.timeoutMs || 15000),
+    });
+}
+async function testAgentConnection(c) {
+    const started = Date.now();
+    let status;
+    try {
+        status = await agentRequest.call(this, c, 'GET', '/api/v1/status');
+    }
+    catch (error) {
+        throw new Error('No se puede acceder al agente o el token local es inválido.');
+    }
+    if (!status.paired) {
+        return { success: false, paired: false, message: 'El agente todavía no está emparejado.', status };
+    }
+    if (!status.platformConnected) {
+        return { success: false, paired: true, message: 'El agente está emparejado, pero Platform no confirmó conexión reciente.', status };
+    }
+    return {
+        success: true,
+        paired: true,
+        latencyMs: Date.now() - started,
+        challenge: status.capabilities > 0,
+        capabilities: status.capabilities,
+        workflows: status.workflows,
+        instanceId: status.instanceId,
+        status,
+    };
+}
 async function runOperation(c, op, i) {
+    if ((c.connectionMode || 'agent') === 'agent' && op === 'testConnection')
+        return testAgentConnection.call(this, c);
     if (op === 'agentStatus')
-        return this.helpers.httpRequest({ method: 'GET', url: (0, GenericFunctions_1.joinUrl)(c.agentUrl || '', '/v1/status'), headers: { Authorization: 'Bearer ' + (c.agentLocalApiToken || '') }, json: true });
+        return agentRequest.call(this, c, 'GET', '/api/v1/status');
     if (op === 'pairAgent')
-        return this.helpers.httpRequest({ method: 'POST', url: (0, GenericFunctions_1.joinUrl)(c.agentUrl || '', '/v1/pair'), body: (0, GenericFunctions_1.stableJson)({ pair_code: this.getNodeParameter('pairCode', i) || c.pairCode }), headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (c.agentLocalApiToken || '') }, json: true });
+        return agentRequest.call(this, c, 'POST', '/v1/pair', { pair_code: this.getNodeParameter('pairCode', i) || c.pairCode });
     if (op === 'agentDiscovery')
-        return this.helpers.httpRequest({ method: 'POST', url: (0, GenericFunctions_1.joinUrl)(c.agentUrl || '', '/v1/discovery/sync'), headers: { Authorization: 'Bearer ' + (c.agentLocalApiToken || '') }, json: true });
+        return agentRequest.call(this, c, 'POST', '/v1/discovery/sync');
     if (op === 'agentHeartbeat')
-        return this.helpers.httpRequest({ method: 'POST', url: (0, GenericFunctions_1.joinUrl)(c.agentUrl || '', '/v1/heartbeat/send'), headers: { Authorization: 'Bearer ' + (c.agentLocalApiToken || '') }, json: true });
+        return agentRequest.call(this, c, 'POST', '/v1/heartbeat/send');
     if (op === 'agentReconnect')
-        return this.helpers.httpRequest({ method: 'POST', url: (0, GenericFunctions_1.joinUrl)(c.agentUrl || '', '/v1/reconnect'), headers: { Authorization: 'Bearer ' + (c.agentLocalApiToken || '') }, json: true });
+        return agentRequest.call(this, c, 'POST', '/v1/reconnect');
     if (op === 'pairInstance') {
         const body = (0, GenericFunctions_1.stableJson)({ pair_code: this.getNodeParameter('pairCode', i) || c['pairCode'], instance_name: c.instanceName, instance_url: c.instanceUrl, environment: c.environment, n8n_version: process.env.N8N_VERSION || '2.x', connector_version: CONNECTOR_VERSION, protocol_version: c.protocolVersion || '1.0' });
         const response = await this.helpers.httpRequest({ method: 'POST', url: (0, GenericFunctions_1.joinUrl)(c.baseUrl, '/api/v1/integrations/n8n/pair'), body, headers: { 'Content-Type': 'application/json' }, json: true, timeout: 10000 });

@@ -11,6 +11,7 @@ export interface CodeREDCredentials {
     connectionMode?: string;
     agentUrl?: string;
     agentLocalApiToken?: string;
+    timeoutMs?: number | string;
 }
 export declare function stableJson(value: unknown): string;
 export declare function sha256Hex(body: string): string;

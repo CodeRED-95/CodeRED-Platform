@@ -19,9 +19,15 @@ Todas las versiones siguen `Keep a Changelog`.
 - `docker-compose.yml` ahora toma URLs del agente desde `.env` en lugar de valores hardcodeados.
 - `README.md` describe la arquitectura actual con CodeRED Agent, n8n y conectores futuros.
 - La API local del agente valida challenge-response firmado desde CodeRED Platform.
+- Discovery y heartbeat del agente ahora omiten estado unpaired y errores temporales sin cerrar Node.js.
+- El nodo n8n en modo Agent consulta `/api/v1/status` como fuente de verdad para Test Connection.
 - El almacenamiento cifrado del agente escribe `integration.enc` de forma atómica.
 
 ### Fixed
+
+- Reinicio del agente cada ciclo de discovery cuando el estado local estaba unpaired.
+- `integration.challenge` ahora usa `challenge_id`, expiración y respuesta firmada compatible con CodeRED Agent.
+- Healthcheck del agente separado entre `/healthz`, `/readyz` y estado protegido `/api/v1/status`.
 
 - Placeholder inseguro de secretos en `.env.example`.
 - Riesgo de corrupción de `integration.enc` por escritura directa.
@@ -176,6 +182,10 @@ Todas las versiones siguen `Keep a Changelog`.
 - Estructura documental centralizada en `docs/`
 
 ### Fixed
+
+- Reinicio del agente cada ciclo de discovery cuando el estado local estaba unpaired.
+- `integration.challenge` ahora usa `challenge_id`, expiración y respuesta firmada compatible con CodeRED Agent.
+- Healthcheck del agente separado entre `/healthz`, `/readyz` y estado protegido `/api/v1/status`.
 
 - PHPStan/Larastan nivel 5 estabilizado en cero errores sin baseline ni reglas de ignore.
 - Errores reales corregidos en importación de Agencias, health de colas, filtro de usuarios, Resources, configuración cacheable y pruebas tautológicas.

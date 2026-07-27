@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Config } from '../config/Config.js';
 
-const PUBLIC_ENDPOINTS = new Set(['/v1/health', '/v1/challenge']);
+const PUBLIC_ENDPOINTS = new Set(['/healthz', '/readyz', '/v1/health', '/v1/challenge']);
 
 export function requireAuth(req: IncomingMessage, res: ServerResponse, config: Config): boolean {
   const url = req.url?.split('?')[0] ?? '/';

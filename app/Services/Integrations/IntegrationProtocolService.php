@@ -156,12 +156,17 @@ class IntegrationProtocolService
 
     public function challenge(Integration $integration): array
     {
+        $challengeId = (string) Str::uuid();
         $challenge = bin2hex(random_bytes(16));
         $capability = $integration->capabilities()->where('service', 'integration.challenge')->where('enabled', true)->first();
         if (! $capability || blank($integration->instance_url)) {
             return ['ok' => false, 'latency_ms' => null, 'message' => 'La instancia no publicó integration.challenge.'];
         }
-        $body = json_encode(['challenge' => $challenge], JSON_UNESCAPED_SLASHES) ?: '{}';
+        $body = json_encode([
+            'challenge_id' => $challengeId,
+            'challenge' => $challenge,
+            'expires_at' => now()->addMinutes(5)->toIso8601String(),
+        ], JSON_UNESCAPED_SLASHES) ?: '{}';
         $started = microtime(true);
         $method = (string) $capability->getAttribute('method');
         $path = (string) $capability->getAttribute('path');
@@ -169,8 +174,11 @@ class IntegrationProtocolService
         $response = Http::timeout(8)->withHeaders($this->signedHeaders($integration, $method, $path, $body))->withBody($body, 'application/json')->send($method, rtrim((string) $integration->instance_url, '/').$path);
         $latency = (int) round((microtime(true) - $started) * 1000);
         $json = $response->json();
-        $valid = is_array($json) && ($json['challenge'] ?? null) === $challenge && hash_equals(hash_hmac('sha256', $challenge, $integration->secret()), (string) ($json['signature'] ?? ''));
-        $this->log($integration, 'Challenge', $valid ? 'Challenge correcto.' : 'Challenge inválido.', ['latency_ms' => $latency, 'http_status' => $response->status()], level: $valid ? 'info' : 'warning');
+        $valid = is_array($json)
+            && ($json['challenge_id'] ?? null) === $challengeId
+            && ($json['challenge'] ?? null) === $challenge
+            && hash_equals(hash_hmac('sha256', $challenge, $integration->secret()), (string) ($json['signature'] ?? ''));
+        $this->log($integration, 'Challenge', $valid ? 'Challenge correcto.' : 'Challenge inválido.', ['latency_ms' => $latency, 'http_status' => $response->status(), 'challenge_id' => $challengeId], level: $valid ? 'info' : 'warning');
 
         return ['ok' => $valid, 'latency_ms' => $latency, 'message' => $valid ? 'Correcto' : 'Respuesta inválida'];
     }

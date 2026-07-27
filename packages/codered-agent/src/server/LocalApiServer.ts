@@ -1,2 +1,24 @@
-import http from 'node:http';import type { Config } from '../config/Config.js';import { requireAuth } from './authentication.js';
-export class LocalApiServer{private server?:http.Server;constructor(private config:Config,private router:(req:http.IncomingMessage,res:http.ServerResponse)=>void|Promise<void>){} start(){this.server=http.createServer((req,res)=>{if(!requireAuth(req,res,this.config))return;void this.router(req,res)});this.server.listen(this.config.port,'0.0.0.0')} stop(){this.server?.close()}}
+import http from 'node:http';
+import type { Config } from '../config/Config.js';
+import { requireAuth } from './authentication.js';
+
+export class LocalApiServer {
+  private server?: http.Server;
+
+  public constructor(private config: Config, private router: (req: http.IncomingMessage, res: http.ServerResponse) => void | Promise<void>) {}
+
+  public start(): void {
+    this.server = http.createServer((req, res) => {
+      if (!requireAuth(req, res, this.config)) {
+        return;
+      }
+
+      void this.router(req, res);
+    });
+    this.server.listen(this.config.port, '0.0.0.0');
+  }
+
+  public stop(): void {
+    this.server?.close();
+  }
+}

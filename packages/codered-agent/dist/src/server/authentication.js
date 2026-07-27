@@ -1,4 +1,4 @@
-const PUBLIC_ENDPOINTS = new Set(['/v1/health', '/v1/challenge']);
+const PUBLIC_ENDPOINTS = new Set(['/healthz', '/readyz', '/v1/health', '/v1/challenge']);
 export function requireAuth(req, res, config) {
     const url = req.url?.split('?')[0] ?? '/';
     if (PUBLIC_ENDPOINTS.has(url)) {

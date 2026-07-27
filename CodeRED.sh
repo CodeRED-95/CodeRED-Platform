@@ -34,14 +34,14 @@ agent_menu(){
             2) run_in_project docker compose logs -f codered-agent ;;
             3) run_in_project docker compose restart codered-agent; pause ;;
             4) run_in_project docker compose build codered-agent; run_in_project docker compose up -d --force-recreate codered-agent; pause ;;
-            5) run_in_project curl --fail http://127.0.0.1:5680/v1/health; echo; pause ;;
+            5) run_in_project curl --fail http://127.0.0.1:5680/healthz; echo; pause ;;
             6)
-                run_in_project bash -lc 'token=$(grep -E "^CODERED_AGENT_LOCAL_API_TOKEN=" .env | head -n1 | cut -d= -f2- | sed -E "s/^\"(.*)\"$/\1/"); if [ -z "$token" ]; then echo "[ERROR] CODERED_AGENT_LOCAL_API_TOKEN no está configurado"; exit 1; fi; curl --fail --silent -H "Authorization: Bearer ${token}" http://127.0.0.1:5680/v1/status; echo'
+                run_in_project bash -lc 'token=$(grep -E "^CODERED_AGENT_LOCAL_API_TOKEN=" .env | head -n1 | cut -d= -f2- | sed -E "s/^\"(.*)\"$/\1/"); if [ -z "$token" ]; then echo "[ERROR] CODERED_AGENT_LOCAL_API_TOKEN no está configurado"; exit 1; fi; curl --fail --silent -H "Authorization: Bearer ${token}" http://127.0.0.1:5680/api/v1/status; echo'
                 pause
                 ;;
             7) run_in_project docker compose exec -T app php artisan integrations:n8n-pair-code; pause ;;
             8)
-                run_in_project bash -lc 'set -Eeuo pipefail; command -v openssl >/dev/null; cp .env ".env.backup-$(date +%Y%m%d-%H%M%S)"; token=$(openssl rand -hex 32); [[ "$token" =~ ^[0-9a-f]{64}$ ]]; tmp=$(mktemp); awk -v k="CODERED_AGENT_LOCAL_API_TOKEN" -v v="$token" '\''BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}'\'' .env > "$tmp"; mv "$tmp" .env; unset token; docker compose up -d --force-recreate codered-agent; curl --fail --silent http://127.0.0.1:5680/v1/health >/dev/null; echo "Token de API local rotado correctamente. No se mostró el valor."'
+                run_in_project bash -lc 'set -Eeuo pipefail; command -v openssl >/dev/null; cp .env ".env.backup-$(date +%Y%m%d-%H%M%S)"; token=$(openssl rand -hex 32); [[ "$token" =~ ^[0-9a-f]{64}$ ]]; tmp=$(mktemp); awk -v k="CODERED_AGENT_LOCAL_API_TOKEN" -v v="$token" '\''BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}'\'' .env > "$tmp"; mv "$tmp" .env; unset token; docker compose up -d --force-recreate codered-agent; curl --fail --silent http://127.0.0.1:5680/healthz >/dev/null; echo "Token de API local rotado correctamente. No se mostró el valor."'
                 pause
                 ;;
             9)

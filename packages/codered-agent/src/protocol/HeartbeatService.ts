@@ -1,28 +1,41 @@
 import type { Config } from '../config/Config.js';
-import type { AgentStorage } from '../storage/AgentStorage.js';
-import { CodeREDClient } from './CodeREDClient.js';
+import { AgentUnpairedError } from '../errors/AgentUnpairedError.js';
+import { Logger } from '../logging/Logger.js';
+import { CodeREDClient, type HttpError } from './CodeREDClient.js';
 
 export type AgentStatus = 'connected' | 'degraded' | 'disconnected' | 'revoked' | 'unpaired' | 'requires_repairing';
-
-type HttpLikeError = Error & { status?: number };
 
 export class HeartbeatService {
   public lastHeartbeatAt: string | null = null;
   public failures = 0;
   public latencyMs: number | null = null;
   public status: AgentStatus = 'unpaired';
+  public lastError: string | null = null;
+  private running = false;
 
-  public constructor(private config: Config, private storage: AgentStorage, private client: CodeREDClient) {}
+  public constructor(private config: Config, private client: CodeREDClient, private logger = new Logger(config.logLevel)) {}
 
   public async send(): Promise<boolean> {
-    const integration = await this.storage.readIntegration();
-
-    if (!integration) {
-      this.status = 'unpaired';
+    if (this.running) {
+      this.logger.warn('heartbeat.skipped', { reason: 'already_running' });
 
       return false;
     }
 
+    if (!this.client.isPaired()) {
+      await this.client.restorePairing();
+    }
+
+    const integration = this.client.currentIntegration();
+
+    if (!integration) {
+      this.status = 'unpaired';
+      this.logger.warn('heartbeat.skipped', { reason: 'agent_unpaired' });
+
+      return false;
+    }
+
+    this.running = true;
     const start = Date.now();
 
     try {
@@ -30,31 +43,52 @@ export class HeartbeatService {
         instance_uuid: integration.integration_uuid,
         agent_version: '1.0.0',
         connector_version: 'codered-agent/1.0.0',
-        protocol_version: '1.0',
+        protocol_version: integration.protocol_version,
         environment: this.config.environment,
         sent_at: new Date().toISOString(),
-        services: ['n8n'],
+        status: this.status,
+        uptime: Math.round(process.uptime()),
+        memory: process.memoryUsage().rss,
+        capabilities: 0,
+        workflows: 0,
+        services: ['n8n', 'agent'],
       });
 
       this.latencyMs = Date.now() - start;
       this.lastHeartbeatAt = new Date().toISOString();
       this.failures = 0;
       this.status = 'connected';
+      this.lastError = null;
+      this.logger.info('heartbeat.sent', { instanceId: integration.integration_uuid, durationMs: this.latencyMs });
 
       return true;
     } catch (error) {
-      const status = (error as HttpLikeError).status;
       this.failures += 1;
+      this.lastError = error instanceof Error ? error.message : 'Unknown heartbeat error';
+
+      if (error instanceof AgentUnpairedError) {
+        this.status = 'unpaired';
+        this.logger.warn('heartbeat.skipped', { reason: 'agent_unpaired' });
+
+        return false;
+      }
+
+      const status = (error as HttpError).status;
 
       if (status === 401 || status === 403) {
         this.status = 'requires_repairing';
+        this.logger.error('platform.unauthorized', { statusCode: status, retry: this.failures });
       } else if (status === 410) {
         this.status = 'revoked';
       } else {
         this.status = this.failures > 3 ? 'disconnected' : 'degraded';
       }
 
+      this.logger.error('heartbeat.failed', { statusCode: status, retry: this.failures, error: this.lastError });
+
       return false;
+    } finally {
+      this.running = false;
     }
   }
 }

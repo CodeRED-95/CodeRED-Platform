@@ -49,7 +49,7 @@ generate_secret(){
 }
 
 ensure_agent_env(){
-    [[ -n "$(get_env CODERED_AGENT_NAME)" ]] || set_env CODERED_AGENT_NAME "CodeRED n8n Agent" true
+    [[ -n "$(get_env CODERED_PLATFORM_URL)" ]] || set_env CODERED_PLATFORM_URL "$(get_env APP_URL)"\n    [[ -n "$(get_env CODERED_AGENT_NAME)" ]] || set_env CODERED_AGENT_NAME "CodeRED n8n Agent" true
     [[ -n "$(get_env CODERED_AGENT_PUBLIC_URL)" ]] || set_env CODERED_AGENT_PUBLIC_URL "https://agent.codered.host"
     [[ -n "$(get_env CODERED_AGENT_ENVIRONMENT)" ]] || set_env CODERED_AGENT_ENVIRONMENT "production"
     [[ -n "$(get_env CODERED_AGENT_PORT)" ]] || set_env CODERED_AGENT_PORT "5680"
@@ -128,7 +128,7 @@ step 9 "Verificando salud"
 docker compose ps
 docker compose exec -T app php artisan about
 if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] && docker compose config --services | grep -qx codered-agent; then
-    if curl --fail --silent http://127.0.0.1:5680/v1/health >/dev/null; then
+    if curl --fail --silent http://127.0.0.1:5680/healthz >/dev/null; then
         ok "CodeRED Agent saludable."
     else
         warn "CodeRED Agent no respondió al healthcheck. Últimos logs:"

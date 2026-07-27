@@ -33,12 +33,54 @@ export class CodeRED implements INodeType {
   }
 }
 
+async function agentRequest(this: IExecuteFunctions, c: CodeREDCredentials, method: 'GET' | 'POST', path: string, body?: unknown): Promise<any> {
+  return this.helpers.httpRequest({
+    method,
+    url: joinUrl(c.agentUrl || '', path),
+    body: body === undefined ? undefined : stableJson(body),
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+(c.agentLocalApiToken || '') },
+    json: true,
+    timeout: Number(c.timeoutMs || 15000),
+  });
+}
+
+async function testAgentConnection(this: IExecuteFunctions, c: CodeREDCredentials): Promise<any> {
+  const started = Date.now();
+  let status: any;
+
+  try {
+    status = await agentRequest.call(this, c, 'GET', '/api/v1/status');
+  } catch (error) {
+    throw new Error('No se puede acceder al agente o el token local es inválido.');
+  }
+
+  if (!status.paired) {
+    return { success: false, paired: false, message: 'El agente todavía no está emparejado.', status };
+  }
+
+  if (!status.platformConnected) {
+    return { success: false, paired: true, message: 'El agente está emparejado, pero Platform no confirmó conexión reciente.', status };
+  }
+
+  return {
+    success: true,
+    paired: true,
+    latencyMs: Date.now() - started,
+    challenge: status.capabilities > 0,
+    capabilities: status.capabilities,
+    workflows: status.workflows,
+    instanceId: status.instanceId,
+    status,
+  };
+}
+
 async function runOperation(this: IExecuteFunctions, c: CodeREDCredentials, op: string, i: number): Promise<any> {
-  if (op === 'agentStatus') return this.helpers.httpRequest({ method: 'GET', url: joinUrl(c.agentUrl || '', '/v1/status'), headers: { Authorization: 'Bearer '+(c.agentLocalApiToken || '') }, json: true });
-  if (op === 'pairAgent') return this.helpers.httpRequest({ method: 'POST', url: joinUrl(c.agentUrl || '', '/v1/pair'), body: stableJson({ pair_code: this.getNodeParameter('pairCode', i) || c.pairCode }), headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+(c.agentLocalApiToken || '') }, json: true });
-  if (op === 'agentDiscovery') return this.helpers.httpRequest({ method: 'POST', url: joinUrl(c.agentUrl || '', '/v1/discovery/sync'), headers: { Authorization: 'Bearer '+(c.agentLocalApiToken || '') }, json: true });
-  if (op === 'agentHeartbeat') return this.helpers.httpRequest({ method: 'POST', url: joinUrl(c.agentUrl || '', '/v1/heartbeat/send'), headers: { Authorization: 'Bearer '+(c.agentLocalApiToken || '') }, json: true });
-  if (op === 'agentReconnect') return this.helpers.httpRequest({ method: 'POST', url: joinUrl(c.agentUrl || '', '/v1/reconnect'), headers: { Authorization: 'Bearer '+(c.agentLocalApiToken || '') }, json: true });
+  if ((c.connectionMode || 'agent') === 'agent' && op === 'testConnection') return testAgentConnection.call(this, c);
+  if (op === 'agentStatus') return agentRequest.call(this, c, 'GET', '/api/v1/status');
+  if (op === 'pairAgent') return agentRequest.call(this, c, 'POST', '/v1/pair', { pair_code: this.getNodeParameter('pairCode', i) || c.pairCode });
+  if (op === 'agentDiscovery') return agentRequest.call(this, c, 'POST', '/v1/discovery/sync');
+  if (op === 'agentHeartbeat') return agentRequest.call(this, c, 'POST', '/v1/heartbeat/send');
+  if (op === 'agentReconnect') return agentRequest.call(this, c, 'POST', '/v1/reconnect');
   if (op === 'pairInstance') {
     const body = stableJson({ pair_code: this.getNodeParameter('pairCode', i) || c['pairCode'], instance_name: c.instanceName, instance_url: c.instanceUrl, environment: c.environment, n8n_version: process.env.N8N_VERSION || '2.x', connector_version: CONNECTOR_VERSION, protocol_version: c.protocolVersion || '1.0' });
     const response = await this.helpers.httpRequest({ method: 'POST', url: joinUrl(c.baseUrl, '/api/v1/integrations/n8n/pair'), body, headers: { 'Content-Type': 'application/json' }, json: true, timeout: 10000 });
