@@ -90,6 +90,24 @@ docker compose up -d codered-agent
 curl http://127.0.0.1:5680/healthz
 ```
 
+
+## Base PostgreSQL de n8n
+
+Durante la instalación, `Install_CodeRED-Platform.sh` puede configurar automáticamente PostgreSQL para n8n dentro de `codered-postgres`. El flujo crea o actualiza de forma idempotente el rol `n8n`, la base `n8n`, el propietario, privilegios sobre la base, permisos del esquema `public`, privilegios predeterminados y el archivo de entorno de n8n definido por `N8N_ENV_FILE`.
+
+El instalador solicita la contraseña de `n8n` con entrada oculta y confirmación. No imprime la contraseña y puede ejecutarse nuevamente para rotarla sin borrar datos existentes.
+
+Variables relevantes:
+
+```env
+N8N_ENV_FILE=/opt/n8n/.env
+DB_TYPE=postgresdb
+DB_POSTGRESDB_HOST=codered-postgres
+DB_POSTGRESDB_PORT=5432
+DB_POSTGRESDB_DATABASE=n8n
+DB_POSTGRESDB_USER=n8n
+DB_POSTGRESDB_PASSWORD=
+```
 ## Actualización
 
 ```bash

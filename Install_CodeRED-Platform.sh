@@ -98,6 +98,184 @@ configure_agent(){
     [[ "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" != "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] || die "Los secretos del agente deben ser diferentes."
 }
 
+ask_yes_no() {
+    local q="$1" d="${2:-s}" a
+    while true; do
+        if [[ "$d" == "s" ]]; then read -r -p "$q [S/n]: " a; a="${a:-s}"; else read -r -p "$q [s/N]: " a; a="${a:-n}"; fi
+        case "${a,,}" in s|si|sí|y|yes) return 0 ;; n|no) return 1 ;; *) warn "Responde s o n." ;; esac
+    done
+}
+
+prompt_secret_with_confirmation() {
+    local prompt="$1" first second
+    while true; do
+        read -r -s -p "$prompt: " first; echo
+        read -r -s -p "Confirme la contraseña para PostgreSQL n8n: " second; echo
+        [[ -z "$first" ]] && { warn "La contraseña no puede estar vacía."; continue; }
+        [[ "$first" != "$second" ]] && { warn "Las contraseñas no coinciden."; continue; }
+        REPLY="$first"
+        return
+    done
+}
+
+wait_for_postgres() {
+    local db_user="$1" attempts="${2:-40}"
+    command -v docker >/dev/null || die "Docker no está disponible."
+    docker inspect codered-postgres >/dev/null 2>&1 || die "No se encontró el contenedor codered-postgres."
+    [[ "$(docker inspect -f '{{.State.Running}}' codered-postgres 2>/dev/null)" == "true" ]] || die "El contenedor codered-postgres no está en ejecución."
+    info "Esperando a que codered-postgres esté disponible..."
+    for ((i=1; i<=attempts; i++)); do
+        if docker exec codered-postgres pg_isready -U "$db_user" -d postgres >/dev/null 2>&1; then
+            ok "PostgreSQL está disponible."
+            return
+        fi
+        sleep 3
+    done
+    die "PostgreSQL no estuvo disponible dentro del tiempo esperado."
+}
+
+postgres_role_exists() {
+    local db_user="$1"
+    [[ "$(docker exec codered-postgres psql -U "$db_user" -d postgres -Atqc "SELECT 1 FROM pg_roles WHERE rolname = 'n8n';" 2>/dev/null | tr -d '[:space:]')" == "1" ]]
+}
+
+postgres_database_exists() {
+    local db_user="$1"
+    [[ "$(docker exec codered-postgres psql -U "$db_user" -d postgres -Atqc "SELECT 1 FROM pg_database WHERE datname = 'n8n';" 2>/dev/null | tr -d '[:space:]')" == "1" ]]
+}
+
+quote_env_value() {
+    local value="$1"
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    value="${value//\$/\\\$}"
+    value="${value//\`/\\\`}"
+    printf '"%s"' "$value"
+}
+
+update_env_value_file() {
+    local file="$1" key="$2" value="$3" quote="${4:-false}" tmp
+    mkdir -p "$(dirname "$file")"
+    touch "$file"
+    chmod 600 "$file" 2>/dev/null || true
+    if [[ "$quote" == "true" ]]; then value="$(quote_env_value "$value")"; fi
+    tmp="$(mktemp)"
+    awk -v k="$key" -v v="$value" '
+        BEGIN{done=0}
+        index($0,k"=")==1 {print k"="v; done=1; next}
+        {print}
+        END{if(!done) print k"="v}
+    ' "$file" > "$tmp"
+    mv "$tmp" "$file"
+    chmod 600 "$file" 2>/dev/null || true
+}
+
+configure_n8n_env() {
+    local password="$1" n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"
+    update_env_value_file "$n8n_env_file" DB_TYPE postgresdb
+    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_HOST codered-postgres
+    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_PORT 5432
+    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_DATABASE n8n
+    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_USER n8n
+    update_env_value_file "$n8n_env_file" DB_POSTGRESDB_PASSWORD "$password" true
+    ok "Archivo de configuración de n8n actualizado."
+}
+
+verify_n8n_network() {
+    if ! docker inspect codered-n8n >/dev/null 2>&1; then
+        warn "El contenedor codered-n8n no existe todavía; se omite verificación de red."
+        return
+    fi
+    local postgres_networks n8n_networks shared
+    postgres_networks="$(docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' codered-postgres)"
+    n8n_networks="$(docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' codered-n8n)"
+    shared="$(comm -12 <(printf '%s\n' "$postgres_networks" | sort) <(printf '%s\n' "$n8n_networks" | sort) | head -n1 || true)"
+    if [[ -n "$shared" ]]; then
+        ok "codered-n8n comparte la red Docker '$shared' con codered-postgres."
+    else
+        warn "codered-n8n no comparte red con codered-postgres. Asegure una red común antes de iniciar n8n."
+    fi
+}
+
+configure_n8n_postgres() {
+    local password="$1" db_user role_exists validation
+    info "Configurando PostgreSQL para n8n..."
+    db_user="$(get_env DB_USERNAME)"
+    db_user="${db_user:-codered}"
+    wait_for_postgres "$db_user"
+
+    if postgres_role_exists "$db_user"; then
+        info "El usuario PostgreSQL n8n ya existe; se actualizará su contraseña."
+        role_exists=true
+    else
+        role_exists=false
+    fi
+
+    if ! docker exec -i -e N8N_DB_PASSWORD="$password" codered-postgres sh -s -- "$db_user" <<'SH' >/dev/null
+set -eu
+DB_USER="$1"
+PASSWORD_SQL="$(printf '%s' "$N8N_DB_PASSWORD" | sed "s/'/''/g")"
+psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d postgres <<SQL
+DO \$\$
+DECLARE
+    password_value text := '$PASSWORD_SQL';
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_roles
+        WHERE rolname = 'n8n'
+    ) THEN
+        EXECUTE format('CREATE ROLE n8n LOGIN PASSWORD %L', password_value);
+    ELSE
+        EXECUTE format('ALTER ROLE n8n WITH LOGIN PASSWORD %L', password_value);
+    END IF;
+END
+\$\$;
+SQL
+SH
+    then
+        die "No se pudo crear o actualizar el usuario PostgreSQL n8n."
+    fi
+    if [[ "$role_exists" == "true" ]]; then ok "Contraseña del usuario PostgreSQL n8n actualizada."; else ok "Usuario PostgreSQL n8n creado."; fi
+
+    if postgres_database_exists "$db_user"; then
+        info "La base de datos n8n ya existe; se conservarán sus datos."
+    else
+        docker exec codered-postgres psql -v ON_ERROR_STOP=1 -U "$db_user" -d postgres -c "CREATE DATABASE n8n OWNER n8n;" >/dev/null || die "No se pudo crear la base de datos n8n."
+        ok "Base de datos n8n creada."
+    fi
+
+    if ! docker exec codered-postgres psql -v ON_ERROR_STOP=1 -U "$db_user" -d postgres <<'SQL' >/dev/null
+ALTER DATABASE n8n OWNER TO n8n;
+GRANT ALL PRIVILEGES ON DATABASE n8n TO n8n;
+SQL
+    then
+        die "No se pudo configurar propietario o privilegios de la base n8n."
+    fi
+
+    if ! docker exec codered-postgres psql -v ON_ERROR_STOP=1 -U "$db_user" -d n8n <<'SQL' >/dev/null
+ALTER SCHEMA public OWNER TO n8n;
+GRANT ALL ON SCHEMA public TO n8n;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO n8n;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO n8n;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO n8n;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO n8n;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO n8n;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO n8n;
+SQL
+    then
+        die "No se pudo configurar privilegios del esquema public para n8n."
+    fi
+    ok "Propietario y privilegios de la base n8n configurados."
+
+    configure_n8n_env "$password"
+    verify_n8n_network
+
+    validation="$(docker exec -e PGPASSWORD="$password" codered-postgres psql -h 127.0.0.1 -U n8n -d n8n -Atqc "SELECT current_user || ':' || current_database();" 2>/dev/null || true)"
+    [[ "$validation" == "n8n:n8n" ]] || die "No se pudo validar la conexión PostgreSQL como usuario n8n."
+    ok "Conexión PostgreSQL n8n validada."
+    ok "Configuración PostgreSQL de n8n completada."
+}
 validate_env_file() {
     local invalid
     invalid="$(awk '/\r$/ {print NR ": retorno CR"; next} /^[[:space:]]*($|#)/ {next} !/^[A-Za-z_][A-Za-z0-9_]*=/ {print NR ": clave inválida"; next} {key=$0; sub(/=.*/, "", key); value=substr($0,index($0,"=")+1); if ((key=="DB_PASSWORD" || key=="DEV_ADMIN_PASSWORD" || key ~ /(_API_KEY|_TOKEN)$/) && value ~ /^"/) {print key; next} if (value ~ /^"([^"\\]|\\.)*"$/) next; if (value ~ /[[:space:]]/) print key}' "$ENV_FILE")"
@@ -149,6 +327,14 @@ unset DB_PASSWORD ADMIN_PASSWORD REPLY || true
 
 info "Construyendo e iniciando contenedores..."
 docker compose up -d --build
+if ask_yes_no "¿Deseas configurar la base de datos de n8n?" s; then
+    prompt_secret_with_confirmation "Ingrese la contraseña para PostgreSQL n8n"
+    N8N_DB_PASSWORD="$REPLY"
+    configure_n8n_postgres "$N8N_DB_PASSWORD"
+    unset N8N_DB_PASSWORD REPLY || true
+else
+    info "Configuración PostgreSQL de n8n omitida."
+fi
 info "Esperando Laravel..."
 for _ in {1..40}; do if docker compose exec -T app php artisan about >/dev/null 2>&1; then break; fi; sleep 3; done
 docker compose exec -T app php artisan about >/dev/null 2>&1 || die "Laravel no respondió a tiempo."

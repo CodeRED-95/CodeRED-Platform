@@ -6,6 +6,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Configuración automática de PostgreSQL para n8n desde `Install_CodeRED-Platform.sh`.
 - CodeRED Agent documentado como daemon persistente para Pairing, Discovery, Heartbeat y Capability Registry.
 - Configuración segura del agente en `.env.example` con secretos vacíos y guía `openssl rand -hex 32`.
 - Flujo interactivo del agente en `Install_CodeRED-Platform.sh`.
@@ -16,6 +17,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Changed
 
+- El instalador puede crear o actualizar el rol/base `n8n`, aplicar privilegios y escribir el entorno de n8n sin exponer secretos.
 - `docker-compose.yml` ahora toma URLs del agente desde `.env` en lugar de valores hardcodeados.
 - `README.md` describe la arquitectura actual con CodeRED Agent, n8n y conectores futuros.
 - La API local del agente valida challenge-response firmado desde CodeRED Platform.

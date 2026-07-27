@@ -193,3 +193,11 @@ docker compose up -d --build
 docker compose restart nginx app queue
 docker compose exec -T app php artisan optimize:clear
 ```
+
+## PostgreSQL para n8n
+
+El instalador pregunta si desea configurar la base PostgreSQL de n8n. Si se acepta, solicita una contraseña oculta para el usuario `n8n`, crea o actualiza el rol, crea la base `n8n` si no existe, conserva datos existentes, asigna propiedad y privilegios completos, y actualiza el archivo definido por `N8N_ENV_FILE` (`/opt/n8n/.env` por defecto).
+
+La operación es idempotente y no ejecuta comandos destructivos. En ejecuciones posteriores permite rotar la contraseña de PostgreSQL `n8n` y vuelve a aplicar privilegios sin borrar la base.
+
+El contenedor `codered-n8n`, si ya existe, debe compartir red Docker con `codered-postgres` para resolver el host `codered-postgres`.
