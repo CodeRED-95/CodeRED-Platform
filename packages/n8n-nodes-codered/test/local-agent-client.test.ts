@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildNodeError } from '../nodes/CodeRED/CodeRED.node';
 import { ConnectionManager } from '../nodes/CodeRED/ConnectionManager';
-import { callLocalAgent, LocalAgentHttpError, sanitizeOutput } from '../nodes/CodeRED/LocalAgentClient';
+import { callLocalAgent, LocalAgentHttpError, sanitizeOutput, toN8nValue } from '../nodes/CodeRED/LocalAgentClient';
+import type { INodeExecutionData } from 'n8n-workflow';
 import type { CodeREDCredentials } from '../nodes/CodeRED/GenericFunctions';
 
 const originalFetch = globalThis.fetch;
@@ -73,7 +74,9 @@ test('Pair Instance calls codered-agent and never sends identifiers or secrets f
   assert.equal(Object.hasOwn(calls[0]?.body || {}, 'instance_uuid'), false);
   assert.equal(Object.hasOwn(calls[0]?.body || {}, 'integration_uuid'), false);
   assert.equal(Object.hasOwn(calls[0]?.body || {}, 'shared_secret'), false);
-  assert.equal((result as Record<string, unknown>).shared_secret, '[redacted]');
+  assert.equal((result as Record<string, unknown>).shared_secret, 'must-not-leak');
+  const nodeOutput: INodeExecutionData = { json: sanitizeOutput(result) };
+  assert.equal(nodeOutput.json.shared_secret, '[redacted]');
 });
 
 test('local agent client rejects missing bearer token before calling fetch', async () => {
@@ -166,4 +169,49 @@ test('local agent client redacts HTTP error bodies', async () => {
       return true;
     },
   );
+});
+
+
+test('sanitizeOutput returns IDataObject-compatible serializable values', () => {
+  const date = new Date('2026-07-28T00:00:00.000Z');
+  const error = new Error('boom') as Error & { statusCode?: number };
+  error.statusCode = 422;
+
+  const output: INodeExecutionData = {
+    json: sanitizeOutput({
+      ok: true,
+      shared_secret: 'secret',
+      pair_code: 'CRD-SECRET',
+      removed: undefined,
+      date,
+      count: BigInt(7),
+      error,
+      values: [1, undefined, date, BigInt(3), { token: 'hidden' }],
+    }),
+  };
+
+  assert.deepEqual(output.json, {
+    ok: true,
+    shared_secret: '[redacted]',
+    pair_code: '[redacted]',
+    date: '2026-07-28T00:00:00.000Z',
+    count: '7',
+    error: { name: 'Error', message: 'boom', statusCode: 422 },
+    values: [1, null, '2026-07-28T00:00:00.000Z', '3', { token: '[redacted]' }],
+  });
+  assert.equal(Object.hasOwn(output.json, 'removed'), false);
+});
+
+test('sanitizeOutput wraps root scalar and root array for n8n json output', () => {
+  const scalar: INodeExecutionData = { json: sanitizeOutput('ready') };
+  const array: INodeExecutionData = { json: sanitizeOutput(['a', undefined, { apiKey: 'secret' }]) };
+
+  assert.deepEqual(scalar.json, { result: 'ready' });
+  assert.deepEqual(array.json, { result: ['a', null, { apiKey: '[redacted]' }] });
+});
+
+test('toN8nValue converts unsupported root values safely', () => {
+  assert.equal(toN8nValue(BigInt(9)), '9');
+  assert.equal(toN8nValue(undefined), null);
+  assert.match(String(toN8nValue(Symbol('x'))), /Symbol\(x\)/);
 });

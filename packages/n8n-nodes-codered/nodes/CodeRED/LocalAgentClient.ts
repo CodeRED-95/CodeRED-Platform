@@ -1,5 +1,9 @@
+import type { IDataObject, GenericValue } from 'n8n-workflow';
+
 const DEFAULT_AGENT_URL = 'http://codered-agent:5680';
 const SECRET_KEY_PATTERN = /secret|token|api_key|apiKey|authorization|pair_code|pairCode|signature/i;
+
+type N8nSerializable = GenericValue | IDataObject | GenericValue[] | IDataObject[];
 
 export interface LocalAgentRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -33,22 +37,93 @@ function ensureTrailingSlash(value: string): string {
   return value.endsWith('/') ? value : value + '/';
 }
 
-export function sanitizeOutput(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeOutput(item));
+function isSensitiveKey(key: string): boolean {
+  return SECRET_KEY_PATTERN.test(key);
+}
+
+function isBuffer(value: unknown): value is Buffer {
+  return typeof Buffer !== 'undefined' && Buffer.isBuffer(value);
+}
+
+export function toN8nValue(value: unknown): N8nSerializable {
+  if (value === undefined || value === null) {
+    return null;
   }
 
-  if (!value || typeof value !== 'object') {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
 
-  const output: Record<string, unknown> = {};
-
-  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    output[key] = SECRET_KEY_PATTERN.test(key) ? '[redacted]' : sanitizeOutput(item);
+  if (typeof value === 'bigint') {
+    return value.toString();
   }
 
-  return output;
+  if (typeof value === 'symbol' || typeof value === 'function') {
+    return String(value);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (value instanceof Error) {
+    const errorObject: IDataObject = {
+      name: value.name,
+      message: value.message,
+    };
+
+    if ('statusCode' in value && typeof value.statusCode === 'number') {
+      errorObject.statusCode = value.statusCode;
+    }
+
+    return errorObject;
+  }
+
+  if (isBuffer(value)) {
+    return value.toString('base64');
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      if (item === undefined) {
+        return null;
+      }
+
+      const converted = toN8nValue(item);
+
+      if (Array.isArray(converted)) {
+        return JSON.stringify(converted);
+      }
+
+      return converted;
+    }) as GenericValue[] | IDataObject[];
+  }
+
+  if (typeof value === 'object') {
+    const output: IDataObject = {};
+
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      if (item === undefined) {
+        continue;
+      }
+
+      output[key] = isSensitiveKey(key) ? '[redacted]' : toN8nValue(item);
+    }
+
+    return output;
+  }
+
+  return String(value);
+}
+
+export function sanitizeOutput(value: unknown): IDataObject {
+  const converted = toN8nValue(value);
+
+  if (converted !== null && typeof converted === 'object' && !Array.isArray(converted)) {
+    return converted;
+  }
+
+  return { result: converted };
 }
 
 export async function callLocalAgent<T>(path: string, options: LocalAgentRequestOptions = {}): Promise<T> {
@@ -93,7 +168,7 @@ export async function callLocalAgent<T>(path: string, options: LocalAgentRequest
       throw new LocalAgentHttpError(response.status, sanitizeOutput(parsed));
     }
 
-    return sanitizeOutput(parsed) as T;
+    return parsed as T;
   } catch (error) {
     if (error instanceof LocalAgentHttpError) {
       throw error;

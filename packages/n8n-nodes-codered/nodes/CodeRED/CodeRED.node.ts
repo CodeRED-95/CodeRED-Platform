@@ -41,7 +41,7 @@ export class CodeRED implements INodeType {
 
     for (let i = 0; i < this.getInputData().length || i === 0; i++) {
       try {
-        out.push({ json: sanitizeOutput(await runOperation.call(this, credentials, operation, i)) as Record<string, unknown> });
+        out.push({ json: sanitizeOutput(await runOperation.call(this, credentials, operation, i)) });
       } catch (error) {
         if (isNodeOperationError(error)) {
           throw error;
