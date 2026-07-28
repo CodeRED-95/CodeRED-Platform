@@ -21,7 +21,7 @@ class IntegrationProtocolService
 {
     public const PROTOCOL_VERSION = '1.0';
 
-    public const REQUIRED_CAPABILITIES = ['token.request.created', 'token.request.status', 'token.request.approved', 'integration.challenge', 'heartbeat'];
+    public const REQUIRED_CAPABILITIES = ['integration.challenge', 'integration.heartbeat', 'integration.discovery', 'integration.status'];
 
     public function canonicalPayload(string $method, string $path, string $timestamp, string $nonce, string $body): string
     {
@@ -63,12 +63,12 @@ class IntegrationProtocolService
                 'n8n_version' => $payload['n8n_version'] ?? null,
                 'connector_version' => $payload['connector_version'] ?? null,
                 'protocol_version' => $payload['protocol_version'] ?? self::PROTOCOL_VERSION,
-                'status' => IntegrationStatus::Connected,
+                'status' => IntegrationStatus::Pending,
                 'encrypted_secret' => Crypt::encryptString($secret),
                 'pending_encrypted_secret' => null,
                 'pending_secret_expires_at' => null,
-                'last_seen_at' => now(),
-                'connected_at' => now(),
+                'last_seen_at' => null,
+                'connected_at' => null,
                 'last_ip' => $ip,
                 'created_by' => $pairing->created_by,
             ]);
@@ -117,14 +117,14 @@ class IntegrationProtocolService
 
     public function heartbeat(Integration $integration, array $payload, int $latencyMs, ?string $ip = null, ?string $userAgent = null): void
     {
-        $integration->forceFill(['status' => IntegrationStatus::Connected, 'last_seen_at' => now(), 'latency_ms' => $latencyMs, 'last_ip' => $ip, 'protocol_version' => $payload['protocol_version'] ?? $integration->protocol_version, 'connector_version' => $payload['connector_version'] ?? $integration->connector_version, 'n8n_version' => $payload['n8n_version'] ?? $integration->n8n_version, 'version' => $payload['n8n_version'] ?? $payload['version'] ?? $integration->version, 'environment' => $payload['environment'] ?? $integration->environment])->save();
+        $integration->forceFill(['status' => IntegrationStatus::Connected, 'last_seen_at' => now(), 'connected_at' => $integration->connected_at ?: now(), 'latency_ms' => $latencyMs, 'last_ip' => $ip, 'protocol_version' => $payload['protocol_version'] ?? $integration->protocol_version, 'connector_version' => $payload['connector_version'] ?? $integration->connector_version, 'n8n_version' => $payload['n8n_version'] ?? $integration->n8n_version, 'version' => $payload['n8n_version'] ?? $payload['version'] ?? $integration->version, 'environment' => $payload['environment'] ?? $integration->environment])->save();
         $this->log($integration, 'Heartbeat', 'Heartbeat recibido.', ['latency_ms' => $latencyMs], ip: $ip, userAgent: $userAgent);
     }
 
     public function createPendingSecret(Integration $integration): void
     {
         $secret = bin2hex(random_bytes(32));
-        $integration->forceFill(['pending_encrypted_secret' => Crypt::encryptString($secret), 'pending_secret_expires_at' => now()->addMinutes(10)])->save();
+        $integration->forceFill(['status' => IntegrationStatus::SecretRotationPending, 'pending_encrypted_secret' => Crypt::encryptString($secret), 'pending_secret_expires_at' => now()->addMinutes(10)])->save();
         $this->log($integration, 'Secret Rotation', 'Secreto pendiente generado.');
     }
 
@@ -142,7 +142,7 @@ class IntegrationProtocolService
         if (blank($integration->pending_encrypted_secret)) {
             return;
         }
-        $integration->forceFill(['encrypted_secret' => $integration->pending_encrypted_secret, 'pending_encrypted_secret' => null, 'pending_secret_expires_at' => null, 'secret_rotated_at' => now()])->save();
+        $integration->forceFill(['status' => IntegrationStatus::Connected, 'encrypted_secret' => $integration->pending_encrypted_secret, 'pending_encrypted_secret' => null, 'pending_secret_expires_at' => null, 'secret_rotated_at' => now()])->save();
         $this->log($integration, 'Secret Rotation', 'Secreto pendiente confirmado.');
     }
 

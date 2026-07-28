@@ -1,7 +1,7 @@
 # Troubleshooting
 
 - 401 local: revise CODERED_AGENT_LOCAL_API_TOKEN.
-- unpaired: ejecute /v1/pair.
+- unpaired: ejecute `POST /api/v1/pair` desde el nodo n8n o con un Pair Code vigente.
 - requires_repairing: el secreto ya no valida, genere nuevo Pair Code.
 - revoked: revise auditoría en Platform; no se borra evidencia automáticamente.
 

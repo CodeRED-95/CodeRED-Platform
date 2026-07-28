@@ -14,12 +14,13 @@ export class PairingService {
         this.heartbeat = heartbeat;
         this.logger = logger;
     }
-    async pair(pairCode) {
+    async pair(input) {
+        const pairCode = input.pairCode?.trim();
         if (!pairCode) {
-            throw new Error('pair_code is required');
+            throw new Error('pairCode is required');
         }
         this.logger.info('pairing.started');
-        const response = await this.client.pair(pairCode);
+        const response = await this.client.pair({ ...input, pairCode });
         const data = response.data;
         if (!data?.integration_uuid || !data.shared_secret) {
             this.logger.error('pairing.failed', { reason: 'invalid_platform_response' });
@@ -35,10 +36,14 @@ export class PairingService {
             agent_name: this.config.name,
             environment: this.config.environment,
             secret_version: 1,
+            discovery_url: data.discovery_url || '/api/v1/integrations/n8n/discovery',
+            heartbeat_url: data.heartbeat_url || '/api/v1/integrations/n8n/heartbeat',
+            challenge_url: data.challenge_url || '/api/v1/integrations/n8n/challenge',
         };
         try {
             await this.storage.saveIntegration(integration);
             this.client.setPairing(integration);
+            this.logger.info('pairing.persisted', { instanceId: integration.integration_uuid });
         }
         catch (error) {
             this.client.clearPairing();
@@ -50,14 +55,13 @@ export class PairingService {
         this.logger.info('pairing.completed', { instanceId: data.integration_uuid, heartbeatSent, discoveryCompleted });
         return {
             success: true,
-            paired: true,
+            paired: this.client.isPaired(),
             instanceId: data.integration_uuid,
-            integration_uuid: data.integration_uuid,
-            paired_at: pairedAt,
+            protocolVersion: integration.protocol_version,
+            pairedAt,
             platformConnected: heartbeatSent,
+            heartbeatCompleted: heartbeatSent,
             discoveryCompleted,
-            capabilities: this.discovery.capabilityCount,
-            workflows: this.discovery.workflowCount,
         };
     }
 }

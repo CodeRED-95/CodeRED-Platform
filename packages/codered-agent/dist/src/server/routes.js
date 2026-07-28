@@ -68,14 +68,11 @@ function statusPayload(config, integration, heartbeat, discovery, client) {
         paired: client.isPaired(),
         platformConnected: heartbeat.status === 'connected',
         instanceId: integration?.integration_uuid || null,
-        integration_uuid: integration?.integration_uuid || null,
-        platform_url: config.platformUrl,
         agent_version: '1.0.0',
         protocol_version: integration?.protocol_version || '1.0',
         lastHeartbeatAt: heartbeat.lastHeartbeatAt,
-        last_heartbeat_at: heartbeat.lastHeartbeatAt,
         lastDiscoveryAt: discovery.lastDiscoveryAt,
-        last_discovery_at: discovery.lastDiscoveryAt,
+        heartbeatAgeSeconds: heartbeat.lastHeartbeatAt ? Math.max(0, Math.round((Date.now() - Date.parse(heartbeat.lastHeartbeatAt)) / 1000)) : null,
         latencyMs: heartbeat.latencyMs,
         capabilities: discovery.capabilityCount,
         workflows: discovery.workflowCount,
@@ -105,7 +102,7 @@ export function createRouter(config, storage, pairing, discovery, heartbeat, rec
                 }
                 return json(res, 200, statusPayload(config, client.currentIntegration(), heartbeat, discovery, client));
             }
-            if (req.method === 'POST' && url === '/v1/pair') {
+            if (req.method === 'POST' && (url === '/v1/pair' || url === '/api/v1/pair')) {
                 const now = Date.now();
                 pairHits = pairHits.filter((hit) => now - hit < 60_000);
                 if (pairHits.length >= 5) {
@@ -113,17 +110,61 @@ export function createRouter(config, storage, pairing, discovery, heartbeat, rec
                 }
                 pairHits.push(now);
                 const { json: payload } = await readBody(req);
-                return json(res, 200, await pairing.pair(String(payload.pair_code || '')));
+                return json(res, 200, await pairing.pair({
+                    pairCode: String(payload.pairCode || payload.pair_code || ''),
+                    instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : undefined,
+                    publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : undefined,
+                    environment: typeof payload.environment === 'string' ? payload.environment : undefined,
+                }));
             }
-            if (req.method === 'POST' && url === '/v1/discovery/sync') {
+            if (req.method === 'POST' && (url === '/v1/discovery/sync' || url === '/api/v1/discovery/sync')) {
                 const registered = await discovery.sync(true);
                 return json(res, 200, { success: true, registered, capabilities: discovery.capabilityCount, workflows: discovery.workflowCount });
             }
-            if (req.method === 'POST' && url === '/v1/heartbeat/send') {
+            if (req.method === 'POST' && (url === '/v1/heartbeat/send' || url === '/api/v1/heartbeat/send')) {
                 return json(res, 200, { success: await heartbeat.send(), status: heartbeat.status, latencyMs: heartbeat.latencyMs });
             }
-            if (req.method === 'POST' && url === '/v1/reconnect') {
+            if (req.method === 'POST' && (url === '/v1/reconnect' || url === '/api/v1/reconnect')) {
+                const { json: payload } = await readBody(req);
+                const pairCode = String(payload.pairCode || payload.pair_code || '').trim();
+                if (pairCode) {
+                    return json(res, 200, await pairing.pair({
+                        pairCode,
+                        instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : undefined,
+                        publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : undefined,
+                        environment: typeof payload.environment === 'string' ? payload.environment : undefined,
+                    }));
+                }
                 return json(res, 200, { success: true, status: await reconnect.start() });
+            }
+            if (req.method === 'POST' && url === '/api/v1/test-connection') {
+                const integration = client.currentIntegration() ?? await storage.readIntegration();
+                if (!integration) {
+                    return json(res, 409, { success: false, paired: false, message: 'El agente todavía no está emparejado.' });
+                }
+                client.setPairing(integration);
+                const started = Date.now();
+                let challengeCompleted = false;
+                let heartbeatCompleted = false;
+                try {
+                    await client.signed('POST', integration.challenge_url || '/api/v1/integrations/n8n/challenge', { challenge: crypto.randomUUID(), sent_at: new Date().toISOString() });
+                    challengeCompleted = true;
+                }
+                catch (error) {
+                    logger.warn('test_connection.challenge_failed', { error: error instanceof Error ? error.message : 'Unknown challenge error' });
+                }
+                heartbeatCompleted = await heartbeat.send();
+                return json(res, 200, {
+                    success: challengeCompleted && heartbeatCompleted && discovery.capabilityCount > 0,
+                    paired: true,
+                    platformConnected: heartbeat.status === 'connected',
+                    latencyMs: Date.now() - started,
+                    challengeCompleted,
+                    heartbeatCompleted,
+                    capabilities: discovery.capabilityCount,
+                    workflows: discovery.workflowCount,
+                    lastError: heartbeat.lastError || discovery.lastError,
+                });
             }
             if (req.method === 'POST' && url === '/v1/integration/disconnect') {
                 await storage.clearIntegration();

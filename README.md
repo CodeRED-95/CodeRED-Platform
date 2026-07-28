@@ -140,7 +140,7 @@ El menú incluye operaciones de plataforma y un submenú de CodeRED Agent para v
 ## Solución de problemas
 
 - `Missing required configuration: CODERED_AGENT_ENCRYPTION_KEY`: genere un secreto con `openssl rand -hex 32` y persístalo en `.env`.
-- `NodeOperationError`: revise si la credencial n8n usa modo Agent o Legacy y confirme que no espera `shared_secret` en outputs.
+- `NodeOperationError`: revise `agentBaseUrl`, `localApiToken`, el endpoint local y el cuerpo saneado que ahora conserva código HTTP, operación y causa. n8n no debe esperar `shared_secret` en outputs.
 - `Duplicate column`: no edite migraciones antiguas; cree una migración nueva o revise `php artisan migrate:status`.
 - `integration.challenge no publicado`: ejecute discovery desde el agente o revise la capacidad `integration.challenge`.
 - Heartbeat antiguo: verifique `docker compose logs -f codered-agent` y `/api/v1/status`.

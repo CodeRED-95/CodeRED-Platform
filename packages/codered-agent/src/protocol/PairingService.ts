@@ -6,6 +6,13 @@ import { CodeREDClient } from './CodeREDClient.js';
 import { DiscoveryService } from './DiscoveryService.js';
 import { HeartbeatService } from './HeartbeatService.js';
 
+interface PairingInput {
+  pairCode: string;
+  instanceName?: string;
+  publicUrl?: string;
+  environment?: string;
+}
+
 interface PairingResponse {
   success?: boolean;
   data?: {
@@ -13,6 +20,9 @@ interface PairingResponse {
     shared_secret?: string;
     protocol_version?: string;
     paired_at?: string;
+    discovery_url?: string;
+    heartbeat_url?: string;
+    challenge_url?: string;
   };
 }
 
@@ -26,13 +36,15 @@ export class PairingService {
     private logger = new Logger(config.logLevel),
   ) {}
 
-  public async pair(pairCode: string): Promise<Record<string, unknown>> {
+  public async pair(input: PairingInput): Promise<Record<string, unknown>> {
+    const pairCode = input.pairCode?.trim();
+
     if (!pairCode) {
-      throw new Error('pair_code is required');
+      throw new Error('pairCode is required');
     }
 
     this.logger.info('pairing.started');
-    const response = await this.client.pair(pairCode) as PairingResponse;
+    const response = await this.client.pair({ ...input, pairCode }) as PairingResponse;
     const data = response.data;
 
     if (!data?.integration_uuid || !data.shared_secret) {
@@ -50,11 +62,15 @@ export class PairingService {
       agent_name: this.config.name,
       environment: this.config.environment,
       secret_version: 1,
+      discovery_url: data.discovery_url || '/api/v1/integrations/n8n/discovery',
+      heartbeat_url: data.heartbeat_url || '/api/v1/integrations/n8n/heartbeat',
+      challenge_url: data.challenge_url || '/api/v1/integrations/n8n/challenge',
     };
 
     try {
       await this.storage.saveIntegration(integration);
       this.client.setPairing(integration);
+      this.logger.info('pairing.persisted', { instanceId: integration.integration_uuid });
     } catch (error) {
       this.client.clearPairing();
       this.logger.error('pairing.persistence_failed', { error: error instanceof Error ? error.message : 'Unknown persistence error' });
@@ -67,14 +83,13 @@ export class PairingService {
 
     return {
       success: true,
-      paired: true,
+      paired: this.client.isPaired(),
       instanceId: data.integration_uuid,
-      integration_uuid: data.integration_uuid,
-      paired_at: pairedAt,
+      protocolVersion: integration.protocol_version,
+      pairedAt,
       platformConnected: heartbeatSent,
+      heartbeatCompleted: heartbeatSent,
       discoveryCompleted,
-      capabilities: this.discovery.capabilityCount,
-      workflows: this.discovery.workflowCount,
     };
   }
 }

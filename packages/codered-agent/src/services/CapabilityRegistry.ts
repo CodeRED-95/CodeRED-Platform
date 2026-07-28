@@ -14,8 +14,8 @@ export class CapabilityRegistry {
       { service: 'agent.health', method: 'GET', url: `${publicUrl}/healthz`, version: '1.0' },
       { service: 'integration.status', method: 'GET', url: `${publicUrl}/api/v1/status`, version: '1.0' },
       { service: 'integration.challenge', method: 'POST', url: `${publicUrl}/v1/challenge`, version: '1.0' },
-      { service: 'integration.discovery', method: 'POST', url: `${publicUrl}/v1/discovery/sync`, version: '1.0' },
-      { service: 'integration.heartbeat', method: 'POST', url: `${publicUrl}/v1/heartbeat/send`, version: '1.0' },
+      { service: 'integration.discovery', method: 'POST', url: `${publicUrl}/api/v1/discovery/sync`, version: '1.0' },
+      { service: 'integration.heartbeat', method: 'POST', url: `${publicUrl}/api/v1/heartbeat/send`, version: '1.0' },
     ];
   }
 

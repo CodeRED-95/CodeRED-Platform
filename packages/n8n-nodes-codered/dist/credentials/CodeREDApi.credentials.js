@@ -6,21 +6,15 @@ class CodeREDApi {
     displayName = 'CodeRED API';
     documentationUrl = 'https://docs.codered.local/integrations/n8n-connector';
     properties = [
-        { displayName: 'Connection Mode', name: 'connectionMode', type: 'options', default: 'agent', options: [{ name: 'Through CodeRED Agent', value: 'agent' }, { name: 'Direct to Platform (Legacy)', value: 'direct' }] },
-        { displayName: 'Agent URL', name: 'agentUrl', type: 'string', default: 'http://codered-agent:5680', required: true },
-        { displayName: 'Agent Local API Token', name: 'agentLocalApiToken', type: 'string', typeOptions: { password: true }, default: '' },
-        { displayName: 'Agent Timeout (ms)', name: 'timeoutMs', type: 'number', default: 15000 },
-        { displayName: 'CodeRED Platform URL', name: 'baseUrl', type: 'string', default: '', placeholder: 'https://codered.example.com', required: true },
+        { displayName: 'Agent Base URL', name: 'agentBaseUrl', type: 'string', default: 'http://codered-agent:5680', required: true },
+        { displayName: 'Local API Token', name: 'localApiToken', type: 'string', typeOptions: { password: true }, default: '', required: true },
+        { displayName: 'Timeout (ms)', name: 'timeoutMs', type: 'number', default: 15000 },
         { displayName: 'Instance Name', name: 'instanceName', type: 'string', default: 'n8n Production', required: true },
-        { displayName: 'Public n8n URL', name: 'instanceUrl', type: 'string', default: '', placeholder: 'https://n8n.example.com', required: true },
+        { displayName: 'Public URL', name: 'publicUrl', type: 'string', default: '', placeholder: 'https://n8n.example.com', required: true },
         { displayName: 'Environment', name: 'environment', type: 'options', default: 'production', options: [
                 { name: 'Production', value: 'production' }, { name: 'Development', value: 'development' }, { name: 'Testing', value: 'testing' }, { name: 'Lab', value: 'lab' }
             ] },
-        { displayName: 'Pair Code', name: 'pairCode', type: 'string', default: '', placeholder: 'CRD-72FK91', typeOptions: { password: true }, description: 'Only used for the initial pairing. It is cleared after pairing.' },
-        { displayName: 'Integration UUID', name: 'integrationUuid', type: 'hidden', default: '' },
-        { displayName: 'Shared Secret', name: 'sharedSecret', type: 'hidden', typeOptions: { password: true }, default: '' },
-        { displayName: 'Protocol Version', name: 'protocolVersion', type: 'hidden', default: '1.0' },
-        { displayName: 'Connector Version', name: 'connectorVersion', type: 'hidden', default: '1.0.0' }
+        { displayName: 'Allow Unauthorized Certs', name: 'allowUnauthorizedCerts', type: 'boolean', default: false }
     ];
 }
 exports.CodeREDApi = CodeREDApi;

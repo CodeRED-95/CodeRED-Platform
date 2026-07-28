@@ -8,4 +8,4 @@ Official self-hosted n8n connector for CodeRED Platform. Secrets are stored only
 
 ## Credential
 
-Create a CodeREDApi credential, enter CodeRED URL, instance metadata and a temporary Pair Code from CodeRED. Run the CodeRED node operation Pair Instance once, then store returned integration UUID and shared secret in the credential fields.
+Create a CodeREDApi credential with the local CodeRED Agent URL, local API token, timeout, instance name, public URL and environment. Run Pair Instance with a temporary Pair Code from CodeRED Platform; the node sends it to codered-agent and never receives or stores the shared secret.

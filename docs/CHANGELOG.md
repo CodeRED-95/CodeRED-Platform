@@ -17,6 +17,10 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Changed
 
+- Pair Instance, Test Connection y Reconnect del nodo n8n ahora se ejecutan exclusivamente a través de `codered-agent`; la credencial ya no guarda estado de pairing ni `shared_secret`.
+- `codered-agent` expone `/api/v1/pair`, `/api/v1/status`, `/api/v1/test-connection` y `/api/v1/reconnect` protegidos por `localApiToken`, persiste el pairing cifrado en `/data` y devuelve respuestas saneadas.
+- Platform debe considerar `connected` solo con heartbeat reciente; el pairing histórico sin confirmación del agente se trata como estado incompleto o degradado.
+
 - El instalador puede crear o actualizar el rol/base `n8n`, aplicar privilegios y escribir el entorno de n8n sin exponer secretos.
 - `docker-compose.yml` ahora toma URLs del agente desde `.env` en lugar de valores hardcodeados.
 - `README.md` describe la arquitectura actual con CodeRED Agent, n8n y conectores futuros.

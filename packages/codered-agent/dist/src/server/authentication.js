@@ -7,7 +7,7 @@ export function requireAuth(req, res, config) {
     const authorization = req.headers.authorization || '';
     if (authorization !== `Bearer ${config.localApiToken}`) {
         res.writeHead(401, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ success: false, message: 'Unauthorized' }));
+        res.end(JSON.stringify({ success: false, message: 'Unauthorized', errorCode: 'local_api_token_invalid' }));
         return false;
     }
     return true;

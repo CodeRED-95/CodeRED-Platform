@@ -48,8 +48,8 @@ class Integration extends Model
             return 'revoked';
         }
         $lastSeen = $this->lastSeenAt();
-        if ($lastSeen === null) {
-            return 'disconnected';
+        if ($this->statusValue() === IntegrationStatus::Pending->value || $lastSeen === null) {
+            return 'unpaired';
         }
         if ($lastSeen->gt(now()->subMinutes(3))) {
             return 'connected';
@@ -68,7 +68,18 @@ class Integration extends Model
 
     public function isOnline(): bool
     {
-        return $this->lastSeenAt()?->gt(now()->subMinutes(3)) ?? false;
+        return $this->connectionStatus() === 'connected';
+    }
+
+    public function connectionLabel(): string
+    {
+        return match ($this->connectionStatus()) {
+            'connected' => 'Conectado',
+            'degraded' => 'Degradado',
+            'revoked' => 'Revocado',
+            'unpaired' => 'Agente sin confirmar',
+            default => 'Desconectado',
+        };
     }
 
     public function lastSeenAt(): ?Carbon

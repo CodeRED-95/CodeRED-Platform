@@ -1,19 +1,17 @@
 import crypto from 'crypto';
 
 export interface CodeREDCredentials {
-  baseUrl: string;
+  agentBaseUrl?: string;
+  localApiToken?: string;
+  timeoutMs?: number | string;
+  allowUnauthorizedCerts?: boolean;
+  instanceName?: string;
+  publicUrl?: string;
+  environment?: string;
+  baseUrl?: string;
   integrationUuid?: string;
   sharedSecret?: string;
-  instanceName?: string;
-  instanceUrl?: string;
-  environment?: string;
   protocolVersion?: string;
-  connectorVersion?: string;
-  pairCode?: string;
-  connectionMode?: string;
-  agentUrl?: string;
-  agentLocalApiToken?: string;
-  timeoutMs?: number | string;
 }
 
 

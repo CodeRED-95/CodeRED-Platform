@@ -24,13 +24,13 @@ export class CodeREDClient {
     clearPairing() {
         this.integration = null;
     }
-    async pair(pairCode) {
+    async pair(input) {
         const body = stableJson({
-            pair_code: pairCode,
-            instance_name: this.config.name,
-            instance_url: this.config.publicUrl,
-            environment: this.config.environment,
-            n8n_version: null,
+            pair_code: input.pairCode,
+            instance_name: input.instanceName || this.config.name,
+            instance_url: input.publicUrl || this.config.publicUrl,
+            environment: input.environment || this.config.environment,
+            n8n_version: process.env.N8N_VERSION || null,
             connector_version: 'codered-agent/1.0.0',
             protocol_version: '1.0',
         });
