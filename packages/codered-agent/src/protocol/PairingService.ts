@@ -2,17 +2,12 @@ import type { Config } from '../config/Config.js';
 import { Logger } from '../logging/Logger.js';
 import type { AgentStorage } from '../storage/AgentStorage.js';
 import type { StoredIntegration } from '../storage/types.js';
+import type { LocalPairRequest, PlatformPairRequest } from './PairRequests.js';
 import { CodeREDClient } from './CodeREDClient.js';
 import { DiscoveryService } from './DiscoveryService.js';
 import { HeartbeatService } from './HeartbeatService.js';
 
-export interface PairingInput {
-  pairCode: string;
-  instanceName?: string;
-  publicUrl?: string;
-  environment?: string;
-  version?: string;
-}
+export type PairingInput = LocalPairRequest;
 
 interface PairingResponse {
   success?: boolean;
@@ -38,7 +33,7 @@ export class PairingService {
   ) {}
 
   public async pair(input: PairingInput): Promise<Record<string, unknown>> {
-    const pairCode = input.pairCode?.trim();
+    const pairCode = input.pair_code?.trim();
 
     if (!pairCode) {
       throw new Error('pairCode is required');
@@ -46,8 +41,8 @@ export class PairingService {
 
     const identity = await this.storage.ensureIdentity(this.config.name);
     const instanceUuid = identity.instance_uuid;
-    const instanceName = input.instanceName || this.config.name;
-    const instanceUrl = input.publicUrl || this.config.publicUrl;
+    const instanceName = input.instance_name || this.config.name;
+    const instanceUrl = input.instance_url || this.config.publicUrl;
     const environment = input.environment || this.config.environment;
 
     this.logger.info('identity.instance_uuid.loaded', { instance_uuid: instanceUuid });
@@ -59,7 +54,18 @@ export class PairingService {
       pair_code_present: true,
     });
     this.logger.info('pairing.started', { instanceUuid });
-    const response = await this.client.pair({ ...input, pairCode, instanceUuid, instanceName, publicUrl: instanceUrl, environment }) as PairingResponse;
+
+    const platformPayload: PlatformPairRequest = {
+      pair_code: pairCode,
+      instance_uuid: instanceUuid,
+      instance_name: instanceName,
+      instance_url: instanceUrl,
+      environment,
+      version: input.version,
+      agent_version: '1.0.0',
+    };
+
+    const response = await this.client.pair(platformPayload) as PairingResponse;
     const data = response.data;
 
     if (!data?.integration_uuid || !data.shared_secret) {

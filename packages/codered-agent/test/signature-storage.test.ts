@@ -6,6 +6,10 @@ import path from 'node:path';
 import { sanitize } from '../src/logging/Logger.js';
 import { canonicalPayload, sign, stableJson } from '../src/protocol/RequestSigner.js';
 import { CodeREDClient } from '../src/protocol/CodeREDClient.js';
+import { DiscoveryService } from '../src/protocol/DiscoveryService.js';
+import { HeartbeatService } from '../src/protocol/HeartbeatService.js';
+import { PairingService } from '../src/protocol/PairingService.js';
+import type { PlatformPairRequest } from '../src/protocol/PairRequests.js';
 import { EncryptedFileStorage } from '../src/storage/EncryptedFileStorage.js';
 import { createStoredIntegration } from './helpers/createStoredIntegration.js';
 
@@ -83,6 +87,51 @@ test('encrypted storage roundtrip preserves identity and file mode', async () =>
   assert.equal(stat.mode & 0o777, 0o600);
 });
 
+test('agent pairing adds persisted instance_uuid before calling Platform', async () => {
+  const cfg = config();
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'codered-agent-'));
+  const st = new EncryptedFileStorage(dir, cfg.encryptionKey);
+  const identity = await st.ensureIdentity('CodeRED n8n Agent');
+
+  class CapturingClient extends CodeREDClient {
+    public payloads: PlatformPairRequest[] = [];
+
+    public override async pair(payload: PlatformPairRequest): Promise<Record<string, unknown>> {
+      this.payloads.push(payload);
+
+      return {
+        success: true,
+        data: {
+          integration_uuid: '00000000-0000-4000-8000-000000000031',
+          shared_secret: 'secret-from-platform',
+          protocol_version: '1.0',
+          paired_at: '2026-07-28T00:00:00.000Z',
+        },
+      };
+    }
+  }
+
+  const client = new CapturingClient(cfg, st);
+  const discovery = new DiscoveryService(cfg, client);
+  const heartbeat = new HeartbeatService(cfg, client);
+  const pairing = new PairingService(cfg, st, client, discovery, heartbeat);
+
+  await pairing.pair({
+    pair_code: 'CRD-TEST',
+    instance_name: 'n8n Production',
+    instance_url: 'https://n8n.codered.host/',
+    environment: 'production',
+    version: '2.31.4',
+  });
+
+  assert.equal(client.payloads[0]?.instance_uuid, identity.instance_uuid);
+  assert.equal(client.payloads[0]?.pair_code, 'CRD-TEST');
+  assert.equal(client.payloads[0]?.instance_name, 'n8n Production');
+  assert.equal(client.payloads[0]?.instance_url, 'https://n8n.codered.host/');
+  assert.equal(client.payloads[0]?.environment, 'production');
+  assert.equal(client.payloads[0]?.agent_version, '1.0.0');
+});
+
 test('pair request sends persistent instance_uuid using snake_case', async () => {
   const cfg = config();
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'codered-agent-'));
@@ -99,12 +148,13 @@ test('pair request sends persistent instance_uuid using snake_case', async () =>
 
   try {
     await client.pair({
-      pairCode: 'CRD-TEST',
-      instanceUuid: '00000000-0000-4000-8000-000000000030',
-      instanceName: 'n8n Production',
-      publicUrl: 'https://n8n.example.test',
+      pair_code: 'CRD-TEST',
+      instance_uuid: '00000000-0000-4000-8000-000000000030',
+      instance_name: 'n8n Production',
+      instance_url: 'https://n8n.example.test',
       environment: 'production',
       version: '2.31.4',
+      agent_version: '1.0.0',
     });
   } finally {
     globalThis.fetch = originalFetch;

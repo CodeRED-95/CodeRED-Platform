@@ -164,11 +164,11 @@ export function createRouter(
         const { json: payload } = await readBody(req);
 
         return json(res, 200, await connectionManager.connect({
-          pairCode: String(payload.pairCode || payload.pair_code || ''),
-          instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : typeof payload.instance_name === 'string' ? payload.instance_name : undefined,
-          publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : typeof payload.instance_url === 'string' ? payload.instance_url : undefined,
+          pair_code: String(payload.pairCode || payload.pair_code || ''),
+          instance_name: typeof payload.instanceName === 'string' ? payload.instanceName : typeof payload.instance_name === 'string' ? payload.instance_name : config.name,
+          instance_url: typeof payload.publicUrl === 'string' ? payload.publicUrl : typeof payload.instance_url === 'string' ? payload.instance_url : config.publicUrl,
           version: typeof payload.version === 'string' ? payload.version : undefined,
-          environment: typeof payload.environment === 'string' ? payload.environment : undefined,
+          environment: typeof payload.environment === 'string' ? payload.environment : config.environment,
         }));
       }
 
@@ -187,11 +187,11 @@ export function createRouter(
         const pairCode = String(payload.pairCode || payload.pair_code || '').trim();
         if (pairCode) {
           return json(res, 200, await connectionManager.reconnectWithPairCode({
-            pairCode,
-            instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : typeof payload.instance_name === 'string' ? payload.instance_name : undefined,
-            publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : typeof payload.instance_url === 'string' ? payload.instance_url : undefined,
+            pair_code: pairCode,
+            instance_name: typeof payload.instanceName === 'string' ? payload.instanceName : typeof payload.instance_name === 'string' ? payload.instance_name : config.name,
+            instance_url: typeof payload.publicUrl === 'string' ? payload.publicUrl : typeof payload.instance_url === 'string' ? payload.instance_url : config.publicUrl,
             version: typeof payload.version === 'string' ? payload.version : undefined,
-            environment: typeof payload.environment === 'string' ? payload.environment : undefined,
+            environment: typeof payload.environment === 'string' ? payload.environment : config.environment,
           }));
         }
 

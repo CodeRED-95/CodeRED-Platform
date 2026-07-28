@@ -1,6 +1,8 @@
 import type { Config } from '../config/Config.js';
 import type { AgentStorage } from '../storage/AgentStorage.js';
 import type { StoredIntegration } from '../storage/types.js';
+import { Logger } from '../logging/Logger.js';
+import type { PlatformPairRequest } from './PairRequests.js';
 import { AgentUnpairedError } from '../errors/AgentUnpairedError.js';
 import { signedHeaders, stableJson } from './RequestSigner.js';
 
@@ -9,7 +11,7 @@ export type HttpError = Error & { status?: number; retryAfter?: string };
 export class CodeREDClient {
   private integration: StoredIntegration | null = null;
 
-  public constructor(private config: Config, private storage: AgentStorage) {}
+  public constructor(private config: Config, private storage: AgentStorage, private logger = new Logger(config.logLevel)) {}
 
   public async restorePairing(): Promise<boolean> {
     this.integration = await this.storage.readIntegration();
@@ -33,18 +35,28 @@ export class CodeREDClient {
     this.integration = null;
   }
 
-  public async pair(input: { pairCode: string; instanceUuid: string; instanceName?: string; publicUrl?: string; environment?: string; version?: string }): Promise<Record<string, unknown>> {
+  public async pair(payload: PlatformPairRequest): Promise<Record<string, unknown>> {
     const body = stableJson({
-      pair_code: input.pairCode,
-      instance_uuid: input.instanceUuid,
-      instance_name: input.instanceName || this.config.name,
-      instance_url: input.publicUrl || this.config.publicUrl,
-      environment: input.environment || this.config.environment,
-      n8n_version: input.version || process.env.N8N_VERSION || null,
-      version: input.version || process.env.N8N_VERSION || null,
-      agent_version: '1.0.0',
+      pair_code: payload.pair_code,
+      instance_uuid: payload.instance_uuid,
+      instance_name: payload.instance_name,
+      instance_url: payload.instance_url,
+      environment: payload.environment,
+      n8n_version: payload.version || process.env.N8N_VERSION || null,
+      version: payload.version || process.env.N8N_VERSION || null,
+      agent_version: payload.agent_version || '1.0.0',
       connector_version: 'codered-agent/1.0.0',
       protocol_version: '1.0',
+    });
+    const bodyKeys = Object.keys(JSON.parse(body) as Record<string, unknown>);
+
+    this.logger.info('pair.platform_request', {
+      instance_uuid: payload.instance_uuid,
+      instance_name: payload.instance_name,
+      instance_url: payload.instance_url,
+      environment: payload.environment,
+      pair_code_present: Boolean(payload.pair_code),
+      payload_keys: bodyKeys,
     });
 
     return this.raw('POST', '/api/v1/integrations/n8n/pair', body, null);
