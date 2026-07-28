@@ -83,7 +83,8 @@ export function createRouter(config, storage, connectionManager, discovery, hear
                 if (!client.isPaired()) {
                     await client.restorePairing();
                 }
-                return json(res, 200, { status: connectionManager.status().state.toLowerCase(), ...connectionManager.status() });
+                const snapshot = connectionManager.status();
+                return json(res, 200, { status: snapshot.state.toLowerCase(), state: snapshot.state.toLowerCase(), paired: snapshot.paired, platform_reachable: snapshot.platformConnected, platformReachable: snapshot.platformConnected, integration_uuid: snapshot.instanceId, instanceId: snapshot.instanceId, last_heartbeat_at: snapshot.lastHeartbeatAt, last_discovery_at: snapshot.lastDiscoveryAt, heartbeat_failures: heartbeat.failures, heartbeatAgeSeconds: snapshot.heartbeatAgeSeconds, latencyMs: snapshot.latencyMs, capabilities: snapshot.capabilities, workflows: snapshot.workflows, lastError: snapshot.lastError });
             }
             if (req.method === 'POST' && (url === '/v1/pair' || url === '/api/v1/pair')) {
                 const now = Date.now();
@@ -95,8 +96,9 @@ export function createRouter(config, storage, connectionManager, discovery, hear
                 const { json: payload } = await readBody(req);
                 return json(res, 200, await connectionManager.connect({
                     pairCode: String(payload.pairCode || payload.pair_code || ''),
-                    instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : undefined,
-                    publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : undefined,
+                    instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : typeof payload.instance_name === 'string' ? payload.instance_name : undefined,
+                    publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : typeof payload.instance_url === 'string' ? payload.instance_url : undefined,
+                    version: typeof payload.version === 'string' ? payload.version : undefined,
                     environment: typeof payload.environment === 'string' ? payload.environment : undefined,
                 }));
             }
@@ -113,8 +115,9 @@ export function createRouter(config, storage, connectionManager, discovery, hear
                 if (pairCode) {
                     return json(res, 200, await connectionManager.reconnectWithPairCode({
                         pairCode,
-                        instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : undefined,
-                        publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : undefined,
+                        instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : typeof payload.instance_name === 'string' ? payload.instance_name : undefined,
+                        publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : typeof payload.instance_url === 'string' ? payload.instance_url : undefined,
+                        version: typeof payload.version === 'string' ? payload.version : undefined,
                         environment: typeof payload.environment === 'string' ? payload.environment : undefined,
                     }));
                 }
@@ -123,10 +126,10 @@ export function createRouter(config, storage, connectionManager, discovery, hear
             if (req.method === 'POST' && url === '/api/v1/test-connection') {
                 return json(res, 200, await connectionManager.testConnection());
             }
-            if (req.method === 'POST' && url === '/api/v1/secret/rotate') {
+            if (req.method === 'POST' && (url === '/api/v1/secret/rotate' || url === '/api/v1/rotate-secret')) {
                 return json(res, 200, await connectionManager.rotateSecret());
             }
-            if (req.method === 'POST' && url === '/v1/integration/disconnect') {
+            if (req.method === 'POST' && (url === '/v1/integration/disconnect' || url === '/api/v1/disconnect')) {
                 await connectionManager.disconnect();
                 return json(res, 200, { success: true });
             }

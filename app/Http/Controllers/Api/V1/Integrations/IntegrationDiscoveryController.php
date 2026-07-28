@@ -17,8 +17,8 @@ class IntegrationDiscoveryController extends Controller
 
     public function pair(Request $request, IntegrationProtocolService $protocol): JsonResponse
     {
-        $data = $request->validate(['pair_code' => ['required', 'string', 'max:20'], 'instance_name' => ['required', 'string', 'max:150'], 'instance_url' => ['required', 'url', 'max:500'], 'environment' => ['required', 'string', 'max:80'], 'n8n_version' => ['nullable', 'string', 'max:80'], 'connector_version' => ['required', 'string', 'max:40'], 'protocol_version' => ['required', 'string', 'max:20']]);
-        [$integration, $secret] = $protocol->claimPairing($data['pair_code'], $data, $request->ip(), $request->userAgent());
+        $data = $request->validate(['pair_code' => ['required', 'string', 'max:20'], 'instance_uuid' => ['required', 'uuid'], 'instance_name' => ['required', 'string', 'max:150'], 'instance_url' => ['required', 'url', 'max:500'], 'environment' => ['required', 'string', 'max:80'], 'n8n_version' => ['nullable', 'string', 'max:80'], 'connector_version' => ['required', 'string', 'max:40'], 'protocol_version' => ['required', 'string', 'max:20']]);
+        [$integration, $secret] = $protocol->claimPairing($data['pair_code'], $data, $request->ip(), $request->userAgent(), $request->header('Idempotency-Key'));
 
         return response()->json(['success' => true, 'data' => ['integration_uuid' => $integration->integration_uuid, 'shared_secret' => $secret, 'protocol_version' => $integration->protocol_version ?: '1.0', 'paired_at' => now()->toIso8601String(), 'discovery_url' => '/api/v1/integrations/n8n/discovery', 'heartbeat_url' => '/api/v1/integrations/n8n/heartbeat', 'challenge_url' => '/api/v1/integrations/n8n/challenge']]);
     }

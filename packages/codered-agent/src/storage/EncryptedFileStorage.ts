@@ -19,12 +19,15 @@ function isStoredIntegration(value: unknown): value is StoredIntegration {
   const record = value as Partial<StoredIntegration> | null;
 
   return !!record
+    && typeof record.instance_uuid === 'string'
     && typeof record.integration_uuid === 'string'
     && typeof record.shared_secret === 'string'
     && typeof record.protocol_version === 'string'
     && typeof record.paired_at === 'string'
     && typeof record.platform_url === 'string'
     && typeof record.agent_name === 'string'
+    && typeof record.instance_name === 'string'
+    && typeof record.instance_url === 'string'
     && typeof record.environment === 'string'
     && typeof record.secret_version === 'number';
 }
@@ -33,7 +36,7 @@ export class EncryptedFileStorage implements AgentStorage {
   private file: string;
 
   public constructor(private dir: string, private key: string) {
-    this.file = path.join(dir, 'integration.enc');
+    this.file = path.join(dir, 'identity.json');
   }
 
   public async ensure(): Promise<void> {
@@ -58,19 +61,35 @@ export class EncryptedFileStorage implements AgentStorage {
 
   public async readIntegration(): Promise<StoredIntegration | null> {
     try {
-      const raw = JSON.parse(await fs.readFile(this.file, 'utf8')) as { iv: string; tag: string; data: string };
-      const decipher = crypto.createDecipheriv('aes-256-gcm', keyBytes(this.key), Buffer.from(raw.iv, 'hex'));
-      decipher.setAuthTag(Buffer.from(raw.tag, 'hex'));
-      const decrypted = Buffer.concat([
-        decipher.update(Buffer.from(raw.data, 'hex')),
-        decipher.final(),
-      ]).toString('utf8');
-      const parsed = JSON.parse(decrypted) as unknown;
+      const parsed = await this.readEncryptedFile(this.file);
+
+      if (isStoredIntegration(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // Try legacy file name before reporting unpaired.
+    }
+
+    try {
+      const legacy = path.join(this.dir, 'integration.enc');
+      const parsed = await this.readEncryptedFile(legacy);
 
       return isStoredIntegration(parsed) ? parsed : null;
     } catch {
       return null;
     }
+  }
+
+  private async readEncryptedFile(file: string): Promise<unknown> {
+    const raw = JSON.parse(await fs.readFile(file, 'utf8')) as { iv: string; tag: string; data: string };
+    const decipher = crypto.createDecipheriv('aes-256-gcm', keyBytes(this.key), Buffer.from(raw.iv, 'hex'));
+    decipher.setAuthTag(Buffer.from(raw.tag, 'hex'));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(raw.data, 'hex')),
+      decipher.final(),
+    ]).toString('utf8');
+
+    return JSON.parse(decrypted) as unknown;
   }
 
   public async saveIntegration(value: StoredIntegration): Promise<void> {
@@ -87,7 +106,7 @@ export class EncryptedFileStorage implements AgentStorage {
       data: data.toString('hex'),
       updatedAt: new Date().toISOString(),
     });
-    const temporaryFile = path.join(this.dir, `.integration.enc.${process.pid}.${Date.now()}.tmp`);
+    const temporaryFile = path.join(this.dir, `.identity.json.${process.pid}.${Date.now()}.tmp`);
 
     await fs.writeFile(temporaryFile, payload, { mode: 0o600 });
     await fs.chmod(temporaryFile, 0o600);

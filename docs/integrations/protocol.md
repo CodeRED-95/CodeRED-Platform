@@ -9,10 +9,10 @@ Este documento es la fuente única del protocolo compartido por CodeRED Platform
 | Estado | Descripción | Transición principal |
 |---|---|---|
 | UNPAIRED | No existe pairing persistido. | Pair Instance inicia PAIRING. |
-| PAIRING | Se reclama un Pair Code vigente ante Platform. | Respuesta válida guarda credenciales y pasa a CHALLENGE. |
-| CHALLENGE | El cliente firma una prueba contra Platform. | Challenge OK pasa a DISCOVERY; fallo cancela el Pair. |
-| DISCOVERY | El cliente publica metadata, plugins, servicios y capabilities. | Discovery OK pasa a CONNECTED_PENDING_HEARTBEAT. |
-| CONNECTED_PENDING_HEARTBEAT | Discovery fue aceptado y falta el primer heartbeat. | Primer heartbeat OK pasa a CONNECTED. |
+| PAIRING | Se reclama un Pair Code vigente ante Platform. | Respuesta válida guarda credenciales y pasa a CHALLENGING. |
+| CHALLENGING | El cliente firma una prueba contra Platform. | Challenge OK pasa a DISCOVERING; fallo cancela el Pair. |
+| DISCOVERING | El cliente publica metadata, plugins, servicios y capabilities. | Discovery OK pasa a CONNECTING. |
+| CONNECTING | Discovery fue aceptado y falta el primer heartbeat. | Primer heartbeat OK pasa a CONNECTED. |
 | CONNECTED | Heartbeat reciente y protocolo confirmado. | Fallos transitorios pasan a DEGRADED. |
 | DEGRADED | Hay pairing, pero heartbeat falla temporalmente. | Heartbeat OK vuelve a CONNECTED; demasiados fallos pasan a DISCONNECTED. |
 | DISCONNECTED | No hay heartbeat reciente o los reintentos fallaron. | Heartbeat OK vuelve a CONNECTED; 401 pasa a UNAUTHORIZED. |

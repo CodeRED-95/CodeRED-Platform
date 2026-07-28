@@ -44,17 +44,23 @@ class IntegrationProtocolService
     }
 
     /** @return array{0: Integration, 1: string} */
-    public function claimPairing(string $pairCode, array $payload, ?string $ip = null, ?string $userAgent = null): array
+    public function claimPairing(string $pairCode, array $payload, ?string $ip = null, ?string $userAgent = null, ?string $idempotencyKey = null): array
     {
-        return DB::transaction(function () use ($pairCode, $payload, $ip, $userAgent): array {
+        return DB::transaction(function () use ($pairCode, $payload, $ip, $userAgent, $idempotencyKey): array {
             $pairing = IntegrationPairing::query()->where('provider', 'n8n')->where('pair_code', strtoupper(trim($pairCode)))->lockForUpdate()->first();
             if (! $pairing || $pairing->statusValue() !== IntegrationPairingStatus::Pending->value || $pairing->expiresAt()->isPast()) {
                 throw ValidationException::withMessages(['pair_code' => 'El código de pairing no existe, ya fue utilizado o venció.']);
             }
             $secret = bin2hex(random_bytes(32));
-            $existingUuid = $pairing->integration_id ? Integration::query()->find($pairing->integration_id)?->integration_uuid : null;
-            $integration = Integration::query()->updateOrCreate(['id' => $pairing->integration_id], [
+            $ownerId = $pairing->created_by;
+            $instanceUuid = (string) $payload['instance_uuid'];
+            $existing = $pairing->integration_id
+                ? Integration::query()->lockForUpdate()->find($pairing->integration_id)
+                : Integration::query()->where('provider', 'n8n')->where('created_by', $ownerId)->where('instance_uuid', $instanceUuid)->lockForUpdate()->first();
+            $existingUuid = $existing?->integration_uuid;
+            $integration = Integration::query()->updateOrCreate(['id' => $existing?->id], [
                 'integration_uuid' => $existingUuid ?: (string) Str::uuid(),
+                'instance_uuid' => $instanceUuid,
                 'provider' => 'n8n',
                 'instance_name' => (string) $payload['instance_name'],
                 'instance_url' => $payload['instance_url'] ?? null,
@@ -73,7 +79,7 @@ class IntegrationProtocolService
                 'created_by' => $pairing->created_by,
             ]);
             $pairing->forceFill(['status' => IntegrationPairingStatus::Claimed, 'integration_id' => $integration->id, 'claimed_at' => now(), 'encrypted_temporary_secret' => Crypt::encryptString('invalidated')])->save();
-            $this->log($integration, 'Pairing', 'Instancia n8n conectada por pairing.', ['pair_uuid' => $pairing->pair_uuid], ip: $ip, userAgent: $userAgent);
+            $this->log($integration, $existing ? 'Reconnect' : 'Pairing', $existing ? 'Instancia n8n reconectada por pairing idempotente.' : 'Instancia n8n conectada por pairing.', ['pair_uuid' => $pairing->pair_uuid, 'instance_uuid' => $instanceUuid, 'idempotency_key' => $idempotencyKey], ip: $ip, userAgent: $userAgent);
 
             return [$integration, $secret];
         });

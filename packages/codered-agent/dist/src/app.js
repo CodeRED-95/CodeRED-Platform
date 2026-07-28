@@ -15,7 +15,17 @@ export async function createApp() {
     const storage = new EncryptedFileStorage(config.dataPath, config.encryptionKey);
     await storage.ensure();
     const client = new CodeREDClient(config, storage);
-    await client.restorePairing();
+    const identityFileExists = await storage.hasIntegration();
+    const identityLoaded = await client.restorePairing();
+    if (identityLoaded) {
+        logger.info('identity.loaded', { paired: true, integration_uuid: client.currentIntegration()?.integration_uuid });
+    }
+    else if (identityFileExists) {
+        logger.error('identity.decrypt_failed', { paired: false });
+    }
+    else {
+        logger.info('identity.not_found', { paired: false });
+    }
     const heartbeat = new HeartbeatService(config, client, logger);
     const discovery = new DiscoveryService(config, client, logger);
     const pairing = new PairingService(config, storage, client, discovery, heartbeat, logger);

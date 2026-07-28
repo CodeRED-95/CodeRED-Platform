@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import type { Config } from '../config/Config.js';
 import { Logger } from '../logging/Logger.js';
 import type { AgentStorage } from '../storage/AgentStorage.js';
@@ -11,6 +12,7 @@ export interface PairingInput {
   instanceName?: string;
   publicUrl?: string;
   environment?: string;
+  version?: string;
 }
 
 interface PairingResponse {
@@ -43,8 +45,11 @@ export class PairingService {
       throw new Error('pairCode is required');
     }
 
-    this.logger.info('pairing.started');
-    const response = await this.client.pair({ ...input, pairCode }) as PairingResponse;
+    const existing = await this.storage.readIntegration();
+    const instanceUuid = existing?.instance_uuid || crypto.randomUUID();
+
+    this.logger.info('pairing.started', { instanceUuid });
+    const response = await this.client.pair({ ...input, pairCode, instanceUuid }) as PairingResponse;
     const data = response.data;
 
     if (!data?.integration_uuid || !data.shared_secret) {
@@ -54,13 +59,16 @@ export class PairingService {
 
     const pairedAt = data.paired_at || new Date().toISOString();
     const integration: StoredIntegration = {
+      instance_uuid: instanceUuid,
       integration_uuid: data.integration_uuid,
       shared_secret: data.shared_secret,
       protocol_version: data.protocol_version || '1.0',
       paired_at: pairedAt,
       platform_url: this.config.platformUrl,
       agent_name: this.config.name,
-      environment: this.config.environment,
+      instance_name: input.instanceName || this.config.name,
+      instance_url: input.publicUrl || this.config.publicUrl,
+      environment: input.environment || this.config.environment,
       secret_version: 1,
       discovery_url: data.discovery_url || '/api/v1/integrations/n8n/discovery',
       heartbeat_url: data.heartbeat_url || '/api/v1/integrations/n8n/heartbeat',
@@ -70,6 +78,7 @@ export class PairingService {
     try {
       await this.storage.saveIntegration(integration);
       this.client.setPairing(integration);
+      this.logger.info('identity.saved', { paired: true, integration_uuid: integration.integration_uuid, instanceUuid: integration.instance_uuid });
       this.logger.info('pairing.persisted', { instanceId: integration.integration_uuid });
     } catch (error) {
       this.client.clearPairing();

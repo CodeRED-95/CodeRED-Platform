@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Crypt;
 
 class Integration extends Model
 {
-    protected $fillable = ['integration_uuid', 'provider', 'instance_name', 'instance_url', 'hostname', 'environment', 'version', 'n8n_version', 'connector_version', 'protocol_version', 'status', 'encrypted_secret', 'pending_encrypted_secret', 'pending_secret_expires_at', 'ip_allowlist', 'last_seen_at', 'latency_ms', 'last_ip', 'connected_at', 'revoked_at', 'uptime', 'running_workflows', 'memory_usage', 'cpu_usage', 'secret_rotated_at', 'created_by'];
+    protected $fillable = ['integration_uuid', 'instance_uuid', 'provider', 'instance_name', 'instance_url', 'hostname', 'environment', 'version', 'n8n_version', 'connector_version', 'protocol_version', 'status', 'encrypted_secret', 'pending_encrypted_secret', 'pending_secret_expires_at', 'ip_allowlist', 'last_seen_at', 'latency_ms', 'last_ip', 'connected_at', 'revoked_at', 'uptime', 'running_workflows', 'memory_usage', 'cpu_usage', 'secret_rotated_at', 'created_by'];
 
     protected function casts(): array
     {

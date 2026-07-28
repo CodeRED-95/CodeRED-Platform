@@ -27,10 +27,12 @@ export class CodeREDClient {
     async pair(input) {
         const body = stableJson({
             pair_code: input.pairCode,
+            instance_uuid: input.instanceUuid,
             instance_name: input.instanceName || this.config.name,
             instance_url: input.publicUrl || this.config.publicUrl,
             environment: input.environment || this.config.environment,
-            n8n_version: process.env.N8N_VERSION || null,
+            n8n_version: input.version || process.env.N8N_VERSION || null,
+            version: input.version || process.env.N8N_VERSION || null,
             connector_version: 'codered-agent/1.0.0',
             protocol_version: '1.0',
         });

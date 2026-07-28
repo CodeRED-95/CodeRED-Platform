@@ -6,19 +6,20 @@ export class ConnectionManager {
 
   public async connect(input: { pairCode: string }): Promise<Record<string, unknown>> {
     return this.request('POST', '/api/v1/pair', {
-      pairCode: input.pairCode,
-      instanceName: this.credentials.instanceName,
-      publicUrl: this.credentials.publicUrl,
+      pair_code: input.pairCode,
+      instance_name: this.credentials.instanceName,
+      instance_url: this.credentials.publicUrl,
+      version: process.env.N8N_VERSION || undefined,
       environment: this.credentials.environment,
     });
   }
 
   public async disconnect(): Promise<Record<string, unknown>> {
-    return this.request('POST', '/v1/integration/disconnect');
+    return this.request('POST', '/api/v1/disconnect');
   }
 
   public async rotateSecret(): Promise<Record<string, unknown>> {
-    return this.request('POST', '/api/v1/secret/rotate');
+    return this.request('POST', '/api/v1/rotate-secret');
   }
 
   public async status(): Promise<Record<string, unknown>> {

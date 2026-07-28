@@ -1,9 +1,9 @@
 export type ConnectionState =
   | 'UNPAIRED'
   | 'PAIRING'
-  | 'CHALLENGE'
-  | 'DISCOVERY'
-  | 'CONNECTED_PENDING_HEARTBEAT'
+  | 'CHALLENGING'
+  | 'DISCOVERING'
+  | 'CONNECTING'
   | 'CONNECTED'
   | 'DEGRADED'
   | 'DISCONNECTED'

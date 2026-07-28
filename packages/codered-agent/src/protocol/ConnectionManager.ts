@@ -68,7 +68,7 @@ export class ConnectionManager {
     this.logger.info('pair.credentials_saved', { instanceId: result.instanceId });
 
     try {
-      this.transition('CHALLENGE');
+      this.transition('CHALLENGING');
       const challengeCompleted = await this.challenge();
 
       if (!challengeCompleted) {
@@ -78,7 +78,7 @@ export class ConnectionManager {
         throw new Error('Challenge failed after pairing. Pairing was cancelled.');
       }
 
-      this.transition('DISCOVERY');
+      this.transition('DISCOVERING');
       const discoveryCompleted = await this.discovery.sync(true);
 
       if (!discoveryCompleted) {
@@ -86,7 +86,7 @@ export class ConnectionManager {
         this.logger.warn('discovery.incomplete', { reason: this.discovery.lastError || 'not_completed' });
       }
 
-      this.transition('CONNECTED_PENDING_HEARTBEAT');
+      this.transition('CONNECTING');
       const heartbeatCompleted = await this.sendHeartbeatCycle();
       this.startHeartbeatLoop();
 

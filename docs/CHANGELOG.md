@@ -6,6 +6,9 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- `instance_uuid` estable para integraciones n8n, migración de idempotencia y comando `codered:n8n:deduplicate`.
+- Guía `docs/integrations/n8n-lifecycle.md` para Pair, Challenge, Discovery, Heartbeat, rotación y recuperación.
+
 - Especificación compartida `docs/integrations/protocol.md` con la máquina de estados `UNPAIRED → PAIRING → CHALLENGE → DISCOVERY → CONNECTED → DEGRADED → DISCONNECTED`.
 - `ConnectionManager` en CodeRED Agent y en el nodo n8n para centralizar Pair, Challenge, Discovery, Heartbeat, Reconnect, rotación y estado.
 
