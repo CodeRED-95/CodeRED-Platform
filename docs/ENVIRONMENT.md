@@ -11,6 +11,7 @@ Todas las variables listadas provienen de `.env.example`.
 | `APP_KEY` | Clave criptográfica de Laravel. | Generada con `key:generate` | `base64:...` | Sí | Rompe cifrado y sesiones si cambia. | Ninguna |
 | `APP_DEBUG` | Activa depuración. | `false` en producción | `true` | Sí | Expone errores detallados. | `LOG_LEVEL` |
 | `APP_URL` | URL base de la aplicación. | URL pública real | `http://localhost:8090` | Sí | Afecta enlaces absolutos. Debe coincidir con el puerto expuesto por Nginx. | `SANCTUM_STATEFUL_DOMAINS` |
+| `APP_VERSION` | Versión visible/API de CodeRED Platform. | `1.0.0` o versión release | `1.0.0` | No | Cambia metadatos de versión expuestos por la app. | Despliegue |
 | `APP_TIMEZONE` | Zona horaria de la app. | `America/Lima` | `America/Lima` | Sí | Cambia fechas mostradas y tareas programadas. | `APP_LOCALE` |
 | `APP_LOCALE` | Idioma principal. | `es` | `es` | Sí | Cambia traducciones. | `APP_FALLBACK_LOCALE` |
 | `APP_FALLBACK_LOCALE` | Idioma de respaldo. | `es` | `es` | Sí | Se usa si falta traducción. | `APP_LOCALE` |
@@ -61,8 +62,8 @@ Todas las variables listadas provienen de `.env.example`.
 |---|---|---|---|---|---|---|
 | `REDIS_CLIENT` | Cliente Redis. | `phpredis` | `phpredis` | Sí | Si no está instalado, falla la conexión. | `REDIS_HOST`, `REDIS_PORT` |
 | `REDIS_HOST` | Host Redis. | `redis` en Docker | `redis` | Sí | Rompe caché/colas/sesiones. | `REDIS_PORT` |
-| `REDIS_USERNAME` | Usuario Redis. | vacío en local | `PENDIENTE DE CONFIGURAR` | No | Si Redis usa ACL, debe coincidir con el usuario configurado. | `REDIS_PASSWORD` |
-| `REDIS_PASSWORD` | Contraseña Redis. | vacío en local cuando Redis no autentica | `PENDIENTE DE CONFIGURAR` | No | Si se define, Laravel enviará AUTH. No escribir `null` como texto. | `REDIS_USERNAME` |
+| `REDIS_USERNAME` | Usuario Redis. | vacío en local | vacío | No | Si Redis usa ACL, debe coincidir con el usuario configurado. | `REDIS_PASSWORD` |
+| `REDIS_PASSWORD` | Contraseña Redis. | vacío en local cuando Redis no autentica | vacío | No | Si se define, Laravel enviará AUTH. No escribir `null` como texto. | `REDIS_USERNAME` |
 | `REDIS_PORT` | Puerto Redis. | `6379` | `6379` | Sí | Cambia el puerto de conexión. | `REDIS_HOST` |
 | `REDIS_DB` | Base de datos Redis por defecto. | `0` | `0` | Sí | Cambia la base lógica por defecto. | `REDIS_CACHE_DB` |
 | `REDIS_CACHE_DB` | Base de datos Redis para caché. | `1` | `1` | Sí | Cambia la base lógica de caché. | `REDIS_DB` |
@@ -93,6 +94,31 @@ Todas las variables listadas provienen de `.env.example`.
 | `DEV_ADMIN_EMAIL` | Correo del usuario administrador de desarrollo. | `admin@codered.local` | `admin@codered.local` | Sí | Define el correo del usuario sembrado. | `DEV_ADMIN_PASSWORD` |
 | `DEV_ADMIN_PASSWORD` | Contraseña del usuario administrador de desarrollo. | Cambiar en entornos reales | `CHANGE_THIS_BEFORE_SEEDING` | Sí | Si es débil o es un valor de ejemplo, compromete el seed inicial. | `DEV_ADMIN_EMAIL` |
 | `VITE_APP_NAME` | Nombre visible en frontend. | `"CodeRED Platform"` | `"CodeRED Platform"` | Sí | Cambia el título del frontend. | `APP_NAME` |
+
+## n8n y CodeRED Agent
+
+| Variable | Descripción | Recomendado | Ejemplo | Obligatoria | Consecuencias de cambiarla | Relacionadas |
+|---|---|---|---|---|---|---|
+| `N8N_INTEGRATION_ENABLED` | Habilita la integración n8n + Telegram para solicitudes de tokens API. No controla Pair Instance. | `true` si se usa Telegram/n8n | `true` | No | Desactiva esa integración auxiliar. | `N8N_SHARED_SECRET`, `N8N_WEBHOOK_URL` |
+| `N8N_SHARED_SECRET` | Secreto HMAC opcional de la integración n8n + Telegram. No es el `shared_secret` de pairing del Agent. | vacío o secreto seguro si se usa la integración | vacío | No | Si no coincide, fallan webhooks HMAC legacy. | `N8N_INTEGRATION_ENABLED` |
+| `N8N_WEBHOOK_URL` | Webhook de n8n para notificaciones de solicitudes de tokens. | URL HTTPS real si se usa | vacío | No | Platform no podrá notificar a n8n en esa integración auxiliar. | `N8N_INTEGRATION_ENABLED` |
+| `N8N_ENV_FILE` | Ruta del archivo de entorno administrado para n8n. | `/opt/n8n/.env` | `/opt/n8n/.env` | No | Los scripts podrían actualizar otra ruta. | Scripts de instalación |
+| `N8N_VERSION` | Versión de n8n reportada por el nodo/Agent. | Versión desplegada | `2.31.4` | Sí si se empaqueta n8n | Platform mostrará versión incorrecta si no coincide. | `codered-agent`, nodo n8n |
+| `DB_TYPE` / `DB_POSTGRESDB_*` | Configuración PostgreSQL del contenedor n8n. | Coincidir con la base n8n real | `postgresdb` | Sí si se usa n8n Docker | n8n no iniciará o usará otra base. | Docker n8n |
+| `TELEGRAM_TOKEN_REQUESTS_ENABLED` | Controla solicitudes de tokens por Telegram/n8n. | `true` si se usa el flujo | `true` | No | Desactiva solicitudes desde Telegram. | `N8N_INTEGRATION_ENABLED` |
+| `CODERED_PLATFORM_URL` | URL de Platform usada por codered-agent. En Compose se sobreescribe con `APP_URL`. | URL pública de Platform | `https://platform.codered.host` | Sí para Agent | Pairing/heartbeat apuntarán a otra Platform. | `APP_URL` |
+| `CODERED_AGENT_NAME` | Nombre visible del Agent. | `"CodeRED n8n Agent"` | `"CodeRED n8n Agent"` | No | Cambia metadatos enviados a Platform. | Discovery |
+| `CODERED_AGENT_PUBLIC_URL` | URL pública del Agent para capabilities/challenge. | HTTPS público alcanzable por Platform | `https://agent.codered.host` | Sí para Agent | Challenge/capabilities no serán alcanzables desde Platform. | Discovery |
+| `CODERED_AGENT_ENVIRONMENT` | Entorno reportado por el Agent. | `production`, `staging` o `development` | `production` | Sí para Agent | Platform mostrará entorno incorrecto. | Discovery/heartbeat |
+| `CODERED_AGENT_PORT` | Puerto HTTP local del Agent. | `5680` | `5680` | Sí para Agent | Cambia el puerto escuchado. | Docker/healthcheck |
+| `CODERED_AGENT_DATA_PATH` | Ruta persistente de identidad e integración cifradas. | `/data` con volumen persistente | `/data` | Sí para Agent | Reinicios podrían perder pairing si no persiste. | `codered-agent-data` |
+| `CODERED_AGENT_ENCRYPTION_KEY` | Clave para cifrar `/data/agent-identity.json` y `/data/integration.json`. | 64 hex de `openssl rand -hex 32` | vacío en ejemplo | Sí para Agent | Cambiarla sin migración vuelve ilegible la identidad. | `CODERED_AGENT_LOCAL_API_TOKEN` |
+| `CODERED_AGENT_LOCAL_API_TOKEN` | Token Bearer para API local del Agent. Debe coincidir en n8n y Agent. | 64 hex distinto de la clave de cifrado | vacío en ejemplo | Sí para Agent y n8n | 401 local si no coincide o falta. | `CODERED_AGENT_LOCAL_URL` |
+| `CODERED_AGENT_HEARTBEAT_SECONDS` | Intervalo de heartbeat. | `30` | `30` | No | Cambia frecuencia reportada a Platform. | Scheduler Agent |
+| `CODERED_AGENT_DISCOVERY_SECONDS` | Intervalo de discovery periódico. | `300` | `300` | No | Cambia frecuencia de actualización de capabilities. | Scheduler Agent |
+| `CODERED_AGENT_REQUEST_TIMEOUT_MS` | Timeout HTTP del Agent. | `15000` | `15000` | No | Requests a Platform podrían fallar antes/después. | Platform |
+| `CODERED_AGENT_LOG_LEVEL` | Nivel de logs del Agent. | `info` | `info` | No | Aumenta o reduce detalle. No debe imprimir secretos. | Logs |
+| `CODERED_AGENT_LOCAL_URL` | URL interna que usa n8n para llamar al Agent. | `http://codered-agent:5680` | `http://codered-agent:5680` | Sí para n8n Docker | Pair Instance no alcanzará al Agent. No usar `localhost`. | Docker network |
 
 ## No utilizadas o parcialmente utilizadas
 
