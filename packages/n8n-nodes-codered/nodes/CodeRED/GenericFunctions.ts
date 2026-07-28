@@ -5,7 +5,7 @@ export interface CodeREDCredentials {
   agentBaseUrl?: string;
   localApiToken?: string;
   timeoutMs?: number | string;
-  allowUnauthorizedCerts?: boolean;
+  pairCode?: string;
   instanceName?: string;
   instanceUrl?: string;
   publicUrl?: string;

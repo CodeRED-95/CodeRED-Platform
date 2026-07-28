@@ -1,70 +1,82 @@
-import type { IExecuteFunctions } from 'n8n-workflow';
-import { joinUrl, stableJson, type CodeREDCredentials } from './GenericFunctions';
-
-const DEFAULT_AGENT_URL = 'http://codered-agent:5680';
+import type { CodeREDCredentials } from './GenericFunctions';
+import { callLocalAgent } from './LocalAgentClient';
 
 export class ConnectionManager {
-  public constructor(private ctx: IExecuteFunctions, private credentials: CodeREDCredentials) {}
+  public constructor(private credentials: CodeREDCredentials) {}
 
   public async connect(input: { pairCode: string }): Promise<Record<string, unknown>> {
-    return this.callLocalAgent('/api/v1/pair', {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/pair', {
       method: 'POST',
+      operation: 'pair',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
       body: {
-        pair_code: input.pairCode,
-        instance_name: this.credentials.instanceName,
-        instance_url: this.credentials.instanceUrl || this.credentials.publicUrl,
-        environment: this.credentials.environment,
-        version: process.env.N8N_VERSION || 'unknown',
-        platform_url: this.credentials.baseUrl,
+        pair_code: input.pairCode.trim(),
+        instance_name: String(this.credentials.instanceName || '').trim(),
+        instance_url: normalizeUrl(String(this.credentials.instanceUrl || this.credentials.publicUrl || '')),
+        environment: normalizeEnvironment(String(this.credentials.environment || 'production')),
+        version: process.env.N8N_VERSION?.trim() || 'unknown',
+        platform_url: normalizeUrl(String(this.credentials.baseUrl || '')),
+      },
+    });
+  }
+
+  public async testConnection(): Promise<Record<string, unknown>> {
+    const timeoutMs = Number(this.credentials.timeoutMs || 15000);
+    const health = await callLocalAgent<Record<string, unknown>>('/healthz', { timeoutMs, operation: 'healthz' });
+    const status = await callLocalAgent<Record<string, unknown>>('/api/v1/status', { timeoutMs, operation: 'status' });
+
+    if (health.protocol_version && health.protocol_version !== '1.0') {
+      throw new Error('El nodo CodeRED y CodeRED Agent utilizan versiones de protocolo incompatibles.');
+    }
+
+    return { success: true, agentReachable: true, health, status };
+  }
+
+  public async reconnect(input: { pairCode: string }): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/reconnect', {
+      method: 'POST',
+      operation: 'reconnect',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
+      body: {
+        pair_code: input.pairCode.trim(),
+        instance_name: String(this.credentials.instanceName || '').trim(),
+        instance_url: normalizeUrl(String(this.credentials.instanceUrl || this.credentials.publicUrl || '')),
+        environment: normalizeEnvironment(String(this.credentials.environment || 'production')),
+        version: process.env.N8N_VERSION?.trim() || 'unknown',
+        platform_url: normalizeUrl(String(this.credentials.baseUrl || '')),
       },
     });
   }
 
   public async disconnect(): Promise<Record<string, unknown>> {
-    return this.callLocalAgent('/api/v1/disconnect', { method: 'POST' });
+    return callLocalAgent<Record<string, unknown>>('/api/v1/disconnect', { method: 'POST', operation: 'disconnect', timeoutMs: Number(this.credentials.timeoutMs || 15000) });
   }
 
   public async rotateSecret(): Promise<Record<string, unknown>> {
-    return this.callLocalAgent('/api/v1/rotate-secret', { method: 'POST' });
+    return callLocalAgent<Record<string, unknown>>('/api/v1/rotate-secret', { method: 'POST', operation: 'rotateSecret', timeoutMs: Number(this.credentials.timeoutMs || 15000) });
+  }
+
+  public async refreshDiscovery(): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/discovery/refresh', { method: 'POST', operation: 'refreshDiscovery', timeoutMs: Number(this.credentials.timeoutMs || 15000) });
   }
 
   public async status(): Promise<Record<string, unknown>> {
-    return this.callLocalAgent('/api/v1/status');
+    return callLocalAgent<Record<string, unknown>>('/api/v1/status', { operation: 'status', timeoutMs: Number(this.credentials.timeoutMs || 15000) });
+  }
+}
+
+function normalizeUrl(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return trimmed;
   }
 
-  private async callLocalAgent(
-    path: string,
-    options: { method?: 'GET' | 'POST'; body?: unknown } = {},
-  ): Promise<Record<string, unknown>> {
-    const baseUrl = process.env.CODERED_AGENT_LOCAL_URL || this.credentials.agentBaseUrl || DEFAULT_AGENT_URL;
-    const token = process.env.CODERED_AGENT_LOCAL_API_TOKEN || this.credentials.localApiToken;
+  return new URL(trimmed).toString();
+}
 
-    if (!token) {
-      throw new Error('CODERED_AGENT_LOCAL_API_TOKEN no está configurado en n8n.');
-    }
+function normalizeEnvironment(value: string): string {
+  const normalized = value.trim().toLowerCase();
 
-    try {
-      return await this.ctx.helpers.httpRequest({
-        method: options.method || 'GET',
-        url: joinUrl(baseUrl, path),
-        body: options.body === undefined ? undefined : stableJson(options.body),
-        headers: {
-          Authorization: 'Bearer ' + token,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        json: true,
-        timeout: Number(this.credentials.timeoutMs || 15000),
-      }) as Promise<Record<string, unknown>>;
-    } catch (error) {
-      const details = error as { statusCode?: number; status?: number; message?: string };
-      const status = details.statusCode || details.status;
-
-      if (!status) {
-        throw new Error('CodeRED Agent no está disponible en ' + baseUrl + '.');
-      }
-
-      throw error;
-    }
-  }
+  return normalized || 'production';
 }

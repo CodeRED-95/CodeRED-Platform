@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-07-28
+
+- `n8n-nodes-codered` ahora usa exclusivamente codered-agent local mediante `CODERED_AGENT_LOCAL_URL` y `CODERED_AGENT_LOCAL_API_TOKEN` para Pair Instance y operaciones de ciclo de vida; el nodo ya no llama directamente a `/api/v1/integrations/n8n/pair` ni envía `instance_uuid` desde n8n.
+- La credencial CodeRED de n8n ya no expone token local, Agent URL, Pair Code ni secretos; Pair Code es un parámetro temporal de operación.
+
 Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]
