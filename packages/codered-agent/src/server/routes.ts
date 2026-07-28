@@ -130,6 +130,7 @@ export function createRouter(
         }
 
         const snapshot = connectionManager.status();
+        const identity = await storage.ensureIdentity(config.name);
 
         return json(res, 200, {
           status: snapshot.state.toLowerCase(),
@@ -138,6 +139,7 @@ export function createRouter(
           platform_reachable: snapshot.platformConnected,
           platformReachable: snapshot.platformConnected,
           integration_uuid: snapshot.instanceId,
+          instance_uuid: identity.instance_uuid,
           instanceId: snapshot.instanceId,
           last_heartbeat_at: snapshot.lastHeartbeatAt,
           last_discovery_at: snapshot.lastDiscoveryAt,

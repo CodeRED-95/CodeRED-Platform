@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import type { Config } from '../config/Config.js';
 import { Logger } from '../logging/Logger.js';
 import type { AgentStorage } from '../storage/AgentStorage.js';
@@ -45,11 +44,22 @@ export class PairingService {
       throw new Error('pairCode is required');
     }
 
-    const existing = await this.storage.readIntegration();
-    const instanceUuid = existing?.instance_uuid || crypto.randomUUID();
+    const identity = await this.storage.ensureIdentity(this.config.name);
+    const instanceUuid = identity.instance_uuid;
+    const instanceName = input.instanceName || this.config.name;
+    const instanceUrl = input.publicUrl || this.config.publicUrl;
+    const environment = input.environment || this.config.environment;
 
+    this.logger.info('identity.instance_uuid.loaded', { instance_uuid: instanceUuid });
+    this.logger.info('pair.request', {
+      instance_uuid: instanceUuid,
+      instance_name: instanceName,
+      instance_url: instanceUrl,
+      environment,
+      pair_code_present: true,
+    });
     this.logger.info('pairing.started', { instanceUuid });
-    const response = await this.client.pair({ ...input, pairCode, instanceUuid }) as PairingResponse;
+    const response = await this.client.pair({ ...input, pairCode, instanceUuid, instanceName, publicUrl: instanceUrl, environment }) as PairingResponse;
     const data = response.data;
 
     if (!data?.integration_uuid || !data.shared_secret) {
@@ -66,9 +76,9 @@ export class PairingService {
       paired_at: pairedAt,
       platform_url: this.config.platformUrl,
       agent_name: this.config.name,
-      instance_name: input.instanceName || this.config.name,
-      instance_url: input.publicUrl || this.config.publicUrl,
-      environment: input.environment || this.config.environment,
+      instance_name: instanceName,
+      instance_url: instanceUrl,
+      environment,
       secret_version: 1,
       discovery_url: data.discovery_url || '/api/v1/integrations/n8n/discovery',
       heartbeat_url: data.heartbeat_url || '/api/v1/integrations/n8n/heartbeat',
@@ -92,6 +102,8 @@ export class PairingService {
       success: true,
       paired: this.client.isPaired(),
       instanceId: data.integration_uuid,
+      integration_uuid: data.integration_uuid,
+      instance_uuid: instanceUuid,
       protocolVersion: integration.protocol_version,
       pairedAt,
     };

@@ -16,6 +16,10 @@ export async function createApp() {
   const storage = new EncryptedFileStorage(config.dataPath, config.encryptionKey);
   await storage.ensure();
 
+  const identityBeforeEnsure = await storage.readIdentity();
+  const agentIdentity = await storage.ensureIdentity(config.name);
+  logger.info(identityBeforeEnsure ? 'identity.instance_uuid.loaded' : 'identity.instance_uuid.generated', { instance_uuid: agentIdentity.instance_uuid });
+
   const client = new CodeREDClient(config, storage);
   const identityFileExists = await storage.hasIntegration();
   const identityLoaded = await client.restorePairing();

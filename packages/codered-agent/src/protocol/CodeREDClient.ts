@@ -42,6 +42,7 @@ export class CodeREDClient {
       environment: input.environment || this.config.environment,
       n8n_version: input.version || process.env.N8N_VERSION || null,
       version: input.version || process.env.N8N_VERSION || null,
+      agent_version: '1.0.0',
       connector_version: 'codered-agent/1.0.0',
       protocol_version: '1.0',
     });

@@ -59,6 +59,7 @@ export class DiscoveryService {
       const integration = this.client.currentIntegration();
       await this.client.signed('POST', integration?.discovery_url || '/api/v1/integrations/n8n/discovery', {
         protocol_version: '1.0',
+        instance_uuid: integration?.instance_uuid || null,
         hostname: process.env.HOSTNAME || null,
         instance_url: this.config.publicUrl,
         environment: this.config.environment,

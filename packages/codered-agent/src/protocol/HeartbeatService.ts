@@ -40,7 +40,7 @@ export class HeartbeatService {
 
     try {
       await this.client.signed('POST', integration.heartbeat_url || '/api/v1/integrations/n8n/heartbeat', {
-        instance_uuid: integration.integration_uuid,
+        instance_uuid: integration.instance_uuid,
         agent_version: '1.0.0',
         connector_version: 'codered-agent/1.0.0',
         protocol_version: integration.protocol_version,
