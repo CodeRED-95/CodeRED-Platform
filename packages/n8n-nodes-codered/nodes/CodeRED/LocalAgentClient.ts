@@ -57,7 +57,7 @@ export async function callLocalAgent<T>(path: string, options: LocalAgentRequest
   const controller = new AbortController();
   const timeoutMs = options.timeoutMs ?? 15000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const url = new URL(path.replace(/^//, ''), ensureTrailingSlash(baseUrl));
+  const url = new URL(path.replace(/^\/+/, ''), ensureTrailingSlash(baseUrl));
 
   console.info(JSON.stringify({
     event: 'codered.agent.request',

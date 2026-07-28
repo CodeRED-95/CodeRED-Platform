@@ -125,3 +125,45 @@ test('Test Connection checks healthz and authenticated status on the agent', asy
   assert.equal((result.status as Record<string, unknown>).state, 'unpaired');
   assert.deepEqual(urls, ['http://codered-agent:5680/healthz', 'http://codered-agent:5680/api/v1/status']);
 });
+
+
+test('local agent client normalizes base URL and parses text responses', async () => {
+  process.env.CODERED_AGENT_LOCAL_URL = 'http://codered-agent:5680/';
+  process.env.CODERED_AGENT_LOCAL_API_TOKEN = 'local-token';
+  const urls: string[] = [];
+
+  globalThis.fetch = (async (url: string | URL | Request) => {
+    urls.push(String(url));
+    return new Response('plain text response', { status: 200 });
+  }) as typeof fetch;
+
+  const result = await callLocalAgent<string>('api/v1/status');
+
+  assert.equal(urls[0], 'http://codered-agent:5680/api/v1/status');
+  assert.equal(result, 'plain text response');
+});
+
+test('local agent client redacts HTTP error bodies', async () => {
+  process.env.CODERED_AGENT_LOCAL_URL = 'http://codered-agent:5680';
+  process.env.CODERED_AGENT_LOCAL_API_TOKEN = 'local-token';
+
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    message: 'invalid',
+    shared_secret: 'secret',
+    pair_code: 'CRD-TEST',
+  }), { status: 422 })) as typeof fetch;
+
+  await assert.rejects(
+    callLocalAgent('/api/v1/pair', { method: 'POST', body: { pair_code: 'CRD-TEST' } }),
+    (error: unknown) => {
+      assert.ok(error instanceof LocalAgentHttpError);
+      assert.equal(error.statusCode, 422);
+      assert.deepEqual(error.responseBody, {
+        message: 'invalid',
+        shared_secret: '[redacted]',
+        pair_code: '[redacted]',
+      });
+      return true;
+    },
+  );
+});
