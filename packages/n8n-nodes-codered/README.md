@@ -8,4 +8,4 @@ Official self-hosted n8n connector for CodeRED Platform. Secrets are stored only
 
 ## Credential
 
-Create a CodeREDApi credential with the local CodeRED Agent URL, local API token, timeout, instance name, public URL and environment. Run Pair Instance with a temporary Pair Code from CodeRED Platform; the node sends it to codered-agent and never receives or stores the shared secret.
+Create a CodeREDApi credential with the local CodeRED Agent URL, local API token, timeout, instance name, public URL and environment. Run Pair Instance with a temporary Pair Code from CodeRED Platform. The node calls its ConnectionManager, which delegates to codered-agent for Pair, Challenge, Discovery and the first Heartbeat. Manual Discovery, Heartbeat and Challenge operations are intentionally not exposed.

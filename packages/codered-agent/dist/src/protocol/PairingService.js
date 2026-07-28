@@ -50,18 +50,13 @@ export class PairingService {
             this.logger.error('pairing.persistence_failed', { error: error instanceof Error ? error.message : 'Unknown persistence error' });
             throw error;
         }
-        const heartbeatSent = await this.heartbeat.send();
-        const discoveryCompleted = await this.discovery.sync(true);
-        this.logger.info('pairing.completed', { instanceId: data.integration_uuid, heartbeatSent, discoveryCompleted });
+        this.logger.info('pairing.completed', { instanceId: data.integration_uuid });
         return {
             success: true,
             paired: this.client.isPaired(),
             instanceId: data.integration_uuid,
             protocolVersion: integration.protocol_version,
             pairedAt,
-            platformConnected: heartbeatSent,
-            heartbeatCompleted: heartbeatSent,
-            discoveryCompleted,
         };
     }
 }

@@ -48,7 +48,10 @@ class Integration extends Model
             return 'revoked';
         }
         $lastSeen = $this->lastSeenAt();
-        if ($this->statusValue() === IntegrationStatus::Pending->value || $lastSeen === null) {
+        if ($this->statusValue() === IntegrationStatus::Pending->value) {
+            return $this->capabilities()->exists() ? 'waiting_heartbeat' : 'connecting';
+        }
+        if ($lastSeen === null) {
             return 'unpaired';
         }
         if ($lastSeen->gt(now()->subMinutes(3))) {
@@ -74,11 +77,13 @@ class Integration extends Model
     public function connectionLabel(): string
     {
         return match ($this->connectionStatus()) {
-            'connected' => 'Conectado',
-            'degraded' => 'Degradado',
-            'revoked' => 'Revocado',
-            'unpaired' => 'Agente sin confirmar',
-            default => 'Desconectado',
+            'connected' => '🟢 Conectado',
+            'connecting' => '🟡 Conectando',
+            'waiting_heartbeat' => '🟠 Esperando Heartbeat',
+            'degraded' => '🟡 Degradado',
+            'revoked' => '🔴 Revocado',
+            'unpaired' => '⚫ No Emparejado',
+            default => '🔴 Desconectado',
         };
     }
 

@@ -39,16 +39,21 @@ export class HeartbeatService {
     const start = Date.now();
 
     try {
-      await this.client.signed('POST', '/api/v1/integrations/n8n/heartbeat', {
+      await this.client.signed('POST', integration.heartbeat_url || '/api/v1/integrations/n8n/heartbeat', {
         instance_uuid: integration.integration_uuid,
         agent_version: '1.0.0',
         connector_version: 'codered-agent/1.0.0',
         protocol_version: integration.protocol_version,
         environment: this.config.environment,
+        timestamp: new Date().toISOString(),
         sent_at: new Date().toISOString(),
         status: this.status,
         uptime: Math.round(process.uptime()),
+        latency: this.latencyMs,
         memory: process.memoryUsage().rss,
+        workflow_count: 0,
+        active_executions: 0,
+        version: process.env.N8N_VERSION || null,
         capabilities: 0,
         workflows: 0,
         services: ['n8n', 'agent'],

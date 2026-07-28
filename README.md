@@ -32,7 +32,7 @@ flowchart LR
     Agent <--> AI
 ```
 
-CodeRED Platform conserva la autoridad de usuarios, permisos, tokens, auditoría y registro de capacidades. CodeRED Agent mantiene la conexión persistente, el estado cifrado local y la comunicación firmada. n8n y los conectores futuros consumen el agente como cliente local, sin recibir ni exponer el `shared_secret`.
+CodeRED Platform conserva la autoridad de usuarios, permisos, tokens, auditoría y registro de capacidades. CodeRED Agent mantiene la conexión persistente, el estado cifrado local y la comunicación firmada mediante la máquina de estados documentada en `docs/integrations/protocol.md`. n8n y conectores futuros consumen el agente como cliente local, sin exponer el `shared_secret` en outputs.
 
 ## Requisitos
 

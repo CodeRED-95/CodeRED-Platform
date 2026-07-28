@@ -5,6 +5,7 @@ import { DiscoveryService } from './protocol/DiscoveryService.js';
 import { HeartbeatService } from './protocol/HeartbeatService.js';
 import { PairingService } from './protocol/PairingService.js';
 import { ReconnectionService } from './protocol/ReconnectionService.js';
+import { ConnectionManager } from './protocol/ConnectionManager.js';
 import { LocalApiServer } from './server/LocalApiServer.js';
 import { createRouter } from './server/routes.js';
 import { EncryptedFileStorage } from './storage/EncryptedFileStorage.js';
@@ -19,23 +20,8 @@ export async function createApp() {
     const discovery = new DiscoveryService(config, client, logger);
     const pairing = new PairingService(config, storage, client, discovery, heartbeat, logger);
     const reconnect = new ReconnectionService(storage, client, discovery, heartbeat, logger);
-    const server = new LocalApiServer(config, createRouter(config, storage, pairing, discovery, heartbeat, reconnect, client));
-    async function runHeartbeatSafely() {
-        try {
-            await heartbeat.send();
-        }
-        catch (error) {
-            logger.error('heartbeat.failed', { error: error instanceof Error ? error.message : 'Unknown heartbeat error' });
-        }
-    }
-    async function runDiscoverySafely() {
-        try {
-            await discovery.sync();
-        }
-        catch (error) {
-            logger.error('discovery.failed', { error: error instanceof Error ? error.message : 'Unknown discovery error' });
-        }
-    }
+    const connectionManager = new ConnectionManager(config, storage, client, pairing, discovery, heartbeat, reconnect, logger);
+    const server = new LocalApiServer(config, createRouter(config, storage, connectionManager, discovery, heartbeat, client));
     process.on('unhandledRejection', (reason) => {
         logger.error('agent.unhandled_rejection', { error: reason instanceof Error ? reason.message : String(reason) });
     });
@@ -44,6 +30,7 @@ export async function createApp() {
     });
     const stop = () => {
         logger.info('agent.stopping');
+        connectionManager.stop();
         server.stop();
     };
     process.once('SIGTERM', stop);
@@ -57,13 +44,13 @@ export async function createApp() {
         discovery,
         pairing,
         reconnect,
+        connectionManager,
         server,
         async start() {
             server.start();
             logger.info('agent.started', { port: config.port, paired: client.isPaired() });
-            await reconnect.start();
-            setInterval(() => { void runHeartbeatSafely(); }, config.heartbeatSeconds * 1000);
-            setInterval(() => { void runDiscoverySafely(); }, config.discoverySeconds * 1000);
+            await connectionManager.start();
+            setInterval(() => { void discovery.sync(); }, config.discoverySeconds * 1000);
         },
     };
 }

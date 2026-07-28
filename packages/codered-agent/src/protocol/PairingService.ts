@@ -6,7 +6,7 @@ import { CodeREDClient } from './CodeREDClient.js';
 import { DiscoveryService } from './DiscoveryService.js';
 import { HeartbeatService } from './HeartbeatService.js';
 
-interface PairingInput {
+export interface PairingInput {
   pairCode: string;
   instanceName?: string;
   publicUrl?: string;
@@ -77,9 +77,7 @@ export class PairingService {
       throw error;
     }
 
-    const heartbeatSent = await this.heartbeat.send();
-    const discoveryCompleted = await this.discovery.sync(true);
-    this.logger.info('pairing.completed', { instanceId: data.integration_uuid, heartbeatSent, discoveryCompleted });
+    this.logger.info('pairing.completed', { instanceId: data.integration_uuid });
 
     return {
       success: true,
@@ -87,9 +85,6 @@ export class PairingService {
       instanceId: data.integration_uuid,
       protocolVersion: integration.protocol_version,
       pairedAt,
-      platformConnected: heartbeatSent,
-      heartbeatCompleted: heartbeatSent,
-      discoveryCompleted,
     };
   }
 }

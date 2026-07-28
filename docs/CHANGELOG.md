@@ -6,6 +6,9 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Especificación compartida `docs/integrations/protocol.md` con la máquina de estados `UNPAIRED → PAIRING → CHALLENGE → DISCOVERY → CONNECTED → DEGRADED → DISCONNECTED`.
+- `ConnectionManager` en CodeRED Agent y en el nodo n8n para centralizar Pair, Challenge, Discovery, Heartbeat, Reconnect, rotación y estado.
+
 - Configuración automática de PostgreSQL para n8n desde `Install_CodeRED-Platform.sh`.
 - CodeRED Agent documentado como daemon persistente para Pairing, Discovery, Heartbeat y Capability Registry.
 - Configuración segura del agente en `.env.example` con secretos vacíos y guía `openssl rand -hex 32`.
@@ -16,6 +19,9 @@ Todas las versiones siguen `Keep a Changelog`.
 - Auditoría técnica en `docs/audits/technical-audit-2026-07-27.md`.
 
 ### Changed
+
+- `Pair Instance` es ahora el asistente completo de conexión; las operaciones manuales de Discovery, Heartbeat y Challenge dejan de exponerse al usuario de n8n.
+- Platform registra Challenge, Discovery y Heartbeat como etapas automáticas y confirma conexión solo con heartbeat reciente.
 
 - Pair Instance, Test Connection y Reconnect del nodo n8n ahora se ejecutan exclusivamente a través de `codered-agent`; la credencial ya no guarda estado de pairing ni `shared_secret`.
 - `codered-agent` expone `/api/v1/pair`, `/api/v1/status`, `/api/v1/test-connection` y `/api/v1/reconnect` protegidos por `localApiToken`, persiste el pairing cifrado en `/data` y devuelve respuestas saneadas.

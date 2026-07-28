@@ -62,24 +62,7 @@ function validSignedRequest(req, integration, rawBody, path) {
     const expected = sign(integration.shared_secret, canonicalPayload(req.method || 'POST', path, timestamp, nonce, rawBody));
     return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signature, 'hex'));
 }
-function statusPayload(config, integration, heartbeat, discovery, client) {
-    return {
-        status: client.isPaired() ? heartbeat.status : 'unpaired',
-        paired: client.isPaired(),
-        platformConnected: heartbeat.status === 'connected',
-        instanceId: integration?.integration_uuid || null,
-        agent_version: '1.0.0',
-        protocol_version: integration?.protocol_version || '1.0',
-        lastHeartbeatAt: heartbeat.lastHeartbeatAt,
-        lastDiscoveryAt: discovery.lastDiscoveryAt,
-        heartbeatAgeSeconds: heartbeat.lastHeartbeatAt ? Math.max(0, Math.round((Date.now() - Date.parse(heartbeat.lastHeartbeatAt)) / 1000)) : null,
-        latencyMs: heartbeat.latencyMs,
-        capabilities: discovery.capabilityCount,
-        workflows: discovery.workflowCount,
-        lastError: heartbeat.lastError || discovery.lastError,
-    };
-}
-export function createRouter(config, storage, pairing, discovery, heartbeat, reconnect, client) {
+export function createRouter(config, storage, connectionManager, discovery, heartbeat, client) {
     const logger = new Logger(config.logLevel);
     return async (req, res) => {
         try {
@@ -100,7 +83,7 @@ export function createRouter(config, storage, pairing, discovery, heartbeat, rec
                 if (!client.isPaired()) {
                     await client.restorePairing();
                 }
-                return json(res, 200, statusPayload(config, client.currentIntegration(), heartbeat, discovery, client));
+                return json(res, 200, { status: connectionManager.status().state.toLowerCase(), ...connectionManager.status() });
             }
             if (req.method === 'POST' && (url === '/v1/pair' || url === '/api/v1/pair')) {
                 const now = Date.now();
@@ -110,7 +93,7 @@ export function createRouter(config, storage, pairing, discovery, heartbeat, rec
                 }
                 pairHits.push(now);
                 const { json: payload } = await readBody(req);
-                return json(res, 200, await pairing.pair({
+                return json(res, 200, await connectionManager.connect({
                     pairCode: String(payload.pairCode || payload.pair_code || ''),
                     instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : undefined,
                     publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : undefined,
@@ -128,48 +111,23 @@ export function createRouter(config, storage, pairing, discovery, heartbeat, rec
                 const { json: payload } = await readBody(req);
                 const pairCode = String(payload.pairCode || payload.pair_code || '').trim();
                 if (pairCode) {
-                    return json(res, 200, await pairing.pair({
+                    return json(res, 200, await connectionManager.reconnectWithPairCode({
                         pairCode,
                         instanceName: typeof payload.instanceName === 'string' ? payload.instanceName : undefined,
                         publicUrl: typeof payload.publicUrl === 'string' ? payload.publicUrl : undefined,
                         environment: typeof payload.environment === 'string' ? payload.environment : undefined,
                     }));
                 }
-                return json(res, 200, { success: true, status: await reconnect.start() });
+                return json(res, 409, { success: false, message: 'Reconnect requires a Pair Code.' });
             }
             if (req.method === 'POST' && url === '/api/v1/test-connection') {
-                const integration = client.currentIntegration() ?? await storage.readIntegration();
-                if (!integration) {
-                    return json(res, 409, { success: false, paired: false, message: 'El agente todavía no está emparejado.' });
-                }
-                client.setPairing(integration);
-                const started = Date.now();
-                let challengeCompleted = false;
-                let heartbeatCompleted = false;
-                try {
-                    await client.signed('POST', integration.challenge_url || '/api/v1/integrations/n8n/challenge', { challenge: crypto.randomUUID(), sent_at: new Date().toISOString() });
-                    challengeCompleted = true;
-                }
-                catch (error) {
-                    logger.warn('test_connection.challenge_failed', { error: error instanceof Error ? error.message : 'Unknown challenge error' });
-                }
-                heartbeatCompleted = await heartbeat.send();
-                return json(res, 200, {
-                    success: challengeCompleted && heartbeatCompleted && discovery.capabilityCount > 0,
-                    paired: true,
-                    platformConnected: heartbeat.status === 'connected',
-                    latencyMs: Date.now() - started,
-                    challengeCompleted,
-                    heartbeatCompleted,
-                    capabilities: discovery.capabilityCount,
-                    workflows: discovery.workflowCount,
-                    lastError: heartbeat.lastError || discovery.lastError,
-                });
+                return json(res, 200, await connectionManager.testConnection());
+            }
+            if (req.method === 'POST' && url === '/api/v1/secret/rotate') {
+                return json(res, 200, await connectionManager.rotateSecret());
             }
             if (req.method === 'POST' && url === '/v1/integration/disconnect') {
-                await storage.clearIntegration();
-                client.clearPairing();
-                heartbeat.status = 'unpaired';
+                await connectionManager.disconnect();
                 return json(res, 200, { success: true });
             }
             if (req.method === 'POST' && url === '/v1/challenge') {
