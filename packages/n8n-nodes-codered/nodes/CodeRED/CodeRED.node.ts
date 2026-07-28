@@ -17,7 +17,8 @@ export class CodeRED implements INodeType {
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const credentials = await this.getCredentials('CodeREDApi') as CodeREDCredentials;
     const operation = this.getNodeParameter('operation', 0) as string;
-    assertUrl(credentials.agentBaseUrl || '');
+    assertUrl(process.env.CODERED_AGENT_LOCAL_URL || credentials.agentBaseUrl || 'http://codered-agent:5680');
+    if (credentials.baseUrl) assertUrl(credentials.baseUrl);
     const out: INodeExecutionData[] = [];
     for (let i = 0; i < this.getInputData().length || i === 0; i++) {
       try { out.push({ json: await runOperation.call(this, credentials, operation, i) }); } catch (error) { throw new NodeOperationError(this.getNode(), buildNodeError(error, operation), { itemIndex: i }); }

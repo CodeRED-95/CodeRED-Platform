@@ -1,11 +1,13 @@
 import crypto from 'crypto';
 
 export interface CodeREDCredentials {
+  baseUrl?: string;
   agentBaseUrl?: string;
   localApiToken?: string;
   timeoutMs?: number | string;
   allowUnauthorizedCerts?: boolean;
   instanceName?: string;
+  instanceUrl?: string;
   publicUrl?: string;
   environment?: string;
 }
