@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LC_ALL:-C.UTF-8}"
 
 PROJECT_DIR="${PROJECT_DIR:-$PWD}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
+if [[ -f "$PROJECT_DIR/scripts/lib/n8n_custom.sh" ]]; then source "$PROJECT_DIR/scripts/lib/n8n_custom.sh"; fi
 
 ok(){ echo "[OK] $*"; }
 info(){ echo "[INFO] $*"; }
-warn(){ echo "[AVISO] $*"; }
+warn(){ echo "[WARN] $*"; }
 die(){ echo "[ERROR] $*" >&2; exit 1; }
 step(){ echo; echo "[$1/10] $2"; }
 
@@ -59,6 +62,8 @@ ensure_agent_env(){
     [[ -n "$(get_env CODERED_AGENT_DISCOVERY_SECONDS)" ]] || set_env CODERED_AGENT_DISCOVERY_SECONDS "300"
     [[ -n "$(get_env CODERED_AGENT_REQUEST_TIMEOUT_MS)" ]] || set_env CODERED_AGENT_REQUEST_TIMEOUT_MS "15000"
     [[ -n "$(get_env CODERED_AGENT_LOG_LEVEL)" ]] || set_env CODERED_AGENT_LOG_LEVEL "info"
+    [[ -n "$(get_env CODERED_AGENT_LOCAL_URL)" ]] || set_env CODERED_AGENT_LOCAL_URL "http://codered-agent:5680"
+    [[ -n "$(get_env N8N_VERSION)" ]] || set_env N8N_VERSION "2.31.4"
 
     if need_secret CODERED_AGENT_ENCRYPTION_KEY; then set_env CODERED_AGENT_ENCRYPTION_KEY "$(generate_secret)"; ok "Clave de cifrado del agente generada correctamente."; fi
     if need_secret CODERED_AGENT_LOCAL_API_TOKEN; then set_env CODERED_AGENT_LOCAL_API_TOKEN "$(generate_secret)"; ok "Token de API local del agente generado correctamente."; fi
@@ -70,6 +75,23 @@ ensure_agent_env(){
 }
 
 changed(){ git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -Eq "$1"; }
+
+ensure_n8n_artifacts(){
+    local n8n_env_file n8n_dir
+    command -v ensure_n8n_files >/dev/null 2>&1 || { warn "Helper n8n_custom.sh no disponible; se omite preparacion de n8n custom."; return 0; }
+    n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"
+    n8n_dir="$(dirname "$n8n_env_file")"
+    ensure_n8n_files "$PROJECT_DIR" "$n8n_dir"
+    ensure_n8n_env "$PROJECT_DIR/.env" "$n8n_env_file"
+}
+
+should_rebuild_n8n(){
+    if ! docker image inspect codered-n8n:2.31.4 >/dev/null 2>&1; then
+        return 0
+    fi
+    [[ "$OLD_HEAD" != "$NEW_HEAD" ]] || return 1
+    changed '(^packages/n8n-nodes-codered/|^docker/n8n-codered/|^scripts/lib/n8n_custom.sh$|^Install_CodeRED-Platform.sh$|^update.sh$|^docs/integrations/n8n-docker-installation.md$)'
+}
 
 step 1 "Verificando entorno"
 cd "$PROJECT_DIR"
@@ -97,7 +119,8 @@ ok "Repositorio actualizado: $OLD_HEAD -> $NEW_HEAD"
 
 step 4 "Revisando variables nuevas"
 ensure_agent_env
-ok "Variables de CodeRED Agent verificadas sin mostrar secretos."
+ensure_n8n_artifacts
+ok "Variables de CodeRED Agent y archivos custom de n8n verificados sin mostrar secretos."
 
 step 5 "Construyendo imágenes"
 BUILD_SERVICES=()
@@ -108,12 +131,27 @@ fi
 if ((${#BUILD_SERVICES[@]})); then
     docker compose build "${BUILD_SERVICES[@]}"
 else
-    info "No se detectaron cambios que requieran reconstrucción selectiva."
+    info "No se detectaron cambios que requieran reconstruccion selectiva de Platform."
+fi
+N8N_REBUILD_REQUIRED=0
+if should_rebuild_n8n; then
+    N8N_REBUILD_REQUIRED=1
+    n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"
+    n8n_dir="$(dirname "$n8n_env_file")"
+    build_n8n_image "$n8n_dir"
+    ok "Imagen custom de n8n reconstruida localmente."
+else
+    info "No se detectaron cambios que requieran reconstruir codered-n8n."
 fi
 
 step 6 "Levantando servicios"
 docker compose up -d --remove-orphans
-ok "Servicios levantados sin borrar volúmenes."
+if [[ "${N8N_REBUILD_REQUIRED:-0}" == "1" ]]; then
+    n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"
+    n8n_dir="$(dirname "$n8n_env_file")"
+    start_n8n "$n8n_dir"
+fi
+ok "Servicios levantados sin borrar volumenes."
 
 step 7 "Ejecutando migraciones"
 docker compose exec -T app php artisan migrate --force

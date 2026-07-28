@@ -202,3 +202,22 @@ La operación es idempotente y no ejecuta comandos destructivos. En ejecuciones 
 
 El contenedor `codered-n8n`, si ya existe, debe compartir red Docker con `codered-postgres` para resolver el host `codered-postgres`.
 El archivo de entorno de n8n debe quedar con `DB_POSTGRESDB_PASSWORD=valor`, sin comillas externas añadidas. El instalador elimina solo un par de comillas externas accidentales introducidas por el usuario y preserva comillas internas reales.
+
+## Imagen local de n8n
+
+La instalacion prepara /opt/n8n como contexto autocontenido para la imagen local codered-n8n:2.31.4. El directorio debe contener Dockerfile, docker-compose.yml, data/ y n8n-nodes-codered/. El compose usa build.context=. y pull_policy=never para evitar que Docker intente descargar codered-n8n desde Docker Hub.
+
+Antes de recrear n8n, valide:
+
+```bash
+cd /opt/n8n
+test -f Dockerfile
+test -f docker-compose.yml
+test -f n8n-nodes-codered/package.json
+grep -q '^CODERED_AGENT_LOCAL_API_TOKEN=.' .env
+docker compose --env-file .env config
+docker compose --env-file .env build --no-cache n8n
+docker compose --env-file .env up -d --force-recreate n8n
+```
+
+No use docker login para codered-n8n; si aparece un pull access denied, revise que el compose tenga build y que /opt/n8n/Dockerfile exista. No borre /opt/n8n/data durante actualizaciones.

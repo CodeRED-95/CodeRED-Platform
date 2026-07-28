@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LC_ALL:-C.UTF-8}"
 
 PROJECT_DIR="${PROJECT_DIR:-$HOME/CodeRED-Platform}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,7 +11,7 @@ run_in_project() { [[ -d "$PROJECT_DIR" ]] || { echo "[ERROR] No existe $PROJECT
 get_env(){ local key="$1"; grep -E "^${key}=" .env 2>/dev/null | head -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/' || true; }
 set_env(){ local key="$1" value="$2" tmp; tmp="$(mktemp)"; awk -v k="$key" -v v="$value" 'BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}' .env > "$tmp"; mv "$tmp" .env; }
 backup_env(){ local ts; ts="$(date +%Y%m%d-%H%M%S)"; cp .env ".env.backup-$ts"; echo "Backup creado: .env.backup-$ts"; }
-generate_secret(){ command -v openssl >/dev/null || { echo "[ERROR] openssl no está instalado"; return 1; }; local v; v="$(openssl rand -hex 32)"; [[ "$v" =~ ^[0-9a-f]{64}$ ]] || { echo "[ERROR] secreto inválido generado"; return 1; }; printf '%s' "$v"; }
+generate_secret(){ command -v openssl >/dev/null || { echo "[ERROR] openssl no esta instalado"; return 1; }; local v; v="$(openssl rand -hex 32)"; [[ "$v" =~ ^[0-9a-f]{64}$ ]] || { echo "[ERROR] secreto inválido generado"; return 1; }; printf '%s' "$v"; }
 
 agent_menu(){
     while true; do
@@ -28,7 +30,7 @@ agent_menu(){
         echo "9) Rotar clave de cifrado de forma segura"
         echo "10) Volver"
         echo
-        read -r -p "Selecciona una opción: " option
+        read -r -p "Selecciona una opcion: " option
         case "$option" in
             1) run_in_project docker compose ps codered-agent; pause ;;
             2) run_in_project docker compose logs -f codered-agent ;;
@@ -36,12 +38,12 @@ agent_menu(){
             4) run_in_project docker compose build codered-agent; run_in_project docker compose up -d --force-recreate codered-agent; pause ;;
             5) run_in_project curl --fail http://127.0.0.1:5680/healthz; echo; pause ;;
             6)
-                run_in_project bash -lc 'token=$(grep -E "^CODERED_AGENT_LOCAL_API_TOKEN=" .env | head -n1 | cut -d= -f2- | sed -E "s/^\"(.*)\"$/\1/"); if [ -z "$token" ]; then echo "[ERROR] CODERED_AGENT_LOCAL_API_TOKEN no está configurado"; exit 1; fi; curl --fail --silent -H "Authorization: Bearer ${token}" http://127.0.0.1:5680/api/v1/status; echo'
+                run_in_project bash -lc 'token=$(grep -E "^CODERED_AGENT_LOCAL_API_TOKEN=" .env | head -n1 | cut -d= -f2- | sed -E "s/^\"(.*)\"$/\1/"); if [ -z "$token" ]; then echo "[ERROR] CODERED_AGENT_LOCAL_API_TOKEN no esta configurado"; exit 1; fi; curl --fail --silent -H "Authorization: Bearer ${token}" http://127.0.0.1:5680/api/v1/status; echo'
                 pause
                 ;;
             7) run_in_project docker compose exec -T app php artisan integrations:n8n-pair-code; pause ;;
             8)
-                run_in_project bash -lc 'set -Eeuo pipefail; command -v openssl >/dev/null; cp .env ".env.backup-$(date +%Y%m%d-%H%M%S)"; token=$(openssl rand -hex 32); [[ "$token" =~ ^[0-9a-f]{64}$ ]]; tmp=$(mktemp); awk -v k="CODERED_AGENT_LOCAL_API_TOKEN" -v v="$token" '\''BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}'\'' .env > "$tmp"; mv "$tmp" .env; unset token; docker compose up -d --force-recreate codered-agent; curl --fail --silent http://127.0.0.1:5680/healthz >/dev/null; echo "Token de API local rotado correctamente. No se mostró el valor."'
+                run_in_project bash -lc 'set -Eeuo pipefail; command -v openssl >/dev/null; cp .env ".env.backup-$(date +%Y%m%d-%H%M%S)"; token=$(openssl rand -hex 32); [[ "$token" =~ ^[0-9a-f]{64}$ ]]; tmp=$(mktemp); awk -v k="CODERED_AGENT_LOCAL_API_TOKEN" -v v="$token" '\''BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}'\'' .env > "$tmp"; mv "$tmp" .env; unset token; docker compose up -d --force-recreate codered-agent; curl --fail --silent http://127.0.0.1:5680/healthz >/dev/null; echo "Token de API local rotado correctamente. No se mostro el valor."'
                 pause
                 ;;
             9)
@@ -51,7 +53,35 @@ agent_menu(){
                 pause
                 ;;
             10) return ;;
-            *) echo "Opción inválida."; pause ;;
+            *) echo "Opcion inválida."; pause ;;
+        esac
+    done
+}
+
+n8n_menu(){
+    while true; do
+        clear 2>/dev/null || true
+        echo "============================================================"
+        echo "                 CodeRED n8n custom"
+        echo "============================================================"
+        echo "1) Preparar archivos en /opt/n8n"
+        echo "2) Validar compose custom"
+        echo "3) Construir imagen local"
+        echo "4) Iniciar/recrear codered-n8n"
+        echo "5) Probar acceso a codered-agent"
+        echo "6) Verificar extension dentro del contenedor"
+        echo "7) Volver"
+        echo
+        read -r -p "Selecciona una opcion: " option
+        case "$option" in
+            1) run_in_project bash -lc 'source scripts/lib/n8n_custom.sh; n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"; ensure_n8n_files "$PWD" "$(dirname "$n8n_env_file")"; ensure_n8n_env .env "$n8n_env_file"'; pause ;;
+            2) run_in_project bash -lc 'source scripts/lib/n8n_custom.sh; n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"; validate_n8n_compose "$(dirname "$n8n_env_file")"'; pause ;;
+            3) run_in_project bash -lc 'source scripts/lib/n8n_custom.sh; n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"; build_n8n_image "$(dirname "$n8n_env_file")"'; pause ;;
+            4) run_in_project bash -lc 'source scripts/lib/n8n_custom.sh; n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"; start_n8n "$(dirname "$n8n_env_file")"'; pause ;;
+            5) run_in_project docker exec codered-n8n node -e "fetch('http://codered-agent:5680/healthz').then(async r=>{console.log('HTTP',r.status); console.log(await r.text()); process.exit(r.ok?0:1)}).catch(e=>{console.error(e); process.exit(1)})"; pause ;;
+            6) run_in_project docker exec codered-n8n sh -lc 'test -d /opt/n8n-nodes-codered/dist && echo EXTENSION_DIST=OK || echo EXTENSION_DIST=MISSING; grep -R "codered-agent:5680\|CODERED_AGENT_LOCAL_URL" -n /opt/n8n-nodes-codered/dist || true; grep -R "integrations/n8n/pair" -n /opt/n8n-nodes-codered/dist || true; grep -R "instance_uuid.*integrationUuid" -n /opt/n8n-nodes-codered/dist || true'; pause ;;
+            7) return ;;
+            *) echo "Opcion invalida."; pause ;;
         esac
     done
 }
@@ -77,9 +107,10 @@ while true; do
     echo "12) Información de Laravel"
     echo "13) Sincronizar tabla de ubigeos"
     echo "14) CodeRED Agent"
+    echo "15) n8n custom"
     echo "0) Salir"
     echo
-    read -r -p "Selecciona una opción: " option
+    read -r -p "Selecciona una opcion: " option
 
     case "$option" in
         1) bash "$SCRIPT_DIR/Install_CodeRED-Platform.sh"; pause ;;
@@ -88,7 +119,7 @@ while true; do
         4)
             echo "1) app  2) queue  3) scheduler  4) nginx  5) redis  6) postgres  7) todos  8) codered-agent"
             read -r -p "Servicio: " s
-            case "$s" in 1) svc=app ;; 2) svc=queue ;; 3) svc=scheduler ;; 4) svc=nginx ;; 5) svc=redis ;; 6) svc=postgres ;; 7) svc="" ;; 8) svc=codered-agent ;; *) echo "Opción inválida"; pause; continue ;; esac
+            case "$s" in 1) svc=app ;; 2) svc=queue ;; 3) svc=scheduler ;; 4) svc=nginx ;; 5) svc=redis ;; 6) svc=postgres ;; 7) svc="" ;; 8) svc=codered-agent ;; *) echo "Opcion inválida"; pause; continue ;; esac
             if [[ -n "$svc" ]]; then run_in_project docker compose logs -f --tail=200 "$svc"; else run_in_project docker compose logs -f --tail=200; fi
             ;;
         5)
@@ -107,7 +138,8 @@ while true; do
         12) run_in_project docker compose exec -T app php artisan about; pause ;;
         13) run_in_project docker compose exec -T app php artisan ubigeos:sync; pause ;;
         14) run_in_project agent_menu ;;
+        15) run_in_project n8n_menu ;;
         0) exit 0 ;;
-        *) echo "Opción inválida."; pause ;;
+        *) echo "Opcion inválida."; pause ;;
     esac
 done

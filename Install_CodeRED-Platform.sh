@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LC_ALL:-C.UTF-8}"
 
 REPO_URL="https://github.com/CodeRED-95/CodeRED-Platform.git"
 PROJECT_DIR="${PROJECT_DIR:-$HOME/CodeRED-Platform}"
 ENV_FILE="$PROJECT_DIR/.env"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ -f "$SCRIPT_DIR/scripts/lib/n8n_custom.sh" ]]; then source "$SCRIPT_DIR/scripts/lib/n8n_custom.sh"; fi
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 ok(){ echo "[OK] $*"; }
@@ -207,12 +211,8 @@ validate_n8n_env_password_value() {
 validate_n8n_compose_config() {
     local n8n_env_file="$1" n8n_dir
     n8n_dir="$(dirname "$n8n_env_file")"
-    if [[ -f "$n8n_dir/docker-compose.yml" || -f "$n8n_dir/compose.yml" ]]; then
-        (cd "$n8n_dir" && docker compose config >/dev/null) || die "docker compose config falló para n8n."
-        ok "docker compose config de n8n validado sin imprimir secretos."
-    else
-        warn "No se encontró compose de n8n en $n8n_dir; se omite validación Docker Compose de n8n."
-    fi
+    validate_n8n_compose "$n8n_dir" || die "docker compose config fallo para n8n."
+    ok "docker compose config de n8n validado sin imprimir secretos."
 }
 
 
@@ -228,21 +228,22 @@ verify_n8n_schema_objects() {
 recreate_n8n_if_compose_present() {
     local n8n_env_file="$1" n8n_dir
     n8n_dir="$(dirname "$n8n_env_file")"
-    if [[ -f "$n8n_dir/docker-compose.yml" || -f "$n8n_dir/compose.yml" ]]; then
-        (cd "$n8n_dir" && docker compose up -d --force-recreate) || die "No se pudo recrear codered-n8n."
-        (cd "$n8n_dir" && docker compose ps)
-        if docker logs --since 5m codered-n8n 2>&1 | grep -F 'password authentication failed for user "n8n"' >/dev/null; then
-            die "codered-n8n reportó fallo de autenticación PostgreSQL para n8n."
-        fi
-        ok "codered-n8n recreado sin fallo de autenticación PostgreSQL detectado."
-    else
-        warn "No se recreó codered-n8n porque no se encontró compose en $n8n_dir."
+    validate_n8n_build_context "$n8n_dir" || die "La instalacion de n8n no tiene Dockerfile, compose o paquete personalizado validos."
+    build_n8n_image "$n8n_dir" || die "No se pudo construir la imagen local codered-n8n:2.31.4."
+    start_n8n "$n8n_dir" || die "No se pudo recrear codered-n8n."
+    (cd "$n8n_dir" && docker compose --env-file .env ps)
+    if docker logs --since 5m codered-n8n 2>&1 | grep -F 'password authentication failed for user "n8n"' >/dev/null; then
+        die "codered-n8n reporto fallo de autenticacion PostgreSQL para n8n."
     fi
+    ok "codered-n8n recreado sin fallo de autenticacion PostgreSQL detectado."
 }
 configure_n8n_env() {
-    local password="$1" n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"
+    local password="$1" n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}" n8n_dir
+    n8n_dir="$(dirname "$n8n_env_file")"
     password="$(normalize_env_secret "$password")"
-    validate_n8n_db_password "$password" || die "La contraseña PostgreSQL n8n es inválida."
+    validate_n8n_db_password "$password" || die "La contrasena PostgreSQL n8n es invalida."
+    ensure_n8n_files "$PROJECT_DIR" "$n8n_dir" || die "No se pudieron preparar archivos custom de n8n."
+    ensure_n8n_env "$ENV_FILE" "$n8n_env_file" || die "No se pudo sincronizar el token local de CodeRED Agent con n8n."
     set_env_value_raw "$n8n_env_file" DB_TYPE postgresdb
     set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_HOST codered-postgres
     set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_PORT 5432

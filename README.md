@@ -57,6 +57,21 @@ El instalador configura Laravel, PostgreSQL, Redis, administrador inicial y, opc
 
 Los seeders de roles y permisos son reejecutables: `RolesAndPermissionsSeeder` puede correrse varias veces durante instalación o recuperación sin duplicar `permission_role` ni borrar relaciones ajenas. Si el seeding falla, el instalador muestra un error explícito y puede reanudarse después de corregir el problema.
 
+## n8n personalizado
+
+El instalador prepara n8n como imagen local `codered-n8n:2.31.4` en `/opt/n8n`. Ese directorio queda autocontenido con `Dockerfile`, `docker-compose.yml`, `data/` y una copia compilable de `n8n-nodes-codered`; Docker Compose usa `build.context: .` y `pull_policy: never`, por lo que no debe intentar descargar `codered-n8n` desde Docker Hub.
+
+`/opt/n8n/.env` recibe `CODERED_AGENT_LOCAL_URL=http://codered-agent:5680` y el mismo `CODERED_AGENT_LOCAL_API_TOKEN` del agente. Las actualizaciones conservan `/opt/n8n/data` y reconstruyen la imagen si cambia el paquete personalizado o si la imagen local no existe.
+
+Comandos operativos:
+
+```bash
+cd /opt/n8n
+docker compose --env-file .env config
+docker compose --env-file .env build --no-cache n8n
+docker compose --env-file .env up -d --force-recreate n8n
+```
+
 ## Variables de CodeRED Agent
 
 ```env
