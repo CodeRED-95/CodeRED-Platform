@@ -8,6 +8,7 @@ import { CodeREDClient } from '../src/protocol/CodeREDClient.js';
 import { DiscoveryService } from '../src/protocol/DiscoveryService.js';
 import { HeartbeatService } from '../src/protocol/HeartbeatService.js';
 import { EncryptedFileStorage } from '../src/storage/EncryptedFileStorage.js';
+import { createStoredIntegration } from './helpers/createStoredIntegration.js';
 
 function config() {
   return loadConfig({
@@ -40,16 +41,14 @@ test('heartbeat and discovery skip unpaired state without throwing', async () =>
 test('persisted pairing is restored after a new client is created', async () => {
   const cfg = config();
   const { storage } = await tempStorage();
-  await storage.saveIntegration({
+  await storage.saveIntegration(createStoredIntegration({
     integration_uuid: '00000000-0000-4000-8000-000000000001',
     shared_secret: 'secret',
-    protocol_version: '1.0',
     paired_at: new Date().toISOString(),
     platform_url: cfg.platformUrl,
     agent_name: cfg.name,
     environment: cfg.environment,
-    secret_version: 1,
-  });
+  }));
   const client = new CodeREDClient(cfg, storage);
 
   assert.equal(await client.restorePairing(), true);
