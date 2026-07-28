@@ -7,7 +7,7 @@ REPO_URL="https://github.com/CodeRED-95/CodeRED-Platform.git"
 PROJECT_DIR="${PROJECT_DIR:-$HOME/CodeRED-Platform}"
 ENV_FILE="$PROJECT_DIR/.env"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-if [[ -f "$SCRIPT_DIR/scripts/lib/n8n_custom.sh" ]]; then source "$SCRIPT_DIR/scripts/lib/n8n_custom.sh"; fi
+REPO_DIR="${CODERED_REPO_DIR:-$PROJECT_DIR}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 ok(){ echo "[OK] $*"; }
@@ -15,6 +15,35 @@ info(){ echo "[INFO] $*"; }
 warn(){ echo "[AVISO] $*"; }
 die(){ echo "[ERROR] $*" >&2; exit 1; }
 
+load_n8n_helpers() {
+    local repo_dir="${1:-$REPO_DIR}" helper=""
+    if [[ -f "$SCRIPT_DIR/scripts/lib/n8n_custom.sh" ]]; then
+        helper="$SCRIPT_DIR/scripts/lib/n8n_custom.sh"
+    elif [[ -f "$repo_dir/scripts/lib/n8n_custom.sh" ]]; then
+        helper="$repo_dir/scripts/lib/n8n_custom.sh"
+    else
+        die "No se encontro scripts/lib/n8n_custom.sh junto al instalador ni en $repo_dir."
+    fi
+    # shellcheck source=/dev/null
+    source "$helper"
+}
+
+validate_n8n_helper_functions() {
+    local fn
+    local required_functions=(
+        ensure_n8n_files
+        ensure_n8n_env
+        validate_n8n_compose
+        build_n8n_image
+        start_n8n
+        wait_for_n8n_health
+    )
+    for fn in "${required_functions[@]}"; do
+        if ! declare -F "$fn" >/dev/null; then
+            die "La funcion requerida '$fn' no esta definida. Revise scripts/lib/n8n_custom.sh."
+        fi
+    done
+}
 trap 'code=$?; echo "[ERROR] Fallo en la línea $LINENO" >&2; echo "[ERROR] Comando: ${BASH_COMMAND}" >&2; echo "[ERROR] Código de salida: $code" >&2; echo "[INFO] Revise el mensaje anterior. Si se modificó .env, restaure el backup .env.backup-* y reintente." >&2; exit $code' ERR
 
 confirm() {
@@ -242,6 +271,7 @@ configure_n8n_env() {
     n8n_dir="$(dirname "$n8n_env_file")"
     password="$(normalize_env_secret "$password")"
     validate_n8n_db_password "$password" || die "La contrasena PostgreSQL n8n es invalida."
+    validate_n8n_helper_functions
     ensure_n8n_files "$PROJECT_DIR" "$n8n_dir" || die "No se pudieron preparar archivos custom de n8n."
     ensure_n8n_env "$ENV_FILE" "$n8n_env_file" || die "No se pudo sincronizar el token local de CodeRED Agent con n8n."
     set_env_value_raw "$n8n_env_file" DB_TYPE postgresdb
@@ -372,6 +402,8 @@ if [[ -e "$PROJECT_DIR" ]]; then die "Ya existe $PROJECT_DIR. Renómbralo o elim
 
 info "Clonando repositorio..."
 git clone --depth=1 "$REPO_URL" "$PROJECT_DIR"
+load_n8n_helpers "$PROJECT_DIR"
+validate_n8n_helper_functions
 cd "$PROJECT_DIR"
 [[ -f .env.example ]] || die "No se encontró .env.example."
 cp .env.example .env

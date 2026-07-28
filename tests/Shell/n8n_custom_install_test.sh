@@ -48,4 +48,13 @@ if validate_n8n_build_context "$n8n_dir" >/dev/null 2>&1; then
     fail 'validate_n8n_build_context should fail when Dockerfile is missing'
 fi
 
+
+# Regression: the public installer is often executed from /home/codered, while
+# scripts/lib/n8n_custom.sh only exists after cloning PROJECT_DIR. The installer
+# must load the helper from PROJECT_DIR before configure_n8n_env calls ensure_n8n_files.
+installer=Install_CodeRED-Platform.sh
+assert_contains "$installer" 'load_n8n_helpers "\$PROJECT_DIR"'
+assert_contains "$installer" 'validate_n8n_helper_functions'
+assert_contains "$installer" 'ensure_n8n_files "\$PROJECT_DIR" "\$n8n_dir"'
+
 printf '[OK] n8n custom install tests passed.\n'
