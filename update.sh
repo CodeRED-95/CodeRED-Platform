@@ -20,22 +20,68 @@ compose_file(){
     return 1
 }
 
+dotenv_escape_value(){
+    local value="$1"
+    [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || die "Valor invalido para .env"
+    if [[ "$value" =~ ^[A-Za-z0-9_./:@%+-]*$ ]]; then
+        printf '%s' "$value"
+        return
+    fi
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    value="${value//\$/\\\$}"
+    value="${value//\`/\\\`}"
+    printf '"%s"' "$value"
+}
+
 get_env(){
-    local key="$1"
-    grep -E "^${key}=" .env 2>/dev/null | head -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/' || true
+    local key="$1" value
+    value="$(grep -E "^${key}=" .env 2>/dev/null | head -n1 | cut -d= -f2- || true)"
+    if [[ ${#value} -ge 2 && "$value" == \"*\" && "$value" == *\" ]]; then
+        value="${value:1:${#value}-2}"
+        value="${value//\\\"/\"}"
+        value="${value//\\\\/\\}"
+        value="${value//\\\$/\$}"
+        value="${value//\\\`/\`}"
+    fi
+    if [[ ${#value} -ge 2 && "$value" == \'*\' && "$value" == *\' ]]; then
+        value="${value:1:${#value}-2}"
+    fi
+    printf '%s' "$value"
 }
 
 set_env(){
-    local key="$1" value="$2" quote="${3:-false}" tmp
-    [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]] && die "Valor inválido para $key"
-    if [[ "$quote" == "true" ]]; then
-        value="${value//\\/\\\\}"; value="${value//\"/\\\"}"; value="\"${value}\""
-    fi
+    local key="$1" value="$2" _quote="${3:-false}" encoded tmp
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "Clave .env invalida: $key"
+    encoded="$(dotenv_escape_value "$value")"
     tmp="$(mktemp)"
-    awk -v k="$key" -v v="$value" 'BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}' .env > "$tmp"
+    awk -v k="$key" -v v="$encoded" 'BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}' .env > "$tmp"
     mv "$tmp" .env
+    chmod 600 .env 2>/dev/null || true
 }
 
+postgres_diagnostics(){
+    warn "PostgreSQL no quedo healthy. Diagnostico sanitizado:"
+    docker compose ps codered-postgres || true
+    docker compose logs --tail=200 codered-postgres || true
+    docker inspect codered-postgres --format '{{json .State.Health}}' || true
+}
+
+wait_for_postgres(){
+    local attempts="${1:-60}" status
+    docker inspect codered-postgres >/dev/null 2>&1 || die "No se encontro el contenedor codered-postgres."
+    info "Esperando a que codered-postgres este healthy..."
+    for ((i=1; i<=attempts; i++)); do
+        status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' codered-postgres 2>/dev/null || true)"
+        if [[ "$status" == "healthy" ]]; then
+            ok "PostgreSQL healthy."
+            return
+        fi
+        sleep 2
+    done
+    postgres_diagnostics
+    die "PostgreSQL no quedo healthy dentro del tiempo esperado."
+}
 need_secret(){
     local key="$1" value
     value="$(get_env "$key")"
@@ -50,6 +96,19 @@ generate_secret(){
     printf '%s' "$value"
 }
 
+sync_postgres_env(){
+    local db_name db_user db_password
+    db_name="$(get_env DB_DATABASE)"
+    db_user="$(get_env DB_USERNAME)"
+    db_password="$(get_env DB_PASSWORD)"
+    [[ -n "$db_name" && -n "$db_user" && -n "$db_password" ]] || die "DB_DATABASE, DB_USERNAME y DB_PASSWORD son obligatorios."
+    set_env POSTGRES_DB "$db_name"
+    set_env POSTGRES_USER "$db_user"
+    set_env POSTGRES_PASSWORD "$db_password"
+    [[ -n "$(get_env DB_CONNECTION)" ]] || set_env DB_CONNECTION pgsql
+    [[ -n "$(get_env DB_HOST)" ]] || set_env DB_HOST postgres
+    [[ -n "$(get_env DB_PORT)" ]] || set_env DB_PORT 5432
+}
 ensure_agent_env(){
     [[ -n "$(get_env CODERED_PLATFORM_URL)" ]] || set_env CODERED_PLATFORM_URL "$(get_env APP_URL)"
     [[ -n "$(get_env CODERED_AGENT_NAME)" ]] || set_env CODERED_AGENT_NAME "CodeRED n8n Agent" true
@@ -114,8 +173,9 @@ NEW_HEAD="$(git rev-parse HEAD)"
 ok "Repositorio actualizado: $OLD_HEAD -> $NEW_HEAD"
 
 step 4 "Revisando variables nuevas"
+sync_postgres_env
 ensure_agent_env
-ok "Variables de CodeRED Agent y n8n verificadas sin mostrar secretos."
+ok "Variables PostgreSQL, CodeRED Agent y n8n verificadas sin mostrar secretos."
 
 step 5 "Construyendo imágenes"
 BUILD_SERVICES=()
@@ -139,6 +199,7 @@ fi
 
 step 6 "Levantando servicios"
 docker compose up -d --remove-orphans
+wait_for_postgres
 if [[ "${N8N_REBUILD_REQUIRED:-0}" == "1" ]]; then
     docker compose up -d --force-recreate --no-deps codered-n8n
 fi

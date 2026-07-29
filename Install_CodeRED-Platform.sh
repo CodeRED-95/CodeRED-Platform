@@ -42,21 +42,63 @@ read_password() {
         [[ "$a" != "$b" ]] && { warn "Las contraseñas no coinciden."; continue; }
         (( ${#a} < 12 )) && { warn "Usa al menos 12 caracteres."; continue; }
         [[ "$a" == *$'\n'* || "$a" == *$'\r'* ]] && { warn "No se permiten saltos de línea."; continue; }
-        [[ "$a" == *[[:space:]]* || "$a" == *"#"* || "$a" == *"="* || "$a" == *"\""* || "$a" == *"'"* ]] && { warn "La contraseña contiene caracteres incompatibles con el .env. No uses espacios, comillas, # ni =."; continue; }
-        REPLY="$a"; return
+        REPLY="$(normalize_env_secret "$a")"; return
     done
 }
 
-set_env() {
-    local key="$1" value="$2" quote="${3:-false}" tmp
-    [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]] && { echo "[ERROR] El valor de $key contiene saltos de línea." >&2; return 1; }
-    if [[ "$quote" == "true" ]]; then value="${value//\\/\\\\}"; value="${value//\"/\\\"}"; value="\"${value}\""; fi
-    tmp="$(mktemp)"
-    awk -v k="$key" -v v="$value" 'BEGIN{done=0} index($0,k"=")==1 {print k"="v; done=1; next} {print} END{if(!done) print k"="v}' "$ENV_FILE" > "$tmp"
-    mv "$tmp" "$ENV_FILE"
+dotenv_escape_value() {
+    local value="$1"
+    [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || { echo "[ERROR] El valor contiene saltos de linea." >&2; return 1; }
+    if [[ "$value" =~ ^[A-Za-z0-9_./:@%+-]*$ ]]; then
+        printf '%s' "$value"
+        return
+    fi
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    value="${value//\$/\\\$}"
+    value="${value//\`/\\\`}"
+    printf '"%s"' "$value"
 }
 
-get_env() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | head -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/' || true; }
+set_env() {
+    local key="$1" value="$2" _quote="${3:-false}" encoded tmp
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "[ERROR] Clave .env invalida: $key" >&2; return 1; }
+    encoded="$(dotenv_escape_value "$value")" || return 1
+    tmp="$(mktemp)"
+    awk -v k="$key" -v v="$encoded" 'BEGIN{done=0} index($0,k"=")==1 {if(!done){print k"="v; done=1}; next} {print} END{if(!done) print k"="v}' "$ENV_FILE" > "$tmp"
+    mv "$tmp" "$ENV_FILE"
+    chmod 600 "$ENV_FILE" 2>/dev/null || true
+}
+
+get_env() {
+    local key="$1" value
+    value="$(grep -E "^${key}=" "$ENV_FILE" 2>/dev/null | head -n1 | cut -d= -f2- || true)"
+    if [[ ${#value} -ge 2 && "$value" == \"*\" && "$value" == *\" ]]; then
+        value="${value:1:${#value}-2}"
+        value="${value//\\\"/\"}"
+        value="${value//\\\\/\\}"
+        value="${value//\\\$/\$}"
+        value="${value//\\\`/\`}"
+    fi
+    if [[ ${#value} -ge 2 && "$value" == \'*\' && "$value" == *\' ]]; then
+        value="${value:1:${#value}-2}"
+    fi
+    printf '%s' "$value"
+}
+
+sync_postgres_env() {
+    local db_name db_user db_password
+    db_name="$(get_env DB_DATABASE)"
+    db_user="$(get_env DB_USERNAME)"
+    db_password="$(get_env DB_PASSWORD)"
+    [[ -n "$db_name" && -n "$db_user" && -n "$db_password" ]] || die "DB_DATABASE, DB_USERNAME y DB_PASSWORD son obligatorios."
+    set_env POSTGRES_DB "$db_name"
+    set_env POSTGRES_USER "$db_user"
+    set_env POSTGRES_PASSWORD "$db_password"
+    [[ -n "$(get_env DB_CONNECTION)" ]] || set_env DB_CONNECTION pgsql
+    [[ -n "$(get_env DB_HOST)" ]] || set_env DB_HOST postgres
+    [[ -n "$(get_env DB_PORT)" ]] || set_env DB_PORT 5432
+}
 
 generate_secret(){
     command -v openssl >/dev/null || die "openssl es requerido para generar secretos de CodeRED Agent."
@@ -123,20 +165,28 @@ prompt_secret_with_confirmation() {
     done
 }
 
+postgres_diagnostics() {
+    warn "PostgreSQL no quedo healthy. Diagnostico sanitizado:"
+    docker compose ps codered-postgres || true
+    docker compose logs --tail=200 codered-postgres || true
+    docker inspect codered-postgres --format '{{json .State.Health}}' || true
+}
+
 wait_for_postgres() {
-    local db_user="$1" attempts="${2:-40}"
-    command -v docker >/dev/null || die "Docker no está disponible."
-    docker inspect codered-postgres >/dev/null 2>&1 || die "No se encontró el contenedor codered-postgres."
-    [[ "$(docker inspect -f '{{.State.Running}}' codered-postgres 2>/dev/null)" == "true" ]] || die "El contenedor codered-postgres no está en ejecución."
-    info "Esperando a que codered-postgres esté disponible..."
+    local attempts="${1:-60}" status
+    command -v docker >/dev/null || die "Docker no esta disponible."
+    docker inspect codered-postgres >/dev/null 2>&1 || die "No se encontro el contenedor codered-postgres."
+    info "Esperando a que codered-postgres este healthy..."
     for ((i=1; i<=attempts; i++)); do
-        if docker exec codered-postgres pg_isready -U "$db_user" -d postgres >/dev/null 2>&1; then
-            ok "PostgreSQL está disponible."
+        status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' codered-postgres 2>/dev/null || true)"
+        if [[ "$status" == "healthy" ]]; then
+            ok "PostgreSQL healthy."
             return
         fi
-        sleep 3
+        sleep 2
     done
-    die "PostgreSQL no estuvo disponible dentro del tiempo esperado."
+    postgres_diagnostics
+    die "PostgreSQL no quedo healthy dentro del tiempo esperado."
 }
 
 postgres_role_exists() {
@@ -279,9 +329,9 @@ configure_n8n_postgres() {
     password="$(normalize_env_secret "$password")"
     validate_n8n_db_password "$password" || die "La contraseña PostgreSQL n8n es inválida."
     info "Configurando PostgreSQL para n8n..."
-    db_user="$(get_env DB_USERNAME)"
-    db_user="${db_user:-codered}"
-    wait_for_postgres "$db_user"
+    db_user="$(get_env POSTGRES_USER)"
+    db_user="${db_user:-$(get_env DB_USERNAME)}"
+    wait_for_postgres
 
     if postgres_role_exists "$db_user"; then
         info "El usuario PostgreSQL n8n ya existe; se actualizará su contraseña."
@@ -359,9 +409,22 @@ SQL
 }
 validate_env_file() {
     local invalid
-    invalid="$(awk '/\r$/ {print NR ": retorno CR"; next} /^[[:space:]]*($|#)/ {next} !/^[A-Za-z_][A-Za-z0-9_]*=/ {print NR ": clave inválida"; next} {key=$0; sub(/=.*/, "", key); value=substr($0,index($0,"=")+1); if ((key=="DB_PASSWORD" || key=="DEV_ADMIN_PASSWORD" || key ~ /(_API_KEY|_TOKEN)$/) && value ~ /^"/) {print key; next} if (value ~ /^"([^"\\]|\\.)*"$/) next; if (value ~ /[[:space:]]/) print key}' "$ENV_FILE")"
-    if [[ -n "$invalid" ]]; then while IFS= read -r key; do [[ -n "$key" ]] && echo "[ERROR] El archivo .env contiene un valor inválido en $key" >&2; done <<< "$invalid"; return 1; fi
-    ok "Archivo .env válido"
+    invalid="$(awk '
+        /\r$/ {print NR ": retorno CR"; next}
+        /^[[:space:]]*($|#)/ {next}
+        !/^[A-Za-z_][A-Za-z0-9_]*=/ {print NR ": clave invalida"; next}
+        {
+            key=$0; sub(/=.*/, "", key);
+            value=substr($0,index($0,"=")+1);
+            if (value ~ /^"([^"\\]|\\.)*"$/) next;
+            if (value ~ /[[:space:]]/) print key;
+        }
+    ' "$ENV_FILE")"
+    if [[ -n "$invalid" ]]; then
+        while IFS= read -r key; do [[ -n "$key" ]] && echo "[ERROR] El archivo .env contiene un valor invalido en $key" >&2; done <<< "$invalid"
+        return 1
+    fi
+    ok "Archivo .env valido"
 }
 
 echo "============================================================"
@@ -394,7 +457,7 @@ read_value "Correo del administrador" "admin@codered.host" true; ADMIN_EMAIL="$R
 read_password "Contraseña del administrador"; ADMIN_PASSWORD="$REPLY"
 
 set_env APP_NAME "CodeRED Platform" true; set_env VITE_APP_NAME "CodeRED Platform" true; set_env APP_ENV "$APP_ENV"; set_env APP_DEBUG "$APP_DEBUG"; set_env APP_URL "$APP_URL"; set_env CODERED_PLATFORM_URL "$APP_URL"; set_env LOG_LEVEL "$LOG_LEVEL"
-set_env DB_DATABASE "$DB_DATABASE"; set_env DB_USERNAME "$DB_USERNAME"; set_env DB_PASSWORD "$DB_PASSWORD"; set_env DEV_ADMIN_NAME "$ADMIN_NAME" true; set_env DEV_ADMIN_EMAIL "$ADMIN_EMAIL"; set_env DEV_ADMIN_PASSWORD "$ADMIN_PASSWORD"
+set_env DB_CONNECTION pgsql; set_env DB_HOST postgres; set_env DB_PORT 5432; set_env DB_DATABASE "$DB_DATABASE"; set_env DB_USERNAME "$DB_USERNAME"; set_env DB_PASSWORD "$DB_PASSWORD"; sync_postgres_env; set_env DEV_ADMIN_NAME "$ADMIN_NAME" true; set_env DEV_ADMIN_EMAIL "$ADMIN_EMAIL"; set_env DEV_ADMIN_PASSWORD "$ADMIN_PASSWORD"
 set_env QUEUE_CONNECTION "redis"; set_env REDIS_QUEUE_RETRY_AFTER "172900"; set_env RUC_ENABLED "true"; set_env RUC_IMPORT_DISK "local"; set_env RUC_IMPORT_INCOMING_DIRECTORY "private/ruc/incoming"; set_env RUC_IMPORT_WORKING_DIRECTORY "private/ruc/working"; set_env RUC_IMPORT_ARCHIVE_DIRECTORY "private/ruc/archive"; set_env RUC_IMPORT_ERRORS_DIRECTORY "private/ruc/errors"; set_env RUC_IMPORT_QUEUE "ruc-imports"; set_env RUC_IMPORT_CHUNK_SIZE "10000"; set_env RUC_IMPORT_COPY_BATCH_SIZE "100000"; set_env RUC_IMPORT_PROGRESS_INTERVAL "10000"; set_env RUC_IMPORT_CHECKPOINT_INTERVAL "50000"; set_env RUC_IMPORT_TIMEOUT "86400"; set_env RUC_IMPORT_LOCK_SECONDS "172800"; set_env RUC_IMPORT_ENCODING "ISO-8859-1"; set_env RUC_IMPORT_DELIMITER "|"; set_env RUC_IMPORT_MAX_SIZE_MB "30000"; set_env RUC_IMPORT_RESUME_ENABLED "true"; set_env RUC_IMPORT_ARCHIVE_FILES "true"; set_env RUC_IMPORT_STRATEGY "insert_ignore"
 if [[ "$APP_URL" == https://*.codered.host ]]; then set_env SESSION_DOMAIN ".codered.host"; else set_env SESSION_DOMAIN "null"; fi
 set_env SANCTUM_STATEFUL_DOMAINS "platform.codered.host,localhost:8090,127.0.0.1:8090,192.168.18.124:8090,chrome-extension://jpfcfljmbaijaajjdhblinjgblnfpign"
@@ -409,6 +472,7 @@ unset DB_PASSWORD ADMIN_PASSWORD REPLY || true
 
 info "Construyendo e iniciando contenedores..."
 docker compose up -d --build
+wait_for_postgres
 configure_n8n_postgres "$(get_env N8N_DB_PASSWORD)"
 info "Esperando Laravel..."
 for _ in {1..40}; do if docker compose exec -T app php artisan about >/dev/null 2>&1; then break; fi; sleep 3; done

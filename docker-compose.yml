@@ -34,9 +34,9 @@ services:
     container_name: codered-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_DATABASE}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       N8N_DB_DATABASE: ${N8N_DB_DATABASE:-n8n}
       N8N_DB_USERNAME: ${N8N_DB_USERNAME:-n8n}
       N8N_DB_PASSWORD: ${N8N_DB_PASSWORD}
@@ -44,10 +44,11 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 30s
 
   redis:
     image: redis:7-alpine

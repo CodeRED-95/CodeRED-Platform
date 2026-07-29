@@ -46,6 +46,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Fixed
 
+- Healthcheck de PostgreSQL alineado con `POSTGRES_DB`/`POSTGRES_USER`, sincronización segura de `POSTGRES_*` desde `DB_*` en instalación/actualización y espera explícita antes de migraciones o preparación de n8n.
 - Seeders de roles y permisos idempotentes: se normalizan permisos, se deduplican IDs antes de `sync()` y se evita la violación de `permission_role_pkey` al reejecutar `db:seed --force`.
 - Mensaje del instalador cuando falla `php artisan db:seed --force`, con indicación directa a `database/seeders` sin ocultar el error.
 - Normalización de comillas externas en `DB_POSTGRESDB_PASSWORD` de n8n y escritura raw sin comillas añadidas.
