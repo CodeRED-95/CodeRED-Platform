@@ -11,11 +11,61 @@ use Illuminate\Support\Carbon;
 
 class ApiTokenRequest extends Model
 {
-    protected $fillable = ['request_uuid', 'telegram_user_id', 'telegram_chat_id', 'telegram_username', 'telegram_first_name', 'telegram_last_name', 'requested_token_name', 'requested_abilities', 'requested_expires_in_minutes', 'status', 'requested_ip', 'request_source', 'requested_at', 'reviewed_at', 'approved_at', 'rejected_at', 'reviewed_by', 'rejection_reason', 'personal_access_token_id', 'encrypted_plain_text_token', 'delivery_status', 'delivered_at', 'delivery_attempts', 'delivery_reference', 'result_retrieved_at'];
+    protected $fillable = [
+        'request_uuid',
+        'requester_name',
+        'requester_email',
+        'requester_phone',
+        'application_name',
+        'purpose',
+        'telegram_user_id',
+        'telegram_chat_id',
+        'telegram_username',
+        'telegram_first_name',
+        'telegram_last_name',
+        'requested_token_name',
+        'requested_abilities',
+        'requested_expires_in_minutes',
+        'status',
+        'requested_ip',
+        'request_source',
+        'metadata',
+        'requested_at',
+        'reviewed_at',
+        'approved_at',
+        'rejected_at',
+        'cancelled_at',
+        'reviewed_by',
+        'rejection_reason',
+        'cancellation_reason',
+        'personal_access_token_id',
+        'encrypted_plain_text_token',
+        'delivery_status',
+        'delivered_at',
+        'delivery_channel',
+        'delivered_to',
+        'delivery_metadata',
+        'delivery_attempts',
+        'delivery_reference',
+        'result_retrieved_at',
+    ];
 
     protected function casts(): array
     {
-        return ['requested_abilities' => 'array', 'requested_at' => 'datetime', 'reviewed_at' => 'datetime', 'approved_at' => 'datetime', 'rejected_at' => 'datetime', 'delivered_at' => 'datetime', 'result_retrieved_at' => 'datetime', 'status' => ApiTokenRequestStatus::class, 'delivery_status' => ApiTokenRequestDeliveryStatus::class];
+        return [
+            'requested_abilities' => 'array',
+            'metadata' => 'array',
+            'delivery_metadata' => 'array',
+            'requested_at' => 'datetime',
+            'reviewed_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'result_retrieved_at' => 'datetime',
+            'status' => ApiTokenRequestStatus::class,
+            'delivery_status' => ApiTokenRequestDeliveryStatus::class,
+        ];
     }
 
     public function statusValue(): string

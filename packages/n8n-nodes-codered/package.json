@@ -1,38 +1,38 @@
 {
-  "name": "@n8n-nodes-codered/codered",
-  "version": "1.0.0",
-  "description": "Official self-hosted CodeRED Platform connector for n8n",
-  "license": "UNLICENSED",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "test": "node --test dist/test/*.test.js",
-    "prepublishOnly": "npm run build"
-  },
-  "files": [
-    "dist"
-  ],
-  "keywords": [
-    "n8n-community-node-package",
-    "codered",
-    "laravel",
-    "sanctum"
-  ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/CodeREDApi.credentials.js"
+    "name": "@n8n-nodes-codered/codered",
+    "version": "1.0.0",
+    "description": "Official self-hosted CodeRED Platform connector for n8n",
+    "license": "UNLICENSED",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc && node scripts/copy-assets.mjs",
+        "test": "node --test dist/test/*.test.js",
+        "prepublishOnly": "npm run build"
+    },
+    "files": [
+        "dist"
     ],
-    "nodes": [
-      "dist/nodes/CodeRED/CodeRED.node.js"
-    ]
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.5.0"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  }
+    "keywords": [
+        "n8n-community-node-package",
+        "codered",
+        "laravel",
+        "sanctum"
+    ],
+    "n8n": {
+        "n8nNodesApiVersion": 1,
+        "credentials": [
+            "dist/credentials/CodeREDApi.credentials.js"
+        ],
+        "nodes": [
+            "dist/nodes/CodeRED/CodeRED.node.js"
+        ]
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.5.0"
+    },
+    "peerDependencies": {
+        "n8n-workflow": "*"
+    }
 }

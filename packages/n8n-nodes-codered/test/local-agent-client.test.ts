@@ -215,3 +215,42 @@ test('toN8nValue converts unsupported root values safely', () => {
   assert.equal(toN8nValue(undefined), null);
   assert.match(String(toN8nValue(Symbol('x'))), /Symbol\(x\)/);
 });
+
+test('Token request operations call codered-agent with safe payloads', async () => {
+  process.env.CODERED_AGENT_LOCAL_URL = 'http://codered-agent:5680';
+  process.env.CODERED_AGENT_LOCAL_API_TOKEN = 'local-token';
+  const calls: Array<{ url: string; method: string; body: Record<string, unknown> | null }> = [];
+
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(url),
+      method: String(init?.method || 'GET'),
+      body: init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : null,
+    });
+
+    return new Response(JSON.stringify({ success: true, data: { request_id: 'req-1', status: 'pending' } }), { status: 200 });
+  }) as typeof fetch;
+
+  const manager = new ConnectionManager(credentials());
+  await manager.createTokenRequest({ requester_name: 'Ada', application_name: 'Bot', purpose: 'Read agencies', requested_scopes: ['agencies:read'], source: 'n8n' });
+  await manager.getTokenRequestStatus('00000000-0000-4000-8000-000000000111');
+  await manager.retrieveApprovedToken('00000000-0000-4000-8000-000000000111');
+  await manager.confirmTokenDelivery('00000000-0000-4000-8000-000000000111', { delivery_channel: 'manual' });
+  await manager.cancelTokenRequest('00000000-0000-4000-8000-000000000111', { cancellation_reason: 'No longer needed' });
+
+  assert.equal(calls[0]?.url, 'http://codered-agent:5680/api/v1/token-requests');
+  assert.equal(calls[0]?.method, 'POST');
+  assert.deepEqual(calls[0]?.body?.requested_scopes, ['agencies:read']);
+  assert.equal(Object.hasOwn(calls[0]?.body || {}, 'shared_secret'), false);
+  assert.equal(calls[1]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111');
+  assert.equal(calls[1]?.method, 'GET');
+  assert.equal(calls[2]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/retrieve');
+  assert.equal(calls[3]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/delivery');
+  assert.equal(calls[4]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/cancel');
+});
+
+test('sanitizeOutput allows approved token only when explicitly requested', () => {
+  assert.equal(sanitizeOutput({ token: 'plain-token' }).token, '[redacted]');
+  assert.equal(sanitizeOutput({ token: 'plain-token' }, { allowToken: true }).token, 'plain-token');
+  assert.equal(sanitizeOutput({ shared_secret: 'secret' }, { allowToken: true }).shared_secret, '[redacted]');
+});

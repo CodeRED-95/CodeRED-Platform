@@ -12,6 +12,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Flujo funcional de solicitudes de token para n8n: creación, consulta de estado, recuperación única del token aprobado, confirmación idempotente de entrega y cancelación segura a través de codered-agent firmado.
 - `instance_uuid` estable para integraciones n8n, migración de idempotencia y comando `codered:n8n:deduplicate`.
 - Guía `docs/integrations/n8n-lifecycle.md` para Pair, Challenge, Discovery, Heartbeat, rotación y recuperación.
 

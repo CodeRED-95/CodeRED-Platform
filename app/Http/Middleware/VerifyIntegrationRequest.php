@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class VerifyIntegrationRequest
@@ -15,6 +16,10 @@ class VerifyIntegrationRequest
     public function handle(Request $request, Closure $next): Response
     {
         $uuid = (string) $request->header('X-CodeRED-Integration', $request->input('integration_uuid', ''));
+        if (! Str::isUuid($uuid)) {
+            return $this->deny('Integración no reconocida.', 401);
+        }
+
         $integration = Integration::query()->where('integration_uuid', $uuid)->first();
         if (! $integration) {
             return $this->deny('Integración no reconocida.', 401);

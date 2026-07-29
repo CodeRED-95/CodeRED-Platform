@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Config } from '../config/Config.js';
 import { Logger } from '../logging/Logger.js';
 import { canonicalPayload, sign } from '../protocol/RequestSigner.js';
-import type { CodeREDClient } from '../protocol/CodeREDClient.js';
+import type { CodeREDClient, HttpError } from '../protocol/CodeREDClient.js';
 import type { DiscoveryService } from '../protocol/DiscoveryService.js';
 import type { HeartbeatService } from '../protocol/HeartbeatService.js';
 import type { ConnectionManager } from '../protocol/ConnectionManager.js';
@@ -198,6 +198,32 @@ export function createRouter(
         return json(res, 409, { success: false, message: 'Reconnect requires a Pair Code.' });
       }
 
+      if (url === '/api/v1/token-requests' && req.method === 'POST') {
+        const { json: payload } = await readBody(req);
+        logger.info('token_request.local_create', { source: payload.source || 'n8n', requester_present: Boolean(payload.requester_name) });
+
+        return json(res, 200, await client.signed('POST', '/api/v1/integrations/n8n/token-requests', payload));
+      }
+
+      const tokenRequestMatch = url.match(/^\/api\/v1\/token-requests\/([^/]+)(?:\/(retrieve|delivery|cancel))?$/);
+      if (tokenRequestMatch) {
+        const requestUuid = encodeURIComponent(tokenRequestMatch[1] ?? '');
+        const action = tokenRequestMatch[2] ?? '';
+        const platformPath = '/api/v1/integrations/n8n/token-requests/' + requestUuid + (action ? '/' + action : '');
+
+        if (!action && req.method === 'GET') {
+          logger.info('token_request.local_status', { request_uuid: requestUuid });
+
+          return json(res, 200, await client.signed('GET', platformPath));
+        }
+
+        if (action && req.method === 'POST') {
+          const { json: payload } = await readBody(req);
+          logger.info('token_request.local_action', { request_uuid: requestUuid, action });
+
+          return json(res, 200, await client.signed('POST', platformPath, payload));
+        }
+      }
       if (req.method === 'POST' && url === '/api/v1/test-connection') {
         return json(res, 200, await connectionManager.testConnection());
       }
@@ -263,7 +289,12 @@ export function createRouter(
       return json(res, 404, { success: false, message: 'Not found' });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Agent error';
-      logger.error('agent.request_failed', { error: message });
+      const httpError = error as HttpError;
+      logger.error('agent.request_failed', { error: message, status: httpError.status });
+
+      if (typeof httpError.status === 'number') {
+        return json(res, httpError.status, httpError.responseBody ?? { success: false, message });
+      }
 
       return json(res, 500, { success: false, message });
     }

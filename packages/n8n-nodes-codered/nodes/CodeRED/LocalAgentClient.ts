@@ -1,7 +1,7 @@
 import type { IDataObject, GenericValue } from 'n8n-workflow';
 
 const DEFAULT_AGENT_URL = 'http://codered-agent:5680';
-const SECRET_KEY_PATTERN = /secret|token|api_key|apiKey|authorization|pair_code|pairCode|signature/i;
+const SECRET_KEY_PATTERN = /secret|api_key|apiKey|authorization|pair_code|pairCode|signature/i;
 
 type N8nSerializable = GenericValue | IDataObject | GenericValue[] | IDataObject[];
 
@@ -37,7 +37,11 @@ function ensureTrailingSlash(value: string): string {
   return value.endsWith('/') ? value : value + '/';
 }
 
-function isSensitiveKey(key: string): boolean {
+function isSensitiveKey(key: string, allowToken = false): boolean {
+  if (/^token$/i.test(key)) {
+    return !allowToken;
+  }
+
   return SECRET_KEY_PATTERN.test(key);
 }
 
@@ -49,7 +53,7 @@ function isBuffer(value: unknown): value is Buffer {
   return typeof Buffer !== 'undefined' && Buffer.isBuffer(value);
 }
 
-export function toN8nValue(value: unknown): N8nSerializable {
+export function toN8nValue(value: unknown, options: { allowToken?: boolean } = {}): N8nSerializable {
   if (value === undefined || value === null) {
     return null;
   }
@@ -93,7 +97,7 @@ export function toN8nValue(value: unknown): N8nSerializable {
         return null;
       }
 
-      const converted = toN8nValue(item);
+      const converted = toN8nValue(item, options);
 
       if (Array.isArray(converted)) {
         return JSON.stringify(converted);
@@ -111,7 +115,7 @@ export function toN8nValue(value: unknown): N8nSerializable {
         continue;
       }
 
-      output[key] = isSensitiveKey(key) ? '[redacted]' : toN8nValue(item);
+      output[key] = isSensitiveKey(key, options.allowToken === true) ? '[redacted]' : toN8nValue(item, options);
     }
 
     return output;
@@ -120,8 +124,8 @@ export function toN8nValue(value: unknown): N8nSerializable {
   return String(value);
 }
 
-export function sanitizeOutput(value: unknown): IDataObject {
-  const converted = toN8nValue(value);
+export function sanitizeOutput(value: unknown, options: { allowToken?: boolean } = {}): IDataObject {
+  const converted = toN8nValue(value, options);
 
   if (isIDataObject(converted)) {
     return converted;

@@ -131,6 +131,27 @@ N8N_HOST=n8n.codered.host
 N8N_EDITOR_BASE_URL=https://n8n.codered.host/
 N8N_WEBHOOK_URL=https://n8n.codered.host/
 ```
+## Operaciones CodeRED en n8n
+
+El nodo CodeRED se organiza en dos recursos:
+
+- **Connection**: Pair Instance, Test Connection, Reconnect, Get Agent Status, Refresh Discovery, Rotate Secret y Disconnect.
+- **Token Requests**: Create Token Request, Get Token Request Status, Retrieve Approved Token, Confirm Token Delivery y Cancel Token Request.
+
+El flujo funcional recomendado es crear la solicitud desde n8n, aprobarla en el panel administrativo de CodeRED Platform, consultar el estado, recuperar el token aprobado una sola vez y confirmar la entrega. El token aprobado solo aparece como salida de `Retrieve Approved Token`; no se guarda en credenciales, logs, metadata ni errores. Todas las operaciones pasan por `codered-agent`, que firma las solicitudes hacia Platform con la identidad emparejada.
+
+Para actualizar solo los servicios afectados después de cambios en el nodo o agente:
+
+```bash
+docker compose build codered-agent codered-n8n
+docker compose up -d --force-recreate codered-agent codered-n8n
+```
+
+Para comprobar que n8n está cargando la versión nueva del nodo:
+
+```bash
+docker exec codered-n8n sh -lc 'ls -lah /home/node/.n8n/custom/n8n-nodes-codered/dist/nodes/CodeRED && grep -R "createTokenRequest\|token-requests" -n /home/node/.n8n/custom/n8n-nodes-codered/dist/nodes/CodeRED'
+```
 ## Actualización
 
 ```bash

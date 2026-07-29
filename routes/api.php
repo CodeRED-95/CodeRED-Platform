@@ -36,6 +36,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('/token-requests/{request_uuid}', [N8nTokenRequestController::class, 'show'])->name('token-requests.show');
         Route::post('/token-requests/{request_uuid}/retrieve', [N8nTokenRequestController::class, 'retrieve'])->name('token-requests.retrieve');
         Route::post('/token-requests/{request_uuid}/delivery', [N8nTokenRequestController::class, 'delivery'])->name('token-requests.delivery');
+        Route::post('/token-requests/{request_uuid}/cancel', [N8nTokenRequestController::class, 'cancel'])->name('token-requests.cancel');
     });
     Route::middleware(['auth:sanctum', 'api.token-owner-active', 'api.private-cache'])->group(function (): void {
         Route::middleware(['throttle:api-agencias', 'api.audit:agencias', 'abilities:agencias:consultar'])->group(function (): void {

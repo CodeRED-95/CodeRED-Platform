@@ -6,7 +6,7 @@ import type { PlatformPairRequest } from './PairRequests.js';
 import { AgentUnpairedError } from '../errors/AgentUnpairedError.js';
 import { signedHeaders, stableJson } from './RequestSigner.js';
 
-export type HttpError = Error & { status?: number; retryAfter?: string };
+export type HttpError = Error & { status?: number; retryAfter?: string; responseBody?: unknown };
 
 export class CodeREDClient {
   private integration: StoredIntegration | null = null;
@@ -98,6 +98,7 @@ export class CodeREDClient {
         const error = new Error(`CodeRED request failed ${response.status}`) as HttpError;
         error.status = response.status;
         error.retryAfter = response.headers.get('retry-after') || undefined;
+        error.responseBody = json;
         throw error;
       }
 

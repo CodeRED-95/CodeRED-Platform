@@ -63,6 +63,49 @@ export class ConnectionManager {
   public async status(): Promise<Record<string, unknown>> {
     return callLocalAgent<Record<string, unknown>>('/api/v1/status', { operation: 'status', timeoutMs: Number(this.credentials.timeoutMs || 15000) });
   }
+  public async createTokenRequest(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests', {
+      method: 'POST',
+      operation: 'createTokenRequest',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
+      body: input,
+    });
+  }
+
+  public async getTokenRequestStatus(requestId: string): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests/' + encodeURIComponent(requestId), {
+      method: 'GET',
+      operation: 'getTokenRequestStatus',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
+    });
+  }
+
+  public async retrieveApprovedToken(requestId: string): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests/' + encodeURIComponent(requestId) + '/retrieve', {
+      method: 'POST',
+      operation: 'retrieveApprovedToken',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
+      body: {},
+    });
+  }
+
+  public async confirmTokenDelivery(requestId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests/' + encodeURIComponent(requestId) + '/delivery', {
+      method: 'POST',
+      operation: 'confirmTokenDelivery',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
+      body: input,
+    });
+  }
+
+  public async cancelTokenRequest(requestId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests/' + encodeURIComponent(requestId) + '/cancel', {
+      method: 'POST',
+      operation: 'cancelTokenRequest',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
+      body: input,
+    });
+  }
 }
 
 function normalizeUrl(value: string): string {
