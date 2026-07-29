@@ -44,7 +44,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" || exit 1"]
+      test: [ "CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -54,11 +54,11 @@ services:
     image: redis:7-alpine
     container_name: codered-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    command: [ "redis-server", "--appendonly", "yes", "--save", "60", "1" ]
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -70,7 +70,7 @@ services:
     container_name: codered-queue
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["php", "artisan", "queue:work", "redis", "--queue=agency-imports,ruc-imports,default", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768"]
+    command: [ "php", "artisan", "queue:work", "redis", "--queue=agency-imports,ruc-imports,default", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768" ]
     stop_grace_period: 2h
     volumes:
       - ./:/var/www/html
@@ -89,7 +89,7 @@ services:
     container_name: codered-scheduler
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["sh", "-lc", "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"]
+    command: [ "sh", "-lc", "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done" ]
     volumes:
       - ./:/var/www/html
     depends_on:
@@ -140,7 +140,7 @@ services:
     networks:
       - default
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5680/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:5680/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -155,7 +155,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    command: ["sh", "-lc", "mkdir -p /home/node/.n8n/custom && rm -rf /home/node/.n8n/custom/n8n-nodes-codered && cp -a /opt/n8n-nodes-codered /home/node/.n8n/custom/n8n-nodes-codered && n8n"]
     environment:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
@@ -168,7 +167,7 @@ services:
       WEBHOOK_URL: ${N8N_WEBHOOK_URL:-https://n8n.codered.host/}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
-      N8N_CUSTOM_EXTENSIONS: /home/node/.n8n/custom
+      N8N_CUSTOM_EXTENSIONS: /opt/n8n-nodes-codered
       N8N_VERSION: ${N8N_VERSION:-2.31.4}
       CODERED_AGENT_LOCAL_URL: ${CODERED_AGENT_LOCAL_URL:-http://codered-agent:5680}
       CODERED_AGENT_LOCAL_API_TOKEN: ${CODERED_AGENT_LOCAL_API_TOKEN}
@@ -185,7 +184,7 @@ services:
       codered-agent:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
       timeout: 10s
       retries: 10
