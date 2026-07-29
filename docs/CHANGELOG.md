@@ -12,6 +12,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Solicitudes de tokens simplificadas por tipo visible (`dni`, `ruc`, `agencies`) con mapeo centralizado a abilities Sanctum canonicas, aprobacion transaccional y compatibilidad con solicitudes n8n antiguas sin tipo.
 - Flujo funcional de solicitudes de token para n8n: creación, consulta de estado, recuperación única del token aprobado, confirmación idempotente de entrega y cancelación segura a través de codered-agent firmado.
 - `instance_uuid` estable para integraciones n8n, migración de idempotencia y comando `codered:n8n:deduplicate`.
 - Guía `docs/integrations/n8n-lifecycle.md` para Pair, Challenge, Discovery, Heartbeat, rotación y recuperación.
@@ -176,6 +177,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Solicitudes de tokens simplificadas por tipo visible (`dni`, `ruc`, `agencies`) con mapeo centralizado a abilities Sanctum canonicas, aprobacion transaccional y compatibilidad con solicitudes n8n antiguas sin tipo.
 - Dashboard profesional con periodo real, ocho KPIs, gráficos SVG accesibles, actividad auditada y resumen completo de importación.
 - Switches de usuario accesibles con etiquetas, ayuda y persistencia verificada de correo y cambio obligatorio de contraseña.
 

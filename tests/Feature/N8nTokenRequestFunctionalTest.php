@@ -35,6 +35,7 @@ class N8nTokenRequestFunctionalTest extends TestCase
             'application_name' => 'Operations Bot',
             'purpose' => 'Consultar agencias desde n8n',
             'requested_scopes' => ['agencies:read'],
+            'requested_token_type' => 'agencies',
             'expiration_days' => 1,
             'source' => 'n8n',
             'metadata' => ['workflow' => 'manual-token-request'],
@@ -43,6 +44,8 @@ class N8nTokenRequestFunctionalTest extends TestCase
         $response->assertCreated()
             ->assertJsonPath('data.status', 'pending')
             ->assertJsonPath('data.requester_name', 'Ada Lovelace')
+            ->assertJsonPath('data.requested_token_type', 'agencies')
+            ->assertJsonPath('data.token_type', null)
             ->assertJsonMissingPath('data.token');
 
         $this->assertDatabaseHas('api_token_requests', [
@@ -50,6 +53,31 @@ class N8nTokenRequestFunctionalTest extends TestCase
             'application_name' => 'Operations Bot',
             'status' => 'pending',
             'request_source' => 'n8n',
+            'requested_token_type' => 'agencies',
+        ]);
+    }
+
+    public function test_create_token_request_without_requested_token_type_remains_compatible(): void
+    {
+        $response = $this->signedJson('POST', '/api/v1/integrations/n8n/token-requests', [
+            'requester_name' => 'Ada Lovelace',
+            'requester_email' => 'ada-no-type@example.test',
+            'application_name' => 'Operations Bot',
+            'purpose' => 'Consultar datos desde n8n',
+            'requested_scopes' => ['agencies:read'],
+            'expiration_days' => 1,
+            'source' => 'n8n',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.requested_token_type', null)
+            ->assertJsonPath('data.token_type', null);
+
+        $this->assertDatabaseHas('api_token_requests', [
+            'requester_email' => 'ada-no-type@example.test',
+            'requested_token_type' => null,
+            'token_type' => null,
         ]);
     }
 
@@ -194,6 +222,7 @@ class N8nTokenRequestFunctionalTest extends TestCase
             'personal_access_token_id' => $token->id,
             'encrypted_plain_text_token' => Crypt::encryptString($plainToken),
             'delivery_status' => ApiTokenRequestDeliveryStatus::Pending,
+            'token_type' => 'agencies',
         ])->save();
 
         return $request;

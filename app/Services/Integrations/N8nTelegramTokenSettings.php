@@ -2,6 +2,7 @@
 
 namespace App\Services\Integrations;
 
+use App\Enums\ApiTokenType;
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
@@ -18,7 +19,7 @@ class N8nTelegramTokenSettings
         'authorized_telegram_chat_ids' => [],
         'default_expires_in_minutes' => 60,
         'max_expires_in_minutes' => 1440,
-        'allowed_abilities' => ['agencies:read'],
+        'allowed_abilities' => null,
         'max_pending_per_user' => 1,
         'cooldown_minutes' => 5,
         'approval_timeout_minutes' => 1440,
@@ -71,7 +72,13 @@ class N8nTelegramTokenSettings
 
     public function allowedAbilities(): array
     {
-        return array_values(array_unique(array_filter((array) $this->get('allowed_abilities', []), fn ($v) => is_string($v) && $v !== '*' && ! Str::startsWith($v, ['admin:', 'users:', 'api-token-requests.']))));
+        $configured = $this->get('allowed_abilities', null);
+
+        $abilities = is_array($configured) && $configured !== []
+            ? $configured
+            : ApiTokenType::allowedAbilities();
+
+        return array_values(array_unique(array_filter($abilities, fn ($v) => is_string($v) && $v !== '*' && ! Str::startsWith($v, ['admin:', 'users:', 'api-token-requests.']))));
     }
 
     public function authorizedUsers(): array

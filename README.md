@@ -140,6 +140,8 @@ El nodo CodeRED se organiza en dos recursos:
 
 El flujo funcional recomendado es crear la solicitud desde n8n, aprobarla en el panel administrativo de CodeRED Platform, consultar el estado, recuperar el token aprobado una sola vez y confirmar la entrega. El token aprobado solo aparece como salida de `Retrieve Approved Token`; no se guarda en credenciales, logs, metadata ni errores. Todas las operaciones pasan por `codered-agent`, que firma las solicitudes hacia Platform con la identidad emparejada.
 
+La aprobación administrativa y la generación manual muestran solo tres tipos de token: **DNI**, **RUC** y **AGENCIAS**. Internamente siguen usando abilities Sanctum canonicas: DNI => `dni:consultar`; RUC => `ruc:consultar`, `ruc:buscar`; AGENCIAS => `agencias:consultar`, `agencies:read`, `agencies:map`. n8n puede enviar `requested_token_type` como preferencia (`dni`, `ruc` o `agencies`), pero la decision final y la generacion del token pertenecen al administrador en Platform. Las solicitudes antiguas sin tipo siguen siendo validas y se aprueban eligiendo un tipo en el panel.
+
 Para actualizar solo los servicios afectados después de cambios en el nodo o agente:
 
 ```bash

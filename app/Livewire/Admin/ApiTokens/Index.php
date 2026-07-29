@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\ApiTokens;
 
 use App\Core\Api\Enums\ApiRequestType;
 use App\Core\Audit\AuditLogger;
+use App\Enums\ApiTokenType;
 use App\Models\ApiClient;
 use App\Models\ApiRequestLog;
 use App\Models\ApiToken;
@@ -46,8 +47,7 @@ class Index extends Component
 
     public string $expirationDate = '';
 
-    /** @var list<string> */
-    public array $abilities = ['agencias:consultar'];
+    public string $tokenType = 'agencies';
 
     public int $targetApiClientId = 0;
 
@@ -121,20 +121,19 @@ class Index extends Component
     public function createToken(AuditLogger $audit): void
     {
         Gate::authorize('api-tokens.create-for-users');
-        $allowedAbilities = array_keys((array) config('api.abilities'));
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
             'expirationDate' => ['nullable', 'date', 'after:today', 'before_or_equal:'.now()->addYear()->toDateString()],
             'targetApiClientId' => ['nullable', 'integer', 'min:0'],
-            'abilities' => ['required', 'array', 'min:1'],
-            'abilities.*' => ['required', 'string', Rule::in($allowedAbilities)],
+            'tokenType' => ['required', 'string', Rule::in(ApiTokenType::values())],
             'targetUserId' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
         ]);
         $owner = $this->targetApiClientId > 0
             ? ApiClient::query()->where('active', true)->findOrFail($this->targetApiClientId)
             : User::query()->active()->findOrFail($validated['targetUserId']);
-        $abilities = array_values(array_unique($validated['abilities']));
+        $tokenType = ApiTokenType::from($validated['tokenType']);
+        $abilities = $tokenType->abilities();
         $created = $owner->createToken(trim($validated['name']), $abilities, filled($validated['expirationDate'] ?? null) ? now()->parse($validated['expirationDate'])->endOfDay() : null);
         /** @var ApiToken $token */
         $token = ApiToken::query()->findOrFail($created->accessToken->getKey());
@@ -145,14 +144,15 @@ class Index extends Component
         $audit->log($token, 'api_token_created', [], [
             'name' => $token->name,
             'owner_id' => $owner->id,
+            'token_type' => $tokenType->value,
             'abilities' => $abilities,
             'expires_at' => $token->expires_at?->toIso8601String(),
-        ], ['name', 'owner_id', 'abilities', 'expires_at']);
+        ], ['name', 'owner_id', 'token_type', 'abilities', 'expires_at']);
 
         $this->plainTextToken = $created->plainTextToken;
         $this->createdTokenName = $token->name;
         $this->reset(['name', 'description']);
-        $this->abilities = ['agencias:consultar'];
+        $this->tokenType = 'agencies';
         $this->dispatch('toast', type: 'success', message: 'Token creado. Cópialo antes de cerrar el aviso.');
     }
 
@@ -267,6 +267,7 @@ class Index extends Component
             'usageSummary' => ApiRequestLog::query()->where('request_type', ApiRequestType::Api->value)->selectRaw('service, count(*) as total')->groupBy('service')->pluck('total', 'service'),
             'users' => User::query()->active()->orderBy('name')->get(['id', 'name', 'email']),
             'availableAbilities' => (array) config('api.abilities'),
+            'tokenTypes' => ApiTokenType::options(),
         ])->layout('layouts.app', ['pageTitle' => 'API y Tokens']);
     }
 

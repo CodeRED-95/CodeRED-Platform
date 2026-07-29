@@ -47,7 +47,13 @@ export class CodeRED implements INodeType {
       { displayName: 'Requester Phone', name: 'requesterPhone', type: 'string', default: '', displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Application Name', name: 'applicationName', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Purpose', name: 'purpose', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['createTokenRequest'] } } },
-      { displayName: 'Requested Scopes', name: 'requestedScopes', type: 'string', default: 'agencies:read', required: true, description: 'Comma-separated permissions requested for the token', displayOptions: { show: { operation: ['createTokenRequest'] } } },
+      { displayName: 'Requested Token Type', name: 'requestedTokenType', type: 'options', default: '', description: 'Optional preference. CodeRED Platform administrator chooses the final token type.', options: [
+        { name: 'No Preference', value: '' },
+        { name: 'Token DNI', value: 'dni' },
+        { name: 'Token RUC', value: 'ruc' },
+        { name: 'Token AGENCIAS', value: 'agencies' },
+      ], displayOptions: { show: { operation: ['createTokenRequest'] } } },
+      { displayName: 'Requested Scopes', name: 'requestedScopes', type: 'string', default: 'agencies:read', required: true, description: 'Comma-separated permissions requested for audit context. The final token type is chosen in CodeRED Platform.', displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Expiration Days', name: 'expirationDays', type: 'number', default: 1, typeOptions: { minValue: 1 }, displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Source', name: 'source', type: 'string', default: 'n8n', displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Metadata', name: 'metadata', type: 'json', default: '{}', displayOptions: { show: { operation: ['createTokenRequest'] } } },
@@ -125,19 +131,26 @@ function tokenRequestPayload(ctx: IExecuteFunctions, itemIndex: number): Record<
     .map((scope) => scope.trim())
     .filter(Boolean);
 
-  return {
+  const requestedTokenType = optionalString(ctx.getNodeParameter('requestedTokenType', itemIndex, ''));
+
+  return omitNullValues({
     requester_name: String(ctx.getNodeParameter('requesterName', itemIndex, '') || '').trim(),
     requester_email: optionalString(ctx.getNodeParameter('requesterEmail', itemIndex, '')),
     requester_phone: optionalString(ctx.getNodeParameter('requesterPhone', itemIndex, '')),
     application_name: String(ctx.getNodeParameter('applicationName', itemIndex, '') || '').trim(),
     purpose: String(ctx.getNodeParameter('purpose', itemIndex, '') || '').trim(),
+    requested_token_type: requestedTokenType,
     requested_scopes: scopes,
     expiration_days: Number(ctx.getNodeParameter('expirationDays', itemIndex, 1)),
     source: String(ctx.getNodeParameter('source', itemIndex, 'n8n') || 'n8n').trim() || 'n8n',
     metadata: jsonParameter(ctx.getNodeParameter('metadata', itemIndex, '{}')),
-  };
+  });
 }
 
+
+function omitNullValues(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== null));
+}
 function deliveryPayload(ctx: IExecuteFunctions, itemIndex: number): Record<string, unknown> {
   return {
     delivered: true,

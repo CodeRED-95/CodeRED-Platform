@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ApiTokenType;
 use App\Livewire\Admin\ApiTokens\Index;
 use App\Models\ActivityLog;
 use App\Models\ApiToken;
@@ -41,7 +42,7 @@ class ApiTokenManagementTest extends TestCase
             ->set('description', 'Equipo principal')
             ->set('targetUserId', $owner->id)
             ->set('expirationDate', now()->addDays(30)->toDateString())
-            ->set('abilities', ['agencies:read', 'profile:read'])
+            ->set('tokenType', 'agencies')
             ->call('createToken')
             ->assertHasNoErrors()
             ->assertSet('createdTokenName', 'Extensión Chrome');
@@ -51,7 +52,7 @@ class ApiTokenManagementTest extends TestCase
         $this->assertStringContainsString('|', $plain);
         $token = ApiToken::query()->sole();
         $this->assertNotSame($plain, $token->token);
-        $this->assertSame(['agencies:read', 'profile:read'], $token->abilities);
+        $this->assertSame(ApiTokenType::Agencies->abilities(), $token->abilities);
         $this->assertSame('Equipo principal', $token->description);
         $this->assertSame($super->id, $token->created_by);
         $this->assertDatabaseHas('activity_logs', ['action' => 'api_token_created', 'auditable_id' => $token->id]);
@@ -61,18 +62,36 @@ class ApiTokenManagementTest extends TestCase
         Livewire::actingAs($super)->test(Index::class)->assertDontSee($plain);
     }
 
-    public function test_invalid_ability_is_rejected(): void
+    public function test_invalid_token_type_is_rejected(): void
     {
         $super = $this->superAdmin();
 
         Livewire::actingAs($super)->test(Index::class)
             ->set('name', 'Peligroso')
             ->set('targetUserId', $super->id)
-            ->set('abilities', ['users:manage'])
+            ->set('tokenType', 'admin')
             ->call('createToken')
-            ->assertHasErrors(['abilities.0']);
+            ->assertHasErrors(['tokenType']);
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_manual_generation_maps_each_token_type_to_canonical_abilities(): void
+    {
+        $super = $this->superAdmin();
+        $owner = User::factory()->create();
+
+        foreach (ApiTokenType::cases() as $type) {
+            Livewire::actingAs($super)->test(Index::class)
+                ->set('name', $type->label())
+                ->set('targetUserId', $owner->id)
+                ->set('tokenType', $type->value)
+                ->call('createToken')
+                ->assertHasNoErrors();
+
+            $token = ApiToken::query()->latest('id')->firstOrFail();
+            $this->assertSame($type->abilities(), $token->abilities);
+        }
     }
 
     public function test_rotation_preserves_old_token_until_explicit_revocation(): void

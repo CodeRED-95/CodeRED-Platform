@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Integrations;
 
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
+use App\Enums\ApiTokenType;
 use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
@@ -61,6 +62,7 @@ class N8nTokenRequestController extends Controller
             'telegram_first_name' => $data['telegram_first_name'] ?? null,
             'telegram_last_name' => $data['telegram_last_name'] ?? null,
             'requested_token_name' => trim((string) ($data['token_name'] ?? $data['application_name'])),
+            'requested_token_type' => $data['requested_token_type'] ?? null,
             'requested_abilities' => $abilities,
             'requested_expires_in_minutes' => $this->expirationMinutes($data, $settings),
             'status' => ApiTokenRequestStatus::Pending,
@@ -215,6 +217,7 @@ class N8nTokenRequestController extends Controller
             'purpose' => ['nullable', 'string', 'max:1000'],
             'reason' => ['nullable', 'string', 'max:1000'],
             'requested_scopes' => ['nullable', 'array', 'min:1'],
+            'requested_token_type' => ['nullable', 'string', Rule::in(ApiTokenType::values())],
             'requested_scopes.*' => ['required', 'string', Rule::in($settings->allowedAbilities()), 'not_in:*'],
             'permissions' => ['nullable', 'array', 'min:1'],
             'permissions.*' => ['required', 'string', Rule::in($settings->allowedAbilities()), 'not_in:*'],
@@ -314,6 +317,8 @@ class N8nTokenRequestController extends Controller
             'application_name' => $request->application_name,
             'purpose' => $request->purpose,
             'requested_scopes' => $request->requested_abilities,
+            'requested_token_type' => $request->requested_token_type,
+            'token_type' => $request->token_type,
             'created_at' => $request->created_at?->toIso8601String(),
             'requested_at' => $request->requestedAt()?->toIso8601String(),
             'approved_at' => $this->isoDate($request->getAttribute('approved_at')),

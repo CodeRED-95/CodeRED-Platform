@@ -4,7 +4,7 @@ CodeRED Platform permite recibir solicitudes de tokens Sanctum desde Telegram me
 
 ## Arquitectura
 
-- Telegram recibe comandos como `/token agencies:read`.
+- Telegram o n8n registran una solicitud con un tipo opcional: `dni`, `ruc` o `agencies`.
 - n8n valida el comando y llama a CodeRED Platform con firma HMAC.
 - CodeRED Platform crea una `api_token_requests` en estado `pending`.
 - Un administrador aprueba o rechaza desde `Seguridad > Solicitudes de tokens`.
@@ -19,12 +19,12 @@ sequenceDiagram
     participant C as CodeRED Platform
     participant A as Administrador
 
-    T->>N: /token agencies:read
+    T->>N: /token agencies
     N->>C: Crear solicitud firmada
     C-->>N: UUID y estado pending
     N-->>T: Solicitud registrada
     A->>C: Revisar solicitud
-    A->>C: Aprobar
+    A->>C: Elegir DNI, RUC o AGENCIAS y aprobar
     C->>C: Generar token Sanctum
     C->>N: Webhook token_request.approved
     N->>C: Recuperar token una vez
@@ -46,7 +46,7 @@ TELEGRAM_TOKEN_REQUESTS_ENABLED=true
 
 Ajustes administrativos: `Integraciones > n8n y Telegram`.
 
-Configurar integración activa, secreto compartido, usuarios y chats Telegram autorizados, expiraciones, abilities permitidas, límites de solicitud, URL webhook, prueba de conexión y notificaciones al aprobar/rechazar. El secreto completo no se muestra después de guardarlo.
+Configurar integración activa, secreto compartido, usuarios y chats Telegram autorizados, expiraciones, abilities permitidas para auditoría de solicitudes, límites de solicitud, URL webhook, prueba de conexión y notificaciones al aprobar/rechazar. La aprobación final siempre elige DNI, RUC o AGENCIAS en Platform. El secreto completo no se muestra después de guardarlo.
 
 ## Firma HMAC
 
@@ -85,6 +85,7 @@ Crear solicitud:
   "telegram_first_name": "Nombre",
   "telegram_last_name": "Apellido",
   "token_name": "Token solicitado por Telegram",
+  "requested_token_type": "agencies",
   "abilities": ["agencies:read"],
   "expires_in_minutes": 60
 }
@@ -99,6 +100,8 @@ Respuesta:
   "data": {
     "request_uuid": "uuid",
     "status": "pending",
+    "requested_token_type": "agencies",
+    "token_type": null,
     "requested_at": "fecha ISO 8601"
   }
 }
@@ -137,6 +140,16 @@ Confirmar entrega:
 }
 ```
 
+## Tipos y scopes
+
+La interfaz administrativa muestra solo tres opciones:
+
+- **Token DNI**: `dni:consultar`.
+- **Token RUC**: `ruc:consultar`, `ruc:buscar`.
+- **Token AGENCIAS**: `agencias:consultar`, `agencies:read`, `agencies:map`.
+
+`requested_token_type` es una preferencia de la solicitud. El administrador puede aprobar un tipo distinto; ese cambio queda registrado en `api_token_request_events` sin almacenar token plano ni secretos. Las solicitudes historicas sin tipo siguen abriendo y requieren seleccionar un tipo antes de aprobar.
+
 ## Estados
 
 Solicitud: `pending`, `approved`, `rejected`, `expired`, `cancelled`.
@@ -161,7 +174,7 @@ Telegram Trigger
 → HTTP Request: confirmar entrega
 ```
 
-Comandos sugeridos: `/token`, `/token agencies:read`, `/token dni:read,ruc:read`, `/estado_token`, `/cancelar_token`.
+Comandos sugeridos: `/token`, `/token dni`, `/token ruc`, `/token agencies`, `/estado_token`, `/cancelar_token`. Si no se envia tipo, el administrador lo elige al aprobar.
 
 Mensaje al registrar:
 
@@ -186,6 +199,9 @@ Mensaje con token:
 
 ```text
 Token API de CodeRED Platform
+
+Tipo aprobado:
+{token_type}
 
 Permisos:
 - agencies:read

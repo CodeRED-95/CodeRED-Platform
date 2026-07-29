@@ -24,6 +24,8 @@ class ApiTokenRequest extends Model
         'telegram_first_name',
         'telegram_last_name',
         'requested_token_name',
+        'requested_token_type',
+        'token_type',
         'requested_abilities',
         'requested_expires_in_minutes',
         'status',

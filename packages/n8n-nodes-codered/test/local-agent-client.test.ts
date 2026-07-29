@@ -232,7 +232,7 @@ test('Token request operations call codered-agent with safe payloads', async () 
   }) as typeof fetch;
 
   const manager = new ConnectionManager(credentials());
-  await manager.createTokenRequest({ requester_name: 'Ada', application_name: 'Bot', purpose: 'Read agencies', requested_scopes: ['agencies:read'], source: 'n8n' });
+  await manager.createTokenRequest({ requester_name: 'Ada', application_name: 'Bot', purpose: 'Read agencies', requested_token_type: 'agencies', requested_scopes: ['agencies:read'], source: 'n8n' });
   await manager.getTokenRequestStatus('00000000-0000-4000-8000-000000000111');
   await manager.retrieveApprovedToken('00000000-0000-4000-8000-000000000111');
   await manager.confirmTokenDelivery('00000000-0000-4000-8000-000000000111', { delivery_channel: 'manual' });
@@ -241,7 +241,9 @@ test('Token request operations call codered-agent with safe payloads', async () 
   assert.equal(calls[0]?.url, 'http://codered-agent:5680/api/v1/token-requests');
   assert.equal(calls[0]?.method, 'POST');
   assert.deepEqual(calls[0]?.body?.requested_scopes, ['agencies:read']);
+  assert.equal(calls[0]?.body?.requested_token_type, 'agencies');
   assert.equal(Object.hasOwn(calls[0]?.body || {}, 'shared_secret'), false);
+  assert.equal(Object.hasOwn(calls[0]?.body || {}, 'token_type'), false);
   assert.equal(calls[1]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111');
   assert.equal(calls[1]?.method, 'GET');
   assert.equal(calls[2]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/retrieve');

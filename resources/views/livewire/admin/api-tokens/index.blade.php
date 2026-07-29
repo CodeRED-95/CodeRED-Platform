@@ -42,7 +42,7 @@
     </x-ui.card>
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div class="space-y-6">
-            <x-ui.card title="Tokens emitidos" description="El valor completo nunca se almacena ni vuelve a mostrarse.">
+            <x-ui.card title="Tokens emitidos" description="El valor completo nunca se almacena ni vuelve a mostrarse; los permisos se asignan por tipo.">
                 <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     <x-ui.search-box wire:model.live.debounce.400ms="search" label="Buscar" placeholder="Nombre o propietario" />
                     <x-ui.dropdown-select id="token-status" wire:model.live="status" label="Estado" :value="$status" :options="['' => 'Todos', 'active' => 'Activos', 'expiring' => 'Próximos a expirar', 'expired' => 'Expirados']" />
@@ -114,18 +114,23 @@
             <x-ui.pagination :paginator="$tokens" scroll-to="#api-token-list" />
         </div>
 
-        <x-ui.card title="Crear token" description="El secreto se mostrará una sola vez.">
+        <x-ui.card title="Crear token" description="Elige DNI, RUC o AGENCIAS. El secreto se mostrará una sola vez.">
             <form wire:submit="createToken" class="space-y-4">
                 <x-ui.input id="token-name" wire:model="name" label="Nombre" required :error="$errors->first('name')" placeholder="Extensión Chrome - PC principal" />
                 <x-ui.textarea id="token-description" wire:model="description" label="Descripción" :error="$errors->first('description')" />
                 <x-ui.dropdown-select id="token-client-create" wire:model="targetApiClientId" label="Propietario o cliente" :value="$targetApiClientId" :options="[0 => 'Usuario administrador (compatibilidad)'] + $clients->pluck('name', 'id')->all()" :error="$errors->first('targetApiClientId')" />
                 <x-ui.input id="token-expiration" wire:model="expirationDate" type="date" :min="now()->addDay()->toDateString()" :max="now()->addYear()->toDateString()" label="Fecha de expiración opcional" :error="$errors->first('expirationDate')" />
-                <fieldset class="space-y-2">
-                    <legend class="text-sm font-medium">Abilities</legend>
-                    @foreach ($availableAbilities as $abilityValue => $abilityLabel)
-                        <x-ui.checkbox wire:model="abilities" value="{{ $abilityValue }}"><span class="font-medium">{{ $abilityLabel }}</span><span class="block text-xs text-[color:var(--color-text-muted)]">{{ $abilityValue }}</span></x-ui.checkbox>
+                <fieldset class="space-y-3">
+                    <legend class="text-sm font-medium">Tipo de token</legend>
+                    @foreach ($tokenTypes as $type)
+                        <x-ui.radio wire:model="tokenType" name="tokenType" value="{{ $type['value'] }}" label="Generación de {{ $type['label'] }}" description="{{ $type['description'] }}" />
+                        <div class="ml-7 flex flex-wrap gap-1">
+                            @foreach ($type['abilities'] as $ability)
+                                <x-ui.badge tone="info">{{ $ability }}</x-ui.badge>
+                            @endforeach
+                        </div>
                     @endforeach
-                    <x-ui.form-error :message="$errors->first('abilities')" />
+                    <x-ui.form-error :message="$errors->first('tokenType')" />
                 </fieldset>
                 <x-ui.button type="submit" variant="primary" class="w-full" loading-target="createToken">Generar token</x-ui.button>
             </form>
