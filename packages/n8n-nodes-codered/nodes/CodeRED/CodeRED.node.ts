@@ -54,7 +54,7 @@ export class CodeRED implements INodeType {
         { name: 'Token AGENCIAS', value: 'agencies' },
       ], displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Requested Scopes', name: 'requestedScopes', type: 'string', default: 'agencies:read', required: true, description: 'Comma-separated permissions requested for audit context. The final token type is chosen in CodeRED Platform.', displayOptions: { show: { operation: ['createTokenRequest'] } } },
-      { displayName: 'Expiration Days', name: 'expirationDays', type: 'number', default: 1, typeOptions: { minValue: 1 }, displayOptions: { show: { operation: ['createTokenRequest'] } } },
+      { displayName: 'Token Validity Days', name: 'expirationDays', type: 'number', default: 30, typeOptions: { minValue: 1, maxValue: 365 }, description: 'Requested token validity in days. CodeRED Platform administrator can change the final value when approving.', displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Source', name: 'source', type: 'string', default: 'n8n', displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Metadata', name: 'metadata', type: 'json', default: '{}', displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Request ID', name: 'requestId', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['getTokenRequestStatus', 'retrieveApprovedToken', 'confirmTokenDelivery', 'cancelTokenRequest'] } } },
@@ -141,7 +141,7 @@ function tokenRequestPayload(ctx: IExecuteFunctions, itemIndex: number): Record<
     purpose: String(ctx.getNodeParameter('purpose', itemIndex, '') || '').trim(),
     requested_token_type: requestedTokenType,
     requested_scopes: scopes,
-    expiration_days: Number(ctx.getNodeParameter('expirationDays', itemIndex, 1)),
+    requested_token_expires_in_days: Number(ctx.getNodeParameter('expirationDays', itemIndex, 30)),
     source: String(ctx.getNodeParameter('source', itemIndex, 'n8n') || 'n8n').trim() || 'n8n',
     metadata: jsonParameter(ctx.getNodeParameter('metadata', itemIndex, '{}')),
   });

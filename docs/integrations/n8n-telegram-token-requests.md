@@ -140,6 +140,10 @@ Confirmar entrega:
 }
 ```
 
+## Vigencia del token
+
+La vigencia solicitada se envia como `requested_token_expires_in_days` entre 1 y 365. Si una integracion antigua envia `expires_in_minutes`, Platform lo acepta temporalmente y lo convierte a dias redondeando hacia arriba. La expiracion de solicitudes pendientes se controla aparte con `approval_timeout_minutes`; no define `personal_access_tokens.expires_at`. El administrador puede cambiar la vigencia final al aprobar.
+
 ## Tipos y scopes
 
 La interfaz administrativa muestra solo tres opciones:

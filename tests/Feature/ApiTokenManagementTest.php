@@ -41,7 +41,7 @@ class ApiTokenManagementTest extends TestCase
             ->set('name', 'Extensión Chrome')
             ->set('description', 'Equipo principal')
             ->set('targetUserId', $owner->id)
-            ->set('expirationDate', now()->addDays(30)->toDateString())
+            ->set('tokenExpiresInDays', 30)
             ->set('tokenType', 'agencies')
             ->call('createToken')
             ->assertHasNoErrors()

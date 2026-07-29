@@ -10,6 +10,7 @@ use App\Models\ApiRequestLog;
 use App\Models\ApiToken;
 use App\Models\RevokedApiToken;
 use App\Models\User;
+use App\Services\ApiTokens\ApiTokenGenerator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class Index extends Component
 
     public string $description = '';
 
-    public string $expirationDate = '';
+    public int|float|string $tokenExpiresInDays = ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
 
     public string $tokenType = 'agencies';
 
@@ -87,7 +88,6 @@ class Index extends Component
     public function mount(): void
     {
         Gate::authorize('api-tokens.view-any');
-        $this->expirationDate = now()->addDays((int) config('api.default_token_expiration_days'))->toDateString();
         $this->targetUserId = (int) auth()->id();
         $this->targetApiClientId = (int) (ApiClient::query()->where('active', true)->value('id') ?? 0);
     }
@@ -118,13 +118,13 @@ class Index extends Component
         $this->dispatch('toast', type: 'success', message: 'Cliente API creado.');
     }
 
-    public function createToken(AuditLogger $audit): void
+    public function createToken(AuditLogger $audit, ApiTokenGenerator $generator): void
     {
         Gate::authorize('api-tokens.create-for-users');
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
-            'expirationDate' => ['nullable', 'date', 'after:today', 'before_or_equal:'.now()->addYear()->toDateString()],
+            'tokenExpiresInDays' => ['required', 'integer', 'min:'.ApiTokenGenerator::MIN_EXPIRES_IN_DAYS, 'max:'.ApiTokenGenerator::MAX_EXPIRES_IN_DAYS],
             'targetApiClientId' => ['nullable', 'integer', 'min:0'],
             'tokenType' => ['required', 'string', Rule::in(ApiTokenType::values())],
             'targetUserId' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
@@ -134,7 +134,8 @@ class Index extends Component
             : User::query()->active()->findOrFail($validated['targetUserId']);
         $tokenType = ApiTokenType::from($validated['tokenType']);
         $abilities = $tokenType->abilities();
-        $created = $owner->createToken(trim($validated['name']), $abilities, filled($validated['expirationDate'] ?? null) ? now()->parse($validated['expirationDate'])->endOfDay() : null);
+        $tokenExpiresInDays = (int) $validated['tokenExpiresInDays'];
+        $created = $generator->create($owner, trim($validated['name']), $abilities, $tokenExpiresInDays);
         /** @var ApiToken $token */
         $token = ApiToken::query()->findOrFail($created->accessToken->getKey());
         $token->forceFill([
@@ -146,13 +147,15 @@ class Index extends Component
             'owner_id' => $owner->id,
             'token_type' => $tokenType->value,
             'abilities' => $abilities,
+            'token_expires_in_days' => $tokenExpiresInDays,
             'expires_at' => $token->expires_at?->toIso8601String(),
-        ], ['name', 'owner_id', 'token_type', 'abilities', 'expires_at']);
+        ], ['name', 'owner_id', 'token_type', 'token_expires_in_days', 'abilities', 'expires_at']);
 
         $this->plainTextToken = $created->plainTextToken;
         $this->createdTokenName = $token->name;
         $this->reset(['name', 'description']);
         $this->tokenType = 'agencies';
+        $this->tokenExpiresInDays = ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
         $this->dispatch('toast', type: 'success', message: 'Token creado. Cópialo antes de cerrar el aviso.');
     }
 
@@ -223,6 +226,22 @@ class Index extends Component
         $this->selectedTokenIds = [];
     }
 
+    public function setTokenExpiresInDays(int $days): void
+    {
+        $this->tokenExpiresInDays = $days;
+    }
+
+    public function tokenExpirationPreview(): string
+    {
+        $days = filter_var($this->tokenExpiresInDays, FILTER_VALIDATE_INT);
+
+        if ($days === false || $days < ApiTokenGenerator::MIN_EXPIRES_IN_DAYS || $days > ApiTokenGenerator::MAX_EXPIRES_IN_DAYS) {
+            return 'Ingresa una vigencia entre 1 y 365 días.';
+        }
+
+        return app(ApiTokenGenerator::class)->preview($days);
+    }
+
     public function render(): View
     {
         $query = ApiToken::query()->with(['tokenable', 'creator'])->withCount([
@@ -268,6 +287,8 @@ class Index extends Component
             'users' => User::query()->active()->orderBy('name')->get(['id', 'name', 'email']),
             'availableAbilities' => (array) config('api.abilities'),
             'tokenTypes' => ApiTokenType::options(),
+            'tokenExpirationQuickOptions' => [1, 7, 30, 90, 180, 365],
+            'tokenExpirationPreview' => $this->tokenExpirationPreview(),
         ])->layout('layouts.app', ['pageTitle' => 'API y Tokens']);
     }
 

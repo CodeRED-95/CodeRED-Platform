@@ -10,6 +10,7 @@ use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
 use App\Models\User;
+use App\Services\ApiTokens\ApiTokenGenerator;
 use App\Services\Integrations\N8nTelegramTokenSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,7 +50,7 @@ class Index extends Component
 
     public string $approvalTokenType = '';
 
-    public int $approvalExpiresInMinutes = 60;
+    public int|float|string $tokenExpiresInDays = ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
 
     public int $approvalUserId = 0;
 
@@ -76,21 +77,21 @@ class Index extends Component
         $this->approvalTokenType = in_array($request->requested_token_type, ApiTokenType::values(), true)
             ? (string) $request->requested_token_type
             : '';
-        $this->approvalExpiresInMinutes = $request->requested_expires_in_minutes;
+        $this->tokenExpiresInDays = $request->requested_token_expires_in_days ?: ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
         $this->approvalUserId = (int) auth()->id();
         $this->adminNote = '';
         $this->rejectionReason = '';
         $this->event($request, 'viewed', 'Solicitud visualizada.');
     }
 
-    public function approve(N8nTelegramTokenSettings $settings): void
+    public function approve(N8nTelegramTokenSettings $settings, ApiTokenGenerator $generator): void
     {
         Gate::authorize('api-token-requests.approve');
 
         $data = $this->validate([
             'approvalTokenName' => ['required', 'string', 'max:100'],
             'approvalTokenType' => ['required', 'string', Rule::in(ApiTokenType::values())],
-            'approvalExpiresInMinutes' => ['required', 'integer', 'min:1', 'max:'.(int) $settings->get('max_expires_in_minutes', 1440)],
+            'tokenExpiresInDays' => ['required', 'integer', 'min:'.ApiTokenGenerator::MIN_EXPIRES_IN_DAYS, 'max:'.ApiTokenGenerator::MAX_EXPIRES_IN_DAYS],
             'approvalUserId' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
             'adminNote' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -101,7 +102,7 @@ class Index extends Component
             abort(422, 'La solicitud ya fue procesada.');
         }
 
-        DB::transaction(function () use ($data, $settings): void {
+        DB::transaction(function () use ($data, $settings, $generator): void {
             $request = ApiTokenRequest::query()->whereKey($this->selectedId)->lockForUpdate()->firstOrFail();
 
             if ($request->status !== ApiTokenRequestStatus::Pending) {
@@ -117,8 +118,9 @@ class Index extends Component
             $tokenType = ApiTokenType::from($data['approvalTokenType']);
             $abilities = $tokenType->abilities();
             $user = User::query()->active()->findOrFail($data['approvalUserId']);
-            $expiresAt = now()->addMinutes((int) $data['approvalExpiresInMinutes']);
-            $created = $user->createToken(trim($data['approvalTokenName']), $abilities, $expiresAt);
+            $tokenExpiresInDays = (int) $data['tokenExpiresInDays'];
+            $expiresAt = $generator->expiresAt($tokenExpiresInDays);
+            $created = $generator->create($user, trim($data['approvalTokenName']), $abilities, $tokenExpiresInDays);
 
             /** @var ApiToken $token */
             $token = ApiToken::query()->findOrFail($created->accessToken->id);
@@ -130,7 +132,7 @@ class Index extends Component
             $request->forceFill([
                 'requested_token_name' => trim($data['approvalTokenName']),
                 'requested_abilities' => $abilities,
-                'requested_expires_in_minutes' => (int) $data['approvalExpiresInMinutes'],
+                'token_expires_in_days' => $tokenExpiresInDays,
                 'token_type' => $tokenType->value,
                 'status' => ApiTokenRequestStatus::Approved,
                 'reviewed_by' => auth()->id(),
@@ -156,6 +158,7 @@ class Index extends Component
             $this->event($request, 'approved', 'Solicitud aprobada.', [
                 'token_type' => $tokenType->value,
                 'abilities' => $abilities,
+                'token_expires_in_days' => $tokenExpiresInDays,
                 'expires_at' => $expiresAt->toIso8601String(),
             ]);
             $this->event($request, 'token_generated', 'Token Sanctum generado sin exponer valor plano.', ['token_type' => $tokenType->value]);
@@ -232,6 +235,22 @@ class Index extends Component
         $this->event($request, 'notification_retry_requested', 'Reintento manual solicitado.');
     }
 
+    public function setTokenExpiresInDays(int $days): void
+    {
+        $this->tokenExpiresInDays = $days;
+    }
+
+    public function tokenExpirationPreview(): string
+    {
+        $days = filter_var($this->tokenExpiresInDays, FILTER_VALIDATE_INT);
+
+        if ($days === false || $days < ApiTokenGenerator::MIN_EXPIRES_IN_DAYS || $days > ApiTokenGenerator::MAX_EXPIRES_IN_DAYS) {
+            return 'Ingresa una vigencia entre 1 y 365 días.';
+        }
+
+        return app(ApiTokenGenerator::class)->preview($days);
+    }
+
     public function render(): View
     {
         $query = ApiTokenRequest::query()->with(['reviewer', 'token'])->when($this->search !== '', function (Builder $query): void {
@@ -259,6 +278,8 @@ class Index extends Component
             'reviewers' => User::query()->orderBy('name')->get(['id', 'name']),
             'availableAbilities' => array_combine(ApiTokenType::allowedAbilities(), ApiTokenType::allowedAbilities()),
             'tokenTypes' => ApiTokenType::options(),
+            'tokenExpirationQuickOptions' => [1, 7, 30, 90, 180, 365],
+            'tokenExpirationPreview' => $this->tokenExpirationPreview(),
             'summary' => $this->summary(),
         ])->layout('layouts.app', ['pageTitle' => 'Solicitudes de tokens']);
     }

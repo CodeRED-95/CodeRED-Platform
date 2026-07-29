@@ -96,6 +96,7 @@ class ApiTokenRequestAdminTest extends TestCase
             ->set('approvalTokenName', 'Token DNI')
             ->set('approvalUserId', $owner->id)
             ->set('approvalTokenType', 'dni')
+            ->set('tokenExpiresInDays', 30)
             ->call('approve')
             ->assertHasNoErrors();
 

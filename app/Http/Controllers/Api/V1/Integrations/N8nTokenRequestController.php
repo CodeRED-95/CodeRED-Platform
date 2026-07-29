@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
+use App\Services\ApiTokens\ApiTokenGenerator;
 use App\Services\Integrations\N8nTelegramTokenSettings;
 use DateTimeInterface;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +32,7 @@ class N8nTokenRequestController extends Controller
         $data = $this->validateStore($request, $settings);
         $abilities = $this->abilitiesFrom($data);
         $this->validateAbilities($abilities, $settings);
+        $tokenExpiresInDays = $this->tokenExpiresInDays($data, app(ApiTokenGenerator::class));
 
         $requesterKey = $this->requesterKey($data);
         $rateKey = 'token-request:'.$requesterKey;
@@ -64,7 +66,8 @@ class N8nTokenRequestController extends Controller
             'requested_token_name' => trim((string) ($data['token_name'] ?? $data['application_name'])),
             'requested_token_type' => $data['requested_token_type'] ?? null,
             'requested_abilities' => $abilities,
-            'requested_expires_in_minutes' => $this->expirationMinutes($data, $settings),
+            'requested_expires_in_minutes' => $this->legacyExpirationMinutes($data, $settings, $tokenExpiresInDays),
+            'requested_token_expires_in_days' => $tokenExpiresInDays,
             'status' => ApiTokenRequestStatus::Pending,
             'requested_ip' => $request->ip(),
             'request_source' => (string) ($data['source'] ?? 'n8n'),
@@ -224,6 +227,8 @@ class N8nTokenRequestController extends Controller
             'source' => ['nullable', 'string', 'max:80'],
             'metadata' => ['nullable', 'array'],
             'expiration_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'requested_token_expires_in_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'token_expires_in_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'telegram_user_id' => ['nullable', 'string', 'max:80'],
             'telegram_chat_id' => ['nullable', 'string', 'max:80'],
             'telegram_username' => ['nullable', 'string', 'max:120'],
@@ -232,7 +237,7 @@ class N8nTokenRequestController extends Controller
             'token_name' => ['nullable', 'string', 'min:3', 'max:100'],
             'abilities' => ['nullable', 'array', 'min:1'],
             'abilities.*' => ['required', 'string', Rule::in($settings->allowedAbilities()), 'not_in:*'],
-            'expires_in_minutes' => ['nullable', 'integer', 'min:1', 'max:'.(int) $settings->get('max_expires_in_minutes', 1440)],
+            'expires_in_minutes' => ['nullable', 'integer', 'min:1'],
         ]);
     }
 
@@ -253,13 +258,38 @@ class N8nTokenRequestController extends Controller
         }
     }
 
-    private function expirationMinutes(array $data, N8nTelegramTokenSettings $settings): int
+    private function tokenExpiresInDays(array $data, ApiTokenGenerator $generator): int
     {
-        if (isset($data['expiration_days'])) {
-            return (int) $data['expiration_days'] * 1440;
+        if (isset($data['requested_token_expires_in_days'])) {
+            return (int) $data['requested_token_expires_in_days'];
         }
 
-        return (int) ($data['expires_in_minutes'] ?? $settings->get('default_expires_in_minutes', 60));
+        if (isset($data['token_expires_in_days'])) {
+            return (int) $data['token_expires_in_days'];
+        }
+
+        if (isset($data['expiration_days'])) {
+            return (int) $data['expiration_days'];
+        }
+
+        if (isset($data['expires_in_minutes'])) {
+            return $generator->daysFromLegacyMinutes((int) $data['expires_in_minutes']);
+        }
+
+        return ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
+    }
+
+    private function legacyExpirationMinutes(array $data, N8nTelegramTokenSettings $settings, int $tokenExpiresInDays): int
+    {
+        if (isset($data['expires_in_minutes'])) {
+            return (int) $data['expires_in_minutes'];
+        }
+
+        if (isset($data['expiration_days']) || isset($data['requested_token_expires_in_days']) || isset($data['token_expires_in_days'])) {
+            return $tokenExpiresInDays * 1440;
+        }
+
+        return (int) $settings->get('default_expires_in_minutes', 60);
     }
 
     private function requesterKey(array $data): string
@@ -317,6 +347,8 @@ class N8nTokenRequestController extends Controller
             'application_name' => $request->application_name,
             'purpose' => $request->purpose,
             'requested_scopes' => $request->requested_abilities,
+            'requested_token_expires_in_days' => $request->requested_token_expires_in_days,
+            'token_expires_in_days' => $request->token_expires_in_days,
             'requested_token_type' => $request->requested_token_type,
             'token_type' => $request->token_type,
             'created_at' => $request->created_at?->toIso8601String(),

@@ -117,7 +117,15 @@
                         <form wire:submit="approve" class="space-y-4">
                             <x-ui.input wire:model="approvalTokenName" label="Nombre definitivo" :error="$errors->first('approvalTokenName')" />
                             <x-ui.dropdown-select wire:model="approvalUserId" label="Usuario propietario" :value="$approvalUserId" :options="$users->pluck('name', 'id')->all()" :error="$errors->first('approvalUserId')" />
-                            <x-ui.input wire:model="approvalExpiresInMinutes" type="number" min="1" label="Expira en minutos" :error="$errors->first('approvalExpiresInMinutes')" />
+                            <div class="space-y-2">
+                                <x-ui.input wire:model.live="tokenExpiresInDays" type="number" min="1" max="365" step="1" label="Vigencia del token en días" :error="$errors->first('tokenExpiresInDays')" />
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach ($tokenExpirationQuickOptions as $days)
+                                        <x-ui.button type="button" size="sm" variant="ghost" wire:click="setTokenExpiresInDays({{ $days }})">{{ $days }} {{ $days === 1 ? 'día' : 'días' }}</x-ui.button>
+                                    @endforeach
+                                </div>
+                                <p class="text-xs text-[color:var(--color-text-muted)]">{{ $tokenExpirationPreview }}</p>
+                            </div>
 
                             <fieldset class="space-y-3">
                                 <legend class="text-sm font-medium">Tipo de token a generar</legend>

@@ -28,6 +28,8 @@ class ApiTokenRequest extends Model
         'token_type',
         'requested_abilities',
         'requested_expires_in_minutes',
+        'requested_token_expires_in_days',
+        'token_expires_in_days',
         'status',
         'requested_ip',
         'request_source',

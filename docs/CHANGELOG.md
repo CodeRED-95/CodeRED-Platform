@@ -12,6 +12,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- La aprobación y generación manual de tokens usan ahora `token_expires_in_days` (1-365, default 30) con preview en hora de Lima; `expires_in_minutes` queda como compatibilidad legacy para solicitudes n8n.
 - Solicitudes de tokens simplificadas por tipo visible (`dni`, `ruc`, `agencies`) con mapeo centralizado a abilities Sanctum canonicas, aprobacion transaccional y compatibilidad con solicitudes n8n antiguas sin tipo.
 - Flujo funcional de solicitudes de token para n8n: creación, consulta de estado, recuperación única del token aprobado, confirmación idempotente de entrega y cancelación segura a través de codered-agent firmado.
 - `instance_uuid` estable para integraciones n8n, migración de idempotencia y comando `codered:n8n:deduplicate`.
@@ -177,6 +178,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- La aprobación y generación manual de tokens usan ahora `token_expires_in_days` (1-365, default 30) con preview en hora de Lima; `expires_in_minutes` queda como compatibilidad legacy para solicitudes n8n.
 - Solicitudes de tokens simplificadas por tipo visible (`dni`, `ruc`, `agencies`) con mapeo centralizado a abilities Sanctum canonicas, aprobacion transaccional y compatibilidad con solicitudes n8n antiguas sin tipo.
 - Dashboard profesional con periodo real, ocho KPIs, gráficos SVG accesibles, actividad auditada y resumen completo de importación.
 - Switches de usuario accesibles con etiquetas, ayuda y persistencia verificada de correo y cambio obligatorio de contraseña.
