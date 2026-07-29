@@ -41,6 +41,10 @@ function isSensitiveKey(key: string): boolean {
   return SECRET_KEY_PATTERN.test(key);
 }
 
+function isIDataObject(value: unknown): value is IDataObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function isBuffer(value: unknown): value is Buffer {
   return typeof Buffer !== 'undefined' && Buffer.isBuffer(value);
 }
@@ -119,7 +123,7 @@ export function toN8nValue(value: unknown): N8nSerializable {
 export function sanitizeOutput(value: unknown): IDataObject {
   const converted = toN8nValue(value);
 
-  if (converted !== null && typeof converted === 'object' && !Array.isArray(converted)) {
+  if (isIDataObject(converted)) {
     return converted;
   }
 
