@@ -316,3 +316,10 @@ Todas las versiones siguen `Keep a Changelog`.
 - La validación inspecciona una muestra acotada, detecta encoding/delimitador y bloquea rutas inseguras.
 - El registro evita duplicados por SHA-256 y deriva a cola el hash de archivos masivos.
 - Se añadieron pruebas de formato, rutas hostiles, duplicados y autorización.
+
+## 2026-07-29 - Rotación segura de tokens
+
+- Agregado flujo `rotation` en `api_token_requests` junto al flujo histórico `issuance`.
+- Agregadas referencias al token fuente y token de reemplazo, idempotencia por token y trazabilidad `revoked_by`/`revocation_reason`.
+- La aprobación de rotaciones conserva exactamente propietario, tipo, scopes y `expires_at`; no reinicia vigencia.
+- n8n y codered-agent incorporan la operación "Request Token Rotation" sin alterar pairing, discovery ni heartbeat.

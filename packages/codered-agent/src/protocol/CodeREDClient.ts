@@ -62,6 +62,39 @@ export class CodeREDClient {
     return this.raw('POST', '/api/v1/integrations/n8n/pair', body, null);
   }
 
+  public async bearer(method: string, path: string, bearerToken: string, payload: unknown = {}): Promise<Record<string, unknown>> {
+    const body = method === 'GET' ? '' : stableJson(payload);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.config.requestTimeoutMs);
+
+    try {
+      const response = await fetch(this.config.platformUrl + path, {
+        method,
+        body: body || undefined,
+        headers: {
+          Authorization: 'Bearer ' + bearerToken,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      const text = await response.text();
+      const json = text ? JSON.parse(text) as Record<string, unknown> : {};
+
+      if (!response.ok) {
+        const error = new Error(`CodeRED request failed ${response.status}`) as HttpError;
+        error.status = response.status;
+        error.retryAfter = response.headers.get('retry-after') || undefined;
+        error.responseBody = json;
+        throw error;
+      }
+
+      return json;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   public async signed(method: string, path: string, payload: unknown = {}): Promise<Record<string, unknown>> {
     const integration = this.integration ?? await this.storage.readIntegration();
 

@@ -58,3 +58,7 @@ Example workflow:
 7. CodeRED → Confirm Token Delivery.
 
 To refresh the functional capabilities shown in Platform, run CodeRED → Connection → Refresh Discovery after deploying a new node/agent build.
+
+### Request Token Rotation
+
+Creates a secure rotation request for the current CodeRED API token. The node sends the current token only to the local CodeRED Agent, which forwards it to CodeRED Platform as a Bearer token so Platform can identify the source token from Laravel authentication context. The request does not change token type, scopes, owner, application, or expiration; those values are inherited when an administrator approves the rotation. Use the existing Retrieve Approved Token and Confirm Token Delivery operations to complete delivery.

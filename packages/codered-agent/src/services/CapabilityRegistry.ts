@@ -17,6 +17,7 @@ export class CapabilityRegistry {
       { service: 'integration.discovery', method: 'POST', url: `${publicUrl}/api/v1/discovery/sync`, version: '1.0' },
       { service: 'integration.heartbeat', method: 'POST', url: `${publicUrl}/api/v1/heartbeat/send`, version: '1.0' },
       { service: 'token_requests.create', method: 'POST', url: `${publicUrl}/api/v1/token-requests`, version: '1.0' },
+      { service: 'token_requests.rotation.request', method: 'POST', url: `${publicUrl}/api/v1/token-requests/rotation`, version: '1.0' },
       { service: 'token_requests.status', method: 'GET', url: `${publicUrl}/api/v1/token-requests/{request_uuid}`, version: '1.0' },
       { service: 'token_requests.retrieve', method: 'POST', url: `${publicUrl}/api/v1/token-requests/{request_uuid}/retrieve`, version: '1.0' },
       { service: 'token_requests.delivery.confirm', method: 'POST', url: `${publicUrl}/api/v1/token-requests/{request_uuid}/delivery`, version: '1.0' },

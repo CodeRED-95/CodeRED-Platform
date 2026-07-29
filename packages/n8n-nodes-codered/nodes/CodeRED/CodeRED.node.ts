@@ -5,7 +5,7 @@ import { ConnectionManager } from './ConnectionManager';
 import { LocalAgentHttpError, localAgentBaseUrl, sanitizeOutput } from './LocalAgentClient';
 
 const CONNECTION_OPERATIONS = ['pairInstance', 'testConnection', 'reconnect', 'agentStatus', 'refreshDiscovery', 'rotateSecret', 'disconnect'];
-const TOKEN_REQUEST_OPERATIONS = ['createTokenRequest', 'getTokenRequestStatus', 'retrieveApprovedToken', 'confirmTokenDelivery', 'cancelTokenRequest'];
+const TOKEN_REQUEST_OPERATIONS = ['createTokenRequest', 'requestTokenRotation', 'getTokenRequestStatus', 'retrieveApprovedToken', 'confirmTokenDelivery', 'cancelTokenRequest'];
 
 export class CodeRED implements INodeType {
   description: INodeTypeDescription = {
@@ -36,12 +36,16 @@ export class CodeRED implements INodeType {
       ], displayOptions: { show: { resource: ['connection'] } } },
       { displayName: 'Operation', name: 'operation', type: 'options', default: 'createTokenRequest', options: [
         { name: 'Create Token Request', value: 'createTokenRequest', description: 'Create a request for an API token approval' },
+        { name: 'Request Token Rotation', value: 'requestTokenRotation', description: 'Request replacement of the current API token' },
         { name: 'Get Token Request Status', value: 'getTokenRequestStatus', description: 'Read status and safe metadata for a token request' },
         { name: 'Retrieve Approved Token', value: 'retrieveApprovedToken', description: 'Retrieve an approved token once' },
         { name: 'Confirm Token Delivery', value: 'confirmTokenDelivery', description: 'Mark a retrieved token as delivered' },
         { name: 'Cancel Token Request', value: 'cancelTokenRequest', description: 'Cancel a pending token request' },
       ], displayOptions: { show: { resource: ['tokenRequests'] } } },
       { displayName: 'Pair Code', name: 'pairCode', type: 'string', typeOptions: { password: true }, default: '', required: true, displayOptions: { show: { operation: ['pairInstance', 'reconnect'] } } },
+      { displayName: 'Current API Token', name: 'currentApiToken', type: 'string', typeOptions: { password: true }, default: '', required: true, description: 'Current CodeRED API token to rotate. It is sent only to CodeRED Agent and never returned in output.', displayOptions: { show: { operation: ['requestTokenRotation'] } } },
+      { displayName: 'Rotation Reason', name: 'rotationReason', type: 'string', default: 'Rotación preventiva', displayOptions: { show: { operation: ['requestTokenRotation'] } } },
+      { displayName: 'Idempotency Key', name: 'idempotencyKey', type: 'string', default: '', description: 'Optional unique value to safely retry the same rotation request.', displayOptions: { show: { operation: ['requestTokenRotation'] } } },
       { displayName: 'Requester Name', name: 'requesterName', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Requester Email', name: 'requesterEmail', type: 'string', default: '', placeholder: 'person@example.com', displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Requester Phone', name: 'requesterPhone', type: 'string', default: '', displayOptions: { show: { operation: ['createTokenRequest'] } } },
@@ -117,12 +121,21 @@ async function runOperation(this: IExecuteFunctions, c: CodeREDCredentials, op: 
   if (op === 'rotateSecret') return connectionManager.rotateSecret();
   if (op === 'disconnect') return connectionManager.disconnect();
   if (op === 'createTokenRequest') return connectionManager.createTokenRequest(tokenRequestPayload(this, i));
+  if (op === 'requestTokenRotation') return connectionManager.requestTokenRotation(rotationRequestPayload(this, i));
   if (op === 'getTokenRequestStatus') return connectionManager.getTokenRequestStatus(requestId(this, i));
   if (op === 'retrieveApprovedToken') return connectionManager.retrieveApprovedToken(requestId(this, i));
   if (op === 'confirmTokenDelivery') return connectionManager.confirmTokenDelivery(requestId(this, i), deliveryPayload(this, i));
   if (op === 'cancelTokenRequest') return connectionManager.cancelTokenRequest(requestId(this, i), cancellationPayload(this, i));
 
   throw new Error('Operación no soportada por el asistente de conexión CodeRED.');
+}
+
+function rotationRequestPayload(ctx: IExecuteFunctions, itemIndex: number): Record<string, unknown> {
+  return omitNullValues({
+    current_api_token: String(ctx.getNodeParameter('currentApiToken', itemIndex, '') || '').trim(),
+    reason: optionalString(ctx.getNodeParameter('rotationReason', itemIndex, 'Rotación preventiva')),
+    idempotency_key: optionalString(ctx.getNodeParameter('idempotencyKey', itemIndex, '')),
+  });
 }
 
 function tokenRequestPayload(ctx: IExecuteFunctions, itemIndex: number): Record<string, unknown> {

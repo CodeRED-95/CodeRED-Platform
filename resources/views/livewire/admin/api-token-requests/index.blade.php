@@ -47,6 +47,7 @@
                         <p class="text-xs text-[color:var(--color-text-muted)]">{{ $request->purpose ?? 'Sin motivo registrado' }}</p>
                     </td>
                     <td class="px-4 py-3">
+                        <p class="text-sm">{{ $this->requestDisplayLabel($request) }}</p>
                         <p class="text-sm">Solicitado: {{ $request->requested_token_type ? strtoupper($request->requested_token_type) : 'Sin preferencia' }}</p>
                         <p class="text-sm text-[color:var(--color-text-secondary)]">Aprobado: {{ $request->token_type ? strtoupper($request->token_type) : 'Pendiente' }}</p>
                     </td>
@@ -81,6 +82,7 @@
                 <div class="space-y-5">
                     <dl class="grid gap-3 md:grid-cols-2">
                         <div><dt class="text-xs text-[color:var(--color-text-muted)]">Estado</dt><dd>{{ $selected->status->label() }}</dd></div>
+                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Tipo de solicitud</dt><dd>{{ $this->requestDisplayLabel($selected) }}</dd></div>
                         <div><dt class="text-xs text-[color:var(--color-text-muted)]">Solicitante</dt><dd>{{ $selected->requester_name ?? $selected->telegram_username ?? 'Sin nombre' }}</dd></div>
                         <div><dt class="text-xs text-[color:var(--color-text-muted)]">Aplicación</dt><dd>{{ $selected->application_name ?? $selected->requested_token_name }}</dd></div>
                         <div><dt class="text-xs text-[color:var(--color-text-muted)]">Motivo</dt><dd>{{ $selected->purpose ?? '—' }}</dd></div>
@@ -114,6 +116,18 @@
 
                 <div class="space-y-5">
                     @if ($selected->status->value === 'pending')
+                        @if ($selected->requestTypeValue() === 'rotation')
+                            <form wire:submit="approve" class="space-y-4">
+                                <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">Al confirmar, el token anterior dejará de funcionar inmediatamente y se generará un reemplazo con la misma fecha de caducidad.</div>
+                                <dl class="grid gap-2 text-sm">
+                                    <div><dt class="text-xs text-[color:var(--color-text-muted)]">Tipo</dt><dd>{{ $this->requestDisplayLabel($selected) }}</dd></div>
+                                    <div><dt class="text-xs text-[color:var(--color-text-muted)]">Permisos heredados</dt><dd>{{ implode(', ', $selected->requested_abilities ?? []) }}</dd></div>
+                                    <div><dt class="text-xs text-[color:var(--color-text-muted)]">Caducidad heredada</dt><dd>{{ $selected->sourceToken?->expires_at?->format('d/m/Y H:i') ?? 'Sin expiración' }}</dd></div>
+                                </dl>
+                                <x-ui.textarea wire:model="adminNote" label="Observación administrativa" :error="$errors->first('adminNote')" />
+                                <x-ui.button type="submit" class="w-full" loading-target="approve">Aprobar rotación</x-ui.button>
+                            </form>
+                        @else
                         <form wire:submit="approve" class="space-y-4">
                             <x-ui.input wire:model="approvalTokenName" label="Nombre definitivo" :error="$errors->first('approvalTokenName')" />
                             <x-ui.dropdown-select wire:model="approvalUserId" label="Usuario propietario" :value="$approvalUserId" :options="$users->pluck('name', 'id')->all()" :error="$errors->first('approvalUserId')" />
@@ -143,6 +157,7 @@
                             <x-ui.textarea wire:model="adminNote" label="Observación administrativa" :error="$errors->first('adminNote')" />
                             <x-ui.button type="submit" class="w-full" loading-target="approve">Aprobar solicitud</x-ui.button>
                         </form>
+                        @endif
 
                         <form wire:submit="reject" class="space-y-3">
                             <x-ui.textarea wire:model="rejectionReason" label="Motivo de rechazo (opcional)" :error="$errors->first('rejectionReason')" />

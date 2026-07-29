@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\ApiTokenRequests;
 
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
+use App\Enums\ApiTokenRequestType;
 use App\Enums\ApiTokenType;
 use App\Jobs\NotifyN8nTokenRequestStatus;
 use App\Models\ApiToken;
@@ -88,6 +89,12 @@ class Index extends Component
     {
         Gate::authorize('api-token-requests.approve');
 
+        $current = ApiTokenRequest::query()->findOrFail($this->selectedId);
+        if ($current->requestTypeValue() === ApiTokenRequestType::Rotation->value) {
+            $this->approveRotation($current, $generator);
+
+            return;
+        }
         $data = $this->validate([
             'approvalTokenName' => ['required', 'string', 'max:100'],
             'approvalTokenType' => ['required', 'string', Rule::in(ApiTokenType::values())],
@@ -166,6 +173,109 @@ class Index extends Component
         });
 
         $this->dispatch('toast', type: 'success', message: 'Solicitud aprobada. El token no se muestra en el panel.');
+    }
+
+    private function approveRotation(ApiTokenRequest $current, ApiTokenGenerator $generator): void
+    {
+        $data = $this->validate([
+            'adminNote' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        if ($current->status !== ApiTokenRequestStatus::Pending) {
+            $this->event($current, 'invalid_transition', 'Intento invalido de aprobar una rotación no pendiente.', ['status' => $current->statusValue()]);
+            abort(422, 'La solicitud ya fue procesada.');
+        }
+
+        $currentSource = $current->sourceToken;
+        if ($currentSource instanceof ApiToken && $currentSource->expires_at?->isPast()) {
+            $current->forceFill([
+                'status' => ApiTokenRequestStatus::Expired,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+                'encrypted_plain_text_token' => null,
+                'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
+            ])->save();
+            $this->event($current, 'expired', 'La rotación venció porque el token original expiró antes de aprobarse.', ['source_token_id' => $currentSource->id]);
+            abort(422, 'El token original expiró antes de aprobar la rotación.');
+        }
+
+        DB::transaction(function () use ($generator, $data): void {
+            $request = ApiTokenRequest::query()->whereKey($this->selectedId)->lockForUpdate()->firstOrFail();
+
+            if ($request->status !== ApiTokenRequestStatus::Pending) {
+                $this->event($request, 'duplicate_attempt', 'Intento duplicado de aprobación de rotación.', ['status' => $request->statusValue()]);
+                abort(422, 'La solicitud ya fue procesada.');
+            }
+
+            $source = ApiToken::query()->whereKey($request->source_personal_access_token_id)->lockForUpdate()->first();
+            if (! $source instanceof ApiToken) {
+                $this->event($request, 'invalid_transition', 'No se encontró el token original de la rotación.');
+                abort(422, 'No se encontró el token original.');
+            }
+
+            if ($source->revoked_at !== null) {
+                $this->event($request, 'invalid_transition', 'El token original ya estaba revocado.', ['source_token_id' => $source->id]);
+                abort(422, 'El token original ya fue revocado.');
+            }
+
+            if ($source->expires_at?->isPast()) {
+                $request->forceFill([
+                    'status' => ApiTokenRequestStatus::Expired,
+                    'reviewed_by' => auth()->id(),
+                    'reviewed_at' => now(),
+                    'encrypted_plain_text_token' => null,
+                    'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
+                ])->save();
+                $this->event($request, 'expired', 'La rotación venció porque el token original expiró antes de aprobarse.', ['source_token_id' => $source->id]);
+                abort(422, 'El token original expiró antes de aprobar la rotación.');
+            }
+
+            if (ApiTokenRequest::query()->where('request_type', ApiTokenRequestType::Rotation->value)->where('source_personal_access_token_id', $source->id)->whereNotNull('replacement_personal_access_token_id')->exists()) {
+                $this->event($request, 'duplicate_attempt', 'El token original ya tenía un reemplazo registrado.', ['source_token_id' => $source->id]);
+                abort(422, 'El token original ya fue reemplazado.');
+            }
+
+            $owner = $source->tokenable;
+            abort_unless($owner !== null && method_exists($owner, 'createToken'), 422, 'El propietario del token no puede generar reemplazos.');
+
+            $abilities = array_values($source->abilities ?? []);
+            $name = $source->name.' · Rotado '.now()->format('Y-m-d');
+            $created = $generator->createWithExpiresAt($owner, $name, $abilities, $source->expires_at);
+
+            /** @var ApiToken $replacement */
+            $replacement = ApiToken::query()->findOrFail($created->accessToken->id);
+            $replacement->forceFill([
+                'description' => 'Token generado por rotación de solicitud '.$request->request_uuid,
+                'created_by' => auth()->id(),
+            ])->save();
+
+            $source->forceFill([
+                'revoked_at' => now(),
+                'revoked_by' => auth()->id(),
+                'revocation_reason' => 'rotation',
+            ])->save();
+
+            $request->forceFill([
+                'requested_token_name' => $name,
+                'requested_abilities' => $abilities,
+                'status' => ApiTokenRequestStatus::Approved,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+                'approved_at' => now(),
+                'personal_access_token_id' => $replacement->id,
+                'replacement_personal_access_token_id' => $replacement->id,
+                'encrypted_plain_text_token' => Crypt::encryptString($created->plainTextToken),
+                'delivery_status' => ApiTokenRequestDeliveryStatus::Pending,
+                'metadata' => array_merge($request->metadata ?? [], ['admin_note' => $data['adminNote'] ?? null]),
+            ])->save();
+
+            $this->event($request, 'rotation_approved', 'Rotación aprobada.', ['source_token_id' => $source->id, 'replacement_token_id' => $replacement->id, 'expires_at' => $replacement->expires_at?->toIso8601String(), 'token_type' => $request->token_type]);
+            $this->event($request, 'source_token_revoked', 'Token anterior revocado por rotación.', ['source_token_id' => $source->id, 'revocation_reason' => 'rotation']);
+            $this->event($request, 'replacement_token_generated', 'Token de reemplazo generado sin exponer valor plano.', ['replacement_token_id' => $replacement->id, 'token_type' => $request->token_type]);
+            NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.rotation.approved');
+        });
+
+        $this->dispatch('toast', type: 'success', message: 'Rotación aprobada. El token anterior fue revocado y el reemplazo espera entrega.');
     }
 
     public function reject(): void
@@ -249,6 +359,15 @@ class Index extends Component
         }
 
         return app(ApiTokenGenerator::class)->preview($days);
+    }
+
+    public function requestDisplayLabel(ApiTokenRequest $request): string
+    {
+        $prefix = $request->requestTypeValue() === ApiTokenRequestType::Rotation->value ? 'Rotación de ' : 'Generación de ';
+        $type = $request->token_type ?? $request->requested_token_type;
+        $tokenType = is_string($type) ? ApiTokenType::tryFrom($type) : null;
+
+        return $prefix.($tokenType?->label() ?? 'Token sin preferencia');
     }
 
     public function render(): View

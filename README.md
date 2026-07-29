@@ -225,3 +225,9 @@ Si aparece `Error: Agent is unpaired`, revise que el volumen `codered-agent-data
 ### Integraciones n8n duplicadas
 
 Use `php artisan codered:n8n:deduplicate --dry-run` para auditar duplicados y `php artisan codered:n8n:deduplicate` para revocarlos de forma segura conservando la instancia con actividad más reciente.
+
+### Rotación segura de tokens
+
+CodeRED Platform soporta solicitudes de rotación además de generación inicial. Una rotación se crea desde un token Sanctum autenticado mediante `POST /api/v1/token-requests/rotation`; Platform obtiene el token fuente desde el contexto autenticado, no desde un ID enviado por el cliente. Mientras la solicitud está pendiente, el token anterior sigue activo. Al aprobarse desde el panel, la operación bloquea la solicitud y el token fuente, genera un reemplazo con el mismo propietario, tipo, scopes y `expires_at`, revoca el token anterior con `revoked_at` y deja el nuevo token listo para recuperación única.
+
+La UI distingue "Generación" y "Rotación". En rotaciones no se permite editar tipo, scopes ni vigencia: todos esos valores se heredan del token original. n8n expone "Request Token Rotation" y envía el token actual al CodeRED Agent local, que lo reenvía como Bearer a Platform sin registrarlo.

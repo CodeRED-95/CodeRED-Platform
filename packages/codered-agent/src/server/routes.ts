@@ -198,6 +198,20 @@ export function createRouter(
         return json(res, 409, { success: false, message: 'Reconnect requires a Pair Code.' });
       }
 
+      if (url === '/api/v1/token-requests/rotation' && req.method === 'POST') {
+        const { json: payload } = await readBody(req);
+        const currentApiToken = typeof payload.current_api_token === 'string' ? payload.current_api_token.trim() : '';
+
+        if (!currentApiToken) {
+          return json(res, 422, { success: false, message: 'current_api_token is required.', error_code: 'current_api_token_required' });
+        }
+
+        const { current_api_token: _redacted, ...safePayload } = payload;
+        logger.info('token_request.local_rotation', { reason_present: Boolean(safePayload.reason), idempotency_key_present: Boolean(safePayload.idempotency_key) });
+
+        return json(res, 200, await client.bearer('POST', '/api/v1/token-requests/rotation', currentApiToken, safePayload));
+      }
+
       if (url === '/api/v1/token-requests' && req.method === 'POST') {
         const { json: payload } = await readBody(req);
         logger.info('token_request.local_create', { source: payload.source || 'n8n', requester_present: Boolean(payload.requester_name) });

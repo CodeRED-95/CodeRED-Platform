@@ -3,6 +3,7 @@
 namespace App\Services\ApiTokens;
 
 use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Laravel\Sanctum\NewAccessToken;
 
 class ApiTokenGenerator
@@ -17,6 +18,12 @@ class ApiTokenGenerator
     public function create(object $owner, string $name, array $abilities, int $tokenExpiresInDays): NewAccessToken
     {
         return $owner->createToken($name, $abilities, $this->expiresAt($tokenExpiresInDays));
+    }
+
+    /** @param list<string> $abilities */
+    public function createWithExpiresAt(object $owner, string $name, array $abilities, ?DateTimeInterface $expiresAt): NewAccessToken
+    {
+        return $owner->createToken($name, $abilities, $expiresAt);
     }
 
     public function expiresAt(int $tokenExpiresInDays): CarbonImmutable

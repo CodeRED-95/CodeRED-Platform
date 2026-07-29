@@ -63,6 +63,15 @@ export class ConnectionManager {
   public async status(): Promise<Record<string, unknown>> {
     return callLocalAgent<Record<string, unknown>>('/api/v1/status', { operation: 'status', timeoutMs: Number(this.credentials.timeoutMs || 15000) });
   }
+  public async requestTokenRotation(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests/rotation', {
+      method: 'POST',
+      operation: 'requestTokenRotation',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
+      body: input,
+    });
+  }
+
   public async createTokenRequest(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests', {
       method: 'POST',

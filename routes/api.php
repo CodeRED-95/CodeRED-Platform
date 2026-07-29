@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Integrations\IntegrationDiscoveryController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
+use App\Http\Controllers\Api\V1\TokenRotationRequestController;
 use App\Modules\Ruc\Http\Controllers\RucApiController;
 use App\Modules\Ruc\Http\Controllers\RucSearchApiController;
 use Illuminate\Support\Facades\Route;
@@ -57,6 +58,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/catalog/metadata', CatalogMetadataController::class)->name('catalog.metadata');
             Route::get('/agencies/{code}', [AgencyCatalogController::class, 'show'])->name('agencies.show');
         });
+        Route::post('/token-requests/rotation', TokenRotationRequestController::class)->middleware(['throttle:api'])->name('token-requests.rotation');
         Route::get('/me', MeController::class)->middleware(['throttle:api', 'abilities:profile:read'])->name('me');
     });
 });

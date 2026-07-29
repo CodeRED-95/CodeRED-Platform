@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Integrations;
 
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
+use App\Enums\ApiTokenRequestType;
 use App\Enums\ApiTokenType;
 use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
@@ -53,6 +54,7 @@ class N8nTokenRequestController extends Controller
 
         $tokenRequest = ApiTokenRequest::query()->create([
             'request_uuid' => (string) Str::uuid(),
+            'request_type' => ApiTokenRequestType::Issuance,
             'requester_name' => $data['requester_name'] ?? $this->telegramDisplayName($data),
             'requester_email' => $data['requester_email'] ?? null,
             'requester_phone' => $data['requester_phone'] ?? null,
@@ -135,10 +137,12 @@ class N8nTokenRequestController extends Controller
                 'data' => [
                     'request_id' => $tokenRequest->request_uuid,
                     'request_uuid' => $tokenRequest->request_uuid,
+                    'request_type' => $tokenRequest->requestTypeValue(),
                     'token' => $plain,
                     'token_type' => 'Bearer',
                     'abilities' => $tokenRequest->requested_abilities,
                     'expires_at' => $expiresAt,
+                    'rotated' => $tokenRequest->requestTypeValue() === ApiTokenRequestType::Rotation->value,
                 ],
             ]);
         });
@@ -336,6 +340,7 @@ class N8nTokenRequestController extends Controller
 
         return [
             'request_id' => $request->request_uuid,
+            'request_type' => $request->requestTypeValue(),
             'request_uuid' => $request->request_uuid,
             'public_id' => $request->request_uuid,
             'status' => $this->effectiveStatus($request),
@@ -362,6 +367,9 @@ class N8nTokenRequestController extends Controller
             'rejection_reason' => $request->statusValue() === ApiTokenRequestStatus::Rejected->value ? $request->rejection_reason : null,
             'cancellation_reason' => $request->statusValue() === ApiTokenRequestStatus::Cancelled->value ? $request->cancellation_reason : null,
             'expires_at' => $token?->expires_at?->toIso8601String(),
+            'source_token_id' => $request->source_personal_access_token_id,
+            'replacement_token_id' => $request->replacement_personal_access_token_id,
+            'rotated' => $request->requestTypeValue() === ApiTokenRequestType::Rotation->value && $request->replacement_personal_access_token_id !== null,
             'metadata' => $request->metadata ?? [],
         ];
     }

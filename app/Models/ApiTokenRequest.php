@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
+use App\Enums\ApiTokenRequestType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,6 +14,7 @@ class ApiTokenRequest extends Model
 {
     protected $fillable = [
         'request_uuid',
+        'request_type',
         'requester_name',
         'requester_email',
         'requester_phone',
@@ -33,6 +35,7 @@ class ApiTokenRequest extends Model
         'status',
         'requested_ip',
         'request_source',
+        'idempotency_key',
         'metadata',
         'requested_at',
         'reviewed_at',
@@ -43,6 +46,8 @@ class ApiTokenRequest extends Model
         'rejection_reason',
         'cancellation_reason',
         'personal_access_token_id',
+        'source_personal_access_token_id',
+        'replacement_personal_access_token_id',
         'encrypted_plain_text_token',
         'delivery_status',
         'delivered_at',
@@ -69,7 +74,19 @@ class ApiTokenRequest extends Model
             'result_retrieved_at' => 'datetime',
             'status' => ApiTokenRequestStatus::class,
             'delivery_status' => ApiTokenRequestDeliveryStatus::class,
+            'request_type' => ApiTokenRequestType::class,
         ];
+    }
+
+    public function requestTypeValue(): string
+    {
+        $type = $this->getAttribute('request_type');
+
+        if ($type instanceof ApiTokenRequestType) {
+            return $type->value;
+        }
+
+        return $type === null || $type === '' ? ApiTokenRequestType::Issuance->value : (string) $type;
     }
 
     public function statusValue(): string
@@ -108,6 +125,16 @@ class ApiTokenRequest extends Model
     public function token(): BelongsTo
     {
         return $this->belongsTo(ApiToken::class, 'personal_access_token_id');
+    }
+
+    public function sourceToken(): BelongsTo
+    {
+        return $this->belongsTo(ApiToken::class, 'source_personal_access_token_id');
+    }
+
+    public function replacementToken(): BelongsTo
+    {
+        return $this->belongsTo(ApiToken::class, 'replacement_personal_access_token_id');
     }
 
     public function events(): HasMany

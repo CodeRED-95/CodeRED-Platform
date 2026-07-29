@@ -252,3 +252,8 @@ Solución de problemas:
 - `403 Usuario/chat no autorizado`: revisar listas administrativas.
 - `409 El token ya fue recuperado`: n8n no debe reintentar retrieve después de éxito.
 - Webhook sin respuesta: revisar URL, secreto compartido y cola Laravel.
+## Rotación de tokens
+
+La operación "Request Token Rotation" crea una solicitud de tipo `rotation`. El token actual autentica la petición y Platform copia desde ese token el propietario, tipo funcional, scopes y fecha absoluta de caducidad. La solicitud queda pendiente y el token anterior continúa funcionando hasta que un administrador aprueba la rotación.
+
+Al aprobar, Platform revoca el token fuente y genera un reemplazo con el mismo `expires_at`. El nuevo token se recupera una sola vez con el endpoint existente `retrieve` y se confirma con `delivery`. Las respuestas de estado incluyen `request_type`, `rotated`, `source_token_id` y `replacement_token_id`, pero nunca el token plano.
