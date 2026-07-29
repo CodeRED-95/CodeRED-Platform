@@ -102,8 +102,13 @@ Todas las variables listadas provienen de `.env.example`.
 | `N8N_INTEGRATION_ENABLED` | Habilita la integración n8n + Telegram para solicitudes de tokens API. No controla Pair Instance. | `true` si se usa Telegram/n8n | `true` | No | Desactiva esa integración auxiliar. | `N8N_SHARED_SECRET`, `N8N_WEBHOOK_URL` |
 | `N8N_SHARED_SECRET` | Secreto HMAC opcional de la integración n8n + Telegram. No es el `shared_secret` de pairing del Agent. | vacío o secreto seguro si se usa la integración | vacío | No | Si no coincide, fallan webhooks HMAC legacy. | `N8N_INTEGRATION_ENABLED` |
 | `N8N_WEBHOOK_URL` | Webhook de n8n para notificaciones de solicitudes de tokens. | URL HTTPS real si se usa | vacío | No | Platform no podrá notificar a n8n en esa integración auxiliar. | `N8N_INTEGRATION_ENABLED` |
-| `N8N_ENV_FILE` | Ruta del archivo de entorno administrado para n8n. | `/opt/n8n/.env` | `/opt/n8n/.env` | No | Los scripts podrían actualizar otra ruta. | Scripts de instalación |
-| `N8N_VERSION` | Versión de n8n reportada por el nodo/Agent. | Versión desplegada | `2.31.4` | Sí si se empaqueta n8n | Platform mostrará versión incorrecta si no coincide. | `codered-agent`, nodo n8n |
+| `N8N_VERSION` | Version de n8n usada por el servicio `codered-n8n`. | `2.31.4` | `2.31.4` | Si para n8n | Platform mostrara version incorrecta si no coincide. | `docker/n8n/Dockerfile` |
+| `N8N_HOST` | Host publico de n8n. | `n8n.codered.host` | `n8n.codered.host` | Si para n8n | URLs incorrectas en editor/webhooks. | Cloudflare |
+| `N8N_EDITOR_BASE_URL` | URL publica del editor n8n. | `https://n8n.codered.host/` | `https://n8n.codered.host/` | Si para n8n | Links generados incorrectos. | `N8N_HOST` |
+| `N8N_DB_DATABASE` | Base PostgreSQL de n8n dentro de `codered-postgres`. | `n8n` | `n8n` | Si para n8n | n8n no inicia. | `N8N_DB_USERNAME` |
+| `N8N_DB_USERNAME` | Usuario PostgreSQL de n8n. | `n8n` | `n8n` | Si para n8n | n8n no inicia. | `N8N_DB_PASSWORD` |
+| `N8N_DB_PASSWORD` | Password PostgreSQL de n8n. | secreto persistente | vacio en ejemplo | Si para n8n | n8n no conecta a PostgreSQL. | `codered-postgres` |
+| `N8N_ENCRYPTION_KEY` | Clave persistente de cifrado de credenciales n8n. | secreto persistente | vacio en ejemplo | Si para n8n | Cambiarla puede inutilizar credenciales. | `codered_n8n_data` |
 | `DB_TYPE` / `DB_POSTGRESDB_*` | Configuración PostgreSQL del contenedor n8n. | Coincidir con la base n8n real | `postgresdb` | Sí si se usa n8n Docker | n8n no iniciará o usará otra base. | Docker n8n |
 | `TELEGRAM_TOKEN_REQUESTS_ENABLED` | Controla solicitudes de tokens por Telegram/n8n. | `true` si se usa el flujo | `true` | No | Desactiva solicitudes desde Telegram. | `N8N_INTEGRATION_ENABLED` |
 | `CODERED_PLATFORM_URL` | URL de Platform usada por codered-agent. En Compose se sobreescribe con `APP_URL`. | URL pública de Platform | `https://platform.codered.host` | Sí para Agent | Pairing/heartbeat apuntarán a otra Platform. | `APP_URL` |

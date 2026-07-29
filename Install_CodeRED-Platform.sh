@@ -7,7 +7,6 @@ REPO_URL="https://github.com/CodeRED-95/CodeRED-Platform.git"
 PROJECT_DIR="${PROJECT_DIR:-$HOME/CodeRED-Platform}"
 ENV_FILE="$PROJECT_DIR/.env"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-REPO_DIR="${CODERED_REPO_DIR:-$PROJECT_DIR}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 ok(){ echo "[OK] $*"; }
@@ -15,35 +14,6 @@ info(){ echo "[INFO] $*"; }
 warn(){ echo "[AVISO] $*"; }
 die(){ echo "[ERROR] $*" >&2; exit 1; }
 
-load_n8n_helpers() {
-    local repo_dir="${1:-$REPO_DIR}" helper=""
-    if [[ -f "$SCRIPT_DIR/scripts/lib/n8n_custom.sh" ]]; then
-        helper="$SCRIPT_DIR/scripts/lib/n8n_custom.sh"
-    elif [[ -f "$repo_dir/scripts/lib/n8n_custom.sh" ]]; then
-        helper="$repo_dir/scripts/lib/n8n_custom.sh"
-    else
-        die "No se encontro scripts/lib/n8n_custom.sh junto al instalador ni en $repo_dir."
-    fi
-    # shellcheck source=/dev/null
-    source "$helper"
-}
-
-validate_n8n_helper_functions() {
-    local fn
-    local required_functions=(
-        ensure_n8n_files
-        ensure_n8n_env
-        validate_n8n_compose
-        build_n8n_image
-        start_n8n
-        wait_for_n8n_health
-    )
-    for fn in "${required_functions[@]}"; do
-        if ! declare -F "$fn" >/dev/null; then
-            die "La funcion requerida '$fn' no esta definida. Revise scripts/lib/n8n_custom.sh."
-        fi
-    done
-}
 trap 'code=$?; echo "[ERROR] Fallo en la línea $LINENO" >&2; echo "[ERROR] Comando: ${BASH_COMMAND}" >&2; echo "[ERROR] Código de salida: $code" >&2; echo "[INFO] Revise el mensaje anterior. Si se modificó .env, restaure el backup .env.backup-* y reintente." >&2; exit $code' ERR
 
 confirm() {
@@ -238,10 +208,8 @@ validate_n8n_env_password_value() {
 }
 
 validate_n8n_compose_config() {
-    local n8n_env_file="$1" n8n_dir
-    n8n_dir="$(dirname "$n8n_env_file")"
-    validate_n8n_compose "$n8n_dir" || die "docker compose config fallo para n8n."
-    ok "docker compose config de n8n validado sin imprimir secretos."
+    (cd "$PROJECT_DIR" && docker compose config >/dev/null) || die "docker compose config fallo."
+    ok "docker compose config validado sin imprimir secretos."
 }
 
 
@@ -254,35 +222,41 @@ verify_n8n_schema_objects() {
         warn "Las tablas de n8n todavía no aparecen; n8n puede crearlas al terminar su arranque inicial."
     fi
 }
-recreate_n8n_if_compose_present() {
-    local n8n_env_file="$1" n8n_dir
-    n8n_dir="$(dirname "$n8n_env_file")"
-    validate_n8n_build_context "$n8n_dir" || die "La instalacion de n8n no tiene Dockerfile, compose o paquete personalizado validos."
-    build_n8n_image "$n8n_dir" || die "No se pudo construir la imagen local codered-n8n:2.31.4."
-    start_n8n "$n8n_dir" || die "No se pudo recrear codered-n8n."
-    (cd "$n8n_dir" && docker compose --env-file .env ps)
+recreate_n8n_service() {
+    (cd "$PROJECT_DIR" && docker compose build codered-n8n) || die "No se pudo construir la imagen local codered-n8n:2.31.4."
+    (cd "$PROJECT_DIR" && docker compose up -d --force-recreate --no-deps codered-n8n) || die "No se pudo recrear codered-n8n."
+    (cd "$PROJECT_DIR" && docker compose ps codered-n8n)
     if docker logs --since 5m codered-n8n 2>&1 | grep -F 'password authentication failed for user "n8n"' >/dev/null; then
         die "codered-n8n reporto fallo de autenticacion PostgreSQL para n8n."
     fi
-    ok "codered-n8n recreado sin fallo de autenticacion PostgreSQL detectado."
+    ok "codered-n8n recreado desde el compose principal."
 }
+ensure_n8n_env_defaults() {
+    local password
+    password="$(get_env N8N_DB_PASSWORD)"
+    if [[ -z "$password" ]]; then
+        password="$(generate_secret)"
+        set_env N8N_DB_PASSWORD "$password"
+        ok "Password PostgreSQL de n8n generado correctamente."
+    fi
+    configure_n8n_env "$password"
+}
+
 configure_n8n_env() {
-    local password="$1" n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}" n8n_dir
-    n8n_dir="$(dirname "$n8n_env_file")"
+    local password="$1"
     password="$(normalize_env_secret "$password")"
     validate_n8n_db_password "$password" || die "La contrasena PostgreSQL n8n es invalida."
-    validate_n8n_helper_functions
-    ensure_n8n_files "$PROJECT_DIR" "$n8n_dir" || die "No se pudieron preparar archivos custom de n8n."
-    ensure_n8n_env "$ENV_FILE" "$n8n_env_file" || die "No se pudo sincronizar el token local de CodeRED Agent con n8n."
-    set_env_value_raw "$n8n_env_file" DB_TYPE postgresdb
-    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_HOST codered-postgres
-    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_PORT 5432
-    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_DATABASE n8n
-    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_USER n8n
-    set_env_value_raw "$n8n_env_file" DB_POSTGRESDB_PASSWORD "$password"
-    validate_n8n_env_password_value "$n8n_env_file" "$password"
-    validate_n8n_compose_config "$n8n_env_file"
-    ok "Archivo de configuración de n8n actualizado."
+    set_env N8N_DB_DATABASE n8n
+    set_env N8N_DB_USERNAME n8n
+    set_env N8N_DB_PASSWORD "$password"
+    [[ -n "$(get_env N8N_HOST)" ]] || set_env N8N_HOST "n8n.codered.host"
+    [[ -n "$(get_env N8N_EDITOR_BASE_URL)" ]] || set_env N8N_EDITOR_BASE_URL "https://n8n.codered.host/"
+    [[ -n "$(get_env N8N_WEBHOOK_URL)" ]] || set_env N8N_WEBHOOK_URL "https://n8n.codered.host/"
+    [[ -n "$(get_env N8N_VERSION)" ]] || set_env N8N_VERSION "2.31.4"
+    [[ -n "$(get_env CODERED_AGENT_LOCAL_URL)" ]] || set_env CODERED_AGENT_LOCAL_URL "http://codered-agent:5680"
+    if [[ -z "$(get_env N8N_ENCRYPTION_KEY)" ]]; then set_env N8N_ENCRYPTION_KEY "$(generate_secret)"; ok "Clave de cifrado de n8n generada correctamente."; fi
+    validate_n8n_compose_config
+    ok "Variables n8n actualizadas en el .env principal."
 }
 verify_n8n_network() {
     if ! docker inspect codered-n8n >/dev/null 2>&1; then
@@ -374,7 +348,7 @@ SQL
     ok "Propietario y privilegios de la base n8n configurados."
 
     configure_n8n_env "$password"
-    recreate_n8n_if_compose_present "${N8N_ENV_FILE:-/opt/n8n/.env}"
+    recreate_n8n_service
     verify_n8n_network
 
     validation="$(docker exec -e PGPASSWORD="$password" codered-postgres psql -h 127.0.0.1 -U n8n -d n8n -Atqc "SELECT current_user || ':' || current_database();" 2>/dev/null || true)"
@@ -402,8 +376,6 @@ if [[ -e "$PROJECT_DIR" ]]; then die "Ya existe $PROJECT_DIR. Renómbralo o elim
 
 info "Clonando repositorio..."
 git clone --depth=1 "$REPO_URL" "$PROJECT_DIR"
-load_n8n_helpers "$PROJECT_DIR"
-validate_n8n_helper_functions
 cd "$PROJECT_DIR"
 [[ -f .env.example ]] || die "No se encontró .env.example."
 cp .env.example .env
@@ -431,19 +403,13 @@ set_env API_ALLOWED_ORIGINS "https://platform.codered.host,http://192.168.18.124
 if confirm "¿Activar PeruDevs para consultas DNI?" n; then read_value "URL PeruDevs" "https://api.perudevs.com/api/v1/dni/complete" true; set_env DNI_PERUDEVS_BASE_URL "${REPLY%/}"; read_password "Token/API key PeruDevs"; set_env DNI_PERUDEVS_API_KEY "$REPLY"; set_env DNI_PERUDEVS_ENABLED "true"; else set_env DNI_PERUDEVS_ENABLED "false"; set_env DNI_PERUDEVS_API_KEY ""; fi
 
 configure_agent
+ensure_n8n_env_defaults
 validate_env_file || die "Corrige las claves indicadas antes de continuar."
 unset DB_PASSWORD ADMIN_PASSWORD REPLY || true
 
 info "Construyendo e iniciando contenedores..."
 docker compose up -d --build
-if ask_yes_no "¿Deseas configurar la base de datos de n8n?" s; then
-    prompt_secret_with_confirmation "Ingrese la contraseña para PostgreSQL n8n"
-    N8N_DB_PASSWORD="$REPLY"
-    configure_n8n_postgres "$N8N_DB_PASSWORD"
-    unset N8N_DB_PASSWORD REPLY || true
-else
-    info "Configuración PostgreSQL de n8n omitida."
-fi
+configure_n8n_postgres "$(get_env N8N_DB_PASSWORD)"
 info "Esperando Laravel..."
 for _ in {1..40}; do if docker compose exec -T app php artisan about >/dev/null 2>&1; then break; fi; sleep 3; done
 docker compose exec -T app php artisan about >/dev/null 2>&1 || die "Laravel no respondió a tiempo."
@@ -468,6 +434,6 @@ if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGEN
 fi
 
 echo; info "Verificando servicios sin reiniciarlos..."
-for service in app nginx postgres redis queue scheduler; do if docker compose ps --status running --services | grep -qx "$service"; then ok "$service activo"; else warn "$service todavía no aparece activo"; fi; done
+for service in app nginx postgres redis queue scheduler shalom-extractor codered-agent codered-n8n; do if docker compose ps --status running --services | grep -qx "$service"; then ok "$service activo"; else warn "$service todavía no aparece activo"; fi; done
 
 echo; echo "============================================================"; echo " CodeRED Platform instalada correctamente"; echo "============================================================"; echo "URL: $APP_URL"; echo "Administrador: $ADMIN_EMAIL"; echo "Directorio: $PROJECT_DIR"; echo; docker compose ps

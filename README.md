@@ -57,20 +57,26 @@ El instalador configura Laravel, PostgreSQL, Redis, administrador inicial y, opc
 
 Los seeders de roles y permisos son reejecutables: `RolesAndPermissionsSeeder` puede correrse varias veces durante instalación o recuperación sin duplicar `permission_role` ni borrar relaciones ajenas. Si el seeding falla, el instalador muestra un error explícito y puede reanudarse después de corregir el problema.
 
-## n8n personalizado
+## n8n nativo
 
-El instalador prepara n8n como imagen local `codered-n8n:2.31.4` en `/opt/n8n`. Ese directorio queda autocontenido con `Dockerfile`, `docker-compose.yml`, `data/` y una copia compilable de `n8n-nodes-codered`; Docker Compose usa `build.context: .` y `pull_policy: never`, por lo que no debe intentar descargar `codered-n8n` desde Docker Hub.
+n8n es un servicio nativo del compose principal (`codered-n8n`). La imagen local `codered-n8n:2.31.4` se construye desde `docker/n8n/Dockerfile` y compila automaticamente `packages/n8n-nodes-codered`. No existe instalacion independiente en `/opt/n8n`.
 
-`/opt/n8n/.env` recibe `CODERED_AGENT_LOCAL_URL=http://codered-agent:5680` y el mismo `CODERED_AGENT_LOCAL_API_TOKEN` del agente. Las actualizaciones conservan `/opt/n8n/data` y reconstruyen la imagen si cambia el paquete personalizado o si la imagen local no existe.
+Servicios principales:
 
-Comandos operativos:
+```text
+codered-nginx -> codered-app -> codered-postgres / codered-redis
+codered-queue y codered-scheduler usan los mismos servicios base
+codered-n8n -> codered-agent -> CodeRED Platform
+shalom-extractor queda en la misma red interna
+```
+
+Instalacion y actualizacion:
 
 ```bash
-cd /opt/n8n
-docker compose --env-file .env config
-docker compose --env-file .env build --no-cache n8n
-docker compose --env-file .env up -d --force-recreate n8n
+docker compose up -d --build
 ```
+
+n8n expone solo `127.0.0.1:5678`, usa el volumen `codered_n8n_data` y se comunica con el Agent mediante `http://codered-agent:5680`.
 
 ## Variables de CodeRED Agent
 
@@ -110,22 +116,20 @@ curl http://127.0.0.1:5680/healthz
 
 ## Base PostgreSQL de n8n
 
-Durante la instalación, `Install_CodeRED-Platform.sh` puede configurar automáticamente PostgreSQL para n8n dentro de `codered-postgres`. El flujo crea o actualiza de forma idempotente el rol `n8n`, la base `n8n`, el propietario, privilegios sobre la base, permisos del esquema `public`, privilegios predeterminados y el archivo de entorno de n8n definido por `N8N_ENV_FILE`.
+Durante la instalacion, `Install_CodeRED-Platform.sh` configura automaticamente PostgreSQL para n8n dentro de `codered-postgres`. El flujo crea o actualiza de forma idempotente el rol `n8n`, la base `n8n`, propietario y privilegios, y escribe `N8N_DB_*` en el `.env` principal.
 
-El instalador solicita la contraseña de `n8n` con entrada oculta y confirmación. Normaliza un par de comillas externas accidentales, no imprime la contraseña y puede ejecutarse nuevamente para rotarla sin borrar datos existentes. El formato correcto es `DB_POSTGRESDB_PASSWORD=valor`, sin comillas añadidas por el instalador.
-
-Para cambiar la contraseña PostgreSQL de n8n, vuelva a ejecutar el instalador y acepte la configuración de n8n, o aplique el mismo flujo: actualizar el rol `n8n`, escribir `/opt/n8n/.env` sin comillas externas y recrear el contenedor con `docker compose up -d --force-recreate`. No use `docker compose down -v`.
+El instalador genera `N8N_DB_PASSWORD` si falta, no lo imprime y puede ejecutarse nuevamente para rotarlo sin borrar datos existentes. Para cambios manuales, actualice el rol PostgreSQL, cambie `N8N_DB_PASSWORD` en `.env` y recree `codered-n8n` con `docker compose up -d --force-recreate codered-n8n`. No use `docker compose down -v`.
 
 Variables relevantes:
 
 ```env
-N8N_ENV_FILE=/opt/n8n/.env
-DB_TYPE=postgresdb
-DB_POSTGRESDB_HOST=codered-postgres
-DB_POSTGRESDB_PORT=5432
-DB_POSTGRESDB_DATABASE=n8n
-DB_POSTGRESDB_USER=n8n
-DB_POSTGRESDB_PASSWORD=change_me
+N8N_DB_DATABASE=n8n
+N8N_DB_USERNAME=n8n
+N8N_DB_PASSWORD=
+N8N_ENCRYPTION_KEY=
+N8N_HOST=n8n.codered.host
+N8N_EDITOR_BASE_URL=https://n8n.codered.host/
+N8N_WEBHOOK_URL=https://n8n.codered.host/
 ```
 ## Actualización
 

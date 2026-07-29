@@ -196,28 +196,19 @@ docker compose exec -T app php artisan optimize:clear
 
 ## PostgreSQL para n8n
 
-El instalador pregunta si desea configurar la base PostgreSQL de n8n. Si se acepta, solicita una contraseña oculta para el usuario `n8n`, crea o actualiza el rol, crea la base `n8n` si no existe, conserva datos existentes, asigna propiedad y privilegios completos, y actualiza el archivo definido por `N8N_ENV_FILE` (`/opt/n8n/.env` por defecto).
-
-La operación es idempotente y no ejecuta comandos destructivos. En ejecuciones posteriores permite rotar la contraseña de PostgreSQL `n8n` y vuelve a aplicar privilegios sin borrar la base.
-
-El contenedor `codered-n8n`, si ya existe, debe compartir red Docker con `codered-postgres` para resolver el host `codered-postgres`.
+El instalador pregunta si desea configurar la base PostgreSQL de n8n. Si se acepta, solicita una contrasena oculta para el usuario `n8n`, crea o actualiza el rol, crea la base `n8n` si no existe, conserva datos existentes, asigna propietario y privilegios, y actualiza `N8N_DB_*` en el `.env` principal. El servicio `codered-n8n` comparte la red interna del compose con `postgres`, `redis` y `codered-agent`.
 El archivo de entorno de n8n debe quedar con `DB_POSTGRESDB_PASSWORD=valor`, sin comillas externas añadidas. El instalador elimina solo un par de comillas externas accidentales introducidas por el usuario y preserva comillas internas reales.
 
-## Imagen local de n8n
+## n8n nativo
 
-La instalacion prepara /opt/n8n como contexto autocontenido para la imagen local codered-n8n:2.31.4. El directorio debe contener Dockerfile, docker-compose.yml, data/ y n8n-nodes-codered/. El compose usa build.context=. y pull_policy=never para evitar que Docker intente descargar codered-n8n desde Docker Hub.
+El instalador configura la base PostgreSQL de n8n y el compose principal construye el servicio `codered-n8n` desde `docker/n8n/Dockerfile`. No existe un proyecto secundario en `/opt/n8n`.
 
-Antes de recrear n8n, valide:
+Validacion:
 
 ```bash
-cd /opt/n8n
-test -f Dockerfile
-test -f docker-compose.yml
-test -f n8n-nodes-codered/package.json
-grep -q '^CODERED_AGENT_LOCAL_API_TOKEN=.' .env
-docker compose --env-file .env config
-docker compose --env-file .env build --no-cache n8n
-docker compose --env-file .env up -d --force-recreate n8n
+docker compose config
+docker compose build --no-cache codered-n8n
+docker compose up -d --force-recreate codered-n8n
 ```
 
-No use docker login para codered-n8n; si aparece un pull access denied, revise que el compose tenga build y que /opt/n8n/Dockerfile exista. No borre /opt/n8n/data durante actualizaciones.
+No use `docker compose down -v` durante actualizaciones; el volumen `codered_n8n_data` conserva workflows, credenciales y configuracion de n8n.

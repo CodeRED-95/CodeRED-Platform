@@ -2,7 +2,7 @@
 
 ## 2026-07-28
 
-- El instalador, actualizador y menu operativo preparan `/opt/n8n` con `Dockerfile`, `docker-compose.yml`, `data/` y `n8n-nodes-codered`, construyen la imagen local `codered-n8n:2.31.4` con `pull_policy: never` y sincronizan `CODERED_AGENT_LOCAL_API_TOKEN` sin exponerlo.
+- n8n ahora forma parte del compose principal como `codered-n8n`; se elimina la instalacion independiente en `/opt/n8n` y la imagen se construye localmente desde `docker/n8n/Dockerfile`.
 - `n8n-nodes-codered` ahora usa exclusivamente codered-agent local mediante `CODERED_AGENT_LOCAL_URL` y `CODERED_AGENT_LOCAL_API_TOKEN` para Pair Instance y operaciones de ciclo de vida; el nodo ya no llama directamente a `/api/v1/integrations/n8n/pair` ni envía `instance_uuid` desde n8n.
 - La credencial CodeRED de n8n ya no expone token local, Agent URL, Pair Code ni secretos; Pair Code es un parámetro temporal de operación.
 

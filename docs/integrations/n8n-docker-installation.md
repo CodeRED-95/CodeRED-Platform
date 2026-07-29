@@ -1,65 +1,68 @@
-# Instalacion Docker n8n CodeRED
+# n8n nativo en CodeRED Platform
 
-CodeRED usa una imagen local llamada `codered-n8n:2.31.4`. No se descarga desde Docker Hub: el instalador prepara un directorio autocontenido en `/opt/n8n` y ejecuta `docker compose build n8n` antes de recrear el contenedor.
+n8n forma parte del `docker-compose.yml` principal de CodeRED Platform mediante el servicio `codered-n8n`. No existe un proyecto secundario en `/opt/n8n` y no se descarga `codered-n8n:2.31.4` desde Docker Hub: la imagen se construye localmente desde `docker/n8n/Dockerfile`.
 
-Estructura esperada en el servidor:
+## Estructura
 
 ```text
-/opt/n8n/
-├── .env
+CodeRED-Platform/
 ├── docker-compose.yml
-├── Dockerfile
-├── data/
-└── n8n-nodes-codered/
-    ├── package.json
-    ├── package-lock.json
-    ├── credentials/
-    ├── nodes/
-    └── dist/
+├── docker/n8n/Dockerfile
+├── packages/n8n-nodes-codered/
+└── packages/codered-agent/
 ```
 
-El `docker-compose.yml` generado contiene `build.context: .`, `dockerfile: Dockerfile` y `pull_policy: never`. Por eso `/opt/n8n/Dockerfile` y `/opt/n8n/n8n-nodes-codered/package.json` deben existir antes del build.
+## Servicio Compose
 
-Variables obligatorias en `/opt/n8n/.env`:
+`codered-n8n`:
+
+- build local: `docker/n8n/Dockerfile`
+- imagen local: `codered-n8n:2.31.4`
+- puerto: `127.0.0.1:5678:5678`
+- datos persistentes: `codered_n8n_data:/home/node/.n8n`
+- API local del Agent: `http://codered-agent:5680`
+
+## Instalacion y actualizacion
+
+```bash
+docker compose up -d --build
+```
+
+El Dockerfile compila `packages/n8n-nodes-codered` con `npm ci`, `npm run build`, `npm test` y `npm prune --omit=dev`. Al arrancar, el servicio copia el paquete compilado desde `/opt/n8n-nodes-codered` hacia `/home/node/.n8n/custom/n8n-nodes-codered` dentro del volumen persistente.
+
+## Variables requeridas
 
 ```env
-CODERED_AGENT_LOCAL_URL=http://codered-agent:5680
-CODERED_AGENT_LOCAL_API_TOKEN=<mismo valor configurado en codered-agent>
 N8N_VERSION=2.31.4
+N8N_HOST=n8n.codered.host
+N8N_EDITOR_BASE_URL=https://n8n.codered.host/
+N8N_WEBHOOK_URL=https://n8n.codered.host/
+N8N_ENCRYPTION_KEY=
+N8N_DB_DATABASE=n8n
+N8N_DB_USERNAME=n8n
+N8N_DB_PASSWORD=
+CODERED_AGENT_LOCAL_URL=http://codered-agent:5680
+CODERED_AGENT_LOCAL_API_TOKEN=
 ```
 
-El instalador sincroniza `CODERED_AGENT_LOCAL_API_TOKEN` desde el `.env` principal y falla si queda vacio o tiene menos de 32 caracteres. No imprime el token completo.
+Genere `N8N_ENCRYPTION_KEY`, `N8N_DB_PASSWORD`, `CODERED_AGENT_ENCRYPTION_KEY` y `CODERED_AGENT_LOCAL_API_TOKEN` con secretos persistentes. No cambie `N8N_ENCRYPTION_KEY` luego de crear credenciales en n8n.
 
-Comandos de verificacion:
+## Cloudflare
+
+Registros esperados:
+
+- `platform.codered.host` hacia el túnel o proxy de `codered-nginx`.
+- `n8n.codered.host` hacia el túnel o proxy de `codered-n8n` en `127.0.0.1:5678`.
+- `agent.codered.host` hacia el túnel o proxy de `codered-agent` en `127.0.0.1:5680`.
+
+No publique n8n en `0.0.0.0`; Compose liga el puerto solo a loopback para que Cloudflare Tunnel o el proxy local sean el punto de entrada.
+
+## Diagnostico
 
 ```bash
-cd /opt/n8n
-test -f Dockerfile
-test -f docker-compose.yml
-test -f n8n-nodes-codered/package.json
-docker compose --env-file .env config
-docker compose --env-file .env build --no-cache n8n
-docker image inspect codered-n8n:2.31.4
-docker compose --env-file .env up -d --force-recreate n8n
+docker compose config
+docker compose build --no-cache codered-n8n
+docker compose up -d --force-recreate codered-n8n
+docker compose logs --tail=150 codered-n8n
+docker exec codered-n8n node -e "fetch('http://codered-agent:5680/healthz').then(async r => { console.log('HTTP', r.status); console.log(await r.text()); process.exit(r.ok ? 0 : 1); }).catch(e => { console.error(e); process.exit(1); });"
 ```
-
-Prueba de red desde n8n hacia el agente, sin instalar curl:
-
-```bash
-docker exec codered-n8n node -e "fetch('http://codered-agent:5680/healthz').then(async response => { console.log('HTTP', response.status); console.log(await response.text()); process.exit(response.ok ? 0 : 1); }).catch(error => { console.error(error); process.exit(1); });"
-```
-
-Verificacion del paquete dentro de la imagen:
-
-```bash
-docker exec codered-n8n sh -lc '
-test -d /opt/n8n-nodes-codered/dist && echo "EXTENSION_DIST=OK" || echo "EXTENSION_DIST=MISSING"
-grep -R "codered-agent:5680\|CODERED_AGENT_LOCAL_URL" -n /opt/n8n-nodes-codered/dist || true
-grep -R "integrations/n8n/pair" -n /opt/n8n-nodes-codered/dist || true
-grep -R "instance_uuid.*integrationUuid" -n /opt/n8n-nodes-codered/dist || true
-'
-```
-
-Resultados esperados: existe `dist`, aparece la URL del agente local, no aparece el endpoint directo de pairing de Platform y no existe el mapeo incorrecto `integrationUuid -> instance_uuid`.
-
-Durante actualizaciones se conserva `/opt/n8n/data`; no use `docker compose down -v`, `docker volume prune` ni `rm -rf /opt/n8n/data`. Si Docker intenta descargar `codered-n8n:2.31.4`, el problema es de configuracion local: falta `build`, falta `Dockerfile` o falta el contexto `n8n-nodes-codered`.

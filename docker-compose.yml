@@ -15,7 +15,7 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
 
   nginx:
     image: nginx:1.27-alpine
@@ -37,8 +37,12 @@ services:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      N8N_DB_DATABASE: ${N8N_DB_DATABASE:-n8n}
+      N8N_DB_USERNAME: ${N8N_DB_USERNAME:-n8n}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
       interval: 10s
@@ -52,6 +56,11 @@ services:
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   queue:
     build:
@@ -65,9 +74,12 @@ services:
     volumes:
       - ./:/var/www/html
     depends_on:
-      - app
-      - redis
-      - postgres
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
   scheduler:
     build:
@@ -80,9 +92,12 @@ services:
     volumes:
       - ./:/var/www/html
     depends_on:
-      - app
-      - redis
-      - postgres
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
   shalom-extractor:
     build:
@@ -129,7 +144,56 @@ services:
       timeout: 5s
       retries: 3
 
+  codered-n8n:
+    build:
+      context: .
+      dockerfile: docker/n8n/Dockerfile
+    image: codered-n8n:2.31.4
+    pull_policy: never
+    container_name: codered-n8n
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["sh", "-lc", "mkdir -p /home/node/.n8n/custom && rm -rf /home/node/.n8n/custom/n8n-nodes-codered && cp -a /opt/n8n-nodes-codered /home/node/.n8n/custom/n8n-nodes-codered && n8n"]
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${N8N_DB_DATABASE:-n8n}
+      DB_POSTGRESDB_USER: ${N8N_DB_USERNAME:-n8n}
+      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD}
+      N8N_HOST: ${N8N_HOST:-n8n.codered.host}
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:-https://n8n.codered.host/}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-https://n8n.codered.host/}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_CUSTOM_EXTENSIONS: /home/node/.n8n/custom
+      N8N_VERSION: ${N8N_VERSION:-2.31.4}
+      CODERED_AGENT_LOCAL_URL: ${CODERED_AGENT_LOCAL_URL:-http://codered-agent:5680}
+      CODERED_AGENT_LOCAL_API_TOKEN: ${CODERED_AGENT_LOCAL_API_TOKEN}
+      CODERED_API_BASE_URL: ${APP_URL}
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - codered_n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      codered-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   pgdata:
   redisdata:
   codered-agent-data:
+  codered_n8n_data:

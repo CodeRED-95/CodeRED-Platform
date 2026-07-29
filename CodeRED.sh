@@ -62,24 +62,24 @@ n8n_menu(){
     while true; do
         clear 2>/dev/null || true
         echo "============================================================"
-        echo "                 CodeRED n8n custom"
+        echo "                 CodeRED n8n"
         echo "============================================================"
-        echo "1) Preparar archivos en /opt/n8n"
-        echo "2) Validar compose custom"
+        echo "1) Ver estado"
+        echo "2) Ver logs"
         echo "3) Construir imagen local"
-        echo "4) Iniciar/recrear codered-n8n"
+        echo "4) Reiniciar/recrear servicio"
         echo "5) Probar acceso a codered-agent"
         echo "6) Verificar extension dentro del contenedor"
         echo "7) Volver"
         echo
         read -r -p "Selecciona una opcion: " option
         case "$option" in
-            1) run_in_project bash -lc 'source scripts/lib/n8n_custom.sh; n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"; ensure_n8n_files "$PWD" "$(dirname "$n8n_env_file")"; ensure_n8n_env .env "$n8n_env_file"'; pause ;;
-            2) run_in_project bash -lc 'source scripts/lib/n8n_custom.sh; n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"; validate_n8n_compose "$(dirname "$n8n_env_file")"'; pause ;;
-            3) run_in_project bash -lc 'source scripts/lib/n8n_custom.sh; n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"; build_n8n_image "$(dirname "$n8n_env_file")"'; pause ;;
-            4) run_in_project bash -lc 'source scripts/lib/n8n_custom.sh; n8n_env_file="${N8N_ENV_FILE:-/opt/n8n/.env}"; start_n8n "$(dirname "$n8n_env_file")"'; pause ;;
+            1) run_in_project docker compose ps codered-n8n; pause ;;
+            2) run_in_project docker compose logs -f codered-n8n ;;
+            3) run_in_project docker compose build codered-n8n; pause ;;
+            4) run_in_project docker compose up -d --force-recreate --no-deps codered-n8n; pause ;;
             5) run_in_project docker exec codered-n8n node -e "fetch('http://codered-agent:5680/healthz').then(async r=>{console.log('HTTP',r.status); console.log(await r.text()); process.exit(r.ok?0:1)}).catch(e=>{console.error(e); process.exit(1)})"; pause ;;
-            6) run_in_project docker exec codered-n8n sh -lc 'test -d /opt/n8n-nodes-codered/dist && echo EXTENSION_DIST=OK || echo EXTENSION_DIST=MISSING; grep -R "codered-agent:5680\|CODERED_AGENT_LOCAL_URL" -n /opt/n8n-nodes-codered/dist || true; grep -R "integrations/n8n/pair" -n /opt/n8n-nodes-codered/dist || true; grep -R "instance_uuid.*integrationUuid" -n /opt/n8n-nodes-codered/dist || true'; pause ;;
+            6) run_in_project docker exec codered-n8n sh -lc 'test -d /home/node/.n8n/custom/n8n-nodes-codered/dist && echo EXTENSION_DIST=OK || echo EXTENSION_DIST=MISSING; grep -R "codered-agent:5680\|CODERED_AGENT_LOCAL_URL" -n /home/node/.n8n/custom/n8n-nodes-codered/dist || true; grep -R "integrations/n8n/pair" -n /home/node/.n8n/custom/n8n-nodes-codered/dist || true; grep -R "instance_uuid.*integrationUuid" -n /home/node/.n8n/custom/n8n-nodes-codered/dist || true'; pause ;;
             7) return ;;
             *) echo "Opcion invalida."; pause ;;
         esac
@@ -123,10 +123,10 @@ while true; do
             if [[ -n "$svc" ]]; then run_in_project docker compose logs -f --tail=200 "$svc"; else run_in_project docker compose logs -f --tail=200; fi
             ;;
         5)
-            echo "Servicios permitidos: app nginx scheduler redis postgres codered-agent"
+            echo "Servicios permitidos: app nginx scheduler redis postgres codered-agent codered-n8n"
             echo "Por seguridad, queue no se reinicia desde este menú."
             read -r -p "Servicio: " svc
-            case "$svc" in app|nginx|scheduler|redis|postgres|codered-agent) run_in_project docker compose restart "$svc" ;; queue) echo "[AVISO] Reinicio de queue bloqueado para evitar cortar importaciones RUC." ;; *) echo "Servicio inválido." ;; esac
+            case "$svc" in app|nginx|scheduler|redis|postgres|codered-agent|codered-n8n) run_in_project docker compose restart "$svc" ;; queue) echo "[AVISO] Reinicio de queue bloqueado para evitar cortar importaciones RUC." ;; *) echo "Servicio inválido." ;; esac
             pause
             ;;
         6) run_in_project docker compose exec -T app sh -lc 'chown -R www-data:www-data storage bootstrap/cache && chmod -R ug+rwX storage bootstrap/cache'; pause ;;
