@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -28,6 +29,12 @@ class User extends Authenticatable
         'last_login_ip',
         'created_by',
         'updated_by',
+        'public_code',
+        'telegram_user_id',
+        'telegram_chat_id',
+        'telegram_username',
+        'telegram_linked_integration_uuid',
+        'telegram_linked_at',
     ];
 
     protected $hidden = [
@@ -43,7 +50,17 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
             'last_login_at' => 'datetime',
+            'telegram_linked_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $user): void {
+            if (! is_string($user->public_code) || ! Str::isUuid($user->public_code)) {
+                $user->public_code = (string) Str::uuid();
+            }
+        });
     }
 
     protected static function newFactory(): Factory

@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
+use App\Models\Integration;
 use App\Services\ApiTokens\ApiTokenGenerator;
 use App\Services\Integrations\N8nTelegramTokenSettings;
 use DateTimeInterface;
@@ -52,6 +53,12 @@ class N8nTokenRequestController extends Controller
             return $this->fail('Ya existe una solicitud pendiente reciente para este solicitante.', 422, 'pending_request_exists');
         }
 
+        $integration = $request->attributes->get('integration');
+        $metadata = $data['metadata'] ?? [];
+        if ($integration instanceof Integration) {
+            $metadata['integration_uuid'] = $integration->integration_uuid;
+        }
+
         $tokenRequest = ApiTokenRequest::query()->create([
             'request_uuid' => (string) Str::uuid(),
             'request_type' => ApiTokenRequestType::Issuance,
@@ -73,7 +80,7 @@ class N8nTokenRequestController extends Controller
             'status' => ApiTokenRequestStatus::Pending,
             'requested_ip' => $request->ip(),
             'request_source' => (string) ($data['source'] ?? 'n8n'),
-            'metadata' => $data['metadata'] ?? [],
+            'metadata' => $metadata,
             'requested_at' => now(),
             'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
         ]);

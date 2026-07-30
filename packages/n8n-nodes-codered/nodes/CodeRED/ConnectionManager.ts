@@ -63,8 +63,17 @@ export class ConnectionManager {
   public async status(): Promise<Record<string, unknown>> {
     return callLocalAgent<Record<string, unknown>>('/api/v1/status', { operation: 'status', timeoutMs: Number(this.credentials.timeoutMs || 15000) });
   }
+  public async getPersonalCode(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/personal-code', {
+      method: 'POST',
+      operation: 'getPersonalCode',
+      timeoutMs: Number(this.credentials.timeoutMs || 15000),
+      body: input,
+    });
+  }
+
   public async requestTokenRotation(input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests/rotation', {
+    return callLocalAgent<Record<string, unknown>>('/api/v1/token-requests/rotation-by-code', {
       method: 'POST',
       operation: 'requestTokenRotation',
       timeoutMs: Number(this.credentials.timeoutMs || 15000),

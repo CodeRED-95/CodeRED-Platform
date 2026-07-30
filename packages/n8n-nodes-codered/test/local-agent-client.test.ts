@@ -232,29 +232,35 @@ test('Token request operations call codered-agent with safe payloads', async () 
   }) as typeof fetch;
 
   const manager = new ConnectionManager(credentials());
+  await manager.getPersonalCode({ telegram_user_id: '123456789', telegram_chat_id: '123456789' });
   await manager.createTokenRequest({ requester_name: 'Ada', application_name: 'Bot', purpose: 'Read agencies', requested_token_type: 'agencies', requested_token_expires_in_days: 30, requested_scopes: ['agencies:read'], source: 'n8n' });
-  await manager.requestTokenRotation({ current_api_token: 'old-token', reason: 'Preventive rotation', idempotency_key: 'rotation-1' });
+  await manager.requestTokenRotation({ person_code: 'a6759c4f-f6cc-4a1a-b639-3869f6894ada', reason: 'Preventive rotation', telegram_user_id: '123456789', telegram_chat_id: '123456789', idempotency_key: 'rotation-1', source: 'telegram' });
   await manager.getTokenRequestStatus('00000000-0000-4000-8000-000000000111');
   await manager.retrieveApprovedToken('00000000-0000-4000-8000-000000000111');
   await manager.confirmTokenDelivery('00000000-0000-4000-8000-000000000111', { delivery_channel: 'manual' });
   await manager.cancelTokenRequest('00000000-0000-4000-8000-000000000111', { cancellation_reason: 'No longer needed' });
 
-  assert.equal(calls[0]?.url, 'http://codered-agent:5680/api/v1/token-requests');
+  assert.equal(calls[0]?.url, 'http://codered-agent:5680/api/v1/personal-code');
   assert.equal(calls[0]?.method, 'POST');
-  assert.deepEqual(calls[0]?.body?.requested_scopes, ['agencies:read']);
-  assert.equal(calls[0]?.body?.requested_token_type, 'agencies');
-  assert.equal(calls[0]?.body?.requested_token_expires_in_days, 30);
-  assert.equal(Object.hasOwn(calls[0]?.body || {}, 'shared_secret'), false);
-  assert.equal(Object.hasOwn(calls[0]?.body || {}, 'token_type'), false);
-  assert.equal(calls[1]?.url, 'http://codered-agent:5680/api/v1/token-requests/rotation');
+  assert.equal(calls[0]?.body?.telegram_user_id, '123456789');
+  assert.equal(calls[1]?.url, 'http://codered-agent:5680/api/v1/token-requests');
   assert.equal(calls[1]?.method, 'POST');
-  assert.equal(calls[1]?.body?.current_api_token, 'old-token');
-  assert.equal(calls[1]?.body?.idempotency_key, 'rotation-1');
-  assert.equal(calls[2]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111');
-  assert.equal(calls[2]?.method, 'GET');
-  assert.equal(calls[3]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/retrieve');
-  assert.equal(calls[4]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/delivery');
-  assert.equal(calls[5]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/cancel');
+  assert.deepEqual(calls[1]?.body?.requested_scopes, ['agencies:read']);
+  assert.equal(calls[1]?.body?.requested_token_type, 'agencies');
+  assert.equal(calls[1]?.body?.requested_token_expires_in_days, 30);
+  assert.equal(Object.hasOwn(calls[1]?.body || {}, 'shared_secret'), false);
+  assert.equal(Object.hasOwn(calls[1]?.body || {}, 'token_type'), false);
+  assert.equal(calls[2]?.url, 'http://codered-agent:5680/api/v1/token-requests/rotation-by-code');
+  assert.equal(calls[2]?.method, 'POST');
+  assert.equal(calls[2]?.body?.person_code, 'a6759c4f-f6cc-4a1a-b639-3869f6894ada');
+  assert.equal(calls[2]?.body?.telegram_user_id, '123456789');
+  assert.equal(calls[2]?.body?.current_api_token, undefined);
+  assert.equal(calls[2]?.body?.idempotency_key, 'rotation-1');
+  assert.equal(calls[3]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111');
+  assert.equal(calls[3]?.method, 'GET');
+  assert.equal(calls[4]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/retrieve');
+  assert.equal(calls[5]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/delivery');
+  assert.equal(calls[6]?.url, 'http://codered-agent:5680/api/v1/token-requests/00000000-0000-4000-8000-000000000111/cancel');
 });
 
 test('sanitizeOutput allows approved token only when explicitly requested', () => {

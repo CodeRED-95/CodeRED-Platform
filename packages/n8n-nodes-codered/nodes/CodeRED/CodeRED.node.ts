@@ -6,6 +6,7 @@ import { LocalAgentHttpError, localAgentBaseUrl, sanitizeOutput } from './LocalA
 
 const CONNECTION_OPERATIONS = ['pairInstance', 'testConnection', 'reconnect', 'agentStatus', 'refreshDiscovery', 'rotateSecret', 'disconnect'];
 const TOKEN_REQUEST_OPERATIONS = ['createTokenRequest', 'requestTokenRotation', 'getTokenRequestStatus', 'retrieveApprovedToken', 'confirmTokenDelivery', 'cancelTokenRequest'];
+const PERSONAL_OPERATIONS = ['getPersonalCode'];
 
 export class CodeRED implements INodeType {
   description: INodeTypeDescription = {
@@ -23,6 +24,7 @@ export class CodeRED implements INodeType {
     properties: [
       { displayName: 'Resource', name: 'resource', type: 'options', default: 'connection', options: [
         { name: 'Connection', value: 'connection' },
+        { name: 'Personal', value: 'personal' },
         { name: 'Token Requests', value: 'tokenRequests' },
       ]},
       { displayName: 'Operation', name: 'operation', type: 'options', default: 'pairInstance', options: [
@@ -34,18 +36,24 @@ export class CodeRED implements INodeType {
         { name: 'Rotate Secret', value: 'rotateSecret', description: 'Rotate the platform integration secret through CodeRED Agent' },
         { name: 'Disconnect', value: 'disconnect', description: 'Disconnect the current integration' },
       ], displayOptions: { show: { resource: ['connection'] } } },
+      { displayName: 'Operation', name: 'operation', type: 'options', default: 'getPersonalCode', options: [
+        { name: 'Get Personal Code', value: 'getPersonalCode', description: 'Get the CodeRED personal code linked to a Telegram user' },
+      ], displayOptions: { show: { resource: ['personal'] } } },
       { displayName: 'Operation', name: 'operation', type: 'options', default: 'createTokenRequest', options: [
         { name: 'Create Token Request', value: 'createTokenRequest', description: 'Create a request for an API token approval' },
-        { name: 'Request Token Rotation', value: 'requestTokenRotation', description: 'Request replacement of the current API token' },
+        { name: 'Request Token Rotation', value: 'requestTokenRotation', description: 'Request admin-approved rotation using a personal code and Telegram identity' },
         { name: 'Get Token Request Status', value: 'getTokenRequestStatus', description: 'Read status and safe metadata for a token request' },
         { name: 'Retrieve Approved Token', value: 'retrieveApprovedToken', description: 'Retrieve an approved token once' },
         { name: 'Confirm Token Delivery', value: 'confirmTokenDelivery', description: 'Mark a retrieved token as delivered' },
         { name: 'Cancel Token Request', value: 'cancelTokenRequest', description: 'Cancel a pending token request' },
       ], displayOptions: { show: { resource: ['tokenRequests'] } } },
       { displayName: 'Pair Code', name: 'pairCode', type: 'string', typeOptions: { password: true }, default: '', required: true, displayOptions: { show: { operation: ['pairInstance', 'reconnect'] } } },
-      { displayName: 'Current API Token', name: 'currentApiToken', type: 'string', typeOptions: { password: true }, default: '', required: true, description: 'Current CodeRED API token to rotate. It is sent only to CodeRED Agent and never returned in output.', displayOptions: { show: { operation: ['requestTokenRotation'] } } },
-      { displayName: 'Rotation Reason', name: 'rotationReason', type: 'string', default: 'Rotación preventiva', displayOptions: { show: { operation: ['requestTokenRotation'] } } },
-      { displayName: 'Idempotency Key', name: 'idempotencyKey', type: 'string', default: '', description: 'Optional unique value to safely retry the same rotation request.', displayOptions: { show: { operation: ['requestTokenRotation'] } } },
+      { displayName: 'Telegram User ID', name: 'telegramUserId', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['getPersonalCode', 'requestTokenRotation'] } } },
+      { displayName: 'Telegram Chat ID', name: 'telegramChatId', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['getPersonalCode', 'requestTokenRotation'] } } },
+      { displayName: 'Person Code', name: 'personCode', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['requestTokenRotation'] } } },
+      { displayName: 'Rotation Reason', name: 'rotationReason', type: 'string', default: 'Cambio trimestral', required: true, displayOptions: { show: { operation: ['requestTokenRotation'] } } },
+      { displayName: 'Idempotency Key', name: 'idempotencyKey', type: 'string', default: '', required: true, description: 'Unique value to safely retry the same Telegram rotation request.', displayOptions: { show: { operation: ['requestTokenRotation'] } } },
+      { displayName: 'Rotation Source', name: 'rotationSource', type: 'string', default: 'telegram', displayOptions: { show: { operation: ['requestTokenRotation'] } } },
       { displayName: 'Requester Name', name: 'requesterName', type: 'string', default: '', required: true, displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Requester Email', name: 'requesterEmail', type: 'string', default: '', placeholder: 'person@example.com', displayOptions: { show: { operation: ['createTokenRequest'] } } },
       { displayName: 'Requester Phone', name: 'requesterPhone', type: 'string', default: '', displayOptions: { show: { operation: ['createTokenRequest'] } } },
@@ -120,6 +128,7 @@ async function runOperation(this: IExecuteFunctions, c: CodeREDCredentials, op: 
   if (op === 'refreshDiscovery') return connectionManager.refreshDiscovery();
   if (op === 'rotateSecret') return connectionManager.rotateSecret();
   if (op === 'disconnect') return connectionManager.disconnect();
+  if (op === 'getPersonalCode') return connectionManager.getPersonalCode(personalCodePayload(this, i));
   if (op === 'createTokenRequest') return connectionManager.createTokenRequest(tokenRequestPayload(this, i));
   if (op === 'requestTokenRotation') return connectionManager.requestTokenRotation(rotationRequestPayload(this, i));
   if (op === 'getTokenRequestStatus') return connectionManager.getTokenRequestStatus(requestId(this, i));
@@ -130,11 +139,21 @@ async function runOperation(this: IExecuteFunctions, c: CodeREDCredentials, op: 
   throw new Error('Operación no soportada por el asistente de conexión CodeRED.');
 }
 
+function personalCodePayload(ctx: IExecuteFunctions, itemIndex: number): Record<string, unknown> {
+  return {
+    telegram_user_id: String(ctx.getNodeParameter('telegramUserId', itemIndex, '') || '').trim(),
+    telegram_chat_id: String(ctx.getNodeParameter('telegramChatId', itemIndex, '') || '').trim(),
+  };
+}
+
 function rotationRequestPayload(ctx: IExecuteFunctions, itemIndex: number): Record<string, unknown> {
   return omitNullValues({
-    current_api_token: String(ctx.getNodeParameter('currentApiToken', itemIndex, '') || '').trim(),
-    reason: optionalString(ctx.getNodeParameter('rotationReason', itemIndex, 'Rotación preventiva')),
-    idempotency_key: optionalString(ctx.getNodeParameter('idempotencyKey', itemIndex, '')),
+    person_code: String(ctx.getNodeParameter('personCode', itemIndex, '') || '').trim(),
+    reason: String(ctx.getNodeParameter('rotationReason', itemIndex, '') || '').trim(),
+    telegram_user_id: String(ctx.getNodeParameter('telegramUserId', itemIndex, '') || '').trim(),
+    telegram_chat_id: String(ctx.getNodeParameter('telegramChatId', itemIndex, '') || '').trim(),
+    idempotency_key: String(ctx.getNodeParameter('idempotencyKey', itemIndex, '') || '').trim(),
+    source: String(ctx.getNodeParameter('rotationSource', itemIndex, 'telegram') || 'telegram').trim() || 'telegram',
   });
 }
 

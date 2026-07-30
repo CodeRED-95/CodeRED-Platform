@@ -12,6 +12,7 @@ use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
 use App\Models\User;
 use App\Services\ApiTokens\ApiTokenGenerator;
+use App\Services\ApiTokens\TelegramRequesterLinker;
 use App\Services\Integrations\N8nTelegramTokenSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -135,6 +136,8 @@ class Index extends Component
                 'description' => 'Token aprobado desde solicitud '.$request->request_uuid,
                 'created_by' => auth()->id(),
             ])->save();
+
+            app(TelegramRequesterLinker::class)->linkFromRequest($request, $user);
 
             $request->forceFill([
                 'requested_token_name' => trim($data['approvalTokenName']),

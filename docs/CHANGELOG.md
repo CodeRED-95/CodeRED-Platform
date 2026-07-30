@@ -323,3 +323,11 @@ Todas las versiones siguen `Keep a Changelog`.
 - Agregadas referencias al token fuente y token de reemplazo, idempotencia por token y trazabilidad `revoked_by`/`revocation_reason`.
 - La aprobación de rotaciones conserva exactamente propietario, tipo, scopes y `expires_at`; no reinicia vigencia.
 - n8n y codered-agent incorporan la operación "Request Token Rotation" sin alterar pairing, discovery ni heartbeat.
+
+## 2026-07-30 - Código personal Telegram y rotación por aprobación
+
+- Agregado `public_code` UUID estable para usuarios y vinculación segura con Telegram tras aprobar solicitudes originadas desde n8n/Telegram.
+- Agregados endpoints HMAC para consultar código personal y crear solicitudes de rotación por código personal sin exponer el token actual.
+- Extendidos `codered-agent` y `n8n-nodes-codered` con operaciones `Get Personal Code` y `Request Token Rotation` basadas en Telegram.
+- Agregado workflow JSON importable para `/codigo` y `/rotar CÓDIGO | MOTIVO`.
+- La rotación mantiene activo el token anterior mientras está pendiente y reutiliza la aprobación transaccional existente para revocar solo después de generar el reemplazo.

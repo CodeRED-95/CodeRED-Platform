@@ -257,3 +257,55 @@ Solución de problemas:
 La operación "Request Token Rotation" crea una solicitud de tipo `rotation`. El token actual autentica la petición y Platform copia desde ese token el propietario, tipo funcional, scopes y fecha absoluta de caducidad. La solicitud queda pendiente y el token anterior continúa funcionando hasta que un administrador aprueba la rotación.
 
 Al aprobar, Platform revoca el token fuente y genera un reemplazo con el mismo `expires_at`. El nuevo token se recupera una sola vez con el endpoint existente `retrieve` y se confirma con `delivery`. Las respuestas de estado incluyen `request_type`, `rotated`, `source_token_id` y `replacement_token_id`, pero nunca el token plano.
+
+## Comandos /codigo y /rotar
+
+El bot de Telegram debe usar un único Telegram Trigger y enrutar comandos por texto. Todos los nodos Telegram deben usar Parse Mode `None` y desactivar la atribución de n8n para evitar errores de entidades.
+
+### /codigo
+
+Enviar al nodo CodeRED `Personal / Get Personal Code`:
+
+```json
+{
+  "telegram_user_id": "={{ String($json.message?.from?.id ?? '') }}",
+  "telegram_chat_id": "={{ String($json.message?.chat?.id ?? '') }}"
+}
+```
+
+Respuesta segura:
+
+```json
+{
+  "success": true,
+  "person_code": "a6759c4f-f6cc-4a1a-b639-3869f6894ada",
+  "display_name": "Nombre del solicitante"
+}
+```
+
+Si el usuario no está vinculado, Platform responde 404 con el mensaje para realizar primero una solicitud de token.
+
+### /rotar CÓDIGO | MOTIVO
+
+Validación recomendada:
+
+```js
+const match = text.match(
+  /^\/rotar(?:@\w+)?\s+([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\s*\|\s*(.+)$/i
+);
+```
+
+Enviar al nodo CodeRED `Token Requests / Request Token Rotation`:
+
+```json
+{
+  "person_code": "={{ $json.person_code }}",
+  "reason": "={{ $json.reason }}",
+  "telegram_user_id": "={{ String($json.telegram_user_id) }}",
+  "telegram_chat_id": "={{ String($json.chat_id) }}",
+  "idempotency_key": "={{ `telegram-rotation-${$json.telegram_user_id}-${$json.telegram_message_id}` }}",
+  "source": "telegram"
+}
+```
+
+La respuesta crea una solicitud `pending`; el token actual no se revoca hasta que un administrador aprueba la rotación. Cuando `Get Token Request Status` indique `approved`, usar `Retrieve Approved Token` una sola vez, enviar el token por Telegram y luego ejecutar `Confirm Token Delivery`.

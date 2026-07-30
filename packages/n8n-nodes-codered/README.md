@@ -62,3 +62,12 @@ To refresh the functional capabilities shown in Platform, run CodeRED → Connec
 ### Request Token Rotation
 
 Creates a secure rotation request for the current CodeRED API token. The node sends the current token only to the local CodeRED Agent, which forwards it to CodeRED Platform as a Bearer token so Platform can identify the source token from Laravel authentication context. The request does not change token type, scopes, owner, application, or expiration; those values are inherited when an administrator approves the rotation. Use the existing Retrieve Approved Token and Confirm Token Delivery operations to complete delivery.
+
+## Telegram personal code and rotation
+
+The node keeps its internal identifier as `CUSTOM.codeRed` and now exposes:
+
+- `Personal / Get Personal Code`: sends `telegram_user_id` and `telegram_chat_id` to the local CodeRED Agent.
+- `Token Requests / Request Token Rotation`: sends `person_code`, `reason`, Telegram identifiers, `idempotency_key`, and source `telegram`.
+
+The node never sends `instance_uuid`, integration secrets, shared secrets, or the current API token for Telegram rotations. CodeRED Agent signs the request to Platform using the paired integration identity.

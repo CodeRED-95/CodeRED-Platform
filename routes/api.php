@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\DniApiController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Integrations\IntegrationDiscoveryController;
+use App\Http\Controllers\Api\V1\Integrations\N8nTelegramPersonalCodeController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\TokenRotationRequestController;
@@ -33,6 +34,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/secret/rotate', [IntegrationDiscoveryController::class, 'rotateSecret'])->name('secret.rotate');
         Route::post('/secret/confirm', [IntegrationDiscoveryController::class, 'confirmSecret'])->name('secret.confirm');
         Route::post('/challenge', [IntegrationDiscoveryController::class, 'challenge'])->name('challenge');
+        Route::post('/personal-code', [N8nTelegramPersonalCodeController::class, 'show'])->name('personal-code.show');
+        Route::post('/token-requests/rotation-by-code', [N8nTelegramPersonalCodeController::class, 'rotation'])->name('token-requests.rotation-by-code');
         Route::post('/token-requests', [N8nTokenRequestController::class, 'store'])->name('token-requests.store');
         Route::get('/token-requests/{request_uuid}', [N8nTokenRequestController::class, 'show'])->name('token-requests.show');
         Route::post('/token-requests/{request_uuid}/retrieve', [N8nTokenRequestController::class, 'retrieve'])->name('token-requests.retrieve');

@@ -198,6 +198,20 @@ export function createRouter(
         return json(res, 409, { success: false, message: 'Reconnect requires a Pair Code.' });
       }
 
+      if (url === '/api/v1/personal-code' && req.method === 'POST') {
+        const { json: payload } = await readBody(req);
+        logger.info('personal_code.local_request', { telegram_user_id_present: Boolean(payload.telegram_user_id), telegram_chat_id_present: Boolean(payload.telegram_chat_id) });
+
+        return json(res, 200, await client.signed('POST', '/api/v1/integrations/n8n/personal-code', payload));
+      }
+
+      if (url === '/api/v1/token-requests/rotation-by-code' && req.method === 'POST') {
+        const { json: payload } = await readBody(req);
+        logger.info('token_request.local_rotation_by_code', { person_code_present: Boolean(payload.person_code), reason_present: Boolean(payload.reason), idempotency_key_present: Boolean(payload.idempotency_key) });
+
+        return json(res, 200, await client.signed('POST', '/api/v1/integrations/n8n/token-requests/rotation-by-code', payload));
+      }
+
       if (url === '/api/v1/token-requests/rotation' && req.method === 'POST') {
         const { json: payload } = await readBody(req);
         const currentApiToken = typeof payload.current_api_token === 'string' ? payload.current_api_token.trim() : '';

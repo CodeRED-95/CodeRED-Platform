@@ -1,0 +1,267 @@
+{
+  "name": "CodeRED Telegram Token Rotation",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $json.message || {};\nconst text = String(message.text || '').trim();\nconst userId = String(message.from?.id ?? '');\nconst chatId = String(message.chat?.id ?? '');\nconst messageId = String(message.message_id ?? Date.now());\nconst rotation = text.match(/^\\/rotar(?:@\\w+)?\\s+([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\\s*\\|\\s*(.+)$/i);\nlet command = 'help';\nif (/^\\/(codigo)(?:@\\w+)?$/i.test(text)) command = 'codigo';\nif (rotation) command = 'rotar';\nif (/^\\/(start|help|ayuda|token)(?:@\\w+)?/i.test(text)) command = 'help';\nreturn [{ json: { command, text, person_code: rotation?.[1] || '', reason: rotation?.[2]?.trim() || '', telegram_user_id: userId, chat_id: chatId, telegram_chat_id: chatId, telegram_message_id: messageId, idempotency_key: `telegram-rotation-${userId}-${messageId}` } }];"
+      },
+      "id": "parse-command",
+      "name": "Parse Telegram Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "codigo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "codigo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "rotar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "rotar"
+            }
+          ]
+        }
+      },
+      "id": "switch-command",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "personal",
+        "operation": "getPersonalCode",
+        "telegramUserId": "={{ String($json.telegram_user_id) }}",
+        "telegramChatId": "={{ String($json.telegram_chat_id) }}"
+      },
+      "id": "codered-personal-code",
+      "name": "CodeRED Get Personal Code",
+      "type": "CUSTOM.codeRed",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -120
+      ],
+      "credentials": {
+        "CodeREDApi": {
+          "id": "REPLACE_CODERED_CREDENTIAL_ID",
+          "name": "CodeRED"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Parse Telegram Command\"].json.chat_id }}",
+        "text": "={{ \"CÓDIGO PERSONAL\\n\\nTu código de CodeRED es:\\n\\n\" + $json.person_code + \"\\n\\nPuedes solicitar una rotación con:\\n\\n/rotar \" + $json.person_code + \" | Motivo de la rotación\\n\\nNo compartas este código innecesariamente.\" }}",
+        "additionalFields": {
+          "parse_mode": "None",
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram-send-code",
+      "name": "Telegram Send Code",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        960,
+        -120
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "tokenRequests",
+        "operation": "requestTokenRotation",
+        "personCode": "={{ $json.person_code }}",
+        "rotationReason": "={{ $json.reason }}",
+        "telegramUserId": "={{ String($json.telegram_user_id) }}",
+        "telegramChatId": "={{ String($json.telegram_chat_id) }}",
+        "idempotencyKey": "={{ $json.idempotency_key }}",
+        "rotationSource": "telegram"
+      },
+      "id": "codered-request-rotation",
+      "name": "CodeRED Request Rotation",
+      "type": "CUSTOM.codeRed",
+      "typeVersion": 1,
+      "position": [
+        720,
+        120
+      ],
+      "credentials": {
+        "CodeREDApi": {
+          "id": "REPLACE_CODERED_CREDENTIAL_ID",
+          "name": "CodeRED"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Parse Telegram Command\"].json.chat_id }}",
+        "text": "={{ \"SOLICITUD DE ROTACIÓN REGISTRADA\\n\\nTu solicitud fue recibida correctamente.\\n\\n• Código de solicitud: \" + $json.request_id + \"\\n• Código personal: \" + $json.person_code + \"\\n• Estado: Pendiente de aprobación\\n\\nTu token actual continuará funcionando mientras la solicitud esté pendiente.\" }}",
+        "additionalFields": {
+          "parse_mode": "None",
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram-send-rotation",
+      "name": "Telegram Send Rotation Status",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        960,
+        120
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Telegram Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Telegram Command": {
+      "main": [
+        [
+          {
+            "node": "Route Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Command": {
+      "main": [
+        [
+          {
+            "node": "CodeRED Get Personal Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CodeRED Request Rotation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CodeRED Get Personal Code": {
+      "main": [
+        [
+          {
+            "node": "Telegram Send Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CodeRED Request Rotation": {
+      "main": [
+        [
+          {
+            "node": "Telegram Send Rotation Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}

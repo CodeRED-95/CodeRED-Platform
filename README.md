@@ -231,3 +231,26 @@ Use `php artisan codered:n8n:deduplicate --dry-run` para auditar duplicados y `p
 CodeRED Platform soporta solicitudes de rotación además de generación inicial. Una rotación se crea desde un token Sanctum autenticado mediante `POST /api/v1/token-requests/rotation`; Platform obtiene el token fuente desde el contexto autenticado, no desde un ID enviado por el cliente. Mientras la solicitud está pendiente, el token anterior sigue activo. Al aprobarse desde el panel, la operación bloquea la solicitud y el token fuente, genera un reemplazo con el mismo propietario, tipo, scopes y `expires_at`, revoca el token anterior con `revoked_at` y deja el nuevo token listo para recuperación única.
 
 La UI distingue "Generación" y "Rotación". En rotaciones no se permite editar tipo, scopes ni vigencia: todos esos valores se heredan del token original. n8n expone "Request Token Rotation" y envía el token actual al CodeRED Agent local, que lo reenvía como Bearer a Platform sin registrarlo.
+
+## Telegram: código personal y rotación de tokens
+
+CodeRED Platform soporta dos comandos de Telegram operados desde n8n y `codered-agent`:
+
+- `/codigo`: consulta el código personal UUID vinculado al usuario de Telegram.
+- `/rotar a6759c4f-f6cc-4a1a-b639-3869f6894ada | Cambio trimestral`: registra una solicitud administrativa de rotación.
+
+El código personal se guarda en `users.public_code`, es opaco, único, no secuencial y no es un token de acceso. La vinculación de Telegram se crea cuando una solicitud de token originada en Telegram/n8n es aprobada por un administrador; no se crea un perfil solo por consultar `/codigo`.
+
+La rotación por Telegram no recibe el token actual. Platform valida `person_code`, `telegram_user_id`, `telegram_chat_id`, la integración HMAC emparejada y que exista exactamente un token activo elegible. Si hay más de un token activo, la rotación debe seleccionarse desde el panel administrativo. Mientras la solicitud está pendiente, el token anterior sigue funcionando; al aprobarse, la transacción genera el reemplazo, conserva propietario, scopes, tipo y `expires_at`, y recién entonces revoca el token anterior.
+
+Endpoints firmados usados por `codered-agent`:
+
+- `POST /api/v1/integrations/n8n/personal-code`
+- `POST /api/v1/integrations/n8n/token-requests/rotation-by-code`
+
+El nodo `CUSTOM.codeRed` agrega:
+
+- `Personal / Get Personal Code`
+- `Token Requests / Request Token Rotation`
+
+El workflow importable de referencia está en `docs/integrations/workflows/telegram-code-rotation.workflow.json`. Después de registrar una rotación, el flujo puede reutilizar `Get Token Request Status`, `Retrieve Approved Token` y `Confirm Token Delivery` para entregar el reemplazo una sola vez y cerrar el ciclo.
