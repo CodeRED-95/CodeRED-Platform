@@ -10,4 +10,4 @@ La API oficial es de solo lectura, usa Laravel Sanctum y se encuentra bajo `/api
 4. Para sincronización eficiente, seguir [Sincronización del catálogo](synchronization.md): metadata con ETag, full sync inicial y `/agencies/changes`.
 5. Rotar creando un segundo token; comprobarlo y revocar manualmente el anterior.
 
-No se ha modificado la extensión ni eliminado su fuente Gist.
+- [Extension Chrome Buscador Shalom Control](chrome-extension.md)

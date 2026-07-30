@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Buscador Shalom Control</title>
+    <script type="module" src="./options.ts"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header><img src="/icons/icon-48.png" alt="CodeRED" /><div><h1>Buscador Shalom Control</h1><p id="connection">Cargando configuracion</p></div></header>
+      <section>
+        <label>URL de CodeRED Platform<input id="apiBaseUrl" type="url" placeholder="https://platform.codered.host/api/v1" /></label>
+        <label>Token<input id="token" type="password" autocomplete="off" placeholder="Pega el token" /></label>
+        <p id="masked"></p>
+        <div class="actions"><button id="save">Guardar</button><button id="test">Probar conexion</button><button id="request">Solicitar Token</button><button id="sync">Sincronizar ahora</button><button id="delete" class="danger">Eliminar token</button></div>
+      </section>
+      <section class="stats"><p>Ultima sincronizacion: <strong id="lastSync">-</strong></p><p>Version local: <strong id="version">-</strong></p><p>Agencias almacenadas: <strong id="count">0</strong></p><p>Estado: <strong id="state">-</strong></p></section>
+      <p id="message" role="status"></p>
+    </main>
+  </body>
+</html>

@@ -30,6 +30,7 @@ class AgencyApiTest extends TestCase
             'texto_chosen_terrestre' => '610 - TERRESTRE',
             'texto_chosen_aereo' => '610 - AEREO',
             'is_operations_center' => true,
+            'classification_category' => 'GRANDE / CO',
         ]);
 
         $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/'.$agency->code)->assertOk()->assertJsonPath('data.external_id', 610)
@@ -56,6 +57,7 @@ class AgencyApiTest extends TestCase
             'status' => AgencyStatus::Active, 'has_moved' => false, 'external_id' => 614,
             'texto_chosen_terrestre' => null, 'texto_chosen_aereo' => '614 - AEREO',
             'is_operations_center' => true,
+            'classification_category' => 'GRANDE / CO',
         ]);
 
         $response = $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/agencies/snapshot')->assertOk();

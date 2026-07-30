@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-30
+
+- Se agrega la extension Chrome Buscador Shalom Control y el endpoint publico `/api/v1/extension/chrome/config`.
+- Se amplia el contrato publico de agencias con campos seguros requeridos por clientes ligeros.
+
+
 ## 2026-07-28
 
 - n8n ahora forma parte del compose principal como `codered-n8n`; se elimina la instalacion independiente en `/opt/n8n` y la imagen se construye localmente desde `docker/n8n/Dockerfile`.

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Buscador Shalom</title>
+    <script type="module" crossorigin src="/assets/popup.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill.js">
+    <link rel="modulepreload" crossorigin href="/assets/format.js">
+    <link rel="stylesheet" crossorigin href="/assets/popup.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <img src="/assets/icon-48.png" alt="CodeRED" />
+      <div><h1>Buscador Shalom</h1><span id="status">Cargando</span></div>
+      <button id="options" title="Configuracion">⚙</button>
+    </header>
+    <main>
+      <section id="welcome" class="welcome" hidden>
+        <p>Configura un token para sincronizar agencias desde CodeRED Platform.</p>
+        <button id="request-token">Solicitar Token</button>
+        <button id="configure-token">Configurar Token</button>
+      </section>
+      <section id="search-panel">
+        <div class="search-row"><input id="query" type="search" autocomplete="off" placeholder="Buscar agencia" autofocus /><button id="clear" title="Limpiar">×</button></div>
+        <div class="meta"><span id="counter">0 resultados</span><span id="updated"></span></div>
+        <div id="results" class="results"></div>
+        <button id="more" hidden>Ver más</button>
+      </section>
+    </main>
+  </body>
+</html>

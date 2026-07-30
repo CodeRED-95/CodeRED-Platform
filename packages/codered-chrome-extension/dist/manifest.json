@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Buscador Shalom Control",
+  "short_name": "Shalom Control",
+  "version": "1.0.0",
+  "description": "Cliente ligero de CodeRED Platform para buscar agencias Shalom con cache local.",
+  "action": {
+    "default_title": "Buscador Shalom",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "assets/serviceWorker.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.shalomcontrol.com/*",
+    "https://shalomcontrol.com/*",
+    "https://*.shalom.pe/*",
+    "https://shalom.pe/*",
+    "https://platform.codered.host/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.shalomcontrol.com/*",
+        "https://shalomcontrol.com/*",
+        "https://*.shalom.pe/*",
+        "https://shalom.pe/*"
+      ],
+      "js": [
+        "assets/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
