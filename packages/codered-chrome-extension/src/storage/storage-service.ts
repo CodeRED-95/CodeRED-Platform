@@ -1,42 +1,37 @@
 import type { Agency } from '../models/agency';
-import { DEFAULT_API_BASE_URL, DEFAULT_TOKEN_REQUEST_URL, type ExtensionConfiguration, type SyncMetadata } from '../models/configuration';
+import { type ExtensionConfiguration, type SyncMetadata } from '../models/configuration';
 import { maskToken } from '../utils/format';
 
 const KEYS = {
-  configuration: 'configuration',
+  auth: 'auth',
   agencies: 'agencies',
   syncMetadata: 'syncMetadata',
 };
 
 export class ChromeStorageService {
   async getConfiguration(): Promise<ExtensionConfiguration> {
-    const data = await chrome.storage.local.get(KEYS.configuration);
+    const data = await chrome.storage.local.get(KEYS.auth);
     return {
-      apiBaseUrl: DEFAULT_API_BASE_URL,
       token: null,
       tokenMasked: null,
-      tokenRequestUrl: DEFAULT_TOKEN_REQUEST_URL,
       syncIntervalHours: 24,
-      ...(data[KEYS.configuration] ?? {}),
+      ...(data[KEYS.auth] ?? {}),
     };
   }
 
-  async saveConfiguration(configuration: { apiBaseUrl: string; token: string; tokenRequestUrl?: string | null; syncIntervalHours?: number }): Promise<void> {
-    const token = configuration.token.trim();
+  async saveToken(tokenValue: string): Promise<void> {
+    const token = tokenValue.trim();
     await chrome.storage.local.set({
-      [KEYS.configuration]: {
-        apiBaseUrl: configuration.apiBaseUrl.replace(/\/+$/, ''),
+      [KEYS.auth]: {
         token,
         tokenMasked: maskToken(token),
-        tokenRequestUrl: configuration.tokenRequestUrl ?? DEFAULT_TOKEN_REQUEST_URL,
-        syncIntervalHours: configuration.syncIntervalHours ?? 24,
+        syncIntervalHours: 24,
       },
     });
   }
 
   async deleteToken(): Promise<void> {
-    const configuration = await this.getConfiguration();
-    await chrome.storage.local.set({ [KEYS.configuration]: { ...configuration, token: null, tokenMasked: null } });
+    await chrome.storage.local.set({ [KEYS.auth]: { token: null, tokenMasked: null, syncIntervalHours: 24 } });
   }
 
   async getAgencies(): Promise<Agency[]> {

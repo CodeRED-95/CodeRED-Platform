@@ -8,14 +8,41 @@
   </head>
   <body>
     <main class="shell">
-      <header><img src="/icons/icon-48.png" alt="CodeRED" /><div><h1>Buscador Shalom Control</h1><p id="connection">Cargando configuracion</p></div></header>
+      <header>
+        <img src="/icons/icon-48.png" alt="CodeRED" />
+        <div>
+          <h1>Buscador Shalom Control</h1>
+          <p id="connection">Cargando configuracion</p>
+        </div>
+      </header>
       <section>
-        <label>URL de CodeRED Platform<input id="apiBaseUrl" type="url" placeholder="https://platform.codered.host/api/v1" /></label>
-        <label>Token<input id="token" type="password" autocomplete="off" placeholder="Pega el token" /></label>
+        <label for="token">Token de CodeRED Platform<input id="token" type="password" autocomplete="off" placeholder="Pega el token" /></label>
         <p id="masked"></p>
-        <div class="actions"><button id="save">Guardar</button><button id="test">Probar conexion</button><button id="request">Solicitar Token</button><button id="sync">Sincronizar ahora</button><button id="delete" class="danger">Eliminar token</button></div>
+        <div class="actions">
+          <button id="save" type="button">Guardar</button>
+          <button id="test" type="button">Probar conexion</button>
+          <button id="request" type="button">Solicitar Token</button>
+          <button id="sync" type="button">Sincronizar ahora</button>
+          <button id="delete" type="button" class="danger">Eliminar token</button>
+        </div>
       </section>
-      <section class="stats"><p>Ultima sincronizacion: <strong id="lastSync">-</strong></p><p>Version local: <strong id="version">-</strong></p><p>Agencias almacenadas: <strong id="count">0</strong></p><p>Estado: <strong id="state">-</strong></p></section>
+      <section id="request-form" hidden>
+        <h2>Solicitar token</h2>
+        <form id="token-request-form">
+          <label for="requester_name">Nombre del solicitante<input id="requester_name" name="requester_name" type="text" required /></label>
+          <label for="delivery_channel">Medio de entrega<select id="delivery_channel" name="delivery_channel"><option value="whatsapp">WhatsApp</option><option value="telegram">Telegram</option><option value="email">Correo electronico</option></select></label>
+          <label for="delivery_destination" id="delivery_label">Numero de WhatsApp<input id="delivery_destination" name="delivery_destination" type="tel" inputmode="tel" placeholder="+51987654321" required /></label>
+          <label for="instance_name">Nombre de la instalacion o equipo<input id="instance_name" name="instance_name" type="text" value="Buscador Shalom Control" /></label>
+          <label for="notes">Motivo o descripcion opcional<textarea id="notes" name="notes" rows="3"></textarea></label>
+          <div class="actions"><button id="send-request" type="submit">Enviar solicitud</button><button id="cancel-request" type="button">Cancelar</button></div>
+        </form>
+      </section>
+      <section class="stats">
+        <p>Ultima sincronizacion: <strong id="lastSync">-</strong></p>
+        <p>Version local: <strong id="version">-</strong></p>
+        <p>Agencias almacenadas: <strong id="count">0</strong></p>
+        <p>Estado: <strong id="state">-</strong></p>
+      </section>
       <p id="message" role="status"></p>
     </main>
   </body>

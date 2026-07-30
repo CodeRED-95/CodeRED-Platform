@@ -1,8 +1,6 @@
 export interface ExtensionConfiguration {
-  apiBaseUrl: string;
   token: string | null;
   tokenMasked: string | null;
-  tokenRequestUrl: string | null;
   syncIntervalHours: number;
 }
 
@@ -14,5 +12,18 @@ export interface SyncMetadata {
   message: string | null;
 }
 
-export const DEFAULT_API_BASE_URL = 'https://platform.codered.host/api/v1';
-export const DEFAULT_TOKEN_REQUEST_URL = 'https://platform.codered.host/solicitar-token';
+const DEFAULT_API_BASE_URL = 'https://platform.codered.host/api/v1';
+
+export function getPlatformApiBaseUrl(): string {
+  return (import.meta.env.VITE_CODERED_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+}
+
+export function getTokenRequestPath(): string {
+  const configured = import.meta.env.VITE_CODERED_TOKEN_REQUEST_PATH || '/solicitar-token';
+  return configured.startsWith('/') ? configured : '/' + configured;
+}
+
+export function getTokenRequestUrl(): string {
+  const baseUrl = new URL(getPlatformApiBaseUrl());
+  return new URL(getTokenRequestPath(), baseUrl.origin).toString();
+}
