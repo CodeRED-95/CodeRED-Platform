@@ -49,7 +49,10 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
   }
 
   if (message.type === 'CATALOG_GET') {
-    return { success: true, agencies: await storage.getAgencies() };
+    console.log('[CodeRED] CATALOG_GET solicitado');
+    const agencies = await storage.getAgencies();
+    console.log(`[CodeRED] Agencias cargadas: ${agencies.length}`);
+    return { success: true, agencies };
   }
 
   if (message.type === 'CATALOG_STATUS') {
@@ -115,10 +118,14 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
 }
 
 async function syncNow(options: { forceFull?: boolean } = {}) {
+  console.log('[CodeRED] Iniciando sincronización...');
   const configuration = await storage.getConfiguration();
   if (!configuration.token) {
+    console.log('[CodeRED] Sincronización fallida: token no configurado.');
     return { status: 'error', message: 'Configura un token para sincronizar', agencyCount: (await storage.getAgencies()).length };
   }
+  console.log('[CodeRED] Token válido');
+
   await storage.setSyncMetadata({ status: 'updating', message: 'Actualizando' });
   const client = new CodeRedClient(apiBaseUrl, configuration.token);
   const sync = createSyncService(client, storage);
