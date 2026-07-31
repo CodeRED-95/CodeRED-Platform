@@ -24,11 +24,11 @@
     "tabs"
   ],
   "host_permissions": [
-    "https://*.shalomcontrol.com/*",
-    "https://shalomcontrol.com/*",
-    "https://*.shalom.pe/*",
+    "https://platform.codered.host/*",
     "https://shalom.pe/*",
-    "https://platform.codered.host/*"
+    "https://*.shalom.pe/*",
+    "https://shalomcontrol.com/*",
+    "https://*.shalomcontrol.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'"
@@ -36,10 +36,10 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.shalomcontrol.com/*",
-        "https://shalomcontrol.com/*",
+        "https://shalom.pe/*",
         "https://*.shalom.pe/*",
-        "https://shalom.pe/*"
+        "https://shalomcontrol.com/*",
+        "https://*.shalomcontrol.com/*"
       ],
       "js": [
         "assets/content.js"
