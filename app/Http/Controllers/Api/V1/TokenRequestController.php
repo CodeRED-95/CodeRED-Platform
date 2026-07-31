@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
+use App\Jobs\NotifyN8nTokenRequestStatus;
 use App\Models\ApiTokenRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,13 @@ class TokenRequestController
 {
     public function __invoke(Request $request): JsonResponse
     {
+        $request->merge([
+            'delivery_destination' => $this->normalizeDestination(
+                $request->input('delivery_channel'),
+                $request->input('delivery_destination')
+            ),
+        ]);
+
         $data = $request->validate([
             'requester_name' => ['required', 'string', 'max:255'],
             'delivery_channel' => ['required', 'string', Rule::in(['whatsapp', 'telegram', 'email'])],
@@ -51,6 +59,8 @@ class TokenRequestController
             'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
         ]);
 
+        NotifyN8nTokenRequestStatus::dispatch($tokenRequest);
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -59,5 +69,20 @@ class TokenRequestController
                 'message' => 'Solicitud enviada correctamente.',
             ],
         ], 201);
+    }
+
+    private function normalizeDestination(mixed $channel, mixed $value): string
+    {
+        $trimmed = is_string($value) ? trim($value) : '';
+        if ($trimmed === '') {
+            return '';
+        }
+
+        return match ($channel) {
+            'whatsapp' => preg_replace('/[\s()-]/', '', $trimmed) ?? '',
+            'telegram' => '@' . ltrim(str_replace('https://t.me/', '', $trimmed), '@'),
+            'email' => strtolower($trimmed),
+            default => $trimmed,
+        };
     }
 }

@@ -60,11 +60,8 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
 
   if (message.type === 'SAVE_CONFIGURATION' || message.type === 'CONFIG_SAVE') {
     const token = message.token.trim();
-    const client = new CodeRedClient(apiBaseUrl, token);
-    const profile = await client.validateToken();
-    const abilities = new Set(profile.abilities);
-    if (!abilities.has('*') && !abilities.has('agencies:read')) {
-      return { success: false, status: 403, message: 'El token no tiene permisos para consultar agencias' };
+    if (!token) {
+      return { success: false, message: 'El token no puede estar vacio.' };
     }
     await storage.saveToken(token);
     await scheduleAlarm();

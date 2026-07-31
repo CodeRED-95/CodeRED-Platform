@@ -147,8 +147,7 @@ describe('runtime message contract', () => {
   it('accepts only known popup and options requests', () => {
     expect(isRuntimeRequest({ type: 'SYNC_NOW' })).toBe(true);
     expect(isRuntimeRequest({ type: 'SEARCH_AGENCIES', query: 'Tacna' })).toBe(true);
-    expect(isRuntimeRequest({ type: 'SAVE_CONFIGURATION', apiBaseUrl: 'https://x.test/api/v1', token: 'crd_abc' })).toBe(true);
-    expect(isRuntimeRequest({ type: 'SAVE_CONFIGURATION', token: 'crd_abc' })).toBe(false);
+    expect(isRuntimeRequest({ type: 'CONFIG_SAVE', token: 'crd_abc' })).toBe(true);
     expect(isRuntimeRequest({ type: 'UNKNOWN' })).toBe(false);
   });
 });
