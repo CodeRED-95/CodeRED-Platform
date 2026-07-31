@@ -6,19 +6,45 @@
     <title>Buscador Shalom Control</title>
     <script type="module" crossorigin src="/assets/options.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill.js">
-    <link rel="modulepreload" crossorigin href="/assets/configuration.js">
     <link rel="stylesheet" crossorigin href="/assets/options.css">
   </head>
   <body>
     <main class="shell">
-      <header><img src="/assets/icon-48.png" alt="CodeRED" /><div><h1>Buscador Shalom Control</h1><p id="connection">Cargando configuracion</p></div></header>
+      <header>
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAH+UlEQVR4nNVZW2wcVxn+5szMXrzr9a6zviXxOo5jx21KoxIndgQVaRJMRESVBwp+QCAB6isSVatUtEIIiZeiRioCFQlVCBQuJRQJKC+VCNCQNnGai+3YtZ1b42tC9n7fuaH/zM56195dx43rZn/5aGfOnDnzff99xsLg0VMGalgYalwYalwYalwYalwYalwYalwYalwYalwYalwYalwYalyk9dhEEGgI/LecGOvcbem6sT4ECDBjAhRFRyajQtN0TqR0Ef+rsgnKHVZcSNs7ndKDExBFAdmshnRGRaPPgb49LXjsUT98Pnv+QQIYgWcCJ2nyMn/5KBwLfE0BYgmhUvZ0mMmqeO3nl5BMKhzDmgkQGDJhJJJFe3s9nj7ahYNPBdDW6sJGyPkLiwiGMnC7ZI5jTQSIcSqlQpYZvvWNXRj6+k40eEyNG4YBXS9/Hz2IvDavaC4rXA2mZUonlgxAe5PyfveHCfDN8iKtBXw0mkNPtw/Pf78Pjz6yic9rmgHGTECiWHoPkTLnq3v3yoA3CRu6iZUUQOTGrgYxOnYPLpdUCOT7IkAAItEsDh0I4Pjz++ByyXnglcEREEvLFz5YxLnhRdyeiUNVND6najrfg0jSWhp0bgGjeX69KIvFYln+zGKR7k/zWRw9sh0/ON7P5+gh1bRqggcH/NMTw7h85X8csCiypZjMBzKX4lgtl7Xyc3Q/Pbc4LVclQGzjCQX7BzbjxRf2mdrKz1cSa/NgKI3jL72LmZkYvF4H9wXz7ipilPyYsVNyy/LzKgRIg6qqw+ux4YXn9hayTzXwJgFzzeRUGOPj9zj4UCidT4LGmgpcXZ0MSSrV+HKRqmo/nsOxp3eguamO++P9BKNF8IndzXj1lQPI5UyfJxTk3pbPkzI0zRzkXnqRv9PIpFW8889bCAYzPOtVIrFKDAj4zGP+fLAt11hltdAVqpYHDwTwINLT48NLPzwDm03kxD9WM3f9RtSseFJRFS30PuUHq9QULRO9yArFg1oT+iXLS1Jl7Ve1AG1O+fbNU5PoCNRjb18r73V4MJIL8MK15A6WheiYuwrlblYUmNZ6fqzzDBRo93CA5YSUNjEZ5C5I1tS0NRIgMLxRU3X8+Cfvw+93mgDyIDhQfaVvF4jwYC71NMsN1KwEAyp+8+tBtG/1rEgOZECa+/vbtyCK0tosYDVdlsiSAJvEeO9jXi99UGF1kdcQFgLEH2zldYGsYs7ZWhex//EetG/25Iku3UyZj6zyxz9dw+zsXbS22BCO5JWxGgGLuaJoHGhx4PBzrsbShqecdsoqjCykMzz53VlsHpiBkpvCXKoTW9ydpksJjGcjAj8yGsLZs+dw7CtpnH6XrCVCEFbWgBUEKHAcDgltrQ4OwtIwBWVBAxSolqZ5K2Gq1wpui2xe6aYFaBgS6poS2NI/j0zWwM3EBE7d/iWe7X4ZDqkOqqpBkkRMTUfxi9dPo78vjjPveRAMyrDbDagqxQWRqNBKEJhkSuFFi9IfBSyVblOf1LMXe8nSy8VaxEAOb0xdxofJM/Da/JhKXsTbMyfx1e3PcvDnhxfw8o/OY1dvAna7iGSKQVHoThG7eu9ifsGBaNwDUdRKCRD4dFpFzw4fnvpCOz9njMy2BLasq+Q7x0rXS9dSR2nDF1uGMJ/6CGHlDhqkRvw3/De0zm7H5D86cPKtD6AqMnKKDbqexcDeNMY/FFDv1tDaHMb1mwEwVvog7hgElHLv0Nd2ch8sdoeCzktqwMp6YJKuPMia5IaBhi4M9X4bLqcDmq5DZAx/nfsV3nr/HUiCHbJdgK9BgaqKcLsy+Fz/HXR23MbYhAc5xQnGSvOpRCByOR1tbS5s7/Ribj5hAi4x/XqJgWgsi/ExP9x1+xHZdhpyshFb27zIPRnE8Ovb8Nn9YfR0K4jHk5i+nkMk4kQs0YJo3MtdZ3kMCPQfGjI/VVqCXalkr5dQYUolNfiaRBx+cRTutgQ+it7E1L83oeHOHgx0ioCiYepaDJdGu6DpMkRGltLLKlJa6jx5eVr128CDCjVmjZsY0nGGC2/0wtl9A9ruUQwcaYGcnIZ+sQt3FxO4OrkVgiDCLiswuGLL7ydVKmCflBAQSok2p4bF6Tq47u3E4cMpdEu9cIW24b25sxgZb0I264YkKdCXucxD82WOqrLNqUFRgdRwM9jVJjzx+COQ7L2YW/DAZlvp75/Yl7mP9UFMANIZATu2qGiDD+MTY8jkJAw9sw9XRs9hdl6Dw0EvUXi4LGDGm4BYgqG5SUH/3hR0IYVgSMeJn93B9I0EnvveTsgytdarF8sNJWDWGwH+TSr6+1L4/EASkqhjYSGCsYktYKILr752FV6fB9/5ZjvvDFYTttHgOwI5HDkURWcgCZfLQCQcw8i4H4lUPeqcOv/29MqJCRz5Uge+PNiCVIo6hYeAgPl+YWDP7iQmr0k4+aYfl0dsUDUqbh5Iosazk9st4+Lle/jt7+cweMgGnzcGRbHamk+RAInVftDblixTTRA4KQF6IeNQR9zgseHPf7mFf/1nEoMHw/DUx6Fp1OIYn64LaZqASyMOdG1L4plji+jqXMTEZB0U1QHGStMNExmujLnhcrkQ2BqFWuGVkrcS2EAhN2n0JeFvTCEYlhGKeMG79gox421QIYkKQhEi+RDUAXKdcKQewZCHAyru7YuFYoZSaSxO78QyRLF8QdhwAmbjyL8G5M+rf6akt7BynxQt+T8PFqw0k+ceGgAAAABJRU5ErkJggg==" alt="CodeRED" />
+        <div>
+          <h1>Buscador Shalom Control</h1>
+          <p id="connection">Cargando configuracion</p>
+        </div>
+      </header>
       <section>
-        <label>URL de CodeRED Platform<input id="apiBaseUrl" type="url" placeholder="https://platform.codered.host/api/v1" /></label>
-        <label>Token<input id="token" type="password" autocomplete="off" placeholder="Pega el token" /></label>
+        <label for="token">Token de CodeRED Platform<input id="token" type="password" autocomplete="off" placeholder="Pega el token" /></label>
         <p id="masked"></p>
-        <div class="actions"><button id="save">Guardar</button><button id="test">Probar conexion</button><button id="request">Solicitar Token</button><button id="sync">Sincronizar ahora</button><button id="delete" class="danger">Eliminar token</button></div>
+        <div class="actions">
+          <button id="save" type="button">Guardar</button>
+          <button id="test" type="button">Probar conexion</button>
+          <button id="request" type="button">Solicitar Token</button>
+          <button id="sync" type="button">Sincronizar ahora</button>
+          <button id="delete" type="button" class="danger">Eliminar token</button>
+        </div>
       </section>
-      <section class="stats"><p>Ultima sincronizacion: <strong id="lastSync">-</strong></p><p>Version local: <strong id="version">-</strong></p><p>Agencias almacenadas: <strong id="count">0</strong></p><p>Estado: <strong id="state">-</strong></p></section>
+      <section id="request-form" hidden>
+        <h2>Solicitar token</h2>
+        <form id="token-request-form">
+          <label for="requester_name">Nombre del solicitante<input id="requester_name" name="requester_name" type="text" required /></label>
+          <label for="delivery_channel">Medio de entrega<select id="delivery_channel" name="delivery_channel"><option value="whatsapp">WhatsApp</option><option value="telegram">Telegram</option><option value="email">Correo electronico</option></select></label>
+          <label for="delivery_destination" id="delivery_label">Numero de WhatsApp<input id="delivery_destination" name="delivery_destination" type="tel" inputmode="tel" placeholder="+51987654321" required /></label>
+          <label for="instance_name">Nombre de la instalacion o equipo<input id="instance_name" name="instance_name" type="text" value="Buscador Shalom Control" /></label>
+          <label for="notes">Motivo o descripcion opcional<textarea id="notes" name="notes" rows="3"></textarea></label>
+          <div class="actions"><button id="send-request" type="submit">Enviar solicitud</button><button id="cancel-request" type="button">Cancelar</button></div>
+        </form>
+      </section>
+      <section class="stats">
+        <p>Ultima sincronizacion: <strong id="lastSync">-</strong></p>
+        <p>Version local: <strong id="version">-</strong></p>
+        <p>Agencias almacenadas: <strong id="count">0</strong></p>
+        <p>Estado: <strong id="state">-</strong></p>
+      </section>
       <p id="message" role="status"></p>
     </main>
   </body>
