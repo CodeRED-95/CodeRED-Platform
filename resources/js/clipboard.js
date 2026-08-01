@@ -24,12 +24,24 @@ export async function copyToClipboard(value, environment = globalThis) {
 export function registerClipboardListener(target = globalThis.document, environment = globalThis) {
   if (!target || target.documentElement?.dataset.coderedClipboard === "ready") return;
   if (target.documentElement) target.documentElement.dataset.coderedClipboard = "ready";
-  target.addEventListener("codered-copy", async (event) => {
+  const notify = (type, message) => environment.dispatchEvent(new CustomEvent("toast", { detail: { type, message } }));
+  const copy = async (value) => {
     try {
-      await copyToClipboard(event.detail?.value, environment);
-      environment.dispatchEvent(new CustomEvent("toast", { detail: { type: "success", message: "Copiado al portapapeles" } }));
+      await copyToClipboard(value, environment);
+      notify("success", "Copiado al portapapeles");
     } catch {
-      environment.dispatchEvent(new CustomEvent("toast", { detail: { type: "error", message: "No se pudo copiar el contenido" } }));
+      notify("error", "No se pudo copiar el contenido");
     }
+  };
+
+  target.addEventListener("codered-copy", (event) => {
+    void copy(event.detail?.value);
+  });
+
+  target.addEventListener("click", (event) => {
+    const trigger = event.target?.closest?.("[data-codered-copy]");
+    if (!trigger) return;
+    event.preventDefault();
+    void copy(trigger.getAttribute("data-codered-copy") ?? "");
   });
 }

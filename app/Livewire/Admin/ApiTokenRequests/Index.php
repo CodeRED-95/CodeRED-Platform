@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\ApiTokenRequests;
 
+use App\Actions\ApiTokenRequests\MarkTokenRequestAsDeliveredAction;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
@@ -60,6 +61,13 @@ class Index extends Component
 
     public string $rejectionReason = '';
 
+    /** @var array{email: string|null, telegram: string|null, whatsapp: string|null} */
+    public array $revealedDeliveryContact = ['email' => null, 'telegram' => null, 'whatsapp' => null];
+
+    public bool $deliveryContactRevealed = false;
+
+    public bool $confirmingDelivery = false;
+
     public function mount(): void
     {
         Gate::authorize('api-token-requests.view');
@@ -83,6 +91,9 @@ class Index extends Component
         $this->approvalUserId = (int) auth()->id();
         $this->adminNote = '';
         $this->rejectionReason = '';
+        $this->revealedDeliveryContact = ['email' => null, 'telegram' => null, 'whatsapp' => null];
+        $this->deliveryContactRevealed = false;
+        $this->confirmingDelivery = false;
         $this->event($request, 'viewed', 'Solicitud visualizada.');
     }
 
@@ -348,6 +359,48 @@ class Index extends Component
         $this->event($request, 'notification_retry_requested', 'Reintento manual solicitado.');
     }
 
+    public function revealDeliveryContact(): void
+    {
+        Gate::authorize('api-token-requests.view-delivery-contact');
+        $request = ApiTokenRequest::query()->findOrFail($this->selectedId);
+
+        if (! $request->canRevealDeliveryContact(auth()->user())) {
+            abort(410, 'Los datos de entrega ya no están disponibles.');
+        }
+
+        $this->revealedDeliveryContact = $request->deliveryContact();
+        $this->deliveryContactRevealed = true;
+        $this->event($request, 'delivery_contact_viewed', 'Datos completos de entrega revelados al administrador autorizado.', [
+            'fields_viewed' => array_keys(array_filter($this->revealedDeliveryContact)),
+            'viewer_id' => auth()->id(),
+        ]);
+    }
+
+    public function confirmDelivery(): void
+    {
+        Gate::authorize('api-token-requests.approve');
+        $request = ApiTokenRequest::query()->findOrFail($this->selectedId);
+        abort_unless($request->statusValue() === ApiTokenRequestStatus::Approved->value, 422, 'Solo una solicitud aprobada puede marcarse como entregada.');
+        abort_if($request->isDelivered(), 422, 'La solicitud ya fue marcada como entregada.');
+        $this->confirmingDelivery = true;
+    }
+
+    public function markSelectedAsDelivered(MarkTokenRequestAsDeliveredAction $action): void
+    {
+        Gate::authorize('api-token-requests.approve');
+        $request = ApiTokenRequest::query()->findOrFail($this->selectedId);
+        $action->execute($request, auth()->id(), 'manual');
+        $this->revealedDeliveryContact = ['email' => null, 'telegram' => null, 'whatsapp' => null];
+        $this->deliveryContactRevealed = false;
+        $this->confirmingDelivery = false;
+        $this->dispatch('toast', type: 'success', message: 'Solicitud marcada como entregada. Los datos completos fueron eliminados.');
+    }
+
+    public function cancelDeliveryConfirmation(): void
+    {
+        $this->confirmingDelivery = false;
+    }
+
     public function setTokenExpiresInDays(int $days): void
     {
         $this->tokenExpiresInDays = $days;
@@ -393,7 +446,7 @@ class Index extends Component
 
         return view('livewire.admin.api-token-requests.index', [
             'requests' => $requests,
-            'selected' => $this->selectedId ? ApiTokenRequest::query()->with(['events.performer', 'reviewer', 'token'])->find($this->selectedId) : null,
+            'selected' => $this->selectedId ? ApiTokenRequest::query()->with(['events.performer', 'reviewer', 'deliveredBy', 'token'])->find($this->selectedId) : null,
             'statuses' => ApiTokenRequestStatus::cases(),
             'deliveryStatuses' => ApiTokenRequestDeliveryStatus::cases(),
             'users' => User::query()->active()->orderBy('name')->get(['id', 'name']),

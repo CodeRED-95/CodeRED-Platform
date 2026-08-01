@@ -49,12 +49,13 @@ class N8nTokenRequestFunctionalTest extends TestCase
             ->assertJsonMissingPath('data.token');
 
         $this->assertDatabaseHas('api_token_requests', [
-            'requester_email' => 'ada@example.test',
+            'requester_email' => 'a***@example.test',
             'application_name' => 'Operations Bot',
             'status' => 'pending',
             'request_source' => 'n8n',
             'requested_token_type' => 'agencies',
         ]);
+        $this->assertSame('ada@example.test', ApiTokenRequest::query()->firstOrFail()->delivery_email);
     }
 
     public function test_create_token_request_without_requested_token_type_remains_compatible(): void
@@ -75,7 +76,7 @@ class N8nTokenRequestFunctionalTest extends TestCase
             ->assertJsonPath('data.token_type', null);
 
         $this->assertDatabaseHas('api_token_requests', [
-            'requester_email' => 'ada-no-type@example.test',
+            'requester_email' => 'a***@example.test',
             'requested_token_type' => null,
             'token_type' => null,
         ]);

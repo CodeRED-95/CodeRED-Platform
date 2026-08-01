@@ -66,6 +66,7 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'api-tokens.revoke-any', 'name' => 'Revocar cualquier token'],
                 ['slug' => 'api-token-requests.view', 'name' => 'Ver solicitudes de tokens Telegram'],
                 ['slug' => 'api-token-requests.approve', 'name' => 'Aprobar solicitudes de tokens Telegram'],
+                ['slug' => 'api-token-requests.view-delivery-contact', 'name' => 'Ver datos completos de entrega de solicitudes de token'],
                 ['slug' => 'api-token-requests.reject', 'name' => 'Rechazar solicitudes de tokens Telegram'],
                 ['slug' => 'api-token-requests.cancel', 'name' => 'Cancelar solicitudes de tokens Telegram'],
                 ['slug' => 'api-token-requests.revoke', 'name' => 'Revocar tokens originados en Telegram'],

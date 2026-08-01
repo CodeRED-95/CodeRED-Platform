@@ -81,3 +81,11 @@ Sanctum almacena únicamente hashes SHA-256. El secreto completo se muestra una 
 ## Solicitud pública de tokens
 
 `/solicitar-token` es público pero no anónimo sin controles: conserva CSRF, usa throttling dedicado, honeypot, validación estricta y huellas HMAC para IP/contacto/instalación. No requiere `agency_id`, no consulta endpoints de agencias y no devuelve tokens. El contacto completo se conserva cifrado en metadata/delivery para entrega segura; el panel muestra datos enmascarados. Las respuestas públicas solo incluyen mensaje de éxito y código de seguimiento.
+
+### Contactos de entrega de solicitudes de token
+
+Los datos completos usados para entregar tokens (`delivery_email`, `delivery_telegram_username`, `delivery_whatsapp_number`) se almacenan con casts cifrados de Laravel. El listado administrativo y el render inicial del detalle muestran solo versiones enmascaradas.
+
+Solo usuarios con el permiso `api-token-requests.view-delivery-contact` pueden pulsar **Mostrar datos de entrega** antes de que la solicitud esté entregada. Esa acción autoriza en backend, revela los datos solo para esa sesión Livewire y registra el evento `delivery_contact_viewed` sin guardar correo, usuario de Telegram ni WhatsApp completos.
+
+Al marcar una solicitud aprobada como entregada, `MarkTokenRequestAsDeliveredAction` registra `delivered_at` y `delivered_by`, conserva únicamente las máscaras y elimina los campos cifrados completos. Después de la entrega, los contactos completos no se devuelven desde el panel ni pueden recuperarse mediante la acción de revelado.

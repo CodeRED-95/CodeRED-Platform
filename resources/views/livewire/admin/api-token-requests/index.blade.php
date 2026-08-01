@@ -39,8 +39,9 @@
                         <p class="text-sm text-[color:var(--color-text-muted)]">{{ $request->requested_at?->format('d/m/Y H:i') ?? 'Pendiente' }}</p>
                     </td>
                     <td class="px-4 py-3">
-                        <p>{{ $request->requester_name ?? $request->telegram_username ?? 'Solicitante sin nombre' }}</p>
-                        <p class="text-xs text-[color:var(--color-text-muted)]">{{ $request->requester_email ?? $request->requester_phone ?? $request->telegram_user_id }}</p>
+                        @php($maskedContact = $request->maskedDeliveryContact())
+                        <p>{{ $request->requester_name ?? 'Solicitante sin nombre' }}</p>
+                        <p class="text-xs text-[color:var(--color-text-muted)]">{{ $request->delivery_channel ? ucfirst($request->delivery_channel).' · ' : '' }}{{ $maskedContact['email'] ?? $maskedContact['telegram'] ?? $maskedContact['whatsapp'] ?? 'Contacto protegido' }}</p>
                     </td>
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $request->application_name ?? $request->requested_token_name }}</p>
@@ -94,14 +95,62 @@
                         <div><dt class="text-xs text-[color:var(--color-text-muted)]">Motivo rechazo</dt><dd>{{ $selected->rejection_reason ?? '—' }}</dd></div>
                     </dl>
 
-                    <div>
-                        <h3 class="font-medium">Datos seguros de origen</h3>
-                        <dl class="mt-2 grid gap-2 text-sm md:grid-cols-2">
-                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd>{{ $selected->requester_email ?? '—' }}</dd></div>
-                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Telefono</dt><dd>{{ $selected->requester_phone ?? '—' }}</dd></div>
-                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">UUID</dt><dd class="font-mono break-all">{{ $selected->request_uuid }}</dd></div>
-                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Entrega</dt><dd>{{ $selected->delivery_status->label() }}</dd></div>
-                        </dl>
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        @php($maskedContact = $selected->maskedDeliveryContact())
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="font-medium">Datos para entrega</h3>
+                                <p class="mt-1 text-sm text-[color:var(--color-text-muted)]">
+                                    @if ($selected->isDelivered())
+                                        Los datos completos fueron eliminados después de confirmar la entrega.
+                                    @else
+                                        Datos sensibles protegidos. Revelar solo cuando se vaya a realizar la entrega.
+                                    @endif
+                                </p>
+                            </div>
+                            <x-ui.badge tone="info">{{ $selected->delivery_status->label() }}</x-ui.badge>
+                        </div>
+
+                        @if ($selected->isDelivered())
+                            <dl class="mt-4 grid gap-2 text-sm md:grid-cols-2">
+                                @if ($maskedContact['email'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd>{{ $maskedContact['email'] }}</dd></div>@endif
+                                @if ($maskedContact['telegram'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd>{{ $maskedContact['telegram'] }}</dd></div>@endif
+                                @if ($maskedContact['whatsapp'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd>{{ $maskedContact['whatsapp'] }}</dd></div>@endif
+                                <div><dt class="text-xs text-[color:var(--color-text-muted)]">Entregado por</dt><dd>{{ $selected->deliveredBy?->name ?? 'Sistema externo' }}</dd></div>
+                                <div><dt class="text-xs text-[color:var(--color-text-muted)]">Fecha de entrega</dt><dd>{{ $selected->delivered_at?->format('d/m/Y H:i') ?? '—' }}</dd></div>
+                                <div><dt class="text-xs text-[color:var(--color-text-muted)]">Método</dt><dd>{{ $selected->delivery_channel ?? '—' }}</dd></div>
+                            </dl>
+                        @else
+                            @if (! $deliveryContactRevealed)
+                                @can('api-token-requests.view-delivery-contact')
+                                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                                        <x-ui.button type="button" size="sm" wire:click="revealDeliveryContact" loading-target="revealDeliveryContact">Mostrar datos de entrega</x-ui.button>
+                                        <span class="text-xs text-[color:var(--color-text-muted)]">Se registrará auditoría de visualización.</span>
+                                    </div>
+                                @else
+                                    <p class="mt-4 text-sm text-[color:var(--color-text-muted)]">No tienes permiso para revelar los datos completos de entrega.</p>
+                                @endcan
+                                <dl class="mt-4 grid gap-2 text-sm md:grid-cols-2">
+                                    @if ($maskedContact['email'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd>{{ $maskedContact['email'] }}</dd></div>@endif
+                                    @if ($maskedContact['telegram'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd>{{ $maskedContact['telegram'] }}</dd></div>@endif
+                                    @if ($maskedContact['whatsapp'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd>{{ $maskedContact['whatsapp'] }}</dd></div>@endif
+                                </dl>
+                            @else
+                                <dl class="mt-4 grid gap-3 text-sm">
+                                    @if ($revealedDeliveryContact['email'])
+                                        <div class="rounded-lg border border-white/10 p-3"><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd class="break-all">{{ $revealedDeliveryContact['email'] }}</dd><div class="mt-2 flex gap-2"><x-ui.button type="button" size="sm" variant="ghost" data-codered-copy="{{ $revealedDeliveryContact['email'] }}">Copiar correo</x-ui.button><x-ui.button type="button" size="sm" variant="secondary" href="mailto:{{ urlencode($revealedDeliveryContact['email']) }}">Abrir correo</x-ui.button></div></div>
+                                    @endif
+                                    @if ($revealedDeliveryContact['telegram'])
+                                        @php($telegramUrl = 'https://t.me/'.ltrim($revealedDeliveryContact['telegram'], '@'))
+                                        <div class="rounded-lg border border-white/10 p-3"><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd>{{ $revealedDeliveryContact['telegram'] }}</dd><div class="mt-2 flex gap-2"><x-ui.button type="button" size="sm" variant="ghost" data-codered-copy="{{ $revealedDeliveryContact['telegram'] }}">Copiar Telegram</x-ui.button><x-ui.button type="button" size="sm" variant="secondary" href="{{ $telegramUrl }}" target="_blank" rel="noopener noreferrer">Abrir Telegram</x-ui.button></div></div>
+                                    @endif
+                                    @if ($revealedDeliveryContact['whatsapp'])
+                                        @php($whatsappUrl = 'https://wa.me/'.preg_replace('/\D+/', '', $revealedDeliveryContact['whatsapp']))
+                                        <div class="rounded-lg border border-white/10 p-3"><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd>{{ $revealedDeliveryContact['whatsapp'] }}</dd><div class="mt-2 flex gap-2"><x-ui.button type="button" size="sm" variant="ghost" data-codered-copy="{{ $revealedDeliveryContact['whatsapp'] }}">Copiar WhatsApp</x-ui.button><x-ui.button type="button" size="sm" variant="secondary" href="{{ $whatsappUrl }}" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</x-ui.button></div></div>
+                                    @endif
+                                </dl>
+                            @endif
+                        @endif
                     </div>
 
                     <div>
@@ -163,6 +212,19 @@
                             <x-ui.textarea wire:model="rejectionReason" label="Motivo de rechazo (opcional)" :error="$errors->first('rejectionReason')" />
                             <x-ui.button type="submit" variant="danger" class="w-full" loading-target="reject">Rechazar solicitud</x-ui.button>
                         </form>
+                    @elseif ($selected->status->value === 'approved' && ! $selected->isDelivered())
+                        @if ($confirmingDelivery)
+                            <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                                <p class="font-semibold">Confirmar entrega</p>
+                                <p class="mt-2">Al marcar esta solicitud como entregada, los datos completos de correo, Telegram y WhatsApp dejarán de estar disponibles. Esta acción no se puede deshacer.</p>
+                                <div class="mt-4 flex gap-2">
+                                    <x-ui.button type="button" variant="ghost" wire:click="cancelDeliveryConfirmation">Cancelar</x-ui.button>
+                                    <x-ui.button type="button" variant="danger" wire:click="markSelectedAsDelivered" loading-target="markSelectedAsDelivered">Confirmar entrega</x-ui.button>
+                                </div>
+                            </div>
+                        @else
+                            <x-ui.button type="button" class="w-full" wire:click="confirmDelivery">Marcar como entregado</x-ui.button>
+                        @endif
                     @else
                         <p class="text-sm text-[color:var(--color-text-muted)]">No hay acciones de aprobación disponibles para este estado.</p>
                     @endif

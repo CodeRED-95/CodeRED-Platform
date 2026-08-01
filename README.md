@@ -260,3 +260,7 @@ El workflow importable de referencia está en `docs/integrations/workflows/teleg
 La ruta `GET /solicitar-token` permite solicitar un token de acceso sin iniciar sesión. Usa un layout público aislado, mantiene CSRF, aplica rate limit específico, honeypot y deduplicación de solicitudes pendientes por huella HMAC de contacto, instalación e integración. El formulario crea solicitudes `pending` en el panel administrativo de solicitudes de tokens y nunca muestra el token al solicitante.
 
 El administrador revisa la solicitud en `/admin/security/token-requests`, aprueba con el tipo AGENCIAS y Platform genera un token Sanctum con ability mínima `agencies:read`. El token plano se cifra temporalmente para entrega segura mediante n8n o flujo manual; no se publica en URL, logs ni página pública.
+
+### Entrega segura de tokens
+
+El panel administrativo de solicitudes de token conserva los datos completos de entrega cifrados y no los renderiza inicialmente. Un administrador con `api-token-requests.view-delivery-contact` puede revelarlos manualmente antes de la entrega; la visualización queda auditada. Al confirmar la entrega, los datos completos se eliminan y solo permanecen valores enmascarados.

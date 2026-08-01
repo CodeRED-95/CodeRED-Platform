@@ -37,14 +37,20 @@ class TokenRequestController
 
         $requestId = (string) Str::uuid();
         $fingerprint = hash_hmac('sha256', implode('|', [$data['delivery_channel'], $data['delivery_destination'], $data['instance_name']]), config('app.key'));
+        $maskedContact = ApiTokenRequest::maskedContactFromValues(
+            $data['delivery_channel'] === 'email' ? $data['delivery_destination'] : null,
+            $data['delivery_channel'] === 'telegram' ? $data['delivery_destination'] : null,
+            $data['delivery_channel'] === 'whatsapp' ? $data['delivery_destination'] : null,
+        );
         $tokenRequest = ApiTokenRequest::query()->create([
             'request_uuid' => $requestId,
             'request_type' => ApiTokenRequestType::Issuance,
             'requester_name' => trim((string) $data['requester_name']),
-            'requester_phone' => $data['delivery_channel'] === 'whatsapp' ? $data['delivery_destination'] : null,
-            'requester_email' => $data['delivery_channel'] === 'email' ? $data['delivery_destination'] : null,
+            'requester_phone' => $maskedContact['whatsapp'],
+            'requester_email' => $maskedContact['email'],
             'telegram_user_id' => 'public:'.hash('sha256', $fingerprint.':telegram-user'),
             'telegram_chat_id' => 'public:'.hash('sha256', $fingerprint.':telegram-chat'),
+            'telegram_username' => $maskedContact['telegram'],
             'application_name' => trim((string) $data['instance_name']),
             'purpose' => $data['notes'] ?? 'Solicitud desde extension Chrome.',
             'requested_token_name' => trim((string) $data['instance_name']),
@@ -62,6 +68,14 @@ class TokenRequestController
             ],
             'requested_at' => now(),
             'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
+            'delivery_channel' => $data['delivery_channel'],
+            'delivered_to' => $maskedContact['email'] ?? $maskedContact['telegram'] ?? $maskedContact['whatsapp'],
+            'delivery_email' => $data['delivery_channel'] === 'email' ? $data['delivery_destination'] : null,
+            'delivery_telegram_username' => $data['delivery_channel'] === 'telegram' ? $data['delivery_destination'] : null,
+            'delivery_whatsapp_number' => $data['delivery_channel'] === 'whatsapp' ? $data['delivery_destination'] : null,
+            'delivery_email_masked' => $maskedContact['email'],
+            'delivery_telegram_username_masked' => $maskedContact['telegram'],
+            'delivery_whatsapp_number_masked' => $maskedContact['whatsapp'],
         ]);
 
         NotifyN8nTokenRequestStatus::dispatch($tokenRequest->id, 'token_request.created');

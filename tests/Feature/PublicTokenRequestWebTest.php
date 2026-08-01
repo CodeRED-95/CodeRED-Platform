@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\ApiTokenRequestStatus;
 use App\Models\ApiTokenRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -39,8 +38,9 @@ class PublicTokenRequestWebTest extends TestCase
         $this->assertSame('agencies', $request->requested_token_type);
         $this->assertNull($request->getAttribute('agency_id'));
         $this->assertSame('chrome_extension', $request->request_source);
-        $this->assertNotSame('+51987654321', $request->delivered_to);
-        $this->assertSame('+51987654321', Crypt::decryptString($request->delivered_to));
+        $this->assertSame('+51 ******321', $request->delivered_to);
+        $this->assertSame('+51987654321', $request->delivery_whatsapp_number);
+        $this->assertSame('+51 ******321', $request->delivery_whatsapp_number_masked);
         $metadata = $request->metadata;
         $this->assertIsArray($metadata);
         $this->assertStringStartsWith('CR-', (string) $metadata['tracking_code']);

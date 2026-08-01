@@ -68,15 +68,20 @@ class PublicTokenRequestController
         $requestUuid = (string) Str::uuid();
         $trackingCode = 'CR-'.strtoupper(Str::random(8));
         $destination = (string) $data['delivery_destination'];
+        $maskedContact = ApiTokenRequest::maskedContactFromValues(
+            $data['delivery_method'] === 'email' ? $destination : null,
+            $data['delivery_method'] === 'telegram' ? $destination : null,
+            $data['delivery_method'] === 'whatsapp' ? $destination : null,
+        );
         $tokenRequest = ApiTokenRequest::query()->create([
             'request_uuid' => $requestUuid,
             'request_type' => ApiTokenRequestType::Issuance,
             'requester_name' => trim((string) $data['requester_name']),
-            'requester_phone' => $data['delivery_method'] === 'whatsapp' ? $this->maskDestination($destination) : null,
-            'requester_email' => $data['delivery_method'] === 'email' ? $this->maskDestination($destination) : null,
+            'requester_phone' => $maskedContact['whatsapp'],
+            'requester_email' => $maskedContact['email'],
             'application_name' => trim((string) $data['installation_name']),
             'purpose' => $data['reason'] ?? 'Solicitud pública desde la extensión Shalom.',
-            'telegram_username' => $data['delivery_method'] === 'telegram' ? $this->maskDestination($destination) : null,
+            'telegram_username' => $maskedContact['telegram'],
             'telegram_user_id' => 'public:'.hash('sha256', $fingerprint.':telegram-user'),
             'telegram_chat_id' => 'public:'.hash('sha256', $fingerprint.':telegram-chat'),
             'requested_token_name' => trim((string) $data['installation_name']),
@@ -102,7 +107,13 @@ class PublicTokenRequestController
             'requested_at' => now(),
             'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
             'delivery_channel' => $data['delivery_method'],
-            'delivered_to' => Crypt::encryptString($destination),
+            'delivered_to' => $this->maskDestination($destination),
+            'delivery_email' => $data['delivery_method'] === 'email' ? $destination : null,
+            'delivery_telegram_username' => $data['delivery_method'] === 'telegram' ? $destination : null,
+            'delivery_whatsapp_number' => $data['delivery_method'] === 'whatsapp' ? $destination : null,
+            'delivery_email_masked' => $maskedContact['email'],
+            'delivery_telegram_username_masked' => $maskedContact['telegram'],
+            'delivery_whatsapp_number_masked' => $maskedContact['whatsapp'],
         ]);
 
         ApiTokenRequestEvent::query()->create([
@@ -166,15 +177,13 @@ class PublicTokenRequestController
     private function maskDestination(string $value): string
     {
         if (str_contains($value, '@') && ! str_starts_with($value, '@')) {
-            [$name, $domain] = explode('@', $value, 2);
-
-            return Str::substr($name, 0, 2).'••••@'.$domain;
+            return ApiTokenRequest::maskEmail($value);
         }
 
         if (str_starts_with($value, '@')) {
-            return '@'.Str::substr(Str::after($value, '@'), 0, 2).'••••';
+            return ApiTokenRequest::maskTelegram($value);
         }
 
-        return Str::substr($value, 0, 4).'••••'.Str::substr($value, -2);
+        return ApiTokenRequest::maskPhone($value);
     }
 }

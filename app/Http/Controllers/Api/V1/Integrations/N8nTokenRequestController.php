@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Integrations;
 
+use App\Actions\ApiTokenRequests\MarkTokenRequestAsDeliveredAction;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
@@ -59,17 +60,23 @@ class N8nTokenRequestController extends Controller
             $metadata['integration_uuid'] = $integration->integration_uuid;
         }
 
+        $maskedContact = ApiTokenRequest::maskedContactFromValues(
+            $data['requester_email'] ?? null,
+            $data['telegram_username'] ?? null,
+            $data['requester_phone'] ?? null,
+        );
+
         $tokenRequest = ApiTokenRequest::query()->create([
             'request_uuid' => (string) Str::uuid(),
             'request_type' => ApiTokenRequestType::Issuance,
             'requester_name' => $data['requester_name'] ?? $this->telegramDisplayName($data),
-            'requester_email' => $data['requester_email'] ?? null,
-            'requester_phone' => $data['requester_phone'] ?? null,
+            'requester_email' => $maskedContact['email'],
+            'requester_phone' => $maskedContact['whatsapp'],
             'application_name' => $data['application_name'] ?? $data['token_name'],
             'purpose' => $data['purpose'] ?? $data['reason'] ?? null,
             'telegram_user_id' => $this->telegramUserId($data),
             'telegram_chat_id' => $this->telegramChatId($data),
-            'telegram_username' => $data['telegram_username'] ?? null,
+            'telegram_username' => $maskedContact['telegram'],
             'telegram_first_name' => $data['telegram_first_name'] ?? null,
             'telegram_last_name' => $data['telegram_last_name'] ?? null,
             'requested_token_name' => trim((string) ($data['token_name'] ?? $data['application_name'])),
@@ -83,6 +90,12 @@ class N8nTokenRequestController extends Controller
             'metadata' => $metadata,
             'requested_at' => now(),
             'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
+            'delivery_email' => $data['requester_email'] ?? null,
+            'delivery_telegram_username' => $data['telegram_username'] ?? null,
+            'delivery_whatsapp_number' => $data['requester_phone'] ?? null,
+            'delivery_email_masked' => $maskedContact['email'],
+            'delivery_telegram_username_masked' => $maskedContact['telegram'],
+            'delivery_whatsapp_number_masked' => $maskedContact['whatsapp'],
         ]);
         $this->event($tokenRequest, 'created', 'Solicitud creada desde integración n8n.', $request, ['source' => $tokenRequest->request_source]);
 
@@ -176,17 +189,25 @@ class N8nTokenRequestController extends Controller
             }
 
             $delivered = (bool) ($data['delivered'] ?? true);
-            $tokenRequest->forceFill([
-                'delivery_status' => $delivered ? ApiTokenRequestDeliveryStatus::Delivered : ApiTokenRequestDeliveryStatus::Failed,
-                'delivered_at' => $delivered ? now() : null,
-                'delivery_attempts' => $tokenRequest->delivery_attempts + 1,
-                'delivery_channel' => $data['delivery_channel'] ?? 'manual',
-                'delivered_to' => $data['delivered_to'] ?? null,
-                'delivery_metadata' => $data['delivery_metadata'] ?? [],
-                'delivery_reference' => $data['telegram_message_id'] ?? null,
-                'encrypted_plain_text_token' => null,
-            ])->save();
-            $this->event($tokenRequest, $delivered ? 'delivery_confirmed' : 'delivery_failed', 'n8n confirmó el estado de entrega.', $request, ['delivery_channel' => $tokenRequest->delivery_channel]);
+            if ($delivered) {
+                $tokenRequest = app(MarkTokenRequestAsDeliveredAction::class)->execute(
+                    $tokenRequest,
+                    null,
+                    $data['delivery_channel'] ?? 'manual',
+                    $data['telegram_message_id'] ?? null,
+                    $data['delivery_metadata'] ?? [],
+                );
+            } else {
+                $tokenRequest->forceFill([
+                    'delivery_status' => ApiTokenRequestDeliveryStatus::Failed,
+                    'delivery_attempts' => $tokenRequest->delivery_attempts + 1,
+                    'delivery_channel' => $data['delivery_channel'] ?? 'manual',
+                    'delivery_metadata' => $data['delivery_metadata'] ?? [],
+                    'delivery_reference' => $data['telegram_message_id'] ?? null,
+                    'encrypted_plain_text_token' => null,
+                ])->save();
+                $this->event($tokenRequest, 'delivery_failed', 'n8n confirmó el estado de entrega.', $request, ['delivery_channel' => $tokenRequest->delivery_channel]);
+            }
 
             return response()->json(['success' => true, 'message' => 'Entrega actualizada correctamente.', 'data' => $this->resource($tokenRequest)]);
         });

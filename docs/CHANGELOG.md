@@ -346,3 +346,7 @@ Todas las versiones siguen `Keep a Changelog`.
 - Extendidos `codered-agent` y `n8n-nodes-codered` con operaciones `Get Personal Code` y `Request Token Rotation` basadas en Telegram.
 - Agregado workflow JSON importable para `/codigo` y `/rotar CÓDIGO | MOTIVO`.
 - La rotación mantiene activo el token anterior mientras está pendiente y reutiliza la aprobación transaccional existente para revocar solo después de generar el reemplazo.
+
+- Seguridad: el panel de solicitudes de token ahora revela contactos completos solo bajo permiso explícito y acción auditada.
+- Seguridad: al marcar una solicitud como entregada se eliminan los contactos cifrados completos y se conservan solo máscaras no reversibles.
+- UI: el listado y detalle inicial de solicitudes de token ya no renderizan correo, Telegram ni WhatsApp completos.
