@@ -215,3 +215,35 @@ describe('message contract', () => {
     expect(isRuntimeRequest({ type: 'CATALOG_GET', token: 'crd_secret' })).toBe(false);
   });
 });
+
+describe('extension build artifacts', () => {
+  it('uses stable classic content script and module background entries', async () => {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const { spawnSync } = await import('node:child_process');
+    const manifestText = readFileSync(new URL('../dist/manifest.json', import.meta.url), 'utf8');
+    const builtManifest = JSON.parse(manifestText);
+
+    expect(builtManifest.background).toEqual({ service_worker: 'background.js', type: 'module' });
+    expect(builtManifest.content_scripts[0].js).toEqual(['content.js']);
+    expect(existsSync(new URL('../dist/content.js', import.meta.url))).toBe(true);
+    expect(existsSync(new URL('../dist/background.js', import.meta.url))).toBe(true);
+
+    const content = readFileSync(new URL('../dist/content.js', import.meta.url), 'utf8');
+    expect(content).not.toMatch(/^[ \t]*(import|export)[ \t]/m);
+    expect(content).not.toMatch(/\bimport\s*\(/);
+    expect(content).not.toMatch(/\brequire\s*\(/);
+
+    const check = spawnSync(process.execPath, ['--check', new URL('../dist/content.js', import.meta.url).pathname], { encoding: 'utf8' });
+    expect(check.stderr + check.stdout).toBe('');
+    expect(check.status).toBe(0);
+  });
+
+  it('builds popup and options HTML with extension-safe relative resources', async () => {
+    const { readFileSync } = await import('node:fs');
+    for (const file of ['../dist/popup.html', '../dist/options.html']) {
+      const html = readFileSync(new URL(file, import.meta.url), 'utf8');
+      expect(html).not.toMatch(/href="\/assets|src="\/assets/);
+      expect(html).not.toContain('modulepreload-polyfill');
+    }
+  });
+});

@@ -8,6 +8,10 @@
 - Mantiene `platform.codered.host` solo en `host_permissions` y evita inyectar el content script fuera de dominios Shalom.
 - Mejora logs `[Shalom Pro]` sin exponer tokens ni datos sensibles.
 - Permite que el buscador permanezca visible aun con catalogo local vacio y muestra instrucciones para sincronizar.
+- Separa el build del content script como IIFE autocontenido para evitar `Cannot use import statement outside a module`.
+- Genera `content.js` y `background.js` con nombres estables en el manifest final.
+- Elimina preloads innecesarios y rutas absolutas `/assets` en popup/options.
+- Agrega `scripts/validate-extension-build.mjs` y `npm run build:extension` para validar automaticamente `dist`.
 
 ## 1.0.0 - 2026-07-30
 

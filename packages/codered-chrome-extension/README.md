@@ -12,7 +12,7 @@ npm install
 npm run lint
 npm run typecheck
 npm test
-npm run build
+npm run build:extension
 ```
 
 ## API consumida
@@ -27,13 +27,23 @@ Scopes requeridos: `agencias:consultar`, `agencies:read`, `agencies:map`.
 
 ## Carga manual en Chrome
 
-1. Ejecutar `npm run build`.
+1. Ejecutar `npm run build:extension`.
 2. Abrir `chrome://extensions`.
 3. Activar Modo de desarrollador.
 4. Elegir Cargar extension sin empaquetar.
 5. Seleccionar `packages/codered-chrome-extension/dist`.
 6. Para aplicar cambios posteriores, volver a `chrome://extensions` y pulsar Recargar en la tarjeta de la extension descomprimida.
 7. Recargar la pestaña abierta de Shalom Control para que Chrome reinstale el content script en la pagina.
+
+## Build de extension
+
+El build separa tres contextos:
+
+- `popup.html` y `options.html` se compilan como paginas de extension con modulos ES y rutas relativas `./assets/...`.
+- `background.js` se compila como service worker modulo y el manifest declara `type: module`.
+- `content.js` se compila aparte como IIFE autocontenido, sin `import`, `export`, `import(...)` ni `require(...)`, porque Chrome lo ejecuta como content script clasico.
+
+Usar `npm run build:extension` para compilar y validar `dist`. El validador revisa manifest, archivos declarados, sintaxis de `content.js`, ausencia de imports en el content script, ausencia de rutas absolutas `/assets` en HTML y ausencia de preloads a `modulepreload-polyfill`.
 
 ## ZIP publicable
 

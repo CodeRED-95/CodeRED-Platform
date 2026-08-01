@@ -10,7 +10,7 @@
   },
   "options_page": "options.html",
   "background": {
-    "service_worker": "assets/serviceWorker.js",
+    "service_worker": "background.js",
     "type": "module"
   },
   "icons": {
@@ -42,7 +42,7 @@
         "https://*.shalomcontrol.com/*"
       ],
       "js": [
-        "assets/content.js"
+        "content.js"
       ],
       "run_at": "document_idle"
     }

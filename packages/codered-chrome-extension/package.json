@@ -6,12 +6,14 @@
   "description": "Buscador Shalom Control para Google Chrome.",
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build && node scripts/prepare-dist.mjs",
+    "build": "vite build && vite build --config vite.content.config.ts && node scripts/prepare-dist.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "package": "npm run build && node scripts/package-extension.mjs"
+    "package": "npm run build && node scripts/package-extension.mjs",
+    "validate:extension": "node scripts/validate-extension-build.mjs",
+    "build:extension": "npm run build && npm run validate:extension"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

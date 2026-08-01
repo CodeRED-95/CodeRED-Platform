@@ -40,13 +40,14 @@ export function createShalomContentController(dependencies: ContentControllerDep
   let storageListenerBound = false;
 
   async function initializeContentScript(): Promise<void> {
-    console.log('[Shalom Pro] Content script iniciado');
-    console.log(`[Shalom Pro] URL actual: ${window.location.href}`);
+    console.log('[CodeRED Shalom] Content script iniciado');
+    console.log(`[CodeRED Shalom] URL actual: ${window.location.href}`);
 
     if (!hasRequiredContentGlobals()) return;
 
     await cargarDatos(activeChannel);
-    injectSearchIfPossible();
+    const result = injectSearchIfPossible();
+    console.log('[CodeRED Shalom] Resultado de inyección', { reason: result.reason });
     startInjectionObserver();
     listenForCatalogChanges();
   }
@@ -55,10 +56,10 @@ export function createShalomContentController(dependencies: ContentControllerDep
     activeChannel = channel;
     try {
       agencies = await requestCatalog();
-      console.log(`[Shalom Pro] Catálogo local cargado: ${agencies.length} agencias`);
+      console.log(`[CodeRED Shalom] Catálogo local cargado: ${agencies.length} agencias`);
       refreshVisibleResults();
     } catch (error) {
-      console.error('[Shalom Pro] Falló la carga del catálogo', serializeSafeError(error));
+      console.error('[CodeRED Shalom] Falló la carga del catálogo', serializeSafeError(error));
       agencies = [];
     }
   }
@@ -68,22 +69,22 @@ export function createShalomContentController(dependencies: ContentControllerDep
     const allowedDomains = (dependencies.allowedDomains ?? DEFAULT_ALLOWED_DOMAINS).map((domain) => domain.trim().toLowerCase()).filter(Boolean);
 
     if (!isSupportedShalomHost(hostname)) {
-      console.warn('[Shalom Pro] Inyección omitida', { reason: 'unsupported-page', hostname });
+      console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'unsupported-page', hostname });
       return false;
     }
 
     if (allowedDomains.length === 0) {
-      console.log('[Shalom Pro] Dominio permitido');
+      console.log('[CodeRED Shalom] Dominio permitido');
       return true;
     }
 
     const allowed = allowedDomains.some((domain) => hostnameMatchesAllowedDomain(hostname, domain));
     if (allowed) {
-      console.log('[Shalom Pro] Dominio permitido');
+      console.log('[CodeRED Shalom] Dominio permitido');
       return true;
     }
 
-    console.warn('[Shalom Pro] Inyección omitida', {
+    console.warn('[CodeRED Shalom] Inyección omitida', {
       reason: 'domain-not-allowed',
       hostname,
       allowedDomains,
@@ -92,19 +93,19 @@ export function createShalomContentController(dependencies: ContentControllerDep
   }
 
   function findInjectionTarget(): InjectionTarget | null {
-    console.log('[Shalom Pro] Buscando punto de inyección');
+    console.log('[CodeRED Shalom] Buscando punto de inyección');
     const selectors = ['.mdl-layout__header-row', 'header .mdl-layout__header-row', '.mdl-layout__header', 'header', '[role="banner"]', '.navbar', '.topbar', '.header'];
 
     for (const selector of selectors) {
       const elements = Array.from(document.querySelectorAll(selector)).filter((element): element is HTMLElement => element instanceof HTMLElement);
       const visible = elements.find((element) => isElementVisible(element) && !element.closest(`#${CONTAINER_ID}`));
       if (visible) {
-        console.log(`[Shalom Pro] Target encontrado con selector: ${selector}`);
+        console.log(`[CodeRED Shalom] Target encontrado con selector: ${selector}`);
         return { element: visible, selector };
       }
     }
 
-    console.log('[Shalom Pro] Target no encontrado');
+    console.log('[CodeRED Shalom] Target todavía no disponible');
     return null;
   }
 
@@ -236,7 +237,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     if (existing?.isConnected) {
       bindSearchEvents(existing);
       bindChannelButtons(document, setActiveChannel);
-      console.log('[Shalom Pro] Buscador ya estaba inyectado');
+      console.log('[CodeRED Shalom] Buscador ya estaba inyectado');
       return { success: true, reason: 'already-mounted', element: existing };
     }
 
@@ -249,7 +250,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     else target.element.appendChild(container);
     bindSearchEvents(container);
     bindChannelButtons(document, setActiveChannel);
-    console.log('[Shalom Pro] Buscador inyectado');
+    console.log('[CodeRED Shalom] Buscador inyectado');
     return { success: true, reason: 'mounted', element: container };
   }
 
@@ -263,7 +264,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
       injectionDebounceTimer = window.setTimeout(() => {
         injectionDebounceTimer = null;
         const existing = document.getElementById(CONTAINER_ID);
-        if (!existing?.isConnected) console.log('[Shalom Pro] Buscador eliminado por navegación; reinyectando');
+        if (!existing?.isConnected) console.log('[CodeRED Shalom] El header cambió; reinyectando');
         injectSearchIfPossible();
       }, 100);
     });
@@ -284,7 +285,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   function setActiveChannel(nextChannel: Exclude<ShalomChannel, 'AUTO'>): void {
     activeChannel = nextChannel;
-    console.log(`[Shalom Pro] Segmento activo: ${activeChannel}`);
+    console.log(`[CodeRED Shalom] Segmento activo: ${activeChannel}`);
   }
 
   function renderResults(input: HTMLInputElement, resultsContainer: HTMLElement, status: HTMLElement): void {
@@ -377,7 +378,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
   async function requestCatalog(): Promise<Agency[]> {
     if (dependencies.requestCatalog) return dependencies.requestCatalog();
     if (typeof chrome === 'undefined' || typeof chrome.runtime?.sendMessage !== 'function') {
-      console.error('[Shalom Pro] chrome.runtime.sendMessage no está disponible.');
+      console.error('[CodeRED Shalom] chrome.runtime.sendMessage no está disponible.');
       return [];
     }
 
@@ -403,11 +404,11 @@ function hasRequiredContentGlobals(): boolean {
   if (typeof document === 'undefined' || typeof window === 'undefined') return false;
   if (!document.body) return false;
   if (typeof chrome === 'undefined') {
-    console.error('[Shalom Pro] chrome no está disponible para content.js');
+    console.error('[CodeRED Shalom] chrome no está disponible para content.js');
     return false;
   }
   if (typeof chrome.storage === 'undefined') {
-    console.error('[Shalom Pro] chrome.storage no está disponible para content.js');
+    console.error('[CodeRED Shalom] chrome.storage no está disponible para content.js');
     return false;
   }
   return true;
@@ -436,7 +437,7 @@ function main(): void {
   const controller = createShalomContentController();
   const bootstrap = () => {
     controller.initializeContentScript().catch((error) => {
-      console.error('[Shalom Pro] Falló la inicialización del content script', serializeSafeError(error));
+      console.error('[CodeRED Shalom] Error de inicialización:', serializeSafeError(error));
     });
   };
 
