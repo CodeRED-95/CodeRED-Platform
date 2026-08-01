@@ -3,7 +3,7 @@ import manifest from '../manifest.json' with { type: 'json' };
 import { JSDOM } from 'jsdom';
 import { adaptAgency } from '../src/models/agency';
 import { isRuntimeRequest } from '../src/background/messages';
-import { createShalomContentController } from '../src/content/content';
+import { createShalomContentController, findSearchInsertionPoint, positionResultsPanel } from '../src/content/content';
 import { detectActiveChannel } from '../src/content/shalom-page-adapter';
 import { findActiveDestinationSelect, selectAgencyInDestination } from '../src/content/agency-selector';
 import { hostnameMatchesAllowedDomain, isSupportedShalomHost } from '../src/content/shalom-host';
@@ -84,6 +84,87 @@ describe('Shalom Control DOM integration', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+
+  it('inserts the search before the right header block and after the flexible spacer', async () => {
+    document.body.innerHTML = '<div class="mdl-layout__header-row"><button>Menu</button><span>Empresarial: ADM_TERMINAL</span><div class="mdl-layout-spacer"></div><span class="agency-name">AV. ARIAS ARAGUEZ</span></div>';
+    const header = document.querySelector<HTMLElement>('.mdl-layout__header-row')!;
+    const insertion = findSearchInsertionPoint(header);
+    expect(insertion.reason).toBe('before-right-block');
+    expect((insertion.before as HTMLElement).textContent).toContain('AV. ARIAS ARAGUEZ');
+
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const container = document.getElementById('mi-buscador-contenedor')!;
+    const business = Array.from(header.children).find((child) => child.textContent?.includes('Empresarial'))!;
+    const userBlock = Array.from(header.children).find((child) => child.textContent?.includes('AV. ARIAS'))!;
+    expect(container.dataset.insertionReason).toBe('before-right-block');
+    expect(Array.from(header.children).indexOf(business)).toBeLessThan(Array.from(header.children).indexOf(container));
+    expect(Array.from(header.children).indexOf(container)).toBeLessThan(Array.from(header.children).indexOf(userBlock));
+  });
+
+  it('falls back to inserting after the spacer when no right block is identifiable', async () => {
+    document.body.innerHTML = '<div class="mdl-layout__header-row"><span>Empresarial: ADM_TERMINAL</span><div class="mdl-layout-spacer"></div></div>';
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const header = document.querySelector<HTMLElement>('.mdl-layout__header-row')!;
+    const spacer = document.querySelector<HTMLElement>('.mdl-layout-spacer')!;
+    const container = document.getElementById('mi-buscador-contenedor')!;
+    expect(container.dataset.insertionReason).toBe('after-spacer');
+    expect(Array.from(header.children).indexOf(spacer)).toBeLessThan(Array.from(header.children).indexOf(container));
+  });
+
+  it('aligns the panel to the right of the search and corrects left viewport overflow', async () => {
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const container = document.getElementById('mi-buscador-contenedor')!;
+    const panel = document.querySelector<HTMLElement>('.codered-results-panel')!;
+    Object.defineProperty(window, 'innerWidth', { value: 1200, configurable: true });
+    vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue({ left: -80, right: 920, top: 0, bottom: 550, width: 1000, height: 550, x: -80, y: 0, toJSON: () => ({}) });
+
+    positionResultsPanel(container, panel);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(panel.style.left).toBe('auto');
+    expect(panel.style.right).toBe('0px');
+    expect(panel.style.transform).toBe('translateX(96px)');
+  });
+
+  it('corrects right viewport overflow and recalculates on resize without duplicate listeners', async () => {
+    const addEventSpy = vi.spyOn(window, 'addEventListener');
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    await controller.mount();
+    const container = document.getElementById('mi-buscador-contenedor')!;
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    const panel = document.querySelector<HTMLElement>('.codered-results-panel')!;
+    Object.defineProperty(window, 'innerWidth', { value: 1000, configurable: true });
+    vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue({ left: 300, right: 1300, top: 0, bottom: 550, width: 1000, height: 550, x: 300, y: 0, toJSON: () => ({}) });
+
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    positionResultsPanel(container, panel);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(panel.style.transform).toBe('translateX(-316px)');
+    expect(addEventSpy.mock.calls.filter(([type]) => type === 'resize')).toHaveLength(1);
+
+    panel.style.transform = 'none';
+    window.dispatchEvent(new Event('resize'));
+    await new Promise((resolve) => setTimeout(resolve, 130));
+    expect(panel.style.transform).toBe('translateX(-316px)');
+  });
+
+  it('keeps responsive panel columns at desktop, tablet, and mobile breakpoints', async () => {
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const style = document.querySelector('#mi-buscador-contenedor style')?.textContent ?? '';
+    expect(style).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
+    expect(style).toContain('@media (max-width: 1100px)');
+    expect(style).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(style).toContain('@media (max-width: 720px)');
+    expect(style).toContain('position: fixed');
+    expect(style).toContain('grid-template-columns: 1fr');
   });
 
   it('injects immediately when the header already exists', async () => {

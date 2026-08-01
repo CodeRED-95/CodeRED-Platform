@@ -41,6 +41,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
   let injectionObserver: MutationObserver | null = null;
   let injectionDebounceTimer: number | null = null;
   let storageListenerBound = false;
+  let resizeListenerBound = false;
 
   async function initializeContentScript(): Promise<void> {
     console.log('[CodeRED Shalom] Content script iniciado');
@@ -124,6 +125,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     const grid = container.querySelector<HTMLElement>(`.${RESULTS_GRID_CLASS}`);
     const message = container.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
     if (!input || !panel || !grid || !message) return;
+    bindResizeReposition(container, panel);
 
     let debounce: number | null = null;
     input.addEventListener('input', () => {
@@ -163,12 +165,11 @@ export function createShalomContentController(dependencies: ContentControllerDep
     if (!target) return { success: false, reason: 'target-not-found' };
 
     const container = createSearchContainer();
-    const spacer = target.element.querySelector('.mdl-layout-spacer');
-    if (spacer) spacer.before(container);
-    else target.element.appendChild(container);
+    mountSearchContainer(target.element, container);
     bindSearchEvents(container);
     bindChannelButtons(document, handleChannelChange);
     console.log('[CodeRED Shalom] Buscador inyectado');
+    positionOpenPanel(container);
     return { success: true, reason: 'mounted', element: container };
   }
 
@@ -185,7 +186,8 @@ export function createShalomContentController(dependencies: ContentControllerDep
         if (detected !== activeChannel) handleChannelChange(detected);
         const existing = document.getElementById(CONTAINER_ID);
         if (!existing?.isConnected) console.log('[CodeRED Shalom] El header cambió; reinyectando');
-        injectSearchIfPossible();
+        const result = injectSearchIfPossible();
+        if (result.element) positionOpenPanel(result.element);
       }, 100);
     });
     injectionObserver.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'aria-selected', 'style', 'hidden'] });
@@ -202,6 +204,19 @@ export function createShalomContentController(dependencies: ContentControllerDep
     return cargarDatos(activeChannel).then(() => injectSearchIfPossible());
   }
 
+  function bindResizeReposition(container: HTMLElement, panel: HTMLElement): void {
+    if (resizeListenerBound) return;
+    resizeListenerBound = true;
+    let timer: number | null = null;
+    window.addEventListener('resize', () => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = null;
+        if (!panel.hidden) positionResultsPanel(container, panel);
+      }, 100);
+    });
+  }
+
   function handleChannelChange(nextChannel: Exclude<ShalomChannel, 'AUTO'>): void {
     activeChannel = nextChannel;
     console.log(`[CodeRED Shalom] Canal activo detectado: ${activeChannel}`);
@@ -215,6 +230,9 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   function renderResults(input: HTMLInputElement, panel: HTMLElement, grid: HTMLElement, message: HTMLElement): void {
     panel.hidden = false;
+    panel.style.left = 'auto';
+    panel.style.right = '0';
+    panel.style.transform = 'none';
     grid.innerHTML = '';
     message.textContent = '';
     const query = input.value.trim();
@@ -222,19 +240,23 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
     if (agencies.length === 0) {
       message.textContent = 'No hay agencias sincronizadas. Abre la configuración de la extensión y pulsa Sincronizar ahora.';
+      positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
       return;
     }
     if (query.length < 2) {
       message.textContent = `Escribe al menos 2 caracteres para buscar en el canal ${channelLabel(activeChannel)}.`;
+      positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
       return;
     }
 
     const found = searchAgencies(channelAgencies, query, 30).map((result) => result.agency);
     if (found.length === 0) {
       message.textContent = `No se encontraron agencias para ‘${query}’ en el canal ${channelLabel(activeChannel)}.`;
+      positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
       return;
     }
     for (const agency of found) grid.appendChild(createResultCard(agency));
+    positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
   }
 
   function createResultCard(agency: Agency): HTMLElement {
@@ -320,6 +342,76 @@ function cardMarkup(agency: Agency): string {
   `;
 }
 
+interface SearchInsertionPoint {
+  parent: HTMLElement;
+  before: Element | null;
+  reason: 'before-right-block' | 'after-spacer' | 'append';
+}
+
+function mountSearchContainer(headerRow: HTMLElement, container: HTMLElement): void {
+  const insertion = findSearchInsertionPoint(headerRow);
+  insertion.parent.classList.add('codered-search-host');
+  insertion.parent.insertBefore(container, insertion.before);
+  container.dataset.insertionReason = insertion.reason;
+}
+
+export function findSearchInsertionPoint(headerRow: HTMLElement): SearchInsertionPoint {
+  const spacer = headerRow.querySelector<HTMLElement>('.mdl-layout-spacer');
+  const children = Array.from(headerRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement && child.id !== CONTAINER_ID && isHeaderChildVisible(child));
+  const spacerIndex = spacer ? children.indexOf(spacer) : -1;
+  const rightBlock = children.find((child, index) => {
+    if (child === spacer) return false;
+    if (spacerIndex >= 0 && index <= spacerIndex) return false;
+    return looksLikeRightHeaderBlock(child) || index === children.length - 1;
+  });
+
+  if (rightBlock) return { parent: headerRow, before: rightBlock, reason: 'before-right-block' };
+  if (spacer?.parentElement === headerRow) return { parent: headerRow, before: spacer.nextElementSibling, reason: 'after-spacer' };
+  return { parent: headerRow, before: null, reason: 'append' };
+}
+
+function isHeaderChildVisible(element: HTMLElement): boolean {
+  if (element.hidden || element.getAttribute('aria-hidden') === 'true') return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
+function looksLikeRightHeaderBlock(element: HTMLElement): boolean {
+  const className = String(element.className ?? '').toLowerCase();
+  const id = element.id.toLowerCase();
+  const text = (element.textContent ?? '').trim().toLowerCase();
+  const style = window.getComputedStyle(element);
+  const haystack = `${id} ${className} ${text}`;
+  return /account|user|profile|session|agency|sede|usuario|avatar|logout|salir/.test(haystack) || style.marginLeft === 'auto';
+}
+
+function positionOpenPanel(container: HTMLElement): void {
+  const panel = container.querySelector<HTMLElement>(`.${RESULTS_PANEL_CLASS}`);
+  if (panel && !panel.hidden) positionResultsPanel(container, panel);
+}
+
+export function positionResultsPanel(container: HTMLElement | null, panel: HTMLElement): void {
+  if (!container) return;
+  panel.style.left = 'auto';
+  panel.style.right = '0';
+  panel.style.transform = 'none';
+
+  const schedule = window.requestAnimationFrame ?? ((callback: FrameRequestCallback) => window.setTimeout(() => callback(Date.now()), 0));
+  schedule(() => {
+    if (window.innerWidth <= 720) {
+      panel.style.transform = 'none';
+      return;
+    }
+
+    const rect = panel.getBoundingClientRect();
+    const viewportPadding = 16;
+    let correction = 0;
+    if (rect.left < viewportPadding) correction += viewportPadding - rect.left;
+    if (rect.right > window.innerWidth - viewportPadding) correction -= rect.right - (window.innerWidth - viewportPadding);
+    panel.style.transform = correction === 0 ? 'none' : `translateX(${correction}px)`;
+  });
+}
+
 function closeResults(container: HTMLElement): void {
   const panel = container.querySelector<HTMLElement>(`.${RESULTS_PANEL_CLASS}`);
   if (panel) panel.hidden = true;
@@ -341,13 +433,13 @@ function channelLabel(channel: Exclude<ShalomChannel, 'AUTO'>): string {
 
 function searchStyles(): string {
   return `
-    #${CONTAINER_ID}.codered-shalom-search { position: relative !important; display: flex !important; align-items: center !important; flex-shrink: 0 !important; z-index: 1200 !important; margin: 0 16px !important; }
-    #${CONTAINER_ID} .codered-search-wrapper { width: 350px !important; max-width: 42vw !important; height: 40px !important; display: flex !important; align-items: center !important; gap: 8px !important; background: #242424 !important; border: 2px solid #ff414d !important; border-radius: 24px !important; overflow: hidden !important; box-shadow: 0 8px 18px rgba(0,0,0,.22) !important; }
+    #${CONTAINER_ID}.codered-shalom-search { position: relative !important; display: flex !important; align-items: center !important; flex: 0 0 auto !important; min-width: 0 !important; z-index: 1200 !important; margin-left: auto !important; margin-right: 24px !important; }
+    #${CONTAINER_ID} .codered-search-wrapper { width: clamp(300px, 24vw, 420px) !important; min-width: 280px !important; max-width: 42vw !important; height: 40px !important; display: flex !important; align-items: center !important; gap: 8px !important; background: #242424 !important; border: 2px solid #ff414d !important; border-radius: 24px !important; overflow: hidden !important; box-shadow: 0 8px 18px rgba(0,0,0,.22) !important; }
     #${CONTAINER_ID} .codered-search-icon { color: #ff737b !important; font-size: 18px !important; padding-left: 14px !important; }
     #${CONTAINER_ID} .codered-search-input { width: 100% !important; min-width: 0 !important; border: 0 !important; outline: 0 !important; background: transparent !important; color: #fff !important; padding: 10px 6px !important; font-size: 14px !important; }
     #${CONTAINER_ID} .codered-search-input::placeholder { color: rgba(255,255,255,.65) !important; }
     #${CONTAINER_ID} .${CHANNEL_BADGE_CLASS} { color: #fff !important; background: rgba(255,255,255,.1) !important; border-radius: 999px !important; padding: 4px 10px !important; margin-right: 8px !important; white-space: nowrap !important; font-size: 12px !important; }
-    #${CONTAINER_ID} .${RESULTS_PANEL_CLASS} { position: absolute !important; top: calc(100% + 12px) !important; right: 0 !important; width: min(1000px, 90vw) !important; max-height: 550px !important; overflow-y: auto !important; padding: 16px !important; background: #202020 !important; border: 1px solid #343434 !important; border-radius: 16px !important; box-shadow: 0 16px 50px rgba(0,0,0,.4) !important; color: #fff !important; }
+    #${CONTAINER_ID} .${RESULTS_PANEL_CLASS} { position: absolute !important; top: calc(100% + 12px) !important; left: auto !important; right: 0 !important; transform: none; width: min(1000px, calc(100vw - 32px)) !important; max-height: 550px !important; overflow-y: auto !important; padding: 16px !important; background: #202020 !important; border: 1px solid #343434 !important; border-radius: 16px !important; box-shadow: 0 16px 50px rgba(0,0,0,.4) !important; color: #fff !important; }
     #${CONTAINER_ID} .${RESULTS_PANEL_CLASS}[hidden] { display: none !important; }
     #${CONTAINER_ID} .${MESSAGE_CLASS} { color: #f5f5f5 !important; font-size: 14px !important; padding: 4px 2px 10px !important; }
     #${CONTAINER_ID} .${RESULTS_GRID_CLASS} { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 15px !important; }
@@ -365,8 +457,11 @@ function searchStyles(): string {
     #${CONTAINER_ID} .codered-notice { border-radius: 8px !important; padding: 8px !important; font-size: 12px !important; line-height: 1.35 !important; }
     #${CONTAINER_ID} .codered-notice-warning { background: rgba(245,158,11,.16) !important; color: #fde68a !important; }
     #${CONTAINER_ID} .codered-notice-danger { background: rgba(239,68,68,.16) !important; color: #fecaca !important; }
-    @media (max-width: 900px) { #${CONTAINER_ID} .${RESULTS_GRID_CLASS} { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } #${CONTAINER_ID} .codered-search-wrapper { width: 300px !important; max-width: 55vw !important; } }
-    @media (max-width: 640px) { #${CONTAINER_ID} { margin: 8px 0 !important; width: 100% !important; } #${CONTAINER_ID} .codered-search-wrapper { width: 100% !important; max-width: 100% !important; } #${CONTAINER_ID} .${RESULTS_PANEL_CLASS} { left: 0 !important; right: auto !important; width: min(1000px, 92vw) !important; } #${CONTAINER_ID} .${RESULTS_GRID_CLASS} { grid-template-columns: 1fr !important; } }
+    .codered-search-host { overflow: visible !important; }
+    @media (max-width: 1200px) { #${CONTAINER_ID} .codered-search-wrapper { width: 320px !important; } }
+    @media (max-width: 1100px) { #${CONTAINER_ID} .${RESULTS_PANEL_CLASS} { width: min(760px, calc(100vw - 24px)) !important; } #${CONTAINER_ID} .${RESULTS_GRID_CLASS} { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+    @media (max-width: 900px) { #${CONTAINER_ID} { margin-right: 12px !important; } #${CONTAINER_ID} .codered-search-wrapper { width: 280px !important; max-width: 55vw !important; } }
+    @media (max-width: 720px) { #${CONTAINER_ID} { margin: 8px 0 !important; width: 100% !important; } #${CONTAINER_ID} .codered-search-wrapper { width: 100% !important; max-width: 100% !important; } #${CONTAINER_ID} .${RESULTS_PANEL_CLASS} { position: fixed !important; left: 12px !important; right: 12px !important; top: 70px !important; width: auto !important; max-height: calc(100vh - 90px) !important; transform: none !important; } #${CONTAINER_ID} .${RESULTS_GRID_CLASS} { grid-template-columns: 1fr !important; } }
   `;
 }
 
