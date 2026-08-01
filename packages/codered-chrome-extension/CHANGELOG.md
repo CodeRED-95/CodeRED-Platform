@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Restaura el diseno oscuro del buscador inyectado con barra roja, panel flotante y grilla responsive de tres columnas.
+- Elimina el selector interno Auto/Terrestre/Aereo y detecta el canal desde los botones reales de Shalom Control.
+- Mejora la deteccion del Chosen activo para no modificar selectores ocultos o ambiguos.
+- Renderiza tarjetas completas con estado, servicio, categoria real, CO, capacidades, ubicacion, direccion y avisos sin inventar datos.
 - Corrige la inyeccion inmediata del buscador cuando el header ya existe antes de iniciar el content script.
 - Agrega soporte confiable para navegacion SPA con `MutationObserver` unico, debounce y reinyeccion cuando Shalom reemplaza el header.
 - Amplia los selectores de header alternativos y registra el selector usado para diagnostico.

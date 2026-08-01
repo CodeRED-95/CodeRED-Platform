@@ -136,7 +136,7 @@ describe('Shalom Control DOM integration', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 180));
     expect(document.getElementById('mi-buscador-contenedor')).toBeInstanceOf(HTMLElement);
-    expect(document.body.textContent).toContain('No hay agencias sincronizadas. Abre la configuración y pulsa Sincronizar ahora');
+    expect(document.body.textContent).toContain('No hay agencias sincronizadas. Abre la configuración de la extensión y pulsa Sincronizar ahora.');
   });
 
   it('does not inject on CodeRED Platform', async () => {
@@ -245,5 +245,133 @@ describe('extension build artifacts', () => {
       expect(html).not.toMatch(/href="\/assets|src="\/assets/);
       expect(html).not.toContain('modulepreload-polyfill');
     }
+  });
+});
+
+describe('restored injected search experience', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"><div class="mdl-layout-spacer"></div></div></body></html>', { url: 'https://sysprovincia2.shalomcontrol.com/' });
+    globalThis.window = dom.window as unknown as Window & typeof globalThis;
+    globalThis.document = dom.window.document;
+    globalThis.MutationObserver = dom.window.MutationObserver;
+    globalThis.HTMLElement = dom.window.HTMLElement;
+    globalThis.HTMLSelectElement = dom.window.HTMLSelectElement;
+    globalThis.Event = dom.window.Event;
+  });
+
+  it('renders the dark floating three-column grid and complete cards without inventing category', async () => {
+    const fullAgency = adaptAgency({
+      external_id: 2001,
+      code: 'AREQ',
+      name: 'AREQUIPA CENTRO',
+      old_name: 'AREQUIPA ANTIGUA',
+      department: 'AREQUIPA',
+      province: 'AREQUIPA',
+      district: 'YANAHUARA',
+      address: 'Av. Ejercito 123',
+      reference: 'Frente al mall',
+      status: 'active',
+      classification: { category: 'Grande', sends_category: 'Envia', receives_category: 'Recibe' },
+      centro_operaciones: true,
+      texto_chosen_terrestre: '2001 - AREQUIPA CENTRO - TERRESTRE',
+    });
+    const noCategory = adaptAgency({ name: 'AREQUIPA NORTE', department: 'AREQUIPA', texto_chosen_terrestre: '2002 - AREQUIPA NORTE - TERRESTRE', status: 'active' });
+    const controller = createShalomContentController({ requestCatalog: async () => [fullAgency, noCategory] });
+    await controller.mount();
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'areq';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+
+    const grid = document.querySelector<HTMLElement>('.codered-results-grid')!;
+    const style = grid.closest('#mi-buscador-contenedor')?.querySelector('style')?.textContent ?? '';
+    expect(style).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
+    expect(document.querySelectorAll('.codered-agency-card')).toHaveLength(2);
+    expect(document.body.textContent).toContain('AREQUIPA CENTRO');
+    expect(document.body.textContent).toContain('Activa');
+    expect(document.body.textContent).toContain('Terrestre');
+    expect(document.body.textContent).toContain('Grande');
+    expect(document.body.textContent).toContain('Centro de Operaciones');
+    expect(document.body.textContent).toContain('Envía: Envia');
+    expect(document.body.textContent).toContain('AREQUIPA / AREQUIPA / YANAHUARA');
+    expect(document.body.textContent).toContain('Av. Ejercito 123');
+    expect(document.body.textContent).toContain('Sin categoría');
+    expect(document.body.textContent).not.toContain('Mediana');
+  });
+
+  it('filters by active channel and switches from truck to plane without an Auto selector', async () => {
+    document.body.insertAdjacentHTML('afterbegin', '<button id="truck" title="Terrestre" class="active">Camión</button><button id="plane" title="Aéreo">Avión</button>');
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    expect(document.querySelector('#mi-buscador-contenedor select')).toBeNull();
+    expect(document.querySelector('.codered-channel-badge')?.textContent).toContain('Terrestre');
+
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    expect(document.querySelectorAll('.codered-agency-card')).toHaveLength(1);
+
+    document.querySelector('#truck')?.classList.remove('active');
+    document.querySelector('#plane')?.classList.add('active');
+    (document.querySelector('#plane') as HTMLElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(document.querySelector('.codered-channel-badge')?.textContent).toContain('Aéreo');
+    expect(input.value).toBe('');
+  });
+
+  it('selects terrestrial and air chosen independently and does not select when clicking map', async () => {
+    document.body.insertAdjacentHTML('afterbegin', '<button id="truck" title="Terrestre" class="active">Camión</button><button id="plane" title="Aéreo">Avión</button>');
+    document.body.insertAdjacentHTML('beforeend', '<section class="panel terrestre"><select id="t_osProDestino"><option value="">Seleccione</option><option value="t">1001 - CHICLAYO HUB - TERRESTRE</option></select><div id="t_osProDestino_chosen" data-visible="true"><a class="chosen-single"><span>Seleccione</span></a></div></section><section class="panel aereo" style="display:none"><select id="a_osProDestino"><option value="">Seleccione</option><option value="a">1001 - CHICLAYO HUB - AEREO</option></select><div id="a_osProDestino_chosen"><a class="chosen-single"><span>Seleccione</span></a></div></section>');
+    const selectT = document.querySelector<HTMLSelectElement>('#t_osProDestino')!;
+    const selectA = document.querySelector<HTMLSelectElement>('#a_osProDestino')!;
+    const inputSpy = vi.fn();
+    const changeSpy = vi.fn();
+    selectT.addEventListener('input', inputSpy);
+    selectT.addEventListener('change', changeSpy);
+
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+
+    const map = document.querySelector<HTMLAnchorElement>('.btn-mapa-mini')!;
+    map.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    expect(selectT.value).toBe('');
+
+    (document.querySelector('.codered-agency-card') as HTMLElement).click();
+    expect(selectT.value).toBe('t');
+    expect(selectA.value).toBe('');
+    expect(inputSpy).toHaveBeenCalledTimes(1);
+    expect(changeSpy).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('#t_osProDestino_chosen span')?.textContent).toContain('TERRESTRE');
+
+    document.querySelector('#truck')?.classList.remove('active');
+    document.querySelector('#plane')?.classList.add('active');
+    (document.querySelector('.terrestre') as HTMLElement).style.display = 'none';
+    (document.querySelector('.aereo') as HTMLElement).style.display = 'block';
+    (document.querySelector('#a_osProDestino_chosen') as HTMLElement).setAttribute('data-visible', 'true');
+    (document.querySelector('#plane') as HTMLElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    (document.querySelector('.codered-agency-card') as HTMLElement).click();
+    expect(selectA.value).toBe('a');
+  });
+
+  it('closes results with Escape', async () => {
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    expect(document.querySelector<HTMLElement>('.codered-results-panel')?.hidden).toBe(false);
+    input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.querySelector<HTMLElement>('.codered-results-panel')?.hidden).toBe(true);
   });
 });

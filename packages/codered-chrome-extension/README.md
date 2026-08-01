@@ -93,6 +93,21 @@ El content script no recibe el token. Usa mensajes `CATALOG_GET`, `CATALOG_STATU
 
 Para probar un nuevo subdominio, carga `dist/`, abre la pagina HTTPS de Shalom Control, confirma que aparece el buscador en el encabezado, cambia Terrestre/Aereo, selecciona una agencia y verifica que el `select[id*="osProDestino"]` real cambie. Si no aparece, revisar que el hostname termine exactamente en `.shalomcontrol.com` o `.shalom.pe` y que la pagina tenga un encabezado compatible.
 
+
+## Diseño inyectado
+
+El buscador integrado en Shalom Control usa la experiencia visual recuperada de la extension anterior: barra oscura con borde rojo redondeado, indicador automatico de canal, panel flotante oscuro, scroll interno y grilla responsive de tarjetas. En escritorio la grilla usa tres columnas; en tablet dos; en movil una.
+
+Cada tarjeta muestra los campos disponibles del catalogo normalizado: nombre, codigo, nombre anterior si existe, estado, servicio disponible, categoria real o `Sin categoria`, Centro de Operaciones, capacidad de envio/recepcion, Departamento / Provincia / Distrito, direccion, referencia y avisos de traslado o cierre. No se inventa `Mediana` ni ningun valor por defecto de negocio. El boton MAPA abre una pestaña nueva con `target="_blank"` y no selecciona la agencia.
+
+## Canal y Chosen
+
+La extension no muestra selector interno Terrestre/Aereo ni modo Auto. Detecta el canal activo leyendo los botones reales de Shalom Control mediante `aria-selected`, clases activas, `title`, `aria-label`, `onclick`, texto visible e indicios de camion/avion. El indicador de la barra muestra `Terrestre` o `Aereo` y se actualiza al cambiar de segmento.
+
+Al seleccionar una tarjeta, el content script vuelve a detectar el canal activo, busca el `select[id*="osProDestino"]` asociado al Chosen visible del panel activo y descarta selectores deshabilitados, ocultos o ambiguos. Para Terrestre usa solo `terrestrialText`; para Aereo usa solo `airText`. Luego selecciona la opcion por coincidencia exacta, normalizada o identificador externo no ambiguo, emite `input` y `change`, dispara `chosen:updated` si jQuery existe y actualiza `.chosen-single span`.
+
+Si no encuentra un Chosen activo, la barra no queda ocupada con "No hay selector". El error breve se muestra solo al intentar seleccionar y el diagnostico detallado aparece en consola con prefijo `[CodeRED Shalom]`.
+
 ## Diagnostico del content script
 
 En la consola de la pagina Shalom deben aparecer logs con prefijo `[Shalom Pro]`, por ejemplo `Content script iniciado`, `Dominio permitido`, `Target encontrado con selector: ...` y `Buscador inyectado`. Para comprobar la inyeccion desde DevTools ejecutar:

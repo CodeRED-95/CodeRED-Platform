@@ -3,8 +3,21 @@ import { normalizeText } from '../utils/format';
 export type ShalomChannel = 'AUTO' | 'TERRESTRE' | 'AEREO';
 
 const HEADER_SELECTORS = ['.mdl-layout__header-row', 'header .mdl-layout__header-row', 'header', '.mdl-layout__header'];
-const CHANNEL_SELECTOR = 'button, a, [role="tab"], [onclick], .mdl-tabs__tab';
-const ACTIVE_CLASSES = ['active', 'is-active', 'selected'];
+const CHANNEL_BUTTON_SELECTORS = [
+  'button[title*="Terrestre" i]',
+  'button[title*="Aéreo" i]',
+  'button[title*="Aereo" i]',
+  '[onclick*="TERRESTRE" i]',
+  '[onclick*="AEREO" i]',
+  '[aria-label*="Terrestre" i]',
+  '[aria-label*="Aéreo" i]',
+  '[aria-label*="Aereo" i]',
+  '.mdl-tabs__tab',
+  '[role="tab"]',
+  'button',
+  'a',
+];
+const ACTIVE_CLASSES = ['active', 'is-active', 'selected', 'mdl-button--colored', 'mdl-tabs__tab--active'];
 
 export function findHeader(root: ParentNode = document): HTMLElement | null {
   for (const selector of HEADER_SELECTORS) {
@@ -14,29 +27,60 @@ export function findHeader(root: ParentNode = document): HTMLElement | null {
   return null;
 }
 
-export function detectActiveChannel(root: ParentNode = document): Exclude<ShalomChannel, 'AUTO'> {
-  const candidates = Array.from(root.querySelectorAll(CHANNEL_SELECTOR)).filter((element): element is HTMLElement => element instanceof HTMLElement);
+export function detectActiveShalomChannel(root: ParentNode = document): Exclude<ShalomChannel, 'AUTO'> {
+  const candidates = collectChannelCandidates(root);
   const scored = candidates
     .map((element) => ({ element, channel: detectElementChannel(element), active: isActiveChannelElement(element) }))
     .filter((item): item is { element: HTMLElement; channel: Exclude<ShalomChannel, 'AUTO'>; active: boolean } => item.channel !== null);
+
   const active = scored.find((item) => item.active);
-  return active?.channel ?? scored[0]?.channel ?? 'TERRESTRE';
+  if (active) {
+    console.log(`[CodeRED Shalom] Canal activo detectado: ${active.channel}`);
+    return active.channel;
+  }
+
+  console.warn('[CodeRED Shalom] No se pudo detectar el canal activo; usando TERRESTRE temporalmente');
+  return 'TERRESTRE';
 }
 
+export const detectActiveChannel = detectActiveShalomChannel;
+
 export function bindChannelButtons(root: ParentNode, onChange: (channel: Exclude<ShalomChannel, 'AUTO'>) => void): void {
-  const candidates = Array.from(root.querySelectorAll(CHANNEL_SELECTOR)).filter((element): element is HTMLElement => element instanceof HTMLElement);
+  const candidates = collectChannelCandidates(root);
   for (const element of candidates) {
     const channel = detectElementChannel(element);
     if (!channel || element.dataset.coderedChannelBound === 'true') continue;
     element.dataset.coderedChannelBound = 'true';
-    element.addEventListener('click', () => window.setTimeout(() => onChange(detectActiveChannel(root)), 0));
+    element.addEventListener('click', () => {
+      window.setTimeout(() => onChange(detectActiveShalomChannel(root)), 0);
+    });
   }
 }
 
+function collectChannelCandidates(root: ParentNode): HTMLElement[] {
+  const seen = new Set<HTMLElement>();
+  for (const selector of CHANNEL_BUTTON_SELECTORS) {
+    for (const element of Array.from(root.querySelectorAll(selector))) {
+      if (element instanceof HTMLElement) seen.add(element);
+    }
+  }
+  return Array.from(seen);
+}
+
 function detectElementChannel(element: HTMLElement): Exclude<ShalomChannel, 'AUTO'> | null {
-  const haystack = normalizeText([element.getAttribute('title'), element.getAttribute('aria-label'), element.getAttribute('onclick'), element.textContent].filter(Boolean).join(' '));
-  if (haystack.includes('terrestre')) return 'TERRESTRE';
-  if (haystack.includes('aereo')) return 'AEREO';
+  const haystack = normalizeText([
+    element.getAttribute('title'),
+    element.getAttribute('aria-label'),
+    element.getAttribute('onclick'),
+    element.textContent,
+    element.className,
+    element.querySelector('i, svg, img')?.getAttribute('title'),
+    element.querySelector('i, svg, img')?.getAttribute('aria-label'),
+    element.querySelector('i, svg, img')?.getAttribute('class'),
+  ].filter(Boolean).join(' '));
+
+  if (haystack.includes('terrestre') || haystack.includes('camion') || haystack.includes('truck')) return 'TERRESTRE';
+  if (haystack.includes('aereo') || haystack.includes('avion') || haystack.includes('plane') || haystack.includes('flight')) return 'AEREO';
   return null;
 }
 

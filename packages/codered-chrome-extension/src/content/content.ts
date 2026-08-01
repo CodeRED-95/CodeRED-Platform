@@ -2,16 +2,19 @@
  * Content script para el Buscador Shalom Control.
  */
 import type { Agency } from '../models/agency';
+import { statusNotice } from '../models/agency';
 import { searchAgencies } from '../search/agency-search';
 import { buildMapsUrl } from '../utils/format';
-import { findActiveDestinationSelect, selectAgencyInDestination } from './agency-selector';
-import { bindChannelButtons, type ShalomChannel } from './shalom-page-adapter';
+import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agency-selector';
+import { bindChannelButtons, detectActiveShalomChannel, type ShalomChannel } from './shalom-page-adapter';
 import { hostnameMatchesAllowedDomain, isSupportedShalomHost } from './shalom-host';
 
 const CONTAINER_ID = 'mi-buscador-contenedor';
 const SEARCH_INPUT_ID = 'codered-search-input';
-const RESULT_LIST_CLASS = 'codered-shalom-search-results';
-const STATUS_CLASS = 'codered-shalom-search-status';
+const RESULTS_PANEL_CLASS = 'codered-results-panel';
+const RESULTS_GRID_CLASS = 'codered-results-grid';
+const CHANNEL_BADGE_CLASS = 'codered-channel-badge';
+const MESSAGE_CLASS = 'codered-search-message';
 const DEFAULT_ALLOWED_DOMAINS = ['shalom.pe', 'shalomcontrol.com'];
 const CATALOG_STORAGE_KEYS = new Set(['agencies', 'agencyCache', 'catalog', 'catalogVersion', 'syncMetadata']);
 
@@ -42,9 +45,8 @@ export function createShalomContentController(dependencies: ContentControllerDep
   async function initializeContentScript(): Promise<void> {
     console.log('[CodeRED Shalom] Content script iniciado');
     console.log(`[CodeRED Shalom] URL actual: ${window.location.href}`);
-
     if (!hasRequiredContentGlobals()) return;
-
+    activeChannel = detectActiveShalomChannel(document);
     await cargarDatos(activeChannel);
     const result = injectSearchIfPossible();
     console.log('[CodeRED Shalom] Resultado de inyección', { reason: result.reason });
@@ -67,44 +69,29 @@ export function createShalomContentController(dependencies: ContentControllerDep
   function isSupportedShalomPage(): boolean {
     const hostname = window.location.hostname.toLowerCase();
     const allowedDomains = (dependencies.allowedDomains ?? DEFAULT_ALLOWED_DOMAINS).map((domain) => domain.trim().toLowerCase()).filter(Boolean);
-
     if (!isSupportedShalomHost(hostname)) {
       console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'unsupported-page', hostname });
       return false;
     }
-
-    if (allowedDomains.length === 0) {
-      console.log('[CodeRED Shalom] Dominio permitido');
+    if (allowedDomains.length === 0 || allowedDomains.some((domain) => hostnameMatchesAllowedDomain(hostname, domain))) {
+      console.log('[CodeRED Shalom] Dominio compatible');
       return true;
     }
-
-    const allowed = allowedDomains.some((domain) => hostnameMatchesAllowedDomain(hostname, domain));
-    if (allowed) {
-      console.log('[CodeRED Shalom] Dominio permitido');
-      return true;
-    }
-
-    console.warn('[CodeRED Shalom] Inyección omitida', {
-      reason: 'domain-not-allowed',
-      hostname,
-      allowedDomains,
-    });
+    console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'domain-not-allowed', hostname, allowedDomains });
     return false;
   }
 
   function findInjectionTarget(): InjectionTarget | null {
     console.log('[CodeRED Shalom] Buscando punto de inyección');
     const selectors = ['.mdl-layout__header-row', 'header .mdl-layout__header-row', '.mdl-layout__header', 'header', '[role="banner"]', '.navbar', '.topbar', '.header'];
-
     for (const selector of selectors) {
       const elements = Array.from(document.querySelectorAll(selector)).filter((element): element is HTMLElement => element instanceof HTMLElement);
       const visible = elements.find((element) => isElementVisible(element) && !element.closest(`#${CONTAINER_ID}`));
       if (visible) {
-        console.log(`[CodeRED Shalom] Target encontrado con selector: ${selector}`);
+        console.log(`[CodeRED Shalom] Target encontrado: ${selector}`);
         return { element: visible, selector };
       }
     }
-
     console.log('[CodeRED Shalom] Target todavía no disponible');
     return null;
   }
@@ -114,129 +101,60 @@ export function createShalomContentController(dependencies: ContentControllerDep
     container.id = CONTAINER_ID;
     container.className = 'codered-shalom-search';
     container.innerHTML = `
-      <style>
-        #${CONTAINER_ID}.codered-shalom-search {
-          align-items: center !important;
-          box-sizing: border-box !important;
-          display: flex !important;
-          flex-shrink: 0 !important;
-          gap: 8px !important;
-          margin: 0 16px !important;
-          min-width: 280px !important;
-          opacity: 1 !important;
-          position: relative !important;
-          visibility: visible !important;
-          z-index: 1200 !important;
-        }
-        #${CONTAINER_ID} #${SEARCH_INPUT_ID} {
-          background: #ffffff !important;
-          border: 1px solid rgba(15, 23, 42, 0.28) !important;
-          border-radius: 6px !important;
-          box-sizing: border-box !important;
-          color: #111827 !important;
-          display: block !important;
-          font-size: 13px !important;
-          height: 34px !important;
-          min-width: 220px !important;
-          outline: none !important;
-          padding: 7px 10px !important;
-          visibility: visible !important;
-          width: 100% !important;
-        }
-        #${CONTAINER_ID} .${RESULT_LIST_CLASS} {
-          background: #ffffff !important;
-          border: 1px solid rgba(15, 23, 42, 0.18) !important;
-          border-radius: 6px !important;
-          box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18) !important;
-          color: #111827 !important;
-          display: none;
-          left: 0;
-          list-style: none !important;
-          margin: 6px 0 0 !important;
-          max-height: 320px !important;
-          overflow-y: auto !important;
-          padding: 4px !important;
-          position: absolute !important;
-          right: 0;
-          top: 100%;
-          z-index: 1201 !important;
-        }
-        #${CONTAINER_ID} .${RESULT_LIST_CLASS} li { margin: 0 !important; padding: 0 !important; }
-        #${CONTAINER_ID} .codered-shalom-result,
-        #${CONTAINER_ID} .codered-shalom-empty {
-          background: transparent !important;
-          border: 0 !important;
-          border-radius: 4px !important;
-          box-sizing: border-box !important;
-          color: #111827 !important;
-          display: block !important;
-          font-size: 13px !important;
-          padding: 8px 10px !important;
-          text-align: left !important;
-          width: 100% !important;
-        }
-        #${CONTAINER_ID} .codered-shalom-result { cursor: pointer !important; }
-        #${CONTAINER_ID} .codered-shalom-result:hover { background: #f3f4f6 !important; }
-        #${CONTAINER_ID} .${STATUS_CLASS} {
-          color: #4b5563 !important;
-          display: inline-block !important;
-          font-size: 12px !important;
-          max-width: 140px !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          white-space: nowrap !important;
-        }
-        @media (prefers-color-scheme: dark) {
-          #${CONTAINER_ID} #${SEARCH_INPUT_ID},
-          #${CONTAINER_ID} .${RESULT_LIST_CLASS} { background: #111827 !important; color: #f9fafb !important; border-color: rgba(249, 250, 251, 0.28) !important; }
-          #${CONTAINER_ID} .codered-shalom-result,
-          #${CONTAINER_ID} .codered-shalom-empty { color: #f9fafb !important; }
-          #${CONTAINER_ID} .codered-shalom-result:hover { background: #1f2937 !important; }
-          #${CONTAINER_ID} .${STATUS_CLASS} { color: #d1d5db !important; }
-        }
-      </style>
-      <input id="${SEARCH_INPUT_ID}" type="search" placeholder="Buscar agencia Shalom..." autocomplete="off" />
-      <span class="${STATUS_CLASS}" aria-live="polite"></span>
-      <ul class="${RESULT_LIST_CLASS}" role="listbox"></ul>
+      <style>${searchStyles()}</style>
+      <div class="codered-search-wrapper">
+        <span class="codered-search-icon" aria-hidden="true">⌕</span>
+        <input id="${SEARCH_INPUT_ID}" class="codered-search-input" type="search" placeholder="Buscar agencia Shalom..." autocomplete="off" />
+        <span class="${CHANNEL_BADGE_CLASS}" aria-live="polite"></span>
+      </div>
+      <div class="${RESULTS_PANEL_CLASS}" hidden>
+        <div class="${MESSAGE_CLASS}" aria-live="polite"></div>
+        <div class="${RESULTS_GRID_CLASS}" role="listbox"></div>
+      </div>
     `;
+    updateChannelBadge(container);
     return container;
   }
 
   function bindSearchEvents(container: HTMLElement): void {
     if (container.dataset.coderedSearchBound === 'true') return;
     container.dataset.coderedSearchBound = 'true';
-
     const input = container.querySelector<HTMLInputElement>(`#${SEARCH_INPUT_ID}`);
-    const results = container.querySelector<HTMLElement>(`.${RESULT_LIST_CLASS}`);
-    const status = container.querySelector<HTMLElement>(`.${STATUS_CLASS}`);
-    if (!input || !results || !status) return;
+    const panel = container.querySelector<HTMLElement>(`.${RESULTS_PANEL_CLASS}`);
+    const grid = container.querySelector<HTMLElement>(`.${RESULTS_GRID_CLASS}`);
+    const message = container.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
+    if (!input || !panel || !grid || !message) return;
 
     let debounce: number | null = null;
     input.addEventListener('input', () => {
       if (debounce) window.clearTimeout(debounce);
-      debounce = window.setTimeout(() => renderResults(input, results, status), 150);
+      debounce = window.setTimeout(() => renderResults(input, panel, grid, message), 150);
     });
-
-    input.addEventListener('focus', () => {
-      renderResults(input, results, status);
-      results.style.display = 'block';
+    input.addEventListener('focus', () => renderResults(input, panel, grid, message));
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeResults(container);
+      if (event.key === 'Enter') {
+        const first = grid.querySelector<HTMLButtonElement>('.codered-agency-card');
+        if (first) first.click();
+      }
     });
 
     const abortController = new window.AbortController();
-    container.dataset.coderedAbortController = 'true';
     document.addEventListener('click', (event) => {
-      if (!container.contains(event.target as Node)) results.style.display = 'none';
+      if (!container.contains(event.target as Node)) closeResults(container);
     }, { signal: abortController.signal });
   }
 
   function injectSearchIfPossible(): InjectionResult {
     if (!document.body) return { success: false, reason: 'body-not-ready' };
     if (!isSupportedShalomPage()) return { success: false, reason: 'unsupported-page' };
+    activeChannel = detectActiveShalomChannel(document);
 
     const existing = document.getElementById(CONTAINER_ID);
     if (existing?.isConnected) {
       bindSearchEvents(existing);
-      bindChannelButtons(document, setActiveChannel);
+      bindChannelButtons(document, handleChannelChange);
+      updateChannelBadge(existing);
       console.log('[CodeRED Shalom] Buscador ya estaba inyectado');
       return { success: true, reason: 'already-mounted', element: existing };
     }
@@ -249,7 +167,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     if (spacer) spacer.before(container);
     else target.element.appendChild(container);
     bindSearchEvents(container);
-    bindChannelButtons(document, setActiveChannel);
+    bindChannelButtons(document, handleChannelChange);
     console.log('[CodeRED Shalom] Buscador inyectado');
     return { success: true, reason: 'mounted', element: container };
   }
@@ -258,18 +176,19 @@ export function createShalomContentController(dependencies: ContentControllerDep
     if (injectionObserver) return;
     const root = document.documentElement ?? document.body;
     if (!root) return;
-
     injectionObserver = new MutationObserver(() => {
       if (injectionDebounceTimer) window.clearTimeout(injectionDebounceTimer);
       injectionDebounceTimer = window.setTimeout(() => {
         injectionDebounceTimer = null;
+        bindChannelButtons(document, handleChannelChange);
+        const detected = detectActiveShalomChannel(document);
+        if (detected !== activeChannel) handleChannelChange(detected);
         const existing = document.getElementById(CONTAINER_ID);
         if (!existing?.isConnected) console.log('[CodeRED Shalom] El header cambió; reinyectando');
         injectSearchIfPossible();
       }, 100);
     });
-
-    injectionObserver.observe(root, { childList: true, subtree: true });
+    injectionObserver.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'aria-selected', 'style', 'hidden'] });
   }
 
   function stopInjectionObserver(): void {
@@ -283,79 +202,66 @@ export function createShalomContentController(dependencies: ContentControllerDep
     return cargarDatos(activeChannel).then(() => injectSearchIfPossible());
   }
 
-  function setActiveChannel(nextChannel: Exclude<ShalomChannel, 'AUTO'>): void {
+  function handleChannelChange(nextChannel: Exclude<ShalomChannel, 'AUTO'>): void {
     activeChannel = nextChannel;
-    console.log(`[CodeRED Shalom] Segmento activo: ${activeChannel}`);
+    console.log(`[CodeRED Shalom] Canal activo detectado: ${activeChannel}`);
+    const container = document.getElementById(CONTAINER_ID);
+    if (!container) return;
+    updateChannelBadge(container);
+    const input = container.querySelector<HTMLInputElement>(`#${SEARCH_INPUT_ID}`);
+    if (input) input.value = '';
+    closeResults(container);
   }
 
-  function renderResults(input: HTMLInputElement, resultsContainer: HTMLElement, status: HTMLElement): void {
-    resultsContainer.innerHTML = '';
-    resultsContainer.style.display = 'block';
+  function renderResults(input: HTMLInputElement, panel: HTMLElement, grid: HTMLElement, message: HTMLElement): void {
+    panel.hidden = false;
+    grid.innerHTML = '';
+    message.textContent = '';
     const query = input.value.trim();
+    const channelAgencies = agencies.filter((agency) => getChosenTextForActiveChannel(agency, activeChannel));
 
     if (agencies.length === 0) {
-      appendMessage(resultsContainer, 'No hay agencias sincronizadas. Abre la configuración y pulsa Sincronizar ahora');
+      message.textContent = 'No hay agencias sincronizadas. Abre la configuración de la extensión y pulsa Sincronizar ahora.';
       return;
     }
-
     if (query.length < 2) {
-      status.textContent = '';
+      message.textContent = `Escribe al menos 2 caracteres para buscar en el canal ${channelLabel(activeChannel)}.`;
       return;
     }
 
-    const destination = findActiveDestinationSelect(document);
-    status.textContent = destination instanceof HTMLSelectElement ? `Canal: ${activeChannel}` : 'No hay selector de destino.';
-
-    const found = searchAgencies(agencies, query, 8);
+    const found = searchAgencies(channelAgencies, query, 30).map((result) => result.agency);
     if (found.length === 0) {
-      appendMessage(resultsContainer, 'No se encontraron agencias.');
+      message.textContent = `No se encontraron agencias para ‘${query}’ en el canal ${channelLabel(activeChannel)}.`;
       return;
     }
-
-    for (const { agency } of found) {
-      resultsContainer.appendChild(createResultCard(agency, input, resultsContainer, status));
-    }
+    for (const agency of found) grid.appendChild(createResultCard(agency));
   }
 
-  function createResultCard(agency: Agency, input: HTMLInputElement, results: HTMLElement, status: HTMLElement): HTMLElement {
+  function createResultCard(agency: Agency): HTMLElement {
     const button = document.createElement('button');
-    button.className = 'codered-shalom-result';
+    button.className = 'codered-agency-card tarjeta';
     button.type = 'button';
-
-    const title = [agency.name, agency.code].filter(Boolean).join(' - ');
-    const details = [agency.department, agency.province, agency.district].filter(Boolean).join(' / ');
-    button.innerHTML = `<strong>${escapeHtml(title)}</strong><br><small>${escapeHtml(details)}</small>`;
-
-    button.addEventListener('click', () => {
-      const selected = selectAgencyInDestination(document, agency, activeChannel);
-      if (selected.success) {
-        input.value = '';
-        results.innerHTML = '';
-        results.style.display = 'none';
-        status.textContent = 'Agencia seleccionada';
-        window.setTimeout(() => (status.textContent = ''), 2000);
-      } else {
-        status.textContent = selected.message;
-      }
-    });
-
-    const mapsLink = document.createElement('a');
-    mapsLink.href = buildMapsUrl(agency);
-    mapsLink.target = '_blank';
-    mapsLink.rel = 'noopener noreferrer';
-    mapsLink.textContent = 'Ver mapa';
-    mapsLink.addEventListener('click', (event) => event.stopPropagation());
-
-    const wrapper = document.createElement('li');
-    wrapper.append(button, mapsLink);
-    return wrapper;
+    button.setAttribute('role', 'option');
+    button.innerHTML = cardMarkup(agency);
+    button.addEventListener('click', () => selectAgency(agency));
+    const map = button.querySelector<HTMLAnchorElement>('.btn-mapa-mini');
+    map?.addEventListener('click', (event) => event.stopPropagation());
+    return button;
   }
 
-  function appendMessage(resultsContainer: HTMLElement, message: string): void {
-    const item = document.createElement('li');
-    item.className = 'codered-shalom-empty';
-    item.textContent = message;
-    resultsContainer.appendChild(item);
+  function selectAgency(agency: Agency): void {
+    activeChannel = detectActiveShalomChannel(document);
+    const selected = selectAgencyInDestination(document, agency, activeChannel);
+    const container = document.getElementById(CONTAINER_ID);
+    const input = container?.querySelector<HTMLInputElement>(`#${SEARCH_INPUT_ID}`);
+    const message = container?.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
+    if (selected.success) {
+      if (input) input.value = '';
+      if (container) closeResults(container);
+      return;
+    }
+    console.warn('[CodeRED Shalom] No se pudo seleccionar agencia', { reason: selected.reason, channel: activeChannel, agency: agency.externalId ?? agency.code });
+    if (message) message.textContent = selected.message;
   }
 
   function refreshVisibleResults(): void {
@@ -367,7 +273,6 @@ export function createShalomContentController(dependencies: ContentControllerDep
     if (storageListenerBound) return;
     if (typeof chrome === 'undefined' || typeof chrome.storage?.onChanged?.addListener !== 'function') return;
     storageListenerBound = true;
-
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'local') return;
       if (!Object.keys(changes).some((key) => CATALOG_STORAGE_KEYS.has(key))) return;
@@ -381,23 +286,88 @@ export function createShalomContentController(dependencies: ContentControllerDep
       console.error('[CodeRED Shalom] chrome.runtime.sendMessage no está disponible.');
       return [];
     }
-
     const response = await chrome.runtime.sendMessage({ type: 'CATALOG_GET' });
     return Array.isArray(response?.agencies) ? response.agencies : [];
   }
 
-  return {
-    cargarDatos,
-    createSearchContainer,
-    bindSearchEvents,
-    findInjectionTarget,
-    injectSearchIfPossible,
-    initializeContentScript,
-    isSupportedShalomPage,
-    mount,
-    startInjectionObserver,
-    stopInjectionObserver,
-  };
+  return { cargarDatos, createSearchContainer, bindSearchEvents, findInjectionTarget, injectSearchIfPossible, initializeContentScript, isSupportedShalomPage, mount, startInjectionObserver, stopInjectionObserver };
+}
+
+function cardMarkup(agency: Agency): string {
+  const notice = statusNotice(agency);
+  const services = [agency.terrestrialText ? 'Terrestre' : null, agency.airText ? 'Aéreo' : null].filter(Boolean).join(' / ');
+  const badges = [
+    `<span class="codered-badge">${escapeHtml(agency.statusLabel)}</span>`,
+    services ? `<span class="codered-badge codered-badge-service">${escapeHtml(services)}</span>` : '',
+    agency.category ? `<span class="codered-badge">${escapeHtml(agency.category)}</span>` : `<span class="codered-badge codered-badge-muted">Sin categoría</span>`,
+    agency.isOperationsCenter ? '<span class="codered-badge codered-badge-co">Centro de Operaciones</span>' : '',
+    agency.sendsCategory ? `<span class="codered-badge">Envía: ${escapeHtml(agency.sendsCategory)}</span>` : '',
+    agency.receivesCategory ? `<span class="codered-badge">Recibe: ${escapeHtml(agency.receivesCategory)}</span>` : '',
+  ].filter(Boolean).join('');
+  const location = [agency.department, agency.province, agency.district].filter(Boolean).join(' / ');
+  const mapUrl = buildMapsUrl(agency);
+  return `
+    <span class="codered-card-head">
+      <strong>${escapeHtml(agency.name)}</strong>
+      <a class="btn-mapa-mini" href="${escapeAttribute(mapUrl)}" target="_blank" rel="noopener noreferrer">MAPA</a>
+    </span>
+    <span class="codered-card-code">${escapeHtml([agency.code, agency.oldName ? `Antes: ${agency.oldName}` : null].filter(Boolean).join(' · '))}</span>
+    <span class="codered-badges">${badges}</span>
+    ${location ? `<span class="ubicacion">${escapeHtml(location)}</span>` : ''}
+    ${agency.address ? `<span class="direccion">${escapeHtml(agency.address)}</span>` : ''}
+    ${agency.reference ? `<span class="direccion">Ref: ${escapeHtml(agency.reference)}</span>` : ''}
+    ${notice ? `<span class="codered-notice codered-notice-${notice.tone}">${escapeHtml([notice.message, ...notice.details].join(' · '))}</span>` : ''}
+  `;
+}
+
+function closeResults(container: HTMLElement): void {
+  const panel = container.querySelector<HTMLElement>(`.${RESULTS_PANEL_CLASS}`);
+  if (panel) panel.hidden = true;
+}
+
+function updateChannelBadge(container: HTMLElement): void {
+  const badge = container.querySelector<HTMLElement>(`.${CHANNEL_BADGE_CLASS}`);
+  if (badge) badge.textContent = activeChannelText(container.ownerDocument);
+}
+
+function activeChannelText(root: ParentNode): string {
+  const channel = detectActiveShalomChannel(root);
+  return channel === 'AEREO' ? '✈️ Aéreo' : '🚚 Terrestre';
+}
+
+function channelLabel(channel: Exclude<ShalomChannel, 'AUTO'>): string {
+  return channel === 'AEREO' ? 'Aéreo' : 'Terrestre';
+}
+
+function searchStyles(): string {
+  return `
+    #${CONTAINER_ID}.codered-shalom-search { position: relative !important; display: flex !important; align-items: center !important; flex-shrink: 0 !important; z-index: 1200 !important; margin: 0 16px !important; }
+    #${CONTAINER_ID} .codered-search-wrapper { width: 350px !important; max-width: 42vw !important; height: 40px !important; display: flex !important; align-items: center !important; gap: 8px !important; background: #242424 !important; border: 2px solid #ff414d !important; border-radius: 24px !important; overflow: hidden !important; box-shadow: 0 8px 18px rgba(0,0,0,.22) !important; }
+    #${CONTAINER_ID} .codered-search-icon { color: #ff737b !important; font-size: 18px !important; padding-left: 14px !important; }
+    #${CONTAINER_ID} .codered-search-input { width: 100% !important; min-width: 0 !important; border: 0 !important; outline: 0 !important; background: transparent !important; color: #fff !important; padding: 10px 6px !important; font-size: 14px !important; }
+    #${CONTAINER_ID} .codered-search-input::placeholder { color: rgba(255,255,255,.65) !important; }
+    #${CONTAINER_ID} .${CHANNEL_BADGE_CLASS} { color: #fff !important; background: rgba(255,255,255,.1) !important; border-radius: 999px !important; padding: 4px 10px !important; margin-right: 8px !important; white-space: nowrap !important; font-size: 12px !important; }
+    #${CONTAINER_ID} .${RESULTS_PANEL_CLASS} { position: absolute !important; top: calc(100% + 12px) !important; right: 0 !important; width: min(1000px, 90vw) !important; max-height: 550px !important; overflow-y: auto !important; padding: 16px !important; background: #202020 !important; border: 1px solid #343434 !important; border-radius: 16px !important; box-shadow: 0 16px 50px rgba(0,0,0,.4) !important; color: #fff !important; }
+    #${CONTAINER_ID} .${RESULTS_PANEL_CLASS}[hidden] { display: none !important; }
+    #${CONTAINER_ID} .${MESSAGE_CLASS} { color: #f5f5f5 !important; font-size: 14px !important; padding: 4px 2px 10px !important; }
+    #${CONTAINER_ID} .${RESULTS_GRID_CLASS} { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 15px !important; }
+    #${CONTAINER_ID} .codered-agency-card { min-height: 210px !important; padding: 18px !important; background: #252525 !important; border: 1px solid #454545 !important; border-radius: 14px !important; color: #fff !important; text-align: left !important; cursor: pointer !important; display: flex !important; flex-direction: column !important; gap: 10px !important; font: inherit !important; }
+    #${CONTAINER_ID} .codered-agency-card:hover, #${CONTAINER_ID} .codered-agency-card:focus { border-color: #ff414d !important; box-shadow: 0 0 0 2px rgba(255,65,77,.22) !important; outline: 0 !important; }
+    #${CONTAINER_ID} .codered-card-head { display: flex !important; align-items: flex-start !important; justify-content: space-between !important; gap: 12px !important; }
+    #${CONTAINER_ID} .codered-card-head strong { color: #fff !important; font-size: 16px !important; line-height: 1.25 !important; }
+    #${CONTAINER_ID} .btn-mapa-mini { color: #fff !important; background: #ff414d !important; border-radius: 999px !important; padding: 5px 9px !important; text-decoration: none !important; font-size: 11px !important; font-weight: 700 !important; }
+    #${CONTAINER_ID} .codered-card-code, #${CONTAINER_ID} .ubicacion, #${CONTAINER_ID} .direccion { color: rgba(255,255,255,.78) !important; font-size: 12px !important; line-height: 1.35 !important; }
+    #${CONTAINER_ID} .codered-badges { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+    #${CONTAINER_ID} .codered-badge { color: #fff !important; background: #383838 !important; border: 1px solid #555 !important; border-radius: 999px !important; padding: 4px 8px !important; font-size: 11px !important; }
+    #${CONTAINER_ID} .codered-badge-service { border-color: #ff414d !important; }
+    #${CONTAINER_ID} .codered-badge-co { background: #552328 !important; border-color: #ff414d !important; }
+    #${CONTAINER_ID} .codered-badge-muted { color: rgba(255,255,255,.65) !important; }
+    #${CONTAINER_ID} .codered-notice { border-radius: 8px !important; padding: 8px !important; font-size: 12px !important; line-height: 1.35 !important; }
+    #${CONTAINER_ID} .codered-notice-warning { background: rgba(245,158,11,.16) !important; color: #fde68a !important; }
+    #${CONTAINER_ID} .codered-notice-danger { background: rgba(239,68,68,.16) !important; color: #fecaca !important; }
+    @media (max-width: 900px) { #${CONTAINER_ID} .${RESULTS_GRID_CLASS} { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } #${CONTAINER_ID} .codered-search-wrapper { width: 300px !important; max-width: 55vw !important; } }
+    @media (max-width: 640px) { #${CONTAINER_ID} { margin: 8px 0 !important; width: 100% !important; } #${CONTAINER_ID} .codered-search-wrapper { width: 100% !important; max-width: 100% !important; } #${CONTAINER_ID} .${RESULTS_PANEL_CLASS} { left: 0 !important; right: auto !important; width: min(1000px, 92vw) !important; } #${CONTAINER_ID} .${RESULTS_GRID_CLASS} { grid-template-columns: 1fr !important; } }
+  `;
 }
 
 function hasRequiredContentGlobals(): boolean {
@@ -432,20 +402,18 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character] ?? character);
 }
 
+function escapeAttribute(value: string): string {
+  return escapeHtml(value).replace(/`/g, '&#96;');
+}
+
 function main(): void {
   if (typeof document === 'undefined') return;
   const controller = createShalomContentController();
   const bootstrap = () => {
-    controller.initializeContentScript().catch((error) => {
-      console.error('[CodeRED Shalom] Error de inicialización:', serializeSafeError(error));
-    });
+    controller.initializeContentScript().catch((error) => console.error('[CodeRED Shalom] Error de inicialización:', serializeSafeError(error)));
   };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
-  } else {
-    bootstrap();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
+  else bootstrap();
 }
 
 main();
