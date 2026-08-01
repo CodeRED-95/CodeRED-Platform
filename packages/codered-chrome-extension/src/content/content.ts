@@ -345,44 +345,49 @@ function cardMarkup(agency: Agency): string {
 interface SearchInsertionPoint {
   parent: HTMLElement;
   before: Element | null;
-  reason: 'before-right-block' | 'after-spacer' | 'append';
+  reason: 'before-navigation' | 'before-menu' | 'after-spacer' | 'append';
 }
 
 function mountSearchContainer(headerRow: HTMLElement, container: HTMLElement): void {
+  insertSearchContainer(headerRow, container);
+}
+
+export function insertSearchContainer(headerRow: HTMLElement, container: HTMLElement): void {
   const insertion = findSearchInsertionPoint(headerRow);
   insertion.parent.classList.add('codered-search-host');
   insertion.parent.insertBefore(container, insertion.before);
   container.dataset.insertionReason = insertion.reason;
+
+  const previous = container.previousElementSibling;
+  const next = container.nextElementSibling;
+  console.debug('[CodeRED] Posición del buscador', { previous, next });
+
+  if (insertion.reason === 'before-navigation' && next instanceof HTMLElement && next.classList.contains('mdl-navigation')) {
+    console.debug('[CodeRED] Buscador confirmado antes de .mdl-navigation');
+  }
 }
 
 export function findSearchInsertionPoint(headerRow: HTMLElement): SearchInsertionPoint {
-  const spacer = headerRow.querySelector<HTMLElement>('.mdl-layout-spacer');
-  const children = Array.from(headerRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement && child.id !== CONTAINER_ID && isHeaderChildVisible(child));
-  const spacerIndex = spacer ? children.indexOf(spacer) : -1;
-  const rightBlock = children.find((child, index) => {
-    if (child === spacer) return false;
-    if (spacerIndex >= 0 && index <= spacerIndex) return false;
-    return looksLikeRightHeaderBlock(child) || index === children.length - 1;
-  });
+  const navigation = headerRow.querySelector<HTMLElement>(':scope > .mdl-navigation, :scope > nav.mdl-navigation');
+  if (navigation) {
+    console.debug('[CodeRED] Buscador insertado antes de .mdl-navigation');
+    return { parent: headerRow, before: navigation, reason: 'before-navigation' };
+  }
 
-  if (rightBlock) return { parent: headerRow, before: rightBlock, reason: 'before-right-block' };
-  if (spacer?.parentElement === headerRow) return { parent: headerRow, before: spacer.nextElementSibling, reason: 'after-spacer' };
+  const menuButton = headerRow.querySelector<HTMLElement>(':scope > #demo-menu-lower-right');
+  if (menuButton) {
+    console.debug('[CodeRED] Buscador insertado antes del menú');
+    return { parent: headerRow, before: menuButton, reason: 'before-menu' };
+  }
+
+  const spacer = headerRow.querySelector<HTMLElement>(':scope > .mdl-layout-spacer');
+  if (spacer) {
+    console.debug('[CodeRED] Buscador insertado después del spacer');
+    return { parent: headerRow, before: spacer.nextElementSibling, reason: 'after-spacer' };
+  }
+
+  console.debug('[CodeRED] Fallback appendChild');
   return { parent: headerRow, before: null, reason: 'append' };
-}
-
-function isHeaderChildVisible(element: HTMLElement): boolean {
-  if (element.hidden || element.getAttribute('aria-hidden') === 'true') return false;
-  const style = window.getComputedStyle(element);
-  return style.display !== 'none' && style.visibility !== 'hidden';
-}
-
-function looksLikeRightHeaderBlock(element: HTMLElement): boolean {
-  const className = String(element.className ?? '').toLowerCase();
-  const id = element.id.toLowerCase();
-  const text = (element.textContent ?? '').trim().toLowerCase();
-  const style = window.getComputedStyle(element);
-  const haystack = `${id} ${className} ${text}`;
-  return /account|user|profile|session|agency|sede|usuario|avatar|logout|salir/.test(haystack) || style.marginLeft === 'auto';
 }
 
 function positionOpenPanel(container: HTMLElement): void {
@@ -433,7 +438,7 @@ function channelLabel(channel: Exclude<ShalomChannel, 'AUTO'>): string {
 
 function searchStyles(): string {
   return `
-    #${CONTAINER_ID}.codered-shalom-search { position: relative !important; display: flex !important; align-items: center !important; flex: 0 0 auto !important; min-width: 0 !important; z-index: 1200 !important; margin-left: auto !important; margin-right: 24px !important; }
+    #${CONTAINER_ID}.codered-shalom-search { position: relative !important; display: flex !important; align-items: center !important; flex: 0 0 auto !important; min-width: 0 !important; z-index: 1200 !important; margin-right: 24px !important; }
     #${CONTAINER_ID} .codered-search-wrapper { width: clamp(300px, 24vw, 420px) !important; min-width: 280px !important; max-width: 42vw !important; height: 40px !important; display: flex !important; align-items: center !important; gap: 8px !important; background: #242424 !important; border: 2px solid #ff414d !important; border-radius: 24px !important; overflow: hidden !important; box-shadow: 0 8px 18px rgba(0,0,0,.22) !important; }
     #${CONTAINER_ID} .codered-search-icon { color: #ff737b !important; font-size: 18px !important; padding-left: 14px !important; }
     #${CONTAINER_ID} .codered-search-input { width: 100% !important; min-width: 0 !important; border: 0 !important; outline: 0 !important; background: transparent !important; color: #fff !important; padding: 10px 6px !important; font-size: 14px !important; }

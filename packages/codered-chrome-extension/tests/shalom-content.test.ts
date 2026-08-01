@@ -3,7 +3,7 @@ import manifest from '../manifest.json' with { type: 'json' };
 import { JSDOM } from 'jsdom';
 import { adaptAgency } from '../src/models/agency';
 import { isRuntimeRequest } from '../src/background/messages';
-import { createShalomContentController, findSearchInsertionPoint, positionResultsPanel } from '../src/content/content';
+import { createShalomContentController, findSearchInsertionPoint, insertSearchContainer, positionResultsPanel } from '../src/content/content';
 import { detectActiveChannel } from '../src/content/shalom-page-adapter';
 import { findActiveDestinationSelect, selectAgencyInDestination } from '../src/content/agency-selector';
 import { hostnameMatchesAllowedDomain, isSupportedShalomHost } from '../src/content/shalom-host';
@@ -87,24 +87,40 @@ describe('Shalom Control DOM integration', () => {
   });
 
 
-  it('inserts the search before the right header block and after the flexible spacer', async () => {
-    document.body.innerHTML = '<div class="mdl-layout__header-row"><button>Menu</button><span>Empresarial: ADM_TERMINAL</span><div class="mdl-layout-spacer"></div><span class="agency-name">AV. ARIAS ARAGUEZ</span></div>';
+  it('inserts the search immediately before .mdl-navigation', async () => {
+    document.body.innerHTML = '<div class="mdl-layout__header-row"><span class="mdl-layout-title"></span><span>Empresarial: ADM_TERMINAL</span><div class="mdl-layout-spacer"></div><nav class="mdl-navigation"></nav><button id="demo-menu-lower-right"></button></div>';
     const header = document.querySelector<HTMLElement>('.mdl-layout__header-row')!;
     const insertion = findSearchInsertionPoint(header);
-    expect(insertion.reason).toBe('before-right-block');
-    expect((insertion.before as HTMLElement).textContent).toContain('AV. ARIAS ARAGUEZ');
+    expect(insertion.reason).toBe('before-navigation');
+    expect(insertion.before).toBe(document.querySelector('.mdl-navigation'));
 
     const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
     await controller.mount();
+    const spacer = document.querySelector<HTMLElement>('.mdl-layout-spacer')!;
     const container = document.getElementById('mi-buscador-contenedor')!;
-    const business = Array.from(header.children).find((child) => child.textContent?.includes('Empresarial'))!;
-    const userBlock = Array.from(header.children).find((child) => child.textContent?.includes('AV. ARIAS'))!;
-    expect(container.dataset.insertionReason).toBe('before-right-block');
-    expect(Array.from(header.children).indexOf(business)).toBeLessThan(Array.from(header.children).indexOf(container));
-    expect(Array.from(header.children).indexOf(container)).toBeLessThan(Array.from(header.children).indexOf(userBlock));
+    const navigation = document.querySelector<HTMLElement>('.mdl-navigation')!;
+    const menuButton = document.querySelector<HTMLElement>('#demo-menu-lower-right')!;
+
+    expect(container.dataset.insertionReason).toBe('before-navigation');
+    expect(container.previousElementSibling).toBe(spacer);
+    expect(container.nextElementSibling).toBe(navigation);
+    expect(container.nextElementSibling?.classList.contains('mdl-navigation')).toBe(true);
+    expect(navigation.nextElementSibling).toBe(menuButton);
   });
 
-  it('falls back to inserting after the spacer when no right block is identifiable', async () => {
+  it('inserts before the menu button when .mdl-navigation is not present', () => {
+    document.body.innerHTML = '<div class="mdl-layout__header-row"><div class="mdl-layout-spacer"></div><button id="demo-menu-lower-right"></button></div>';
+    const header = document.querySelector<HTMLElement>('.mdl-layout__header-row')!;
+    const container = document.createElement('div');
+    container.id = 'mi-buscador-contenedor';
+
+    insertSearchContainer(header, container);
+
+    expect(container.dataset.insertionReason).toBe('before-menu');
+    expect(container.nextElementSibling).toBe(document.querySelector('#demo-menu-lower-right'));
+  });
+
+  it('falls back to inserting after the spacer when there is no navigation or menu button', async () => {
     document.body.innerHTML = '<div class="mdl-layout__header-row"><span>Empresarial: ADM_TERMINAL</span><div class="mdl-layout-spacer"></div></div>';
     const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
     await controller.mount();
