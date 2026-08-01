@@ -16,7 +16,7 @@ const RESULTS_GRID_CLASS = 'codered-results-grid';
 const CHANNEL_BADGE_CLASS = 'codered-channel-badge';
 const MESSAGE_CLASS = 'codered-search-message';
 const DEFAULT_ALLOWED_DOMAINS = ['shalom.pe', 'shalomcontrol.com'];
-const CATALOG_STORAGE_KEYS = new Set(['agencies', 'agencyCache', 'catalog', 'catalogVersion', 'syncMetadata']);
+const CATALOG_STORAGE_KEYS = new Set(['agencies', 'agencyCache', 'catalog', 'catalogVersion', 'syncMetadata', 'codered_agency_catalog', 'codered_catalog_version', 'codered_sync_metadata', 'codered_last_sync_at', 'codered_last_sync_status']);
 
 export interface ContentControllerDependencies {
   requestCatalog?: () => Promise<Agency[]>;

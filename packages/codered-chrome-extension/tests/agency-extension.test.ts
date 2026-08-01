@@ -168,3 +168,72 @@ function memoryStorage(seed?: { agencies?: ReturnType<typeof adaptAgency>[]; cat
     },
   };
 }
+
+describe('token configuration flow', () => {
+  it('popup is token-focused and does not render agency search or cards', async () => {
+    const { readFileSync } = await import('node:fs');
+    const html = readFileSync(new URL('../src/popup/popup.html', import.meta.url), 'utf8');
+    const script = readFileSync(new URL('../src/popup/popup.ts', import.meta.url), 'utf8');
+    expect(html).toContain('Estado de conexión');
+    expect(html).toContain('Solicitar token');
+    expect(html).toContain('Configurar token');
+    expect(html).not.toContain('Buscar agencia');
+    expect(html).not.toContain('id="query"');
+    expect(html).not.toContain('id="results"');
+    expect(script).not.toContain('SEARCH_AGENCIES');
+    expect(script).not.toContain('buildMapsUrl');
+    expect(script).not.toContain('Copiar');
+  });
+
+  it('uses a single canonical token storage key and migrates legacy auth', async () => {
+    const { ChromeStorageService } = await import('../src/storage/storage-service');
+    const { STORAGE_KEYS } = await import('../src/storage/storage-keys');
+    const local = chromeStorageMock({ auth: { token: 'crd_legacy_1234567890', tokenMasked: 'legacy-mask' } });
+    globalThis.chrome = { storage: { local } } as unknown as typeof chrome;
+
+    const storage = new ChromeStorageService();
+    const configuration = await storage.getConfiguration();
+
+    expect(configuration.token).toBe('crd_legacy_1234567890');
+    expect(configuration.tokenMasked).toBe('crd_••••••••••••7890');
+    expect(local.dump()[STORAGE_KEYS.API_TOKEN]).toBe('crd_legacy_1234567890');
+    expect(local.dump().auth).toBeUndefined();
+  });
+
+  it('saves and reads options and popup token from the same canonical key', async () => {
+    const { ChromeStorageService } = await import('../src/storage/storage-service');
+    const { STORAGE_KEYS } = await import('../src/storage/storage-keys');
+    const local = chromeStorageMock();
+    globalThis.chrome = { storage: { local } } as unknown as typeof chrome;
+
+    const optionsStorage = new ChromeStorageService();
+    await optionsStorage.saveToken('crd_shared_abcdef123456');
+    const popupStorage = new ChromeStorageService();
+    const state = await popupStorage.getConfiguration();
+
+    expect(local.dump()[STORAGE_KEYS.API_TOKEN]).toBe('crd_shared_abcdef123456');
+    expect(state.tokenMasked).toBe('crd_••••••••••••3456');
+  });
+
+  it('rejects direct token request creation messages from popup/options', () => {
+    expect(isRuntimeRequest({ type: 'TOKEN_REQUEST_CREATE', requester_name: 'Ada', delivery_channel: 'whatsapp', delivery_destination: '+51987654321', instance_name: 'Ext', source: 'popup', requested_scopes: ['agencies:read'] })).toBe(false);
+  });
+});
+
+function chromeStorageMock(seed: Record<string, unknown> = {}) {
+  let store = { ...seed };
+  return {
+    async get(keys?: string | string[]) {
+      if (keys === undefined) return { ...store };
+      const selected = Array.isArray(keys) ? keys : [keys];
+      return Object.fromEntries(selected.map((key) => [key, store[key]]));
+    },
+    async set(values: Record<string, unknown>) {
+      store = { ...store, ...values };
+    },
+    async remove(keys: string | string[]) {
+      for (const key of Array.isArray(keys) ? keys : [keys]) delete store[key];
+    },
+    dump: () => store,
+  };
+}

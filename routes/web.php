@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApiDocumentationSpecController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Public\PublicTokenRequestController;
 use App\Http\Middleware\EnsureApiDocumentationAccess;
 use App\Livewire\Account\ChangePassword;
 use App\Livewire\Account\Profile;
@@ -41,6 +42,8 @@ use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use App\Modules\Ruc\Http\Controllers\RucImportErrorsController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/solicitar-token', [PublicTokenRequestController::class, 'create'])->middleware('throttle:public-token-request-form')->name('public.token-requests.create');
+Route::post('/solicitar-token', [PublicTokenRequestController::class, 'store'])->middleware('throttle:public-token-requests')->name('public.token-requests.store');
 Route::get('/', Dashboard::class)->middleware(['auth'])->name('dashboard');
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');

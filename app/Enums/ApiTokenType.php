@@ -32,7 +32,7 @@ enum ApiTokenType: string
         return match ($this) {
             self::Dni => ['dni:consultar'],
             self::Ruc => ['ruc:consultar', 'ruc:buscar'],
-            self::Agencies => ['agencias:consultar', 'agencies:read', 'agencies:map'],
+            self::Agencies => ['agencies:read'],
         };
     }
 

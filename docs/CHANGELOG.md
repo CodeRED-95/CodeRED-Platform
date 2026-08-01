@@ -18,6 +18,15 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Added
 
+- Página pública `GET/POST /solicitar-token` para solicitudes de tokens sin login, con CSRF, throttling, honeypot, deduplicación y tracking `CR-XXXXXXXX` sin exponer tokens.
+- El flujo público de solicitudes crea registros `pending` en `api_token_requests` sin requerir `agency_id`; el panel administrativo conserva aprobación, rechazo, cancelación y entrega segura.
+
+### Changed
+
+- El tipo AGENCIAS genera tokens con ability mínima `agencies:read` para la extensión Shalom Control.
+
+### Added
+
 - La aprobación y generación manual de tokens usan ahora `token_expires_in_days` (1-365, default 30) con preview en hora de Lima; `expires_in_minutes` queda como compatibilidad legacy para solicitudes n8n.
 - Solicitudes de tokens simplificadas por tipo visible (`dni`, `ruc`, `agencies`) con mapeo centralizado a abilities Sanctum canonicas, aprobacion transaccional y compatibilidad con solicitudes n8n antiguas sin tipo.
 - Flujo funcional de solicitudes de token para n8n: creación, consulta de estado, recuperación única del token aprobado, confirmación idempotente de entrega y cancelación segura a través de codered-agent firmado.

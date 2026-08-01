@@ -254,3 +254,9 @@ El nodo `CUSTOM.codeRed` agrega:
 - `Token Requests / Request Token Rotation`
 
 El workflow importable de referencia está en `docs/integrations/workflows/telegram-code-rotation.workflow.json`. Después de registrar una rotación, el flujo puede reutilizar `Get Token Request Status`, `Retrieve Approved Token` y `Confirm Token Delivery` para entregar el reemplazo una sola vez y cerrar el ciclo.
+
+## Solicitud pública de tokens
+
+La ruta `GET /solicitar-token` permite solicitar un token de acceso sin iniciar sesión. Usa un layout público aislado, mantiene CSRF, aplica rate limit específico, honeypot y deduplicación de solicitudes pendientes por huella HMAC de contacto, instalación e integración. El formulario crea solicitudes `pending` en el panel administrativo de solicitudes de tokens y nunca muestra el token al solicitante.
+
+El administrador revisa la solicitud en `/admin/security/token-requests`, aprueba con el tipo AGENCIAS y Platform genera un token Sanctum con ability mínima `agencies:read`. El token plano se cifra temporalmente para entrega segura mediante n8n o flujo manual; no se publica en URL, logs ni página pública.

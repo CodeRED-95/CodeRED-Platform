@@ -121,3 +121,11 @@ Si devuelve `null`, revisar la consola de la pagina. Si hay errores del service 
 ## Catalogo vacio
 
 El buscador se muestra aunque `chrome.storage.local` no tenga agencias. En ese estado, al escribir muestra: `No hay agencias sincronizadas. Abre la configuracion y pulsa Sincronizar ahora`. Abrir Opciones de la extension, guardar un token valido si falta, pulsar Sincronizar ahora y recargar o volver a escribir en el buscador; el content script escucha cambios de `chrome.storage.local` y recarga el catalogo sin reinstalar la extension.
+
+## Popup y token
+
+El popup es solo un panel compacto de estado y gestión de token. No contiene buscador, listado de agencias, tarjetas ni acciones de Maps; la búsqueda vive únicamente en el content script inyectado en Shalom Control.
+
+La extensión usa una clave canónica en `chrome.storage.local` para el token: `codered_api_token`. La metadata visible del token se guarda en `codered_token_metadata` y el catálogo local en `codered_agency_catalog`. Al iniciar, el storage migra claves antiguas como `auth`, `token`, `apiToken`, `coderedToken`, `accessToken`, `platformToken` y `catalogToken` hacia la clave canónica sin imprimir el secreto.
+
+El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` en una pestaña normal. No envía token, catálogo, Authorization ni datos privados desde la extensión. El botón **Configurar token** abre Options, donde se puede pegar, probar, sincronizar o eliminar el token.

@@ -11,8 +11,7 @@ export type RuntimeRequest =
   | { type: 'API_TEST_CONNECTION' }
   | { type: 'CONFIG_GET' }
   | { type: 'CONFIG_SAVE'; token: string }
-  | { type: 'TOKEN_DELETE' }
-  | { type: 'TOKEN_REQUEST_CREATE'; requester_name: string; delivery_channel: 'whatsapp' | 'telegram' | 'email'; delivery_destination: string; instance_name: string; source: string; requested_scopes: string[]; notes?: string };
+  | { type: 'TOKEN_DELETE' };
 
 export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
   if (value === null || typeof value !== 'object') return false;
@@ -35,8 +34,6 @@ export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
     case 'SAVE_CONFIGURATION':
     case 'CONFIG_SAVE':
       return typeof message.token === 'string';
-    case 'TOKEN_REQUEST_CREATE':
-      return typeof message.requester_name === 'string' && typeof message.delivery_channel === 'string' && typeof message.delivery_destination === 'string' && typeof message.instance_name === 'string' && typeof message.source === 'string' && Array.isArray(message.requested_scopes);
     default:
       return false;
   }

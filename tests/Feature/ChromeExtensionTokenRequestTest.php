@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ApiTokenRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,10 +26,9 @@ class ChromeExtensionTokenRequestTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'pending');
 
-        $this->assertDatabaseHas('api_token_requests', [
-            'requester_name' => 'Ada Lovelace',
-            'request_source' => 'chrome_extension',
-            'requested_abilities' => json_encode(['agencies:read']),
-        ]);
+        $tokenRequest = ApiTokenRequest::query()->firstOrFail();
+        $this->assertSame('Ada Lovelace', $tokenRequest->requester_name);
+        $this->assertSame('chrome_extension', $tokenRequest->request_source);
+        $this->assertSame(['agencies:read'], $tokenRequest->requested_abilities);
     }
 }

@@ -222,3 +222,11 @@ La base de datos prevalece sobre `.env`. Nunca se versiona una API key real.
 | `RUC_SEARCH_MIN_LENGTH` / `RUC_SEARCH_MAX_RESULTS` | Protección de búsquedas parciales. |
 
 La cola debe escuchar `ruc-imports` antes de `default`. Los padrones se almacenan fuera de `public/` y nunca deben versionarse.
+
+## Solicitudes públicas de tokens
+
+| Variable | Descripción | Recomendado | Ejemplo | Obligatoria | Consecuencias de cambiarla | Relacionadas |
+|---|---|---|---|---|---|---|
+| `PUBLIC_TOKEN_REQUEST_RATE_LIMIT` | Límite por hora para `POST /solicitar-token`. Si no se define, Platform usa 5. | `5` | `5` | No | Un valor alto permite más spam; uno bajo puede bloquear solicitudes legítimas. | RateLimiter `public-token-requests` |
+| `TURNSTILE_SITE_KEY` | Clave pública opcional para Turnstile si se habilita en una iteración posterior. | vacío si no se usa | vacío | No | Sin implementación activa no cambia el formulario. | `TURNSTILE_SECRET_KEY` |
+| `TURNSTILE_SECRET_KEY` | Clave secreta opcional para Turnstile si se habilita en una iteración posterior. | vacío si no se usa | vacío | No | Sin implementación activa no cambia el formulario. | `TURNSTILE_SITE_KEY` |

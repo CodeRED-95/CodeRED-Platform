@@ -41,8 +41,7 @@ class ChromeExtensionConfigTest extends TestCase
 
         $payload = $response->json('data');
 
-        $this->assertContains('agencies:read', $payload['required_scopes']);
-        $this->assertContains('agencies:map', $payload['required_scopes']);
+        $this->assertSame(['agencies:read'], $payload['required_scopes']);
         $this->assertArrayNotHasKey('token', $payload);
         $this->assertArrayNotHasKey('secret', $payload);
     }

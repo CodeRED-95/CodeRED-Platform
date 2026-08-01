@@ -77,3 +77,7 @@ El importador solo permite:
 ## Tokens de integración
 
 Sanctum almacena únicamente hashes SHA-256. El secreto completo se muestra una vez, no se registra y se mantiene solo en memoria al probar documentación. Los eventos de creación, rotación y revocación guardan propietario, abilities y expiración, nunca token, hash o Authorization. Ante filtración: revocar, emitir uno nuevo, verificarlo y actualizar el cliente.
+
+## Solicitud pública de tokens
+
+`/solicitar-token` es público pero no anónimo sin controles: conserva CSRF, usa throttling dedicado, honeypot, validación estricta y huellas HMAC para IP/contacto/instalación. No requiere `agency_id`, no consulta endpoints de agencias y no devuelve tokens. El contacto completo se conserva cifrado en metadata/delivery para entrega segura; el panel muestra datos enmascarados. Las respuestas públicas solo incluyen mensaje de éxito y código de seguimiento.

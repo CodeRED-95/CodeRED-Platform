@@ -91,29 +91,8 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
   }
 
   if (message.type === 'OPEN_TOKEN_REQUEST') {
-    await chrome.tabs.create({ url: getTokenRequestUrl() });
+    await chrome.tabs.create({ url: getTokenRequestUrl() + '?source=shalom-extension&installation_name=Buscador%20Shalom%20Control' });
     return { success: true };
-  }
-
-  if (message.type === 'TOKEN_REQUEST_CREATE') {
-    const response = await fetch(`${apiBaseUrl}/token-requests`, {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        requester_name: message.requester_name,
-        delivery_channel: message.delivery_channel,
-        delivery_destination: message.delivery_destination,
-        instance_name: message.instance_name,
-        source: message.source,
-        requested_scopes: message.requested_scopes,
-        notes: message.notes ?? null,
-      }),
-    });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      return { success: false, status: response.status, message: payload.message ?? 'No fue posible enviar la solicitud.' };
-    }
-    return { success: true, ...(await response.json()) };
   }
 }
 
@@ -127,11 +106,17 @@ async function syncNow(options: { forceFull?: boolean } = {}) {
   console.log('[CodeRED] Token válido');
 
   await storage.setSyncMetadata({ status: 'updating', message: 'Actualizando' });
-  const client = new CodeRedClient(apiBaseUrl, configuration.token);
-  const sync = createSyncService(client, storage);
-  const result = await sync.syncNow(options);
-  await storage.setSyncMetadata({ status: result.status, message: result.message });
-  return result;
+  try {
+    const client = new CodeRedClient(apiBaseUrl, configuration.token);
+    const sync = createSyncService(client, storage);
+    const result = await sync.syncNow(options);
+    await storage.setSyncMetadata({ status: result.status, message: result.message });
+    return result;
+  } catch (error) {
+    const result = { status: 'error', message: error instanceof Error ? error.message : 'No fue posible sincronizar', agencyCount: (await storage.getAgencies()).length };
+    await storage.setSyncMetadata({ status: result.status, message: result.message });
+    return result;
+  }
 }
 
 async function scheduleAlarm(): Promise<void> {
