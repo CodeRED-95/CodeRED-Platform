@@ -1,11 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import manifest from '../manifest.json' with { type: 'json' };
 import { JSDOM } from 'jsdom';
 import { adaptAgency } from '../src/models/agency';
 import { isRuntimeRequest } from '../src/background/messages';
 import { createShalomContentController } from '../src/content/content';
 import { detectActiveChannel } from '../src/content/shalom-page-adapter';
 import { findActiveDestinationSelect, selectAgencyInDestination } from '../src/content/agency-selector';
-import { isSupportedShalomHost } from '../src/content/shalom-host';
+import { hostnameMatchesAllowedDomain, isSupportedShalomHost } from '../src/content/shalom-host';
 
 const terrestrialAgency = adaptAgency({
   external_id: 1001,
@@ -40,15 +41,38 @@ describe('supported Shalom hosts', () => {
     expect(isSupportedShalomHost('ventas.shalom.pe')).toBe(true);
   });
 
-  it('rejects lookalike malicious domains', () => {
+  it('accepts exact allowed domains and subdomains without first-label matching', () => {
+    expect(hostnameMatchesAllowedDomain('shalom.pe', 'shalom.pe')).toBe(true);
+    expect(hostnameMatchesAllowedDomain('control.shalom.pe', 'shalom.pe')).toBe(true);
+    expect(hostnameMatchesAllowedDomain('www.shalom.pe', 'www.shalom.pe')).toBe(true);
+    expect(hostnameMatchesAllowedDomain('platform.codered.host', 'codered.host')).toBe(true);
+  });
+
+  it('rejects lookalike malicious domains and platform injection', () => {
     expect(isSupportedShalomHost('shalomcontrol.com.evil.example')).toBe(false);
     expect(isSupportedShalomHost('fake-shalomcontrol.com')).toBe(false);
     expect(isSupportedShalomHost('shalomcontrol.example')).toBe(false);
+    expect(isSupportedShalomHost('platform.codered.host')).toBe(false);
+  });
+});
+
+describe('manifest injection scope', () => {
+  it('injects only on Shalom hosts while keeping CodeRED Platform as host permission', () => {
+    expect(manifest.host_permissions).toContain('https://platform.codered.host/*');
+    expect(manifest.content_scripts[0].matches).toEqual([
+      'https://shalom.pe/*',
+      'https://*.shalom.pe/*',
+      'https://shalomcontrol.com/*',
+      'https://*.shalomcontrol.com/*',
+    ]);
+    expect(manifest.content_scripts[0].matches).not.toContain('https://platform.codered.host/*');
+    expect(manifest.content_scripts[0].run_at).toBe('document_idle');
   });
 });
 
 describe('Shalom Control DOM integration', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div><main></main></body></html>', { url: 'https://sysprovincia2.shalomcontrol.com/' });
     globalThis.window = dom.window as unknown as Window & typeof globalThis;
     globalThis.document = dom.window.document;
@@ -58,6 +82,30 @@ describe('Shalom Control DOM integration', () => {
     globalThis.Event = dom.window.Event;
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('injects immediately when the header already exists', async () => {
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency], requestStatus: async () => ({ agencyCount: 1 }) });
+    await controller.mount();
+    expect(document.getElementById('mi-buscador-contenedor')).toBeInstanceOf(HTMLElement);
+    expect(document.querySelector<HTMLInputElement>('#codered-search-input')).toBeInstanceOf(HTMLElement);
+  });
+
+  it('injects when the header appears after the observer starts', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<main></main>';
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency], requestStatus: async () => ({ agencyCount: 1 }) });
+    controller.startInjectionObserver();
+    const header = document.createElement('header');
+    document.body.prepend(header);
+    await Promise.resolve();
+    vi.advanceTimersByTime(120);
+    await Promise.resolve();
+    expect(document.querySelectorAll('#mi-buscador-contenedor')).toHaveLength(1);
+  });
+
   it('injects the search container once and reinjects when header is replaced', async () => {
     const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency], requestStatus: async () => ({ agencyCount: 1 }) });
     await controller.mount();
@@ -65,11 +113,40 @@ describe('Shalom Control DOM integration', () => {
     expect(document.querySelectorAll('#mi-buscador-contenedor')).toHaveLength(1);
 
     document.querySelector('.mdl-layout__header-row')?.remove();
+    expect(document.querySelectorAll('#mi-buscador-contenedor')).toHaveLength(0);
     const header = document.createElement('div');
     header.className = 'mdl-layout__header-row';
     document.body.prepend(header);
     await controller.mount();
     expect(document.querySelectorAll('#mi-buscador-contenedor')).toHaveLength(1);
+  });
+
+  it('falls back to a generic header target', async () => {
+    document.body.innerHTML = '<header><nav></nav></header>';
+    const controller = createShalomContentController({ requestCatalog: async () => [] });
+    expect(await controller.mount()).toMatchObject({ success: true, reason: 'mounted' });
+    expect(document.querySelector('header #mi-buscador-contenedor')).toBeInstanceOf(HTMLElement);
+  });
+
+  it('keeps the interface visible without catalog and shows the empty catalog message on input', async () => {
+    const controller = createShalomContentController({ requestCatalog: async () => [] });
+    await controller.mount();
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'chi';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    expect(document.getElementById('mi-buscador-contenedor')).toBeInstanceOf(HTMLElement);
+    expect(document.body.textContent).toContain('No hay agencias sincronizadas. Abre la configuración y pulsa Sincronizar ahora');
+  });
+
+  it('does not inject on CodeRED Platform', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><header></header></body></html>', { url: 'https://platform.codered.host/' });
+    globalThis.window = dom.window as unknown as Window & typeof globalThis;
+    globalThis.document = dom.window.document;
+    globalThis.HTMLElement = dom.window.HTMLElement;
+    const controller = createShalomContentController({ requestCatalog: async () => [] });
+    expect(await controller.mount()).toMatchObject({ success: false, reason: 'unsupported-page' });
+    expect(document.getElementById('mi-buscador-contenedor')).toBeNull();
   });
 
   it('does not duplicate channel listeners across repeated mounts', async () => {

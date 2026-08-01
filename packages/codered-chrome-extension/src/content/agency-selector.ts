@@ -39,6 +39,7 @@ export function selectAgencyInDestination(root: ParentNode, agency: Agency, requ
   select.dispatchEvent(new Event('input', { bubbles: true }));
   select.dispatchEvent(new Event('change', { bubbles: true }));
   updateChosenDom(select);
+  triggerChosenUpdated(select);
 
   if (select.value !== option.value) return { success: false, reason: 'option-not-found', message: 'Shalom Control no confirmo el cambio del selector.', channel };
   return { success: true, value: option.value, channel };
@@ -82,6 +83,11 @@ function isVisible(element: HTMLElement): boolean {
     if (style.includes('display:none') || style.includes('visibility:hidden')) return false;
   }
   return true;
+}
+
+function triggerChosenUpdated(select: HTMLSelectElement): void {
+  const jq = (select.ownerDocument.defaultView as (Window & { jQuery?: (element: HTMLSelectElement) => { trigger: (eventName: string) => void } }) | null)?.jQuery;
+  if (typeof jq === 'function') jq(select).trigger('chosen:updated');
 }
 
 function updateChosenDom(select: HTMLSelectElement): void {

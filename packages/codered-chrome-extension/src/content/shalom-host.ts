@@ -10,6 +10,10 @@ export function isSupportedShalomHost(hostname: string | null | undefined, allow
   return restrictions.some((domain) => isHostnameOrSubdomain(normalized, domain));
 }
 
+export function hostnameMatchesAllowedDomain(hostname: string, allowedDomain: string): boolean {
+  return isHostnameOrSubdomain(hostname, allowedDomain);
+}
+
 export function isHostnameOrSubdomain(hostname: string, domain: string): boolean {
   const host = normalizeHostname(hostname);
   const normalizedDomain = normalizeHostname(domain);
