@@ -12,14 +12,14 @@
   --blue: #5b8cff;
   --green: #37d67a;
   --amber: #f6b84b;
-  --font-title: 18px;
+  --font-title: 20px;
   --font-section: 11px;
-  --font-body: 12px;
+  --font-body: 13px;
   --font-secondary: 11px;
-  --space-xs: 5px;
-  --space-sm: 8px;
-  --space-md: 10px;
-  --space-lg: 14px;
+  --space-xs: 4px;
+  --space-sm: 7px;
+  --space-md: 9px;
+  --space-lg: 12px;
 }
 
 * { box-sizing: border-box; }
@@ -32,9 +32,10 @@ body {
 }
 
 body {
-  width: clamp(560px, 68vw, 720px);
-  min-width: 360px;
-  max-height: 800px;
+  width: clamp(420px, 72vw, 720px);
+  min-width: 420px;
+  max-width: 720px;
+  max-height: 600px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: radial-gradient(circle at 12% 0%, rgba(91, 140, 255, .17), transparent 32%), var(--bg);
@@ -46,7 +47,8 @@ body::-webkit-scrollbar,
 .popup-shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
-  height: min(760px, 100vh);
+  height: min(600px, 100vh);
+  max-height: 600px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -58,14 +60,14 @@ body::-webkit-scrollbar,
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 86px;
-  padding: 14px 20px 13px;
+  min-height: 74px;
+  padding: 12px 20px 11px;
   border-bottom: 1px solid var(--line);
 }
 
 .brand-mark {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: 7px;
   box-shadow: 0 10px 24px rgba(42, 87, 255, .26);
 }
@@ -109,9 +111,9 @@ h1 {
 .close-button {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  min-height: 38px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
   border: 1px solid var(--line);
   background: rgba(15, 23, 42, .82);
@@ -138,7 +140,7 @@ h1 {
 .status-card,
 .info-column {
   min-width: 0;
-  padding: var(--space-lg) 20px;
+  padding: 12px 20px;
 }
 
 .status-card {
@@ -170,8 +172,8 @@ h1 {
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
-  min-height: 72px;
-  padding: 12px;
+  min-height: 64px;
+  padding: 10px;
   border: 1px solid rgba(245, 31, 63, .34);
   border-radius: 12px;
   background: linear-gradient(135deg, rgba(245, 31, 63, .16), rgba(83, 19, 42, .32));
@@ -179,7 +181,7 @@ h1 {
 
 .connection-panel strong {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-size: 16px;
   line-height: 1.15;
 }
@@ -187,7 +189,7 @@ h1 {
 .dot {
   width: 18px;
   height: 18px;
-  margin-left: 5px;
+  margin-left: 4px;
   border-radius: 999px;
   background: var(--amber);
   box-shadow: 0 0 0 7px rgba(246, 184, 75, .13), inset 0 0 0 5px rgba(255, 255, 255, .72);
@@ -218,8 +220,8 @@ h1 {
   grid-template-columns: minmax(0, 1fr) minmax(92px, auto);
   align-items: center;
   gap: 12px;
-  min-height: 28px;
-  padding: 6px 12px;
+  min-height: 30px;
+  padding: 5px 12px;
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -259,14 +261,14 @@ dd {
 .service-pill[data-tone="error"],
 .service-pill[data-tone="missing"] { background: rgba(245, 31, 63, .22); color: #fecdd3; }
 
-.actions { display: grid; gap: 9px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 button {
   border: 1px solid var(--line);
   background: rgba(15, 23, 42, .82);
   color: var(--text);
   border-radius: 8px;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 14px;
   cursor: pointer;
   font: inherit;
@@ -279,18 +281,19 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 
 .primary {
-  min-height: 42px;
+  min-height: 44px;
   border-color: var(--red);
   background: linear-gradient(180deg, #ff2a4b, #d81131);
   color: #fff;
   box-shadow: 0 10px 24px rgba(245, 31, 63, .22);
 }
 
-.secondary { min-height: 40px; }
+.secondary { min-height: 44px; }
 
 .link-action {
   border: 0;
-  min-height: 24px;
+  grid-column: 1 / -1;
+  min-height: 22px;
   background: transparent;
   color: var(--muted);
   font-size: 11px;
@@ -307,8 +310,8 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  min-height: 78px;
-  padding: 11px;
+  min-height: 66px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: rgba(13, 20, 33, .78);
@@ -338,7 +341,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 
 .protection-box {
   grid-template-columns: 40px minmax(0, 1fr);
-  min-height: 84px;
+  min-height: 66px;
 }
 
 .protection-box .shield { width: 40px; height: 40px; font-size: 18px; }
@@ -346,7 +349,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 .inline-link {
   width: auto;
   min-height: 24px;
-  margin-top: 8px;
+  margin-top: 6px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -360,8 +363,8 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  min-height: 44px;
-  padding: 11px 20px;
+  min-height: 42px;
+  padding: 10px 20px;
   border-top: 1px solid var(--line);
   color: #dbe3ef;
   font-size: var(--font-body);
@@ -371,8 +374,8 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 .popup-footer strong[data-tone="muted"] { color: var(--muted); }
 
 #message {
-  min-height: 18px;
-  margin: -5px 20px 10px;
+  min-height: 16px;
+  margin: -4px 20px 8px;
   color: var(--muted);
   font-size: 11px;
 }
@@ -384,11 +387,13 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   body {
     width: 100vw;
     min-width: 0;
+    max-width: none;
     max-height: none;
   }
 
   .popup-shell {
     height: auto;
+    max-height: none;
     min-height: 0;
     border-radius: 0;
   }
@@ -416,8 +421,10 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   .status-card,
   .info-column { padding: 12px; }
 
+  .actions { grid-template-columns: 1fr; }
+
   .card-button,
-  .protection-box { min-height: 72px; }
+  .protection-box { min-height: 64px; }
 
   .popup-footer {
     flex-direction: column;

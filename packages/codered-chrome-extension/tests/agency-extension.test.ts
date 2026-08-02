@@ -198,8 +198,8 @@ describe('extension version and redesigned popup', () => {
     expect(html).not.toContain('resultado');
     expect(html).toContain('aria-label="Cerrar popup"');
     expect(html).toContain('Más información');
-    expect(css).toContain('width: clamp(560px, 68vw, 720px)');
-    expect(css).toContain('max-height: 800px');
+    expect(css).toContain('width: clamp(420px, 72vw, 720px)');
+    expect(css).toContain('max-height: 600px');
     expect(css).toContain('overflow: hidden');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .94fr)');
     expect(css).toContain('grid-template-areas');
@@ -209,18 +209,41 @@ describe('extension version and redesigned popup', () => {
     expect(script).not.toContain('buildMapsUrl');
   });
 
+  it('uses the full popup width with a 420px minimum and no clipped body', async () => {
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
+
+    expect(css).toContain('min-width: 420px');
+    expect(css).toContain('width: clamp(420px, 72vw, 720px)');
+    expect(css).toContain('max-width: 720px');
+    expect(css).toContain('body {');
+    expect(css).not.toContain('min-width: 360px');
+  });
+
+  it('keeps the popup under 600px tall with compact rows and cards', async () => {
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
+
+    expect(css).toContain('height: min(600px, 100vh)');
+    expect(css).toContain('max-height: 600px');
+    expect(css).toContain('min-height: 64px');
+    expect(css).toContain('min-height: 66px');
+    expect(css).not.toContain('height: min(760px, 100vh)');
+    expect(css).not.toContain('max-height: 800px');
+  });
+
   it('keeps popup content balanced for 1280x800 without a scrollbar', async () => {
     const { readFileSync } = await import('node:fs');
     const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
 
-    expect(css).toContain('--font-title: 18px');
+    expect(css).toContain('--font-title: 20px');
     expect(css).toContain('--font-section: 11px');
-    expect(css).toContain('--font-body: 12px');
-    expect(css).toContain('--space-md: 10px');
-    expect(css).toContain('height: min(760px, 100vh)');
+    expect(css).toContain('--font-body: 13px');
+    expect(css).toContain('--space-md: 9px');
+    expect(css).toContain('height: min(600px, 100vh)');
     expect(css).toContain('overflow: hidden');
     expect(css).toContain('min-height: 0');
-    expect(css).toContain('min-height: 72px');
+    expect(css).toContain('min-height: 64px');
     expect(css).toContain('body::-webkit-scrollbar');
     expect(css).toContain('.popup-shell::-webkit-scrollbar');
     expect(css).not.toContain('min-height: 390px');
