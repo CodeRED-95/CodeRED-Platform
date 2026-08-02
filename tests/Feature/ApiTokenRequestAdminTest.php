@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenType;
+use App\Events\TokenRequestCreated;
 use App\Livewire\Admin\ApiTokenRequests\Index;
 use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
@@ -12,7 +13,9 @@ use App\Models\ApiTokenRequestEvent;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\WebhookDelivery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -221,6 +224,34 @@ class ApiTokenRequestAdminTest extends TestCase
         $this->assertSame('+51 ******777', ApiTokenRequest::maskPhone('+51 999 888 777'));
         $this->assertSame('@cliente_demo', ApiTokenRequest::normalizeTelegram('cliente_demo'));
         $this->assertSame('+51999888777', ApiTokenRequest::normalizePhone('+51 999 888 777'));
+    }
+
+    public function test_notification_section_renders_delivery_status_and_manual_retry_dispatches_created_event(): void
+    {
+        Event::fake([TokenRequestCreated::class]);
+        $admin = $this->userWithPermissions(['api-token-requests.view', 'api-token-requests.retry-notification']);
+        $request = $this->pendingRequest();
+        WebhookDelivery::query()->create([
+            'event_id' => (string) Str::uuid(),
+            'event_type' => 'token_request.created',
+            'aggregate_type' => ApiTokenRequest::class,
+            'aggregate_id' => $request->id,
+            'destination' => 'https://n8n.example.test/webhook/codered-token-request',
+            'status' => 'failed',
+            'attempts' => 2,
+            'last_status_code' => 500,
+            'failed_at' => now(),
+            'last_error' => 'Webhook n8n falló con estado 500.',
+        ]);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('selectRequest', $request->id)
+            ->assertSee('Notificaciones')
+            ->assertSee('Reintentar notificación')
+            ->assertSee('500')
+            ->call('retryNotification', $request->id);
+
+        Event::assertDispatched(TokenRequestCreated::class, fn (TokenRequestCreated $event): bool => $event->tokenRequest->is($request));
     }
 
     private function pendingRequest(array $overrides = []): ApiTokenRequest

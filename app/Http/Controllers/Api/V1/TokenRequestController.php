@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
-use App\Jobs\NotifyN8nTokenRequestStatus;
+use App\Events\TokenRequestCreated;
 use App\Models\ApiTokenRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -78,7 +78,7 @@ class TokenRequestController
             'delivery_whatsapp_number_masked' => $maskedContact['whatsapp'],
         ]);
 
-        NotifyN8nTokenRequestStatus::dispatch($tokenRequest->id, 'token_request.created');
+        event(new TokenRequestCreated($tokenRequest));
 
         return response()->json([
             'success' => true,

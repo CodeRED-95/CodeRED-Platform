@@ -13,5 +13,11 @@ return [
         'shared_secret' => env('N8N_SHARED_SECRET', ''),
         'webhook_url' => env('N8N_WEBHOOK_URL', ''),
         'telegram_token_requests_enabled' => env('TELEGRAM_TOKEN_REQUESTS_ENABLED', true),
+        'token_request_notifications' => [
+            'enabled' => env('N8N_TOKEN_REQUEST_NOTIFICATIONS', false),
+            'webhook_url' => env('N8N_TOKEN_REQUEST_WEBHOOK_URL', ''),
+            'secret' => env('N8N_TOKEN_REQUEST_WEBHOOK_SECRET', ''),
+            'timeout' => (int) env('N8N_TOKEN_REQUEST_WEBHOOK_TIMEOUT', 10),
+        ],
     ],
 ];

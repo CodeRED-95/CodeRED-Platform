@@ -230,3 +230,12 @@ La cola debe escuchar `ruc-imports` antes de `default`. Los padrones se almacena
 | `PUBLIC_TOKEN_REQUEST_RATE_LIMIT` | Límite por hora para `POST /solicitar-token`. Si no se define, Platform usa 5. | `5` | `5` | No | Un valor alto permite más spam; uno bajo puede bloquear solicitudes legítimas. | RateLimiter `public-token-requests` |
 | `TURNSTILE_SITE_KEY` | Clave pública opcional para Turnstile si se habilita en una iteración posterior. | vacío si no se usa | vacío | No | Sin implementación activa no cambia el formulario. | `TURNSTILE_SECRET_KEY` |
 | `TURNSTILE_SECRET_KEY` | Clave secreta opcional para Turnstile si se habilita en una iteración posterior. | vacío si no se usa | vacío | No | Sin implementación activa no cambia el formulario. | `TURNSTILE_SITE_KEY` |
+
+## Notificaciones de solicitudes de token a n8n
+
+| Variable | Descripción | Ejemplo | Obligatoria | Riesgo si falta |
+|---|---|---|---|---|
+| `N8N_TOKEN_REQUEST_NOTIFICATIONS` | Activa el envío de `token_request.created` hacia n8n. | `true` | No | No se envían avisos a Telegram. |
+| `N8N_TOKEN_REQUEST_WEBHOOK_URL` | URL del webhook n8n `codered-token-request`. | `https://n8n.codered.host/webhook/codered-token-request` | Si se activa | El job omite la notificación si está vacía. |
+| `N8N_TOKEN_REQUEST_WEBHOOK_SECRET` | Secreto HMAC SHA-256 usado para firmar el payload. Generar con `openssl rand -hex 32`. | vacío | Si se activa | n8n debe rechazar mensajes no firmados o con secreto distinto. |
+| `N8N_TOKEN_REQUEST_WEBHOOK_TIMEOUT` | Timeout HTTP del webhook en segundos. | `10` | No | Timeouts muy altos bloquean workers más tiempo. |

@@ -153,6 +153,36 @@
                         @endif
                     </div>
 
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="font-medium">Notificaciones</h3>
+                                <p class="mt-1 text-sm text-[color:var(--color-text-muted)]">Estado de los webhooks enviados a n8n para avisos de Telegram.</p>
+                            </div>
+                            @can('api-token-requests.retry-notification')
+                                <x-ui.button type="button" size="sm" variant="secondary" wire:click="retryNotification({{ $selected->id }})" loading-target="retryNotification">Reintentar notificación</x-ui.button>
+                            @endcan
+                        </div>
+                        <div class="mt-4 space-y-2 text-sm">
+                            @forelse ($selected->webhookDeliveries->where('event_type', 'token_request.created') as $delivery)
+                                <div class="rounded-lg border border-white/10 p-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <span class="font-medium">Telegram {{ $delivery->delivered_at ? 'notificado' : 'pendiente de notificación' }}</span>
+                                        <x-ui.badge tone="info">{{ ucfirst($delivery->status) }}</x-ui.badge>
+                                    </div>
+                                    <dl class="mt-2 grid gap-2 md:grid-cols-2">
+                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Fecha</dt><dd>{{ $delivery->delivered_at?->format('d/m/Y H:i') ?? 'Sin entrega confirmada' }}</dd></div>
+                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Intentos</dt><dd>{{ $delivery->attempts }}</dd></div>
+                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Último resultado</dt><dd>{{ $delivery->last_status_code ?? $delivery->last_error ?? 'Sin respuesta' }}</dd></div>
+                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Evento</dt><dd class="font-mono text-xs">{{ $delivery->event_id }}</dd></div>
+                                    </dl>
+                                </div>
+                            @empty
+                                <p class="text-sm text-[color:var(--color-text-muted)]">Telegram todavía no registra notificación para esta solicitud.</p>
+                            @endforelse
+                        </div>
+                    </div>
+
                     <div>
                         <h3 class="font-medium">Historial de eventos</h3>
                         <div class="mt-2 space-y-2">

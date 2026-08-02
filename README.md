@@ -4,7 +4,7 @@ CodeRED Platform es el centro de control modular para administración y consulta
 
 ## Versión actual
 
-CodeRED Platform publica la versión `2.0.0` desde una fuente única de configuración. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en el popup de la extensión Chrome y en la documentación de release.
+CodeRED Platform publica la versión `2.1.0` desde una fuente única de configuración. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en el popup de la extensión Chrome y en la documentación de release.
 
 ```bash
 php artisan app:version
@@ -14,7 +14,7 @@ curl https://platform.codered.host/api/v1/version
 Variables opcionales:
 
 ```env
-APP_VERSION=2.0.0
+APP_VERSION=2.1.0
 API_VERSION=v1
 ```
 
@@ -147,6 +147,21 @@ N8N_HOST=n8n.codered.host
 N8N_EDITOR_BASE_URL=https://n8n.codered.host/
 N8N_WEBHOOK_URL=https://n8n.codered.host/
 ```
+## Webhook de nuevas solicitudes de token
+
+CodeRED Platform v2.1.0 notifica a n8n cada vez que se crea una solicitud nueva de token. El flujo es: Platform crea la solicitud, dispara `TokenRequestCreated` después del commit, un listener en cola envía un webhook HMAC a n8n y el workflow `CodeRED — Nueva solicitud de token` envía el aviso por Telegram.
+
+Variables requeridas:
+
+```env
+N8N_TOKEN_REQUEST_NOTIFICATIONS=true
+N8N_TOKEN_REQUEST_WEBHOOK_URL=https://n8n.codered.host/webhook/codered-token-request
+N8N_TOKEN_REQUEST_WEBHOOK_SECRET=VALOR_GENERADO
+N8N_TOKEN_REQUEST_WEBHOOK_TIMEOUT=10
+```
+
+Genere el secreto con `openssl rand -hex 32`. El webhook recibe solo contacto enmascarado, código de seguimiento, solicitante, aplicación, integración, estado y URL administrativa; no recibe tokens, contactos completos, IP, user agent, firma ni secreto.
+
 ## Operaciones CodeRED en n8n
 
 El nodo CodeRED se organiza en dos recursos:
@@ -172,7 +187,7 @@ docker exec codered-n8n sh -lc 'ls -lah /home/node/.n8n/custom/n8n-nodes-codered
 ```
 ## Extensión Buscador Shalom
 
-La extensión `packages/codered-chrome-extension` está alineada con la versión `2.0.0`. El popup fue rediseñado como un panel oscuro y compacto de dos columnas: estado de conexión a la izquierda y acciones/información a la derecha. El tamaño usa unidades flexibles para mantenerse dentro de `1280x800` sin barra de scroll, con tipografía compacta y tarjetas balanceadas. Solo permite solicitar token, configurar token, probar conexión y revisar métricas locales; la búsqueda de agencias permanece únicamente dentro de Shalom Control.
+La extensión `packages/codered-chrome-extension` está alineada con la versión `2.1.0`. El popup fue rediseñado como un panel oscuro y compacto de dos columnas: estado de conexión a la izquierda y acciones/información a la derecha. El tamaño usa unidades flexibles para mantenerse dentro de `1280x800` sin barra de scroll, con tipografía compacta y tarjetas balanceadas. Solo permite solicitar token, configurar token, probar conexión y revisar métricas locales; la búsqueda de agencias permanece únicamente dentro de Shalom Control.
 
 El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` sin enviar secretos. El botón **Configurar token** abre Options para guardar, probar, sincronizar o eliminar el token. El token se enmascara siempre y la clave canónica de storage es `codered_api_token`.
 
@@ -316,3 +331,29 @@ El administrador revisa la solicitud en `/admin/security/token-requests`, aprueb
 ### Entrega segura de tokens
 
 El panel administrativo de solicitudes de token conserva los datos completos de entrega cifrados y no los renderiza inicialmente. Un administrador con `api-token-requests.view-delivery-contact` puede revelarlos manualmente antes de la entrega; la visualización queda auditada. Al confirmar la entrega, los datos completos se eliminan y solo permanecen valores enmascarados.
+
+## Comandos Docker para aplicar notificaciones n8n
+
+```bash
+cd ~/CodeRED-Platform
+git pull
+
+# Configurar .env antes de levantar servicios
+openssl rand -hex 32
+
+docker compose up -d --build
+docker exec codered-app php artisan migrate --force
+docker exec codered-app php artisan optimize:clear
+docker exec codered-app php artisan config:cache
+docker exec codered-app php artisan route:cache
+docker exec codered-app php artisan view:cache
+docker exec codered-app php artisan queue:restart
+
+docker restart codered-nginx
+docker restart codered-agent
+
+docker compose ps
+docker logs --tail=100 codered-app
+docker logs --tail=100 codered-queue
+docker logs --tail=100 codered-nginx
+```

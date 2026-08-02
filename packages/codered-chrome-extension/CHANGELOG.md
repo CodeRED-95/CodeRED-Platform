@@ -2,12 +2,12 @@
 
 ## Unreleased
 
-## 2.0.0 - 2026-08-02
+## 2.1.0 - 2026-08-02
 
 - Rediseña el popup con tema oscuro, ancho responsive de 520 a 720 px, header con version visible, layout de dos columnas y ajuste sin barra de scroll para 1280x800.
 - Mantiene en el popup solo estado del token, sincronizacion, agencias disponibles, version local, solicitar token y configurar token, con tipografia y espaciado optimizados.
 - Elimina del popup el buscador de agencias, tarjetas, contador de resultados, Maps y copia de direcciones.
-- Agrega `src/shared/version.ts` como fuente de version `2.0.0` usada por popup y pruebas.
+- Agrega `src/shared/version.ts` como fuente de version `2.1.0` usada por popup y pruebas.
 - Conserva intacto el content script inyectado, la seleccion Chosen y la sincronizacion del catalogo.
 
 - Simplifica el popup para mostrar solo estado y gestión del token; elimina búsqueda, tarjetas y acciones de agencias del popup.

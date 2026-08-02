@@ -33,6 +33,80 @@ sequenceDiagram
     N->>C: Confirmar entrega
 ```
 
+## Notificación automática de nuevas solicitudes
+
+Cuando una solicitud de token se crea desde la página pública o desde una integración autorizada, Platform dispara el evento de dominio `TokenRequestCreated` después del commit de base de datos. Un listener en cola envía un webhook firmado a n8n; el workflow `CodeRED — Nueva solicitud de token` entrega el aviso a Telegram.
+
+```mermaid
+flowchart LR
+    A[CodeRED Platform] --> B[TokenRequestCreated]
+    B --> C[Cola: SendTokenRequestCreatedWebhook]
+    C --> D[Webhook firmado n8n]
+    D --> E[Workflow n8n]
+    E --> F[Telegram Send Message]
+```
+
+El webhook usa estos encabezados:
+
+```text
+Content-Type: application/json
+Accept: application/json
+X-CodeRED-Event: token_request.created
+X-CodeRED-Event-Id: UUID
+X-CodeRED-Timestamp: timestamp Unix
+X-CodeRED-Signature: sha256=<hmac>
+```
+
+La firma se calcula con:
+
+```text
+hash_hmac('sha256', timestamp + '.' + rawJsonPayload, N8N_TOKEN_REQUEST_WEBHOOK_SECRET)
+```
+
+Payload enviado:
+
+```json
+{
+  "event": "token_request.created",
+  "event_id": "uuid",
+  "occurred_at": "2026-08-02T00:00:00+00:00",
+  "request": {
+    "id": 123,
+    "public_uuid": "uuid",
+    "tracking_code": "CR-XXXXXXXX",
+    "requester_name": "Nombre",
+    "integration_type": "shalom-extension",
+    "installation_name": "Buscador Shalom Control",
+    "delivery_method": "whatsapp",
+    "masked_contact": "+51 ******999",
+    "status": "pending",
+    "admin_url": "https://platform.codered.host/admin/security/token-requests?request=123"
+  }
+}
+```
+
+No se envían tokens, contactos completos, IP, user agent completo, notas internas ni secretos. n8n debe guardar los `event_id` procesados en Data Store o almacenamiento equivalente y responder `200` con `duplicate: true` cuando reciba un evento repetido.
+
+Mensaje recomendado para Telegram:
+
+```text
+🔐 Nueva solicitud de token
+
+Código: {{ tracking_code }}
+Solicitante: {{ requester_name }}
+Aplicación: {{ installation_name }}
+Integración: {{ integration_type }}
+Medio de entrega: {{ delivery_method }}
+Contacto: {{ masked_contact }}
+Estado: Pendiente
+Fecha: {{ occurred_at }}
+
+🔗 Abrir solicitud:
+{{ admin_url }}
+```
+
+El token del bot de Telegram debe guardarse solo en las credenciales de n8n. El workflow debe validar `X-CodeRED-Timestamp`, rechazar timestamps antiguos, recalcular HMAC SHA-256 sobre el body crudo y comparar con una función de tiempo constante antes de enviar el mensaje.
+
 ## Configuración
 
 Variables principales:
@@ -309,3 +383,65 @@ Enviar al nodo CodeRED `Token Requests / Request Token Rotation`:
 ```
 
 La respuesta crea una solicitud `pending`; el token actual no se revoca hasta que un administrador aprueba la rotación. Cuando `Get Token Request Status` indique `approved`, usar `Retrieve Approved Token` una sola vez, enviar el token por Telegram y luego ejecutar `Confirm Token Delivery`.
+
+## Workflow: CodeRED — Nueva solicitud de token
+
+Crear un workflow n8n separado para avisar a Telegram cuando Platform registre una solicitud nueva.
+
+### Nodos
+
+1. **Webhook**
+   - Method: `POST`
+   - Path: `codered-token-request`
+   - Response: `Using Respond to Webhook`
+
+2. **Code**
+   - Leer body crudo cuando la versión de n8n lo permita.
+   - Validar headers `X-CodeRED-Timestamp`, `X-CodeRED-Signature`, `X-CodeRED-Event` y `X-CodeRED-Event-Id`.
+   - Rechazar timestamps antiguos.
+   - Calcular `sha256=HMAC_SHA256(timestamp + '.' + rawJsonPayload, secret)`.
+   - Comparar con `crypto.timingSafeEqual`.
+   - Rechazar si `event !== 'token_request.created'`.
+
+3. **Data Store**
+   - Guardar `event_id`.
+   - Si ya existe, responder HTTP 200 con `{ "success": true, "duplicate": true }`.
+
+4. **Telegram Send Message**
+   - Usar credenciales n8n del bot.
+   - Chat ID configurable.
+   - No guardar el bot token en el repositorio ni logs.
+
+5. **Respond to Webhook**
+   - Éxito: HTTP 200 con `{ "success": true, "event_id": "..." }`.
+   - Firma inválida: HTTP 401.
+
+### Mensaje Telegram
+
+```text
+🔐 Nueva solicitud de token
+
+Código: {{ tracking_code }}
+Solicitante: {{ requester_name }}
+Aplicación: {{ installation_name }}
+Integración: {{ integration_type }}
+Medio de entrega: {{ delivery_method }}
+Contacto: {{ masked_contact }}
+Estado: Pendiente
+Fecha: {{ occurred_at }}
+
+🔗 Abrir solicitud:
+{{ admin_url }}
+```
+
+Si se usa MarkdownV2 o HTML, escapar los valores dinámicos. Puede agregarse un botón inline **Abrir en CodeRED Platform** con `admin_url`.
+
+### Credenciales Telegram
+
+1. Crear bot con @BotFather.
+2. Guardar el token solo en credenciales de n8n.
+3. Crear grupo o canal privado.
+4. Agregar el bot.
+5. Obtener el `chat_id`.
+6. Configurar el nodo Telegram.
+7. No imprimir el bot token en logs.

@@ -158,6 +158,12 @@ class ApiTokenRequest extends Model
         return $this->hasMany(ApiTokenRequestEvent::class);
     }
 
+    public function webhookDeliveries(): HasMany
+    {
+        return $this->hasMany(WebhookDelivery::class, 'aggregate_id')
+            ->where('aggregate_type', self::class);
+    }
+
     public function isDelivered(): bool
     {
         return $this->deliveryStatusValue() === ApiTokenRequestDeliveryStatus::Delivered->value || $this->delivered_at !== null;

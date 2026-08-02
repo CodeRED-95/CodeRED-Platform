@@ -4,11 +4,11 @@ Extension Chrome Manifest V3 para inyectar un buscador de agencias dentro de Sha
 
 La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local`.
 
-## Version 2.0.0
+## Version 2.1.0
 
-La version visible de la extension se define en una sola fuente: `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.0.0`.
+La version visible de la extension se define en una sola fuente: `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.1.0`.
 
-El popup v2.0.0 usa un diseño oscuro de 520 a 720 px, dos columnas en escritorio y stack vertical bajo 560 px. Está optimizado para caber en 1280x800 sin barra de scroll, con título de 20px, secciones de 12px y texto base de 13px. Muestra estado del token, token enmascarado, ultima sincronizacion, agencias disponibles, version local y acciones para solicitar/configurar token. No renderiza buscador, contador, tarjetas ni acciones de Maps.
+El popup v2.1.0 usa un diseño oscuro de 520 a 720 px, dos columnas en escritorio y stack vertical bajo 560 px. Está optimizado para caber en 1280x800 sin barra de scroll, con título de 20px, secciones de 12px y texto base de 13px. Muestra estado del token, token enmascarado, ultima sincronizacion, agencias disponibles, version local y acciones para solicitar/configurar token. No renderiza buscador, contador, tarjetas ni acciones de Maps.
 
 ## Desarrollo
 
@@ -57,7 +57,7 @@ Usar `npm run build:extension` para compilar y validar `dist`. El validador revi
 npm run package
 ```
 
-El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-2.0.0.zip`.
+El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-2.1.0.zip`.
 
 ## Cache y sincronizacion
 

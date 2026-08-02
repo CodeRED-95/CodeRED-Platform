@@ -16,18 +16,18 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-08-02
+## [2.1.0] - 2026-08-02
 
 ### Added
 
-- Fuente única de versión `2.0.0` para backend, API, comando Artisan, panel web, popup de la extensión, README y CHANGELOG.
+- Fuente única de versión `2.1.0` para backend, API, comando Artisan, panel web, popup de la extensión, README y CHANGELOG.
 - Endpoint público `GET /api/v1/version`, header `X-Application-Version`, `composer.json > extra.version` y comando `php artisan app:version` para consultar la versión activa del sistema.
-- Roadmap versionado con `2.0.0` como versión actual y evolución planificada `2.1.0`, `2.2.0` y `3.0.0`.
+- Roadmap versionado con `2.1.0` como versión actual y evolución planificada `2.1.0`, `2.2.0` y `3.0.0`.
 
 ### Changed
 
-- El footer del panel administrativo muestra `CodeRED Platform v2.0.0`.
-- La extensión Buscador Shalom se alinea con `manifest.json`, `package.json` y módulo compartido `EXTENSION_VERSION` en `2.0.0`.
+- El footer del panel administrativo muestra `CodeRED Platform v2.1.0`.
+- La extensión Buscador Shalom se alinea con `manifest.json`, `package.json` y módulo compartido `EXTENSION_VERSION` en `2.1.0`.
 - El popup de la extensión adopta diseño oscuro, ancho responsive de 520 a 720 px, layout de dos columnas, tamaños de texto optimizados y contenido ajustado para no mostrar barra de scroll en 1280x800.
 
 ### Removed

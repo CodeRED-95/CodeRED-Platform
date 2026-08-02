@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
-use App\Jobs\NotifyN8nTokenRequestStatus;
+use App\Events\TokenRequestCreated;
 use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
 use Illuminate\Http\RedirectResponse;
@@ -126,7 +126,7 @@ class PublicTokenRequestController
             'created_at' => now(),
         ]);
 
-        NotifyN8nTokenRequestStatus::dispatch($tokenRequest->id, 'token_request.created');
+        event(new TokenRequestCreated($tokenRequest));
 
         return redirect()->route('public.token-requests.create')->with('success', 'Solicitud enviada correctamente.')->with('tracking_code', $trackingCode);
     }

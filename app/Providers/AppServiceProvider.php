@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Domain\Dni\Contracts\DniProviderInterface;
+use App\Events\TokenRequestCreated;
+use App\Listeners\SendTokenRequestCreatedWebhook;
 use App\Models\ApiToken;
 use App\Models\User;
 use App\Observers\UserObserver;
@@ -10,6 +12,7 @@ use App\Policies\UserPolicy;
 use App\Services\Dni\PeruDevsDniProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Sanctum::usePersonalAccessTokenModel(ApiToken::class);
+        Event::listen(TokenRequestCreated::class, SendTokenRequestCreatedWebhook::class);
         User::observe(UserObserver::class);
         Gate::policy(User::class, UserPolicy::class);
         Gate::before(function (User $user, string $ability): ?bool {

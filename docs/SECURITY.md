@@ -89,3 +89,9 @@ Los datos completos usados para entregar tokens (`delivery_email`, `delivery_tel
 Solo usuarios con el permiso `api-token-requests.view-delivery-contact` pueden pulsar **Mostrar datos de entrega** antes de que la solicitud esté entregada. Esa acción autoriza en backend, revela los datos solo para esa sesión Livewire y registra el evento `delivery_contact_viewed` sin guardar correo, usuario de Telegram ni WhatsApp completos.
 
 Al marcar una solicitud aprobada como entregada, `MarkTokenRequestAsDeliveredAction` registra `delivered_at` y `delivered_by`, conserva únicamente las máscaras y elimina los campos cifrados completos. Después de la entrega, los contactos completos no se devuelven desde el panel ni pueden recuperarse mediante la acción de revelado.
+
+## Webhooks firmados para solicitudes de token
+
+Las notificaciones `token_request.created` hacia n8n se firman con HMAC SHA-256 usando el secreto `N8N_TOKEN_REQUEST_WEBHOOK_SECRET`. La firma se calcula sobre `timestamp.rawJsonPayload` y se envía en `X-CodeRED-Signature` con prefijo `sha256=`. El payload minimiza datos personales: usa contacto enmascarado y no incluye token, contacto completo, IP, user agent, notas internas, firma ni secreto.
+
+Las entregas se registran en `webhook_deliveries` con `event_id`, destino, intentos, estado HTTP, fecha de entrega/fallo y error técnico saneado. El panel administrativo puede reintentar el aviso sin exponer el secreto.

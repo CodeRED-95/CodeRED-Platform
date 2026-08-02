@@ -7,6 +7,7 @@ use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
 use App\Enums\ApiTokenType;
+use App\Events\TokenRequestCreated;
 use App\Jobs\NotifyN8nTokenRequestStatus;
 use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
@@ -355,8 +356,15 @@ class Index extends Component
     {
         Gate::authorize('api-token-requests.retry-notification');
         $request = ApiTokenRequest::query()->findOrFail($id);
-        NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.'.$request->statusValue());
-        $this->event($request, 'notification_retry_requested', 'Reintento manual solicitado.');
+        $eventId = $request->webhookDeliveries()
+            ->where('event_type', 'token_request.created')
+            ->whereNull('delivered_at')
+            ->latest()
+            ->value('event_id');
+
+        event(new TokenRequestCreated($request, $eventId));
+        $this->event($request, 'notification_retry_requested', 'Reintento manual solicitado.', ['event_type' => 'token_request.created']);
+        $this->dispatch('toast', type: 'success', message: 'Reintento de notificación enviado a la cola.');
     }
 
     public function revealDeliveryContact(): void
@@ -446,7 +454,7 @@ class Index extends Component
 
         return view('livewire.admin.api-token-requests.index', [
             'requests' => $requests,
-            'selected' => $this->selectedId ? ApiTokenRequest::query()->with(['events.performer', 'reviewer', 'deliveredBy', 'token'])->find($this->selectedId) : null,
+            'selected' => $this->selectedId ? ApiTokenRequest::query()->with(['events.performer', 'reviewer', 'deliveredBy', 'token', 'webhookDeliveries'])->find($this->selectedId) : null,
             'statuses' => ApiTokenRequestStatus::cases(),
             'deliveryStatuses' => ApiTokenRequestDeliveryStatus::cases(),
             'users' => User::query()->active()->orderBy('name')->get(['id', 'name']),

@@ -7,6 +7,7 @@ use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
 use App\Enums\ApiTokenType;
+use App\Events\TokenRequestCreated;
 use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
@@ -98,6 +99,7 @@ class N8nTokenRequestController extends Controller
             'delivery_whatsapp_number_masked' => $maskedContact['whatsapp'],
         ]);
         $this->event($tokenRequest, 'created', 'Solicitud creada desde integración n8n.', $request, ['source' => $tokenRequest->request_source]);
+        event(new TokenRequestCreated($tokenRequest));
 
         return response()->json([
             'success' => true,

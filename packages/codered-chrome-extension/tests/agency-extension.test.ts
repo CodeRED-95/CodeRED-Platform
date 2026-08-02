@@ -172,14 +172,14 @@ function memoryStorage(seed?: { agencies?: ReturnType<typeof adaptAgency>[]; cat
 
 
 describe('extension version and redesigned popup', () => {
-  it('keeps manifest, package, and shared source on version 2.0.0', async () => {
+  it('keeps manifest, package, and shared source on version 2.1.0', async () => {
     const { readFileSync } = await import('node:fs');
     const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
     const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-    expect(EXTENSION_VERSION).toBe('2.0.0');
-    expect(manifest.version).toBe('2.0.0');
-    expect(packageJson.version).toBe('2.0.0');
+    expect(EXTENSION_VERSION).toBe('2.1.0');
+    expect(manifest.version).toBe('2.1.0');
+    expect(packageJson.version).toBe('2.1.0');
   });
 
   it('renders a wide dark two-column popup without agency search UI', async () => {
