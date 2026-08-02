@@ -10,6 +10,17 @@ use App\Models\User;
 use App\Observers\UserObserver;
 use App\Policies\UserPolicy;
 use App\Services\Dni\PeruDevsDniProvider;
+use App\Services\Events\Contracts\EventDeliveryContract;
+use App\Services\Events\Contracts\EventDispatchRepositoryContract;
+use App\Services\Events\Contracts\EventDispatcherContract;
+use App\Services\Events\Contracts\EventTransportContract;
+use App\Services\Events\Contracts\UuidGeneratorContract;
+use App\Services\Events\EventDispatcher;
+use App\Services\Events\EventFactory;
+use App\Services\Events\Infrastructure\AgentEventTransport;
+use App\Services\Events\Infrastructure\EloquentEventDispatchRepository;
+use App\Services\Events\Infrastructure\PlatformEventDelivery;
+use App\Services\Events\Infrastructure\UuidV7Generator;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -25,6 +36,12 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(DniProviderInterface::class, PeruDevsDniProvider::class);
+        $this->app->singleton(UuidGeneratorContract::class, UuidV7Generator::class);
+        $this->app->singleton(EventFactory::class);
+        $this->app->singleton(EventDispatchRepositoryContract::class, EloquentEventDispatchRepository::class);
+        $this->app->singleton(EventTransportContract::class, AgentEventTransport::class);
+        $this->app->singleton(EventDeliveryContract::class, PlatformEventDelivery::class);
+        $this->app->singleton(EventDispatcherContract::class, EventDispatcher::class);
     }
 
     public function boot(): void
