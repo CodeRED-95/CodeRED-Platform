@@ -232,6 +232,19 @@ describe('extension version and redesigned popup', () => {
     expect(css).not.toContain('max-height: 800px');
   });
 
+  it('places primary actions in a full-width bottom row outside the status column', async () => {
+    const { readFileSync } = await import('node:fs');
+    const html = readFileSync(new URL('../src/popup/popup.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
+
+    const statusClose = html.indexOf('</section>', html.indexOf('class="status-card"'));
+    const actionsOpen = html.indexOf('class="actions"');
+
+    expect(actionsOpen).toBeGreaterThan(statusClose);
+    expect(css).toContain('grid-template-rows: auto minmax(0, 1fr) auto auto auto');
+    expect(css).toContain('.actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; padding: 0 20px 14px; }');
+  });
+
   it('keeps popup content balanced for 1280x800 without a scrollbar', async () => {
     const { readFileSync } = await import('node:fs');
     const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
