@@ -1,6 +1,6 @@
 {
   "name": "@codered/chrome-extension",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "private": true,
   "type": "module",
   "description": "Buscador Shalom Control para Google Chrome.",
@@ -27,5 +27,8 @@
     "typescript-eslint": "^8.38.0",
     "vite": "^6.3.5",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "chai": "5.2.1"
   }
 }

@@ -4,11 +4,11 @@ Extension Chrome Manifest V3 para inyectar un buscador de agencias dentro de Sha
 
 La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local`.
 
-## Version 2.2.0
+## Version 2.2.1
 
-La version visible de la extension se define en una sola fuente: `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.2.0`.
+La version visible de la extension se define en una sola fuente: `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.2.1`.
 
-El popup v2.2.0 usa un diseño oscuro de 560 a 720 px, dos columnas en escritorio y stack vertical bajo 560 px. Esta optimizado para caber en 1280x800 sin barra de scroll, con titulo de 18px, secciones de 11px y texto base de 12px. Muestra estado del token, token enmascarado, ultima sincronizacion, agencias disponibles, version local y acciones para solicitar/configurar token. No renderiza buscador, contador, tarjetas ni acciones de Maps.
+El popup v2.2.1 usa un diseño oscuro con ancho adaptable de 420 a 720 px, dos columnas en escritorio y stack vertical bajo 560 px. Esta optimizado para caber en 1280x800 sin barra de scroll, con titulo de 20px, secciones de 11px y texto base de 13px. Muestra estado del token, token enmascarado, ultima sincronizacion, agencias disponibles, version local y acciones para solicitar/configurar token. No renderiza buscador, contador, tarjetas ni acciones de Maps.
 
 ## Desarrollo
 
@@ -57,7 +57,7 @@ Usar `npm run build:extension` para compilar y validar `dist`. El validador revi
 npm run package
 ```
 
-El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-2.2.0.zip`.
+El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-2.2.1.zip`.
 
 ## Cache y sincronizacion
 
@@ -137,3 +137,8 @@ La extensión usa una clave canónica en `chrome.storage.local` para el token: `
 El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` en una pestaña normal. No envía token, catálogo, Authorization ni datos privados desde la extensión. El botón **Configurar token** abre Options, donde se puede pegar, probar, sincronizar o eliminar el token.
 
 El popup abre la solicitud pública con parámetros no sensibles (`source`, `installation_name` y `version`) para facilitar diagnóstico operativo sin exponer credenciales.
+
+
+## Dependencias de pruebas
+
+La version 2.2.1 fija `chai` en `5.2.1` mediante `overrides` para evitar la resolucion defectuosa `chai@5.3.3 -> pathval@^2.1.0`, ya que `pathval` solo publica hasta `2.0.1`. Vitest permanece en la linea 3.2.x y sigue siendo el runner de pruebas compatible con Vite 6.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.1 - 2026-08-02
+
+- Corrige la instalacion limpia de dependencias fijando `chai` en `5.2.1` mediante `overrides`, evitando la cadena incompatible `chai@5.3.3 -> pathval@^2.1.0`.
+- Mantiene Vitest 3.2.x, Vite 6 y el build IIFE del content script sin cambios funcionales.
+- Actualiza la version visible de la extension a `2.2.1`.
+
+
 ## Unreleased
 
 ## 2.2.0 - 2026-08-02
