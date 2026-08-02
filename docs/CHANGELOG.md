@@ -16,6 +16,14 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-08-02
+
+### Changed
+
+- Rediseño responsive del popup Buscador Shalom con tema oscuro, ancho 560-720 px, dos columnas, cierre accesible y ajuste sin barra de scroll para 1280x800.
+- Tipografía y espaciado del popup optimizados: título 18px, secciones 11px, texto base 12px y tarjetas compactas.
+- Versionado global actualizado a `2.1.1` en Platform, API, comando Artisan, panel web, extensión Chrome, README y CHANGELOG.
+
 ## [2.1.0] - 2026-08-02
 
 ### Added

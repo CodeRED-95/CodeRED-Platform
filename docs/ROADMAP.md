@@ -1,6 +1,6 @@
 # Roadmap
 
-## 2.1.0 Actual
+## 2.1.1 Actual
 
 - Popup oscuro y responsive de Buscador Shalom, enfocado en token, sincronización, agencias disponibles y versión local, sin barra de scroll en resoluciones mínimas.
 - Versionado global SemVer reflejado en panel web, extensión Chrome, API, README y CHANGELOG.
@@ -8,7 +8,7 @@
 - Flujo público de solicitudes de token y panel administrativo con entrega protegida.
 - Buscador inyectado en Shalom Control con catálogo sincronizado desde CodeRED Platform.
 
-## 2.1.0 Próximo
+## 2.1.1 Próximo
 
 - Refinar métricas operativas del módulo Agencies y estados de sincronización.
 - Ampliar auditoría visible del ciclo de solicitudes de token.

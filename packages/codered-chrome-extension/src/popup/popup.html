@@ -7,46 +7,53 @@
     <script type="module" src="./popup.ts"></script>
   </head>
   <body>
-    <main class="popup-shell">
+    <main class="popup-shell" aria-labelledby="popup-title">
       <header class="topbar">
-        <img src="/icons/icon-48.png" alt="CodeRED" />
+        <img class="brand-mark" src="/icons/icon-48.png" alt="CodeRED" />
         <div class="title-block">
           <div class="title-line">
-            <h1>Buscador Shalom</h1>
+            <h1 id="popup-title">Buscador Shalom</h1>
             <span id="extension-version" class="version-badge">v-</span>
           </div>
-          <span id="summary">Cargando</span>
+          <span id="summary" class="summary">Cargando</span>
         </div>
-        <button id="options" class="icon-button" title="Configuración" aria-label="Abrir configuración">⚙</button>
+        <div class="header-actions">
+          <button id="options" class="icon-button" type="button" title="Configuración" aria-label="Abrir configuración">⚙</button>
+          <button id="close-popup" class="close-button" type="button" title="Cerrar" aria-label="Cerrar popup">×</button>
+        </div>
       </header>
-      <section class="popup-grid">
-        <div class="status-card">
-          <p class="eyebrow">Estado de conexión</p>
+
+      <section class="popup-grid" aria-label="Estado y acciones del token">
+        <section class="status-card" aria-labelledby="status-heading">
+          <p id="status-heading" class="eyebrow">Estado de conexión</p>
           <div class="connection-panel">
-            <span id="status-dot" class="dot"></span>
+            <span id="status-dot" class="dot" aria-hidden="true"></span>
             <div>
               <strong id="token-state">Verificando...</strong>
               <p id="token-help" class="help">Revisando configuración local.</p>
             </div>
           </div>
+
           <dl class="metrics">
-            <div><dt>Token</dt><dd id="token-masked">-</dd></div>
-            <div><dt>Última sincronización</dt><dd id="updated">-</dd></div>
-            <div><dt>Agencias disponibles</dt><dd id="agency-count">0</dd></div>
-            <div><dt>Versión local</dt><dd id="catalog-version">-</dd></div>
-            <div><dt>Estado del servicio</dt><dd id="service-state" class="service-pill">Desconectado</dd></div>
+            <div><dt><span aria-hidden="true">⌁</span> Token</dt><dd id="token-masked">-</dd></div>
+            <div><dt><span aria-hidden="true">◷</span> Última sincronización</dt><dd id="updated">-</dd></div>
+            <div><dt><span aria-hidden="true">▦</span> Agencias disponibles</dt><dd id="agency-count">0</dd></div>
+            <div><dt><span aria-hidden="true">⌘</span> Versión local</dt><dd id="catalog-version">-</dd></div>
+            <div><dt><span aria-hidden="true">⌁</span> Estado del servicio</dt><dd id="service-state" class="service-pill">Desconectado</dd></div>
           </dl>
-          <div class="actions">
+
+          <div class="actions" aria-label="Acciones principales">
             <button id="primary-action" class="primary" type="button">Solicitar token</button>
-            <button id="configure-token" type="button">Configurar token</button>
+            <button id="configure-token" class="secondary" type="button">Configurar token</button>
             <button id="request-token" class="link-action" type="button">Solicitar otro token</button>
           </div>
-        </div>
-        <aside class="info-column">
-          <section class="action-card">
-            <p class="eyebrow">¿Qué puedes hacer?</p>
+        </section>
+
+        <aside class="info-column" aria-label="Acciones e información">
+          <section class="action-card" aria-labelledby="actions-heading">
+            <p id="actions-heading" class="eyebrow">¿Qué puedes hacer?</p>
             <button id="request-token-card" class="card-button" type="button">
-              <span class="card-icon key-icon" aria-hidden="true">⌁</span>
+              <span class="card-icon key-icon" aria-hidden="true">➤</span>
               <span><strong>Solicitar token</strong><small>Obtén un nuevo token desde CodeRED Platform para sincronizar tus agencias.</small></span>
               <span class="chevron" aria-hidden="true">›</span>
             </button>
@@ -56,18 +63,24 @@
               <span class="chevron" aria-hidden="true">›</span>
             </button>
           </section>
-          <section class="protected-card">
-            <p class="eyebrow">Información</p>
+
+          <section class="protected-card" aria-labelledby="info-heading">
+            <p id="info-heading" class="eyebrow">Información</p>
             <div class="protection-box">
-              <span class="shield" aria-hidden="true">✓</span>
-              <span><strong>Tus datos están protegidos</strong><small>El token se almacena de forma segura en tu navegador y nunca se comparte.</small></span>
+              <span class="shield" aria-hidden="true">◇</span>
+              <span>
+                <strong>Tus datos están protegidos</strong>
+                <small>El token se almacena de forma segura en tu navegador y nunca se comparte.</small>
+                <button id="learn-more" class="inline-link" type="button">Más información ↗</button>
+              </span>
             </div>
           </section>
         </aside>
       </section>
+
       <footer class="popup-footer">
-        <span>Sincronización automática: <strong id="sync-mode">Activada</strong></span>
-        <span>Versión: <strong id="footer-version">-</strong></span>
+        <span><span aria-hidden="true">↻</span> Sincronización automática: <strong id="sync-mode">Activada</strong></span>
+        <span><span aria-hidden="true">ⓘ</span> Versión: <strong id="footer-version">-</strong></span>
       </footer>
       <p id="message" role="status"></p>
     </main>

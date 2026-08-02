@@ -2,19 +2,20 @@
 
 ## Unreleased
 
-## 2.1.0 - 2026-08-02
+## 2.1.1 - 2026-08-02
 
-- Rediseña el popup con tema oscuro, ancho responsive de 520 a 720 px, header con version visible, layout de dos columnas y ajuste sin barra de scroll para 1280x800.
-- Mantiene en el popup solo estado del token, sincronizacion, agencias disponibles, version local, solicitar token y configurar token, con tipografia y espaciado optimizados.
-- Elimina del popup el buscador de agencias, tarjetas, contador de resultados, Maps y copia de direcciones.
-- Agrega `src/shared/version.ts` como fuente de version `2.1.0` usada por popup y pruebas.
-- Conserva intacto el content script inyectado, la seleccion Chosen y la sincronizacion del catalogo.
+- Rediseña el popup con tema oscuro, ancho responsive de 560 a 720 px, header con version visible, cierre accesible, layout de dos columnas y ajuste sin barra de scroll para 1280x800.
+- Optimiza tipografia y espaciado: titulo 18px, secciones 11px, texto base 12px y tarjetas compactas sin cortar informacion.
+- Mantiene en el popup solo estado del token, sincronizacion, agencias disponibles, version local, solicitar token y configurar token.
+- Agrega accion discreta de informacion y conserva intacto el content script inyectado, la seleccion Chosen y la sincronizacion del catalogo.
+
+## 2.1.0 - 2026-08-02
 
 - Simplifica el popup para mostrar solo estado y gestión del token; elimina búsqueda, tarjetas y acciones de agencias del popup.
 - Unifica el token en `chrome.storage.local` bajo `codered_api_token` y migra claves legacy como `auth`, `apiToken`, `coderedToken`, `platformToken` y `catalogToken`.
 - Cambia la solicitud de token para abrir la página pública `https://platform.codered.host/solicitar-token` sin enviar secretos desde la extensión.
 - Asegura que el estado `updating` de sincronización termine en estado final `updated`, `unchanged`, `error`, `token_expired` o `forbidden`.
-
+- Agrega `src/shared/version.ts` como fuente de version `2.1.0` usada por popup y pruebas.
 - Restaura el diseno oscuro del buscador inyectado con barra roja, panel flotante y grilla responsive de tres columnas.
 - Elimina el selector interno Auto/Terrestre/Aereo y detecta el canal desde los botones reales de Shalom Control.
 - Mejora la deteccion del Chosen activo para no modificar selectores ocultos o ambiguos.

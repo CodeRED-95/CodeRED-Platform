@@ -26,6 +26,8 @@ const elements = {
   configure: document.querySelector<HTMLButtonElement>('#configure-token')!,
   configureCard: document.querySelector<HTMLButtonElement>('#configure-token-card')!,
   options: document.querySelector<HTMLButtonElement>('#options')!,
+  close: document.querySelector<HTMLButtonElement>('#close-popup')!,
+  learnMore: document.querySelector<HTMLButtonElement>('#learn-more')!,
   message: document.querySelector<HTMLElement>('#message')!,
 };
 
@@ -35,6 +37,8 @@ async function init(): Promise<void> {
   elements.extensionVersion.textContent = `v${EXTENSION_VERSION}`;
   elements.footerVersion.textContent = EXTENSION_VERSION;
   elements.options.addEventListener('click', openOptions);
+  elements.close.addEventListener('click', () => window.close());
+  elements.learnMore.addEventListener('click', openHelp);
   elements.configure.addEventListener('click', openOptions);
   elements.configureCard.addEventListener('click', openOptions);
   elements.request.addEventListener('click', requestToken);
@@ -93,6 +97,10 @@ async function requestToken(): Promise<void> {
 
 function openOptions(): void {
   chrome.runtime.openOptionsPage();
+}
+
+async function openHelp(): Promise<void> {
+  await chrome.tabs.create({ url: 'https://platform.codered.host/solicitar-token?source=shalom-extension-help' });
 }
 
 function getServiceState(configured: boolean, status?: string | null): { label: string; tone: string } {

@@ -172,14 +172,14 @@ function memoryStorage(seed?: { agencies?: ReturnType<typeof adaptAgency>[]; cat
 
 
 describe('extension version and redesigned popup', () => {
-  it('keeps manifest, package, and shared source on version 2.1.0', async () => {
+  it('keeps manifest, package, and shared source on version 2.1.1', async () => {
     const { readFileSync } = await import('node:fs');
     const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
     const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-    expect(EXTENSION_VERSION).toBe('2.1.0');
-    expect(manifest.version).toBe('2.1.0');
-    expect(packageJson.version).toBe('2.1.0');
+    expect(EXTENSION_VERSION).toBe('2.1.1');
+    expect(manifest.version).toBe('2.1.1');
+    expect(packageJson.version).toBe('2.1.1');
   });
 
   it('renders a wide dark two-column popup without agency search UI', async () => {
@@ -196,10 +196,13 @@ describe('extension version and redesigned popup', () => {
     expect(html).toContain('Configurar token');
     expect(html).not.toContain('Buscar agencia');
     expect(html).not.toContain('resultado');
-    expect(css).toContain('width: clamp(520px, 64vw, 720px)');
-    expect(css).toContain('max-height: min(800px, 100vh)');
+    expect(html).toContain('aria-label="Cerrar popup"');
+    expect(html).toContain('Más información');
+    expect(css).toContain('width: clamp(560px, 68vw, 720px)');
+    expect(css).toContain('max-height: 800px');
     expect(css).toContain('overflow: hidden');
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .95fr)');
+    expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .94fr)');
+    expect(css).toContain('grid-template-areas');
     expect(css).toContain('@media (max-width: 560px)');
     expect(script).toContain('EXTENSION_VERSION');
     expect(script).not.toContain('SEARCH_AGENCIES');
@@ -210,14 +213,16 @@ describe('extension version and redesigned popup', () => {
     const { readFileSync } = await import('node:fs');
     const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
 
-    expect(css).toContain('--font-title: 20px');
-    expect(css).toContain('--font-section: 12px');
-    expect(css).toContain('--font-body: 13px');
-    expect(css).toContain('--space-md: 12px');
-    expect(css).toContain('height: min(800px, 100vh)');
+    expect(css).toContain('--font-title: 18px');
+    expect(css).toContain('--font-section: 11px');
+    expect(css).toContain('--font-body: 12px');
+    expect(css).toContain('--space-md: 10px');
+    expect(css).toContain('height: min(760px, 100vh)');
     expect(css).toContain('overflow: hidden');
     expect(css).toContain('min-height: 0');
-    expect(css).toContain('min-height: 86px');
+    expect(css).toContain('min-height: 72px');
+    expect(css).toContain('body::-webkit-scrollbar');
+    expect(css).toContain('.popup-shell::-webkit-scrollbar');
     expect(css).not.toContain('min-height: 390px');
     expect(css).not.toContain('min-height: 104px');
   });
