@@ -4,6 +4,12 @@ Extension Chrome Manifest V3 para inyectar un buscador de agencias dentro de Sha
 
 La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local`.
 
+## Version 2.0.0
+
+La version visible de la extension se define en una sola fuente: `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.0.0`.
+
+El popup v2.0.0 usa un diseño oscuro de 520 a 720 px, dos columnas en escritorio y stack vertical bajo 560 px. Muestra estado del token, token enmascarado, ultima sincronizacion, agencias disponibles, version local y acciones para solicitar/configurar token. No renderiza buscador, contador, tarjetas ni acciones de Maps.
+
 ## Desarrollo
 
 ```bash
@@ -51,7 +57,7 @@ Usar `npm run build:extension` para compilar y validar `dist`. El validador revi
 npm run package
 ```
 
-El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-1.0.0.zip`.
+El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-2.0.0.zip`.
 
 ## Cache y sincronizacion
 
@@ -129,3 +135,5 @@ El popup es solo un panel compacto de estado y gestión de token. No contiene bu
 La extensión usa una clave canónica en `chrome.storage.local` para el token: `codered_api_token`. La metadata visible del token se guarda en `codered_token_metadata` y el catálogo local en `codered_agency_catalog`. Al iniciar, el storage migra claves antiguas como `auth`, `token`, `apiToken`, `coderedToken`, `accessToken`, `platformToken` y `catalogToken` hacia la clave canónica sin imprimir el secreto.
 
 El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` en una pestaña normal. No envía token, catálogo, Authorization ni datos privados desde la extensión. El botón **Configurar token** abre Options, donde se puede pegar, probar, sincronizar o eliminar el token.
+
+El popup abre la solicitud pública con parámetros no sensibles (`source`, `installation_name` y `version`) para facilitar diagnóstico operativo sin exponer credenciales.

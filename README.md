@@ -2,6 +2,22 @@
 
 CodeRED Platform es el centro de control modular para administración y consulta de agencias de Shalom, APIs DNI/RUC, tokens Sanctum e integraciones empresariales. La plataforma combina Laravel 12, Livewire 3, PostgreSQL, Redis, Docker Compose, n8n 2.x y CodeRED Agent para operar Pairing, Discovery, Heartbeat y Capability Registry sin depender de secretos visibles en workflows.
 
+## Versión actual
+
+CodeRED Platform publica la versión `2.0.0` desde una fuente única de configuración. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en `php artisan app:version`, en el popup de la extensión Chrome y en la documentación de release.
+
+```bash
+php artisan app:version
+curl https://platform.codered.host/api/v1/version
+```
+
+Variables opcionales:
+
+```env
+APP_VERSION=2.0.0
+API_VERSION=v1
+```
+
 ## Capacidades principales
 
 - Gestión administrativa y pública de agencias Shalom.
@@ -154,6 +170,23 @@ Para comprobar que n8n está cargando la versión nueva del nodo:
 ```bash
 docker exec codered-n8n sh -lc 'ls -lah /home/node/.n8n/custom/n8n-nodes-codered/dist/nodes/CodeRED && grep -R "createTokenRequest\|token-requests" -n /home/node/.n8n/custom/n8n-nodes-codered/dist/nodes/CodeRED'
 ```
+## Extensión Buscador Shalom
+
+La extensión `packages/codered-chrome-extension` está alineada con la versión `2.0.0`. El popup fue rediseñado como un panel oscuro y compacto de dos columnas: estado de conexión a la izquierda y acciones/información a la derecha. Solo permite solicitar token, configurar token, probar conexión y revisar métricas locales; la búsqueda de agencias permanece únicamente dentro de Shalom Control.
+
+El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` sin enviar secretos. El botón **Configurar token** abre Options para guardar, probar, sincronizar o eliminar el token. El token se enmascara siempre y la clave canónica de storage es `codered_api_token`.
+
+Para validar el build de la extensión:
+
+```bash
+cd packages/codered-chrome-extension
+npm run build:extension
+node --check dist/content.js
+grep -RInE '^[[:space:]]*(import|export)[[:space:]]' dist/content.js
+```
+
+La carga manual se realiza desde `chrome://extensions` seleccionando únicamente `packages/codered-chrome-extension/dist` como extensión descomprimida.
+
 ## Actualización
 
 ```bash
@@ -203,6 +236,25 @@ El menú incluye operaciones de plataforma y un submenú de CodeRED Agent para v
 - [Migración n8n](docs/agent/n8n-migration.md)
 - [Changelog](docs/CHANGELOG.md)
 - [ADR](docs/adr/README.md)
+
+## Comandos Docker de actualización rápida
+
+```bash
+cd ~/CodeRED-Platform
+git pull
+git checkout main
+docker compose build --no-cache
+docker compose up -d
+docker exec codered-app php artisan migrate --force
+docker exec codered-app php artisan optimize:clear
+docker exec codered-app php artisan config:cache
+docker exec codered-app php artisan route:cache
+docker exec codered-app php artisan view:cache
+docker exec codered-app php artisan queue:restart
+docker exec codered-app php artisan app:version
+docker restart codered-nginx
+docker restart codered-agent
+```
 
 ## Licencia
 

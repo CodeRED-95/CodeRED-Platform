@@ -9,5 +9,5 @@ return [
     'locale' => env('APP_LOCALE', 'es'),
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'es'),
     'faker_locale' => env('APP_FAKER_LOCALE', 'es_PE'),
-    'version' => env('APP_VERSION', '1.0.0'),
+    'version' => env('APP_VERSION', env('APP_VERSION_FALLBACK', '2.0.0')),
 ];

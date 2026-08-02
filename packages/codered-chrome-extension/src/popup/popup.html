@@ -10,26 +10,66 @@
     <main class="popup-shell">
       <header class="topbar">
         <img src="/icons/icon-48.png" alt="CodeRED" />
-        <div class="title-block"><h1>Buscador Shalom</h1><span id="summary">Cargando</span></div>
+        <div class="title-block">
+          <div class="title-line">
+            <h1>Buscador Shalom</h1>
+            <span id="extension-version" class="version-badge">v-</span>
+          </div>
+          <span id="summary">Cargando</span>
+        </div>
         <button id="options" class="icon-button" title="Configuración" aria-label="Abrir configuración">⚙</button>
       </header>
-      <section class="status-card">
-        <p class="eyebrow">Estado de conexión</p>
-        <div class="connection-line"><span id="status-dot" class="dot"></span><strong id="token-state">Verificando...</strong></div>
-        <p id="token-help" class="help">Revisando configuración local.</p>
-        <dl class="metrics">
-          <div><dt>Token</dt><dd id="token-masked">-</dd></div>
-          <div><dt>Última sincronización</dt><dd id="updated">-</dd></div>
-          <div><dt>Agencias disponibles</dt><dd id="agency-count">0</dd></div>
-          <div><dt>Versión local</dt><dd id="catalog-version">-</dd></div>
-        </dl>
-        <div class="actions">
-          <button id="primary-action" class="primary" type="button">Solicitar token</button>
-          <button id="configure-token" type="button">Configurar token</button>
-          <button id="request-token" class="link-action" type="button">Solicitar otro token</button>
+      <section class="popup-grid">
+        <div class="status-card">
+          <p class="eyebrow">Estado de conexión</p>
+          <div class="connection-panel">
+            <span id="status-dot" class="dot"></span>
+            <div>
+              <strong id="token-state">Verificando...</strong>
+              <p id="token-help" class="help">Revisando configuración local.</p>
+            </div>
+          </div>
+          <dl class="metrics">
+            <div><dt>Token</dt><dd id="token-masked">-</dd></div>
+            <div><dt>Última sincronización</dt><dd id="updated">-</dd></div>
+            <div><dt>Agencias disponibles</dt><dd id="agency-count">0</dd></div>
+            <div><dt>Versión local</dt><dd id="catalog-version">-</dd></div>
+            <div><dt>Estado del servicio</dt><dd id="service-state" class="service-pill">Desconectado</dd></div>
+          </dl>
+          <div class="actions">
+            <button id="primary-action" class="primary" type="button">Solicitar token</button>
+            <button id="configure-token" type="button">Configurar token</button>
+            <button id="request-token" class="link-action" type="button">Solicitar otro token</button>
+          </div>
         </div>
-        <p id="message" role="status"></p>
+        <aside class="info-column">
+          <section class="action-card">
+            <p class="eyebrow">¿Qué puedes hacer?</p>
+            <button id="request-token-card" class="card-button" type="button">
+              <span class="card-icon key-icon" aria-hidden="true">⌁</span>
+              <span><strong>Solicitar token</strong><small>Obtén un nuevo token desde CodeRED Platform para sincronizar tus agencias.</small></span>
+              <span class="chevron" aria-hidden="true">›</span>
+            </button>
+            <button id="configure-token-card" class="card-button" type="button">
+              <span class="card-icon gear-icon" aria-hidden="true">⚙</span>
+              <span><strong>Configurar token</strong><small>Ingresa un token existente para conectar con tus agencias sincronizadas.</small></span>
+              <span class="chevron" aria-hidden="true">›</span>
+            </button>
+          </section>
+          <section class="protected-card">
+            <p class="eyebrow">Información</p>
+            <div class="protection-box">
+              <span class="shield" aria-hidden="true">✓</span>
+              <span><strong>Tus datos están protegidos</strong><small>El token se almacena de forma segura en tu navegador y nunca se comparte.</small></span>
+            </div>
+          </section>
+        </aside>
       </section>
+      <footer class="popup-footer">
+        <span>Sincronización automática: <strong id="sync-mode">Activada</strong></span>
+        <span>Versión: <strong id="footer-version">-</strong></span>
+      </footer>
+      <p id="message" role="status"></p>
     </main>
   </body>
 </html>

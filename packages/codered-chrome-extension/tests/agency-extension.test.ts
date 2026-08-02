@@ -4,6 +4,7 @@ import { searchAgencies } from '../src/search/agency-search';
 import { buildMapsUrl, maskToken, normalizeText } from '../src/utils/format';
 import { createSyncService } from '../src/background/sync-service';
 import { isRuntimeRequest } from '../src/background/messages';
+import { EXTENSION_VERSION } from '../src/shared/version';
 
 const activeAgency = adaptAgency({
   external_id: 101,
@@ -168,6 +169,43 @@ function memoryStorage(seed?: { agencies?: ReturnType<typeof adaptAgency>[]; cat
     },
   };
 }
+
+
+describe('extension version and redesigned popup', () => {
+  it('keeps manifest, package, and shared source on version 2.0.0', async () => {
+    const { readFileSync } = await import('node:fs');
+    const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+    const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+
+    expect(EXTENSION_VERSION).toBe('2.0.0');
+    expect(manifest.version).toBe('2.0.0');
+    expect(packageJson.version).toBe('2.0.0');
+  });
+
+  it('renders a wide dark two-column popup without agency search UI', async () => {
+    const { readFileSync } = await import('node:fs');
+    const html = readFileSync(new URL('../src/popup/popup.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
+    const script = readFileSync(new URL('../src/popup/popup.ts', import.meta.url), 'utf8');
+
+    expect(html).toContain('popup-grid');
+    expect(html).toContain('version-badge');
+    expect(html).toContain('Estado de conexión');
+    expect(html).toContain('¿Qué puedes hacer?');
+    expect(html).toContain('Solicitar token');
+    expect(html).toContain('Configurar token');
+    expect(html).not.toContain('Buscar agencia');
+    expect(html).not.toContain('resultado');
+    expect(css).toContain('width: min(720px, 100vw)');
+    expect(css).toContain('min-width: 520px');
+    expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .95fr)');
+    expect(css).toContain('@media (max-width: 560px)');
+    expect(script).toContain('EXTENSION_VERSION');
+    expect(script).not.toContain('SEARCH_AGENCIES');
+    expect(script).not.toContain('buildMapsUrl');
+  });
+});
+
 
 describe('token configuration flow', () => {
   it('popup is token-focused and does not render agency search or cards', async () => {

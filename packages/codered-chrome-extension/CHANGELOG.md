@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2.0.0 - 2026-08-02
+
+- Rediseña el popup con tema oscuro, ancho responsive de 520 a 720 px, header con version visible y layout de dos columnas.
+- Mantiene en el popup solo estado del token, sincronizacion, agencias disponibles, version local, solicitar token y configurar token.
+- Elimina del popup el buscador de agencias, tarjetas, contador de resultados, Maps y copia de direcciones.
+- Agrega `src/shared/version.ts` como fuente de version `2.0.0` usada por popup y pruebas.
+- Conserva intacto el content script inyectado, la seleccion Chosen y la sincronizacion del catalogo.
+
 - Simplifica el popup para mostrar solo estado y gestión del token; elimina búsqueda, tarjetas y acciones de agencias del popup.
 - Unifica el token en `chrome.storage.local` bajo `codered_api_token` y migra claves legacy como `auth`, `apiToken`, `coderedToken`, `platformToken` y `catalogToken`.
 - Cambia la solicitud de token para abrir la página pública `https://platform.codered.host/solicitar-token` sin enviar secretos desde la extensión.

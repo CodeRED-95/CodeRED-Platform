@@ -25,7 +25,7 @@
                         </a>
                         <div class="ml-3" x-show="!collapsed" x-cloak>
                             <p class="text-base font-semibold tracking-tight">CodeRED Platform</p>
-                            <p class="text-xs text-[color:var(--color-text-secondary)]">Plataforma modular</p>
+                            <p class="text-xs text-[color:var(--color-text-secondary)]">Plataforma modular · v{{ config('version.current') }}</p>
                         </div>
                     </div>
                      <button
@@ -160,6 +160,7 @@
 
                 <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 lg:px-8 lg:py-8" id="main-content">
                     <div class="mx-auto w-full max-w-[1680px]">{{ $slot }}</div>
+                    <footer class="mx-auto mt-8 w-full max-w-[1680px] border-t border-white/5 pt-4 text-xs text-[color:var(--color-text-muted)]">CodeRED Platform v{{ config('version.current') }}</footer>
                 </main>
             </div>
         </div>

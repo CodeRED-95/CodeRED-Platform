@@ -1,37 +1,33 @@
 # Roadmap
 
-## Completado
+## 2.0.0 Actual
 
-- Core base
-- Autenticación web
-- Roles y permisos
-- Auditoría base
-- API versionada
-- Módulo `Agencies` base
-- Importador del Gist
-- Snapshot público
+- Popup oscuro y responsive de Buscador Shalom, enfocado en token, sincronización, agencias disponibles y versión local.
+- Versionado global SemVer reflejado en panel web, extensión Chrome, API, README y CHANGELOG.
+- Endpoint público `GET /api/v1/version` y comando `php artisan app:version`.
+- Flujo público de solicitudes de token y panel administrativo con entrega protegida.
+- Buscador inyectado en Shalom Control con catálogo sincronizado desde CodeRED Platform.
 
-## En desarrollo
+## 2.1.0 Próximo
 
-- Panel administrativo completo de Agencies
-- Vista pública refinada
-- Exportación de agencias
+- Refinar métricas operativas del módulo Agencies y estados de sincronización.
+- Ampliar auditoría visible del ciclo de solicitudes de token.
+- Mejorar empaquetado de releases de extensión y evidencia visual automatizada.
 
-## Pendiente
+## 2.2.0 Planeado
 
-- DNI
-- RUC
-- Clientes
-- Trabajadores
-- Reportes
-- Estadísticas
+- Consolidar dashboard de integraciones y n8n Agent.
+- Publicar documentación operativa completa para soporte y recuperación.
+- Mejorar observabilidad de sincronización incremental y errores de catálogo.
 
-## Ideas futuras
+## 3.0.0 Futuro
 
-- Dashboard avanzado
-- App móvil
-- Extensión Chrome
-- Sincronización incremental
-- Notificaciones
-- IA
+- Evolución modular hacia conectores adicionales: WhatsApp, Telegram, Discord, IA y MCP.
+- API pública ampliada con contratos estables por integración.
+- Experiencias multi-cliente con políticas de permisos más granulares.
 
+## Backlog
+
+- DNI y RUC como módulos administrativos completos.
+- Clientes, trabajadores, reportes y estadísticas avanzadas.
+- App móvil y notificaciones.
