@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.2.0 - 2026-08-02
+
+- Alinea la versión de la extensión con CodeRED Platform 2.2.0.
+- No cambia el content script, la búsqueda inyectada, Chosen ni la sincronización del catálogo.
+
 ## 2.1.1 - 2026-08-02
 
 - Rediseña el popup con tema oscuro, ancho responsive de 560 a 720 px, header con version visible, cierre accesible, layout de dos columnas y ajuste sin barra de scroll para 1280x800.

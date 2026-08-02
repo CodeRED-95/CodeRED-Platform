@@ -4,7 +4,7 @@ CodeRED Platform es el centro de control modular para administración y consulta
 
 ## Versión actual
 
-CodeRED Platform publica la versión `2.1.1` desde una fuente única de configuración. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en el popup de la extensión Chrome y en la documentación de release.
+CodeRED Platform publica la versión `2.2.0` desde una fuente única de configuración. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en el popup de la extensión Chrome y en la documentación de release.
 
 ```bash
 php artisan app:version
@@ -14,7 +14,7 @@ curl https://platform.codered.host/api/v1/version
 Variables opcionales:
 
 ```env
-APP_VERSION=2.1.1
+APP_VERSION=2.2.0
 API_VERSION=v1
 ```
 
@@ -149,7 +149,7 @@ N8N_WEBHOOK_URL=https://n8n.codered.host/
 ```
 ## Webhook de nuevas solicitudes de token
 
-CodeRED Platform v2.1.1 notifica a n8n cada vez que se crea una solicitud nueva de token. El flujo es: Platform crea la solicitud, dispara `TokenRequestCreated` después del commit, un listener en cola envía un webhook HMAC a n8n y el workflow `CodeRED — Nueva solicitud de token` envía el aviso por Telegram.
+CodeRED Platform v2.2.0 notifica a n8n cada vez que se crea una solicitud nueva de token. El flujo es: Platform crea la solicitud, dispara `TokenRequestCreated` después del commit, un listener en cola envía un webhook HMAC a n8n y el workflow `CodeRED — Nueva solicitud de token` envía el aviso por Telegram.
 
 Variables requeridas:
 
@@ -187,7 +187,7 @@ docker exec codered-n8n sh -lc 'ls -lah /home/node/.n8n/custom/n8n-nodes-codered
 ```
 ## Extensión Buscador Shalom
 
-La extensión `packages/codered-chrome-extension` está alineada con la versión `2.1.1`. El popup fue rediseñado como un panel oscuro y compacto de dos columnas: estado de conexión a la izquierda y acciones/información a la derecha. El tamaño usa unidades flexibles para mantenerse dentro de `1280x800` sin barra de scroll, con tipografía compacta y tarjetas balanceadas. Solo permite solicitar token, configurar token, probar conexión y revisar métricas locales; la búsqueda de agencias permanece únicamente dentro de Shalom Control.
+La extensión `packages/codered-chrome-extension` está alineada con la versión `2.2.0`. El popup fue rediseñado como un panel oscuro y compacto de dos columnas: estado de conexión a la izquierda y acciones/información a la derecha. El tamaño usa unidades flexibles para mantenerse dentro de `1280x800` sin barra de scroll, con tipografía compacta y tarjetas balanceadas. Solo permite solicitar token, configurar token, probar conexión y revisar métricas locales; la búsqueda de agencias permanece únicamente dentro de Shalom Control.
 
 El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` sin enviar secretos. El botón **Configurar token** abre Options para guardar, probar, sincronizar o eliminar el token. El token se enmascara siempre y la clave canónica de storage es `codered_api_token`.
 
@@ -329,6 +329,13 @@ La ruta `GET /solicitar-token` permite solicitar un token de acceso sin iniciar 
 El administrador revisa la solicitud en `/admin/security/token-requests`, aprueba con el tipo AGENCIAS y Platform genera un token Sanctum con ability mínima `agencies:read`. El token plano se cifra temporalmente para entrega segura mediante n8n o flujo manual; no se publica en URL, logs ni página pública.
 
 ### Entrega segura de tokens
+
+
+### Panel administrativo de solicitudes de token
+
+La vista `Seguridad > Solicitudes de tokens` usa un dashboard oscuro con métricas de estado, filtros por solicitante, estado, entrega, scope, revisor y fecha, tabla paginada de 5 registros y panel lateral de ayuda. Cada solicitud abre un modal de detalle con información, datos de entrega protegidos, notificaciones n8n/Telegram e historial.
+
+Las solicitudes no entregadas pueden eliminarse solo con el permiso `api-token-requests.delete` y una confirmación explícita. Las solicitudes entregadas no pueden eliminarse desde el panel ni desde backend para conservar la trazabilidad de entrega.
 
 El panel administrativo de solicitudes de token conserva los datos completos de entrega cifrados y no los renderiza inicialmente. Un administrador con `api-token-requests.view-delivery-contact` puede revelarlos manualmente antes de la entrega; la visualización queda auditada. Al confirmar la entrega, los datos completos se eliminan y solo permanecen valores enmascarados.
 

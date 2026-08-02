@@ -69,6 +69,8 @@ class Index extends Component
 
     public bool $confirmingDelivery = false;
 
+    public ?int $deleteRequestId = null;
+
     public function mount(): void
     {
         Gate::authorize('api-token-requests.view');
@@ -95,6 +97,7 @@ class Index extends Component
         $this->revealedDeliveryContact = ['email' => null, 'telegram' => null, 'whatsapp' => null];
         $this->deliveryContactRevealed = false;
         $this->confirmingDelivery = false;
+        $this->deleteRequestId = null;
         $this->event($request, 'viewed', 'Solicitud visualizada.');
     }
 
@@ -367,6 +370,58 @@ class Index extends Component
         $this->dispatch('toast', type: 'success', message: 'Reintento de notificación enviado a la cola.');
     }
 
+    public function closeSelectedRequest(): void
+    {
+        $this->selectedId = null;
+        $this->revealedDeliveryContact = ['email' => null, 'telegram' => null, 'whatsapp' => null];
+        $this->deliveryContactRevealed = false;
+        $this->confirmingDelivery = false;
+    }
+
+    public function confirmDeleteRequest(int $id): void
+    {
+        Gate::authorize('api-token-requests.delete');
+        $request = ApiTokenRequest::query()->findOrFail($id);
+        abort_if($request->isDelivered(), 422, 'No se puede eliminar una solicitud entregada.');
+        $this->deleteRequestId = $request->id;
+    }
+
+    public function cancelDeleteRequest(): void
+    {
+        $this->deleteRequestId = null;
+    }
+
+    public function deleteConfirmedRequest(): void
+    {
+        Gate::authorize('api-token-requests.delete');
+        $request = ApiTokenRequest::query()->findOrFail($this->deleteRequestId);
+        abort_if($request->isDelivered(), 422, 'No se puede eliminar una solicitud entregada.');
+        $requestId = $request->id;
+
+        DB::transaction(function () use ($request): void {
+            $request->webhookDeliveries()->delete();
+            $request->delete();
+        });
+
+        if ($this->selectedId === $requestId) {
+            $this->closeSelectedRequest();
+        }
+
+        $this->deleteRequestId = null;
+        $this->dispatch('toast', type: 'success', message: 'Solicitud eliminada.');
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->status = '';
+        $this->deliveryStatus = '';
+        $this->ability = '';
+        $this->reviewerId = 0;
+        $this->date = '';
+        $this->resetPage();
+    }
+
     public function revealDeliveryContact(): void
     {
         Gate::authorize('api-token-requests.view-delivery-contact');
@@ -450,7 +505,7 @@ class Index extends Component
             ->when($this->date !== '', fn (Builder $query): Builder => $query->whereDate('requested_at', $this->date))
             ->when($this->ability !== '', fn (Builder $query): Builder => $query->whereJsonContains('requested_abilities', $this->ability))
             ->when($this->reviewerId > 0, fn (Builder $query): Builder => $query->where('reviewed_by', $this->reviewerId));
-        $requests = $query->latest('requested_at')->paginate(15);
+        $requests = $query->latest('requested_at')->paginate(5);
 
         return view('livewire.admin.api-token-requests.index', [
             'requests' => $requests,

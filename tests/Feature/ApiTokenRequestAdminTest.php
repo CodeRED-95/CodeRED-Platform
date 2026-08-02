@@ -254,6 +254,94 @@ class ApiTokenRequestAdminTest extends TestCase
         Event::assertDispatched(TokenRequestCreated::class, fn (TokenRequestCreated $event): bool => $event->tokenRequest->is($request));
     }
 
+    public function test_redesigned_token_requests_panel_renders_required_layout_and_columns(): void
+    {
+        $admin = $this->superAdmin();
+        $request = $this->pendingRequest([
+            'request_uuid' => '32a7ef2a-2b03-4f61-adfd-c55375fd71d5',
+            'requester_name' => 'dsfafd',
+            'application_name' => 'Buscador Shalom Control',
+            'delivery_channel' => 'whatsapp',
+            'delivery_whatsapp_number' => '+51999999684',
+            'delivery_whatsapp_number_masked' => '+51 ******684',
+        ]);
+        $request->forceFill(['metadata' => ['tracking_code' => 'CR-2026-0006']])->save();
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->assertSee('Solicitudes de tokens')
+            ->assertSee('Nueva solicitud')
+            ->assertSee('Información')
+            ->assertSee('Seguridad ante todo')
+            ->assertSee('Pendiente')
+            ->assertSee('Aprobada')
+            ->assertSee('Entregada')
+            ->assertSee('Rechazada')
+            ->assertSee('Vencida')
+            ->assertSee('Solicitud')
+            ->assertSee('Solicitante')
+            ->assertSee('Aplicación')
+            ->assertSee('Tipo')
+            ->assertSee('Estado')
+            ->assertSee('Fecha')
+            ->assertSee('Acciones')
+            ->assertSee('CR-2026-0006')
+            ->assertSee('Buscador Shalom Control')
+            ->assertSee('+51 ******684')
+            ->assertSee('Ver documentación')
+            ->assertSee('token-requests-dashboard', false)
+            ->assertSee('token-requests-aside', false)
+            ->assertSee('token-requests-table', false);
+    }
+
+    public function test_details_are_shown_in_modal_with_information_and_history_tabs(): void
+    {
+        $admin = $this->superAdmin();
+        $request = $this->pendingRequest(['metadata' => ['tracking_code' => 'CR-2026-0007']]);
+        $request->events()->create([
+            'event' => 'created',
+            'description' => 'Solicitud creada desde prueba.',
+            'metadata' => [],
+            'created_at' => now(),
+        ]);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('selectRequest', $request->id)
+            ->assertSee('Detalles de la solicitud')
+            ->assertSee('Información')
+            ->assertSee('Historial')
+            ->assertSee('CR-2026-0007')
+            ->assertSee('Datos para entrega')
+            ->assertSee('Historial de eventos')
+            ->assertSee('Cerrar')
+            ->assertSee('token-request-detail-modal', false);
+    }
+
+    public function test_pending_request_can_be_deleted_with_confirmation_but_delivered_request_cannot(): void
+    {
+        $admin = $this->userWithPermissions(['api-token-requests.view', 'api-token-requests.delete']);
+        $pending = $this->pendingRequest(['metadata' => ['tracking_code' => 'CR-2026-0008']]);
+        $delivered = $this->pendingRequestWithDeliveryContact([
+            'status' => ApiTokenRequestStatus::Approved,
+            'delivery_status' => ApiTokenRequestDeliveryStatus::Delivered,
+            'delivered_at' => now(),
+        ]);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('confirmDeleteRequest', $pending->id)
+            ->assertSee('¿Eliminar solicitud?')
+            ->assertSee('Esta acción no se puede deshacer')
+            ->call('deleteConfirmedRequest')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseMissing('api_token_requests', ['id' => $pending->id]);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('confirmDeleteRequest', $delivered->id)
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('api_token_requests', ['id' => $delivered->id]);
+    }
+
     private function pendingRequest(array $overrides = []): ApiTokenRequest
     {
         return ApiTokenRequest::query()->create(array_merge([

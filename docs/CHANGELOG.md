@@ -16,6 +16,22 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-02
+
+### Added
+
+- Vista administrativa rediseñada para `Seguridad > Solicitudes de tokens` con métricas, filtros, tabla paginada, panel informativo lateral, modal de detalle y confirmación de eliminación.
+- Permiso `api-token-requests.delete` para eliminar solicitudes no entregadas desde backend.
+
+### Changed
+
+- El detalle de solicitud ahora se abre como modal con secciones de información, datos de entrega protegidos, notificaciones e historial.
+- Versionado global actualizado a `2.2.0` en Platform, API, comando Artisan, panel web, extensión Chrome, README y CHANGELOG.
+
+### Security
+
+- Las solicitudes con entrega completada no pueden eliminarse desde el panel ni desde el método Livewire; el bloqueo se aplica en servidor.
+
 ## [2.1.1] - 2026-08-02
 
 ### Changed
