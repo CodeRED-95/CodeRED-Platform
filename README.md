@@ -4,7 +4,7 @@ CodeRED Platform es el centro de control modular para administración y consulta
 
 ## Versión actual
 
-CodeRED Platform publica la versión `2.2.0` desde una fuente única de configuración. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en el popup de la extensión Chrome y en la documentación de release.
+CodeRED Platform publica la versión `2.2.0` desde una fuente única de configuración. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en la documentación de release. La extensión Chrome mantiene su propio versionado en `packages/codered-chrome-extension` y publica `2.3.0`.
 
 ```bash
 php artisan app:version
@@ -187,7 +187,7 @@ docker exec codered-n8n sh -lc 'ls -lah /home/node/.n8n/custom/n8n-nodes-codered
 ```
 ## Extensión Buscador Shalom
 
-La extensión `packages/codered-chrome-extension` está alineada con la versión `2.2.0`. El popup fue rediseñado como un panel oscuro y compacto de dos columnas: estado de conexión a la izquierda y acciones/información a la derecha. El tamaño usa unidades flexibles para mantenerse dentro de `1280x800` sin barra de scroll, con tipografía compacta y tarjetas balanceadas. Solo permite solicitar token, configurar token, probar conexión y revisar métricas locales; la búsqueda de agencias permanece únicamente dentro de Shalom Control.
+La extensión `packages/codered-chrome-extension` usa versionado propio y publica `2.3.0`. El popup fue reconstruido como un panel oscuro compacto de una sola columna y 360 px: muestra estado del token, token enmascarado, última sincronización, agencias disponibles, estado de conexión y sincronización automática. Solo permite solicitar token, configurar token y probar conexión; la búsqueda de agencias permanece únicamente dentro de Shalom Control.
 
 El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` sin enviar secretos. El botón **Configurar token** abre Options para guardar, probar, sincronizar o eliminar el token. El token se enmascara siempre y la clave canónica de storage es `codered_api_token`.
 

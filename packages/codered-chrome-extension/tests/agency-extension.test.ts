@@ -171,99 +171,102 @@ function memoryStorage(seed?: { agencies?: ReturnType<typeof adaptAgency>[]; cat
 }
 
 
-describe('extension version and redesigned popup', () => {
-  it('keeps manifest, package, and shared source on version 2.2.1', async () => {
+describe('extension version and simple popup', () => {
+  it('keeps manifest, package, and shared source on version 2.3.0', async () => {
     const { readFileSync } = await import('node:fs');
     const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
     const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-    expect(EXTENSION_VERSION).toBe('2.2.1');
-    expect(manifest.version).toBe('2.2.1');
-    expect(packageJson.version).toBe('2.2.1');
+    expect(EXTENSION_VERSION).toBe('2.3.0');
+    expect(manifest.version).toBe('2.3.0');
+    expect(packageJson.version).toBe('2.3.0');
   });
 
-  it('renders a wide dark two-column popup without agency search UI', async () => {
+  it('renders one compact dark column without agency search UI or legacy cards', async () => {
     const { readFileSync } = await import('node:fs');
     const html = readFileSync(new URL('../src/popup/popup.html', import.meta.url), 'utf8');
     const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
     const script = readFileSync(new URL('../src/popup/popup.ts', import.meta.url), 'utf8');
 
-    expect(html).toContain('popup-grid');
-    expect(html).toContain('version-badge');
-    expect(html).toContain('Estado de conexión');
-    expect(html).toContain('¿Qué puedes hacer?');
+    expect(html).toContain('class="popup"');
+    expect(html).toContain('Buscador Shalom');
     expect(html).toContain('Solicitar token');
     expect(html).toContain('Configurar token');
+    expect(html).toContain('aria-label="Abrir configuración"');
     expect(html).not.toContain('Buscar agencia');
     expect(html).not.toContain('resultado');
-    expect(html).toContain('aria-label="Cerrar popup"');
-    expect(html).toContain('Más información');
-    expect(css).toContain('width: clamp(420px, 72vw, 720px)');
-    expect(css).toContain('max-height: 600px');
+    expect(html).not.toContain('¿Qué puedes hacer?');
+    expect(html).not.toContain('Tus datos están protegidos');
+    expect(html).not.toContain('popup-grid');
+    expect(css).toContain('width: 360px');
+    expect(css).toContain('min-width: 360px');
+    expect(css).toContain('max-width: 360px');
+    expect(css).toContain('max-height: 520px');
     expect(css).toContain('overflow: hidden');
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .94fr)');
-    expect(css).toContain('grid-template-areas');
-    expect(css).toContain('@media (max-width: 560px)');
+    expect(css).not.toContain('overflow-y: auto');
+    expect(css).not.toContain('overflow-x: auto');
+    expect(css).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .94fr)');
     expect(script).toContain('EXTENSION_VERSION');
+    expect(script).toContain('GET_STATE');
+    expect(script).toContain('API_TEST_CONNECTION');
+    expect(script).toContain('chrome.storage.onChanged.addListener');
     expect(script).not.toContain('SEARCH_AGENCIES');
     expect(script).not.toContain('buildMapsUrl');
   });
 
-  it('uses the full popup width with a 420px minimum and no clipped body', async () => {
+  it('keeps the popup fixed at 360px without internal scroll containers', async () => {
     const { readFileSync } = await import('node:fs');
     const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
 
-    expect(css).toContain('min-width: 420px');
-    expect(css).toContain('width: clamp(420px, 72vw, 720px)');
-    expect(css).toContain('max-width: 720px');
-    expect(css).toContain('body {');
-    expect(css).not.toContain('min-width: 360px');
+    expect(css).toMatch(/html,\s*body\s*\{[^}]*width: 360px;[^}]*min-width: 360px;[^}]*max-width: 360px;/s);
+    expect(css).toContain('.popup {');
+    expect(css).toContain('padding: 16px');
+    expect(css).toContain('.actions {');
+    expect(css).toContain('grid-template-columns: 1fr');
+    expect(css).not.toContain('420px');
+    expect(css).not.toContain('600px');
+    expect(css).not.toContain('720px');
   });
 
-  it('keeps the popup under 600px tall with compact rows and cards', async () => {
+  it('uses compact typography and only wraps dynamic values when needed', async () => {
     const { readFileSync } = await import('node:fs');
     const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
 
-    expect(css).toContain('height: min(600px, 100vh)');
-    expect(css).toContain('max-height: 600px');
-    expect(css).toContain('min-height: 64px');
-    expect(css).toContain('min-height: 66px');
-    expect(css).not.toContain('height: min(760px, 100vh)');
-    expect(css).not.toContain('max-height: 800px');
-  });
-
-  it('places primary actions in a full-width bottom row outside the status column', async () => {
-    const { readFileSync } = await import('node:fs');
-    const html = readFileSync(new URL('../src/popup/popup.html', import.meta.url), 'utf8');
-    const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
-
-    const statusClose = html.indexOf('</section>', html.indexOf('class="status-card"'));
-    const actionsOpen = html.indexOf('class="actions"');
-
-    expect(actionsOpen).toBeGreaterThan(statusClose);
-    expect(css).toContain('grid-template-rows: auto minmax(0, 1fr) auto auto auto');
-    expect(css).toContain('.actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; padding: 0 20px 14px; }');
-  });
-
-  it('keeps popup content balanced for 1280x800 without a scrollbar', async () => {
-    const { readFileSync } = await import('node:fs');
-    const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
-
-    expect(css).toContain('--font-title: 20px');
-    expect(css).toContain('--font-section: 11px');
+    expect(css).toContain('--font-title: 18px');
+    expect(css).toContain('--font-status: 15px');
     expect(css).toContain('--font-body: 13px');
-    expect(css).toContain('--space-md: 9px');
-    expect(css).toContain('height: min(600px, 100vh)');
-    expect(css).toContain('overflow: hidden');
-    expect(css).toContain('min-height: 0');
-    expect(css).toContain('min-height: 64px');
-    expect(css).toContain('body::-webkit-scrollbar');
-    expect(css).toContain('.popup-shell::-webkit-scrollbar');
-    expect(css).not.toContain('min-height: 390px');
-    expect(css).not.toContain('min-height: 104px');
+    expect(css).toContain('--font-muted: 12px');
+    expect(css).toContain('--font-version: 11px');
+    expect(css).toContain('word-break: normal');
+    expect(css).toContain('overflow-wrap: anywhere');
+    expect(css).not.toContain('word-break: break-all');
+  });
+
+  it('documents the popup actions and offline local state', async () => {
+    const { readFileSync } = await import('node:fs');
+    const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+    const changelog = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+
+    expect(readme).toContain('Popup compacto');
+    expect(readme).toContain('Solicitar token');
+    expect(readme).toContain('Configurar token');
+    expect(readme).toContain('Probar conexión');
+    expect(readme).toContain('sin conexión');
+    expect(changelog).toContain('2.3.0');
+    expect(changelog).toContain('popup compacto');
+  });
+
+  it('exports popup formatting helpers that mask tokens and keep local state readable', async () => {
+    const { maskPopupToken, formatPopupDate, getConnectionState } = await import('../src/popup/popup');
+
+    expect(maskPopupToken('15JT1234567890e132')).toBe('15JT••••••••••e132');
+    expect(maskPopupToken('short')).toBe('•••••');
+    expect(maskPopupToken(null)).toBeNull();
+    expect(formatPopupDate(null)).toBe('Sin sincronizar');
+    expect(getConnectionState(false, null)).toEqual({ label: 'Desconectado', tone: 'missing' });
+    expect(getConnectionState(true, 'synchronized')).toEqual({ label: 'Sincronizado', tone: 'success' });
   });
 });
-
 
 describe('token configuration flow', () => {
   it('popup is token-focused and does not render agency search or cards', async () => {

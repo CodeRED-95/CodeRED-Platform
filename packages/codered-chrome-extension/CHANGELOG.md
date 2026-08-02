@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.0 - 2026-08-02
+
+- Reconstruye el popup compacto desde cero con una sola columna de 360 px, tema oscuro CodeRED, sin scroll interno y sin layout de dos columnas.
+- Elimina del popup el panel `¿Qué puedes hacer?`, tarjetas informativas extensas, version local larga, buscador, listado de agencias y resultados.
+- Mantiene solo estado de token, token enmascarado, ultima sincronizacion, agencias disponibles, estado de conexion, sincronizacion automatica y acciones minimas.
+- Conserva `GET_STATE`, `API_TEST_CONNECTION`, solicitud publica de token y apertura de Options sin exponer tokens completos.
+- Agrega reaccion a cambios de `chrome.storage.local` y estado de error local usable sin conexion.
+- Actualiza version visible, manifest, package, package-lock, README y pruebas a `2.3.0`.
+
 ## 2.2.1 - 2026-08-02
 
 - Corrige la instalacion limpia de dependencias fijando `chai` en `5.2.1` mediante `overrides`, evitando la cadena incompatible `chai@5.3.3 -> pathval@^2.1.0`.

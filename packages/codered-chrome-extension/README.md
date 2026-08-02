@@ -2,18 +2,56 @@
 
 Extension Chrome Manifest V3 para inyectar un buscador de agencias dentro de Shalom Control y consultar agencias usando CodeRED Platform como unica fuente oficial.
 
-La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local`.
+La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local` y sigue funcionando sin conexión con la ultima cache valida.
 
-## Version 2.2.1
+## Version 2.3.0
 
-La version visible de la extension se define en una sola fuente: `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.2.1`.
+La version visible de la extension se define en `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.3.0`.
 
-El popup v2.2.1 usa un diseño oscuro con ancho adaptable de 420 a 720 px, dos columnas en escritorio y stack vertical bajo 560 px. Esta optimizado para caber en 1280x800 sin barra de scroll, con titulo de 20px, secciones de 11px y texto base de 13px. Muestra estado del token, token enmascarado, ultima sincronizacion, agencias disponibles, version local y acciones para solicitar/configurar token. No renderiza buscador, contador, tarjetas ni acciones de Maps.
+### Popup compacto
+
+El popup v2.3.0 fue reconstruido desde cero como una sola columna de 360 px, tema oscuro CodeRED y altura dependiente del contenido. No contiene buscador de agencias, listado, tarjetas de resultados, paneles informativos extensos, datos tecnicos ni scroll interno.
+
+Datos mostrados:
+
+- Logo y nombre `Buscador Shalom`.
+- Version de la extension.
+- Estado del token.
+- Token enmascarado cuando existe.
+- Ultima sincronizacion.
+- Agencias disponibles.
+- Estado corto de conexion.
+- Estado de sincronizacion automatica.
+
+Acciones disponibles:
+
+- `Solicitar token`: abre `https://platform.codered.host/solicitar-token`.
+- `Configurar token`: ejecuta `chrome.runtime.openOptionsPage()`.
+- `Probar conexión`: disponible solo con token y llama a `API_TEST_CONNECTION`.
+- `Solicitar otro token`: enlace discreto disponible solo con token.
+
+Sin token, el popup muestra `Token no configurado`, `Sin sincronizar`, `0` agencias y estado `Desconectado`. Si no puede leer el estado local, mantiene disponibles `Solicitar token` y `Configurar token`.
 
 ## Desarrollo
 
+PowerShell:
+
+```powershell
+cd E:\Documentos\GitHub\CodeRED-Platform\packages\codered-chrome-extension
+Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue
+npm install
+npm run lint
+npm run typecheck
+npm test
+npm run build:extension
+```
+
+Linux o Docker:
+
 ```bash
-cd packages/codered-chrome-extension
+cd /var/www/html/packages/codered-chrome-extension
+rm -rf node_modules package-lock.json
 npm install
 npm run lint
 npm run typecheck
@@ -57,22 +95,36 @@ Usar `npm run build:extension` para compilar y validar `dist`. El validador revi
 npm run package
 ```
 
-El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-2.2.1.zip`.
+El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-2.3.0.zip`.
 
 ## Cache y sincronizacion
 
 La extension conserva la ultima cache funcional ante errores de red, 401, 403 o respuestas vacias inesperadas. El service worker programa `chrome.alarms` cada 24 horas y evita sincronizaciones paralelas. Eliminar el token no borra las agencias cacheadas, pero bloquea nuevas sincronizaciones hasta configurar otro token.
 
+## Storage canonico
+
+La extension usa estas claves canonicas en `chrome.storage.local`:
+
+- `codered_api_token`: token privado, nunca se muestra completo en el popup.
+- `codered_token_metadata`: metadata visible, incluido `tokenMasked`.
+- `codered_agency_catalog`: catalogo local de agencias.
+- `codered_sync_metadata`: revision, cursor, ultima sincronizacion, estado y mensaje.
+- `codered_catalog_version`, `codered_last_sync_at`, `codered_last_sync_status`: compatibilidad de metadata sincronizada.
+
+Al iniciar, el storage migra claves antiguas como `auth`, `token`, `apiToken`, `coderedToken`, `accessToken`, `platformToken` y `catalogToken` hacia la clave canonica sin imprimir el secreto.
+
 ## CORS
 
 Configurar `API_ALLOWED_ORIGINS` con el origen de la extension si se restringe el entorno productivo. CodeRED expone `ETag` y `Last-Modified` para optimizar sincronizaciones.
 
-## Errores frecuentes
+## Solucion de problemas
 
 - 401: el token no es valido o vencio.
 - 403: el token no tiene permisos para consultar agencias.
 - Sin conexion: se usan datos guardados.
 - Cero agencias: la sincronizacion se considera invalida y se conserva la cache anterior.
+- Popup con `No fue posible leer el estado local`: revisar permisos `storage`, service worker en `chrome://extensions` y recargar la extension.
+- Content script no aparece: recargar la pestaña de Shalom Control despues de recargar la extension.
 
 ## Dominios compatibles
 
@@ -97,23 +149,6 @@ Para seleccionar destino localiza `select[id*="osProDestino"]`, prioriza selecto
 
 El content script no recibe el token. Usa mensajes `CATALOG_GET`, `CATALOG_STATUS` y `CATALOG_SYNC` contra el service worker, que es el unico componente que llama a CodeRED Platform con Bearer token.
 
-Para probar un nuevo subdominio, carga `dist/`, abre la pagina HTTPS de Shalom Control, confirma que aparece el buscador en el encabezado, cambia Terrestre/Aereo, selecciona una agencia y verifica que el `select[id*="osProDestino"]` real cambie. Si no aparece, revisar que el hostname termine exactamente en `.shalomcontrol.com` o `.shalom.pe` y que la pagina tenga un encabezado compatible.
-
-
-## Diseño inyectado
-
-El buscador integrado en Shalom Control usa la experiencia visual recuperada de la extension anterior: barra oscura con borde rojo redondeado, indicador automatico de canal, panel flotante oscuro, scroll interno y grilla responsive de tarjetas. En escritorio la grilla usa tres columnas; en tablet dos; en movil una.
-
-Cada tarjeta muestra los campos disponibles del catalogo normalizado: nombre, codigo, nombre anterior si existe, estado, servicio disponible, categoria real o `Sin categoria`, Centro de Operaciones, capacidad de envio/recepcion, Departamento / Provincia / Distrito, direccion, referencia y avisos de traslado o cierre. No se inventa `Mediana` ni ningun valor por defecto de negocio. El boton MAPA abre una pestaña nueva con `target="_blank"` y no selecciona la agencia.
-
-## Canal y Chosen
-
-La extension no muestra selector interno Terrestre/Aereo ni modo Auto. Detecta el canal activo leyendo los botones reales de Shalom Control mediante `aria-selected`, clases activas, `title`, `aria-label`, `onclick`, texto visible e indicios de camion/avion. El indicador de la barra muestra `Terrestre` o `Aereo` y se actualiza al cambiar de segmento.
-
-Al seleccionar una tarjeta, el content script vuelve a detectar el canal activo, busca el `select[id*="osProDestino"]` asociado al Chosen visible del panel activo y descarta selectores deshabilitados, ocultos o ambiguos. Para Terrestre usa solo `terrestrialText`; para Aereo usa solo `airText`. Luego selecciona la opcion por coincidencia exacta, normalizada o identificador externo no ambiguo, emite `input` y `change`, dispara `chosen:updated` si jQuery existe y actualiza `.chosen-single span`.
-
-Si no encuentra un Chosen activo, la barra no queda ocupada con "No hay selector". El error breve se muestra solo al intentar seleccionar y el diagnostico detallado aparece en consola con prefijo `[CodeRED Shalom]`.
-
 ## Diagnostico del content script
 
 En la consola de la pagina Shalom deben aparecer logs con prefijo `[Shalom Pro]`, por ejemplo `Content script iniciado`, `Dominio permitido`, `Target encontrado con selector: ...` y `Buscador inyectado`. Para comprobar la inyeccion desde DevTools ejecutar:
@@ -128,17 +163,6 @@ Si devuelve `null`, revisar la consola de la pagina. Si hay errores del service 
 
 El buscador se muestra aunque `chrome.storage.local` no tenga agencias. En ese estado, al escribir muestra: `No hay agencias sincronizadas. Abre la configuracion y pulsa Sincronizar ahora`. Abrir Opciones de la extension, guardar un token valido si falta, pulsar Sincronizar ahora y recargar o volver a escribir en el buscador; el content script escucha cambios de `chrome.storage.local` y recarga el catalogo sin reinstalar la extension.
 
-## Popup y token
-
-El popup es solo un panel compacto de estado y gestión de token. No contiene buscador, listado de agencias, tarjetas ni acciones de Maps; la búsqueda vive únicamente en el content script inyectado en Shalom Control.
-
-La extensión usa una clave canónica en `chrome.storage.local` para el token: `codered_api_token`. La metadata visible del token se guarda en `codered_token_metadata` y el catálogo local en `codered_agency_catalog`. Al iniciar, el storage migra claves antiguas como `auth`, `token`, `apiToken`, `coderedToken`, `accessToken`, `platformToken` y `catalogToken` hacia la clave canónica sin imprimir el secreto.
-
-El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` en una pestaña normal. No envía token, catálogo, Authorization ni datos privados desde la extensión. El botón **Configurar token** abre Options, donde se puede pegar, probar, sincronizar o eliminar el token.
-
-El popup abre la solicitud pública con parámetros no sensibles (`source`, `installation_name` y `version`) para facilitar diagnóstico operativo sin exponer credenciales.
-
-
 ## Dependencias de pruebas
 
-La version 2.2.1 fija `chai` en `5.2.1` mediante `overrides` para evitar la resolucion defectuosa `chai@5.3.3 -> pathval@^2.1.0`, ya que `pathval` solo publica hasta `2.0.1`. Vitest permanece en la linea 3.2.x y sigue siendo el runner de pruebas compatible con Vite 6.
+La version 2.3.0 fija `chai` en `5.2.1` mediante `overrides` para evitar la resolucion defectuosa `chai@5.3.3 -> pathval@^2.1.0`, ya que `pathval` solo publica hasta `2.0.1`. Vitest permanece en la linea 3.2.x y sigue siendo el runner de pruebas compatible con Vite 6.
