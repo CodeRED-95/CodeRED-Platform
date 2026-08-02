@@ -8,13 +8,15 @@ class SystemVersionController
 {
     public function __invoke(): JsonResponse
     {
+        $version = (string) config('version.current');
+
         return response()->json([
             'success' => true,
             'data' => [
-                'version' => config('version.current'),
+                'version' => $version,
                 'api_version' => config('version.api'),
                 'environment' => config('app.env'),
             ],
-        ]);
+        ])->header('X-Application-Version', $version);
     }
 }

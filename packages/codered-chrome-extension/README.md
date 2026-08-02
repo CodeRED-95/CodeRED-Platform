@@ -8,7 +8,7 @@ La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico 
 
 La version visible de la extension se define en una sola fuente: `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.0.0`.
 
-El popup v2.0.0 usa un diseño oscuro de 520 a 720 px, dos columnas en escritorio y stack vertical bajo 560 px. Muestra estado del token, token enmascarado, ultima sincronizacion, agencias disponibles, version local y acciones para solicitar/configurar token. No renderiza buscador, contador, tarjetas ni acciones de Maps.
+El popup v2.0.0 usa un diseño oscuro de 520 a 720 px, dos columnas en escritorio y stack vertical bajo 560 px. Está optimizado para caber en 1280x800 sin barra de scroll, con título de 20px, secciones de 12px y texto base de 13px. Muestra estado del token, token enmascarado, ultima sincronizacion, agencias disponibles, version local y acciones para solicitar/configurar token. No renderiza buscador, contador, tarjetas ni acciones de Maps.
 
 ## Desarrollo
 

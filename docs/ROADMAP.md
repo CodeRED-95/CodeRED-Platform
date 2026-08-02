@@ -2,9 +2,9 @@
 
 ## 2.0.0 Actual
 
-- Popup oscuro y responsive de Buscador Shalom, enfocado en token, sincronización, agencias disponibles y versión local.
+- Popup oscuro y responsive de Buscador Shalom, enfocado en token, sincronización, agencias disponibles y versión local, sin barra de scroll en resoluciones mínimas.
 - Versionado global SemVer reflejado en panel web, extensión Chrome, API, README y CHANGELOG.
-- Endpoint público `GET /api/v1/version` y comando `php artisan app:version`.
+- Endpoint público `GET /api/v1/version`, header `X-Application-Version`, `composer.json > extra.version` y comando `php artisan app:version`.
 - Flujo público de solicitudes de token y panel administrativo con entrega protegida.
 - Buscador inyectado en Shalom Control con catálogo sincronizado desde CodeRED Platform.
 

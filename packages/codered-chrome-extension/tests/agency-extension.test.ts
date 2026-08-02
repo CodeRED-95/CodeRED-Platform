@@ -196,13 +196,30 @@ describe('extension version and redesigned popup', () => {
     expect(html).toContain('Configurar token');
     expect(html).not.toContain('Buscar agencia');
     expect(html).not.toContain('resultado');
-    expect(css).toContain('width: min(720px, 100vw)');
-    expect(css).toContain('min-width: 520px');
+    expect(css).toContain('width: clamp(520px, 64vw, 720px)');
+    expect(css).toContain('max-height: min(800px, 100vh)');
+    expect(css).toContain('overflow: hidden');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .95fr)');
     expect(css).toContain('@media (max-width: 560px)');
     expect(script).toContain('EXTENSION_VERSION');
     expect(script).not.toContain('SEARCH_AGENCIES');
     expect(script).not.toContain('buildMapsUrl');
+  });
+
+  it('keeps popup content balanced for 1280x800 without a scrollbar', async () => {
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
+
+    expect(css).toContain('--font-title: 20px');
+    expect(css).toContain('--font-section: 12px');
+    expect(css).toContain('--font-body: 13px');
+    expect(css).toContain('--space-md: 12px');
+    expect(css).toContain('height: min(800px, 100vh)');
+    expect(css).toContain('overflow: hidden');
+    expect(css).toContain('min-height: 0');
+    expect(css).toContain('min-height: 86px');
+    expect(css).not.toContain('min-height: 390px');
+    expect(css).not.toContain('min-height: 104px');
   });
 });
 

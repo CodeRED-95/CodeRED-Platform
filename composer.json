@@ -92,5 +92,8 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "extra": {
+        "version": "2.0.0"
+    }
 }

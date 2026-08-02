@@ -18,6 +18,7 @@ class SystemVersionTest extends TestCase
 
         $this->getJson('/api/v1/version')
             ->assertOk()
+            ->assertHeader('X-Application-Version', '2.0.0')
             ->assertJsonPath('data.version', '2.0.0')
             ->assertJsonPath('data.api_version', 'v1')
             ->assertJsonMissingPath('data.token');
