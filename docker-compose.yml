@@ -172,6 +172,7 @@ services:
       CODERED_AGENT_LOCAL_URL: ${CODERED_AGENT_LOCAL_URL:-http://codered-agent:5680}
       CODERED_AGENT_LOCAL_API_TOKEN: ${CODERED_AGENT_LOCAL_API_TOKEN}
       CODERED_API_BASE_URL: ${APP_URL}
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
     ports:
       - "127.0.0.1:5678:5678"
     volumes:
