@@ -24,5 +24,7 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="BROADCAST_CONNECTION" value="log"/>
         <env name="FILESYSTEM_DISK" value="local"/>
+        <env name="TOKEN_REQUEST_DATA_ENCRYPTION_KEY" value="base64:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa="/>
+        <env name="TOKEN_REQUEST_BLIND_INDEX_KEY" value="base64:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb="/>
     </php>
 </phpunit>

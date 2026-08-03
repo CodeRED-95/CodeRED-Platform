@@ -8,6 +8,7 @@ use App\Enums\ApiTokenRequestType;
 use App\Events\TokenRequestCreated;
 use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
+use App\Services\ApiTokens\TokenVaultService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -17,6 +18,13 @@ use Illuminate\View\View;
 
 class PublicTokenRequestController
 {
+    private TokenVaultService $vault;
+
+    public function __construct(TokenVaultService $vault)
+    {
+        $this->vault = $vault;
+    }
+
     public function create(Request $request): View
     {
         return view('public.token-requests.create', [
@@ -53,67 +61,59 @@ class PublicTokenRequestController
             'website.size' => 'No fue posible enviar la solicitud. Inténtalo nuevamente.',
         ]);
 
-        $fingerprint = $this->fingerprint($data['delivery_method'], $data['delivery_destination'], $data['installation_name'], $data['integration_type']);
-        $duplicate = ApiTokenRequest::query()
-            ->where('status', ApiTokenRequestStatus::Pending->value)
-            ->where('metadata->public_request_fingerprint', $fingerprint)
-            ->exists();
+        $destination = (string) $data['delivery_destination'];
+        $emailBlindIndex = $data['delivery_method'] === 'email' ? $this->vault->generateBlindIndex($destination) : null;
 
-        if ($duplicate) {
-            return back()->withInput($request->except('delivery_destination'))->withErrors([
-                'delivery_destination' => 'Ya existe una solicitud pendiente para esta instalación.',
-            ]);
+        if ($emailBlindIndex) {
+            $duplicate = ApiTokenRequest::query()
+                ->where('status', ApiTokenRequestStatus::Pending)
+                ->where('requester_email_blind_index', $emailBlindIndex)
+                ->where('application_name', trim((string) $data['installation_name']))
+                ->exists();
+
+            if ($duplicate) {
+                return back()->withInput($request->except('delivery_destination'))->withErrors([
+                    'delivery_destination' => 'Ya existe una solicitud pendiente con este correo para esta instalación.',
+                ]);
+            }
         }
 
         $requestUuid = (string) Str::uuid();
-        $trackingCode = 'CR-'.strtoupper(Str::random(8));
-        $destination = (string) $data['delivery_destination'];
-        $maskedContact = ApiTokenRequest::maskedContactFromValues(
-            $data['delivery_method'] === 'email' ? $destination : null,
-            $data['delivery_method'] === 'telegram' ? $destination : null,
-            $data['delivery_method'] === 'whatsapp' ? $destination : null,
-        );
+        $trackingCode = 'CR-'.strtoupper(Str::random(10));
+
         $tokenRequest = ApiTokenRequest::query()->create([
             'request_uuid' => $requestUuid,
+            'tracking_code' => $trackingCode,
             'request_type' => ApiTokenRequestType::Issuance,
-            'requester_name' => trim((string) $data['requester_name']),
-            'requester_phone' => $maskedContact['whatsapp'],
-            'requester_email' => $maskedContact['email'],
+            
+            'requester_name_encrypted' => $this->vault->encrypt(trim((string) $data['requester_name'])),
+            'requester_email_blind_index' => $emailBlindIndex,
+            'purpose_encrypted' => isset($data['reason']) ? $this->vault->encrypt($data['reason']) : null,
+            
             'application_name' => trim((string) $data['installation_name']),
-            'purpose' => $data['reason'] ?? 'Solicitud pública desde la extensión Shalom.',
-            'telegram_username' => $maskedContact['telegram'],
-            'telegram_user_id' => 'public:'.hash('sha256', $fingerprint.':telegram-user'),
-            'telegram_chat_id' => 'public:'.hash('sha256', $fingerprint.':telegram-chat'),
+            
             'requested_token_name' => trim((string) $data['installation_name']),
             'requested_token_type' => 'agencies',
             'requested_abilities' => ['agencies:read'],
-            'requested_expires_in_minutes' => 60,
-            'requested_token_expires_in_days' => 30,
             'token_expires_in_days' => 30,
+            
             'status' => ApiTokenRequestStatus::Pending,
-            'requested_ip' => $this->hashValue((string) $request->ip()),
+            'requested_ip' => hash('sha256', (string) $request->ip()),
             'request_source' => trim((string) ($data['source'] ?? 'public-web')),
-            'metadata' => [
-                'tracking_code' => $trackingCode,
-                'delivery_method' => $data['delivery_method'],
-                'delivery_destination_masked' => $this->maskDestination($destination),
-                'delivery_destination_encrypted' => Crypt::encryptString($destination),
-                'integration_type' => $data['integration_type'],
-                'extension_version' => $data['extension_version'] ?? null,
-                'installation_uuid_hash' => filled($data['installation_uuid'] ?? null) ? $this->hashValue((string) $data['installation_uuid']) : null,
-                'public_request_fingerprint' => $fingerprint,
-                'user_agent_hash' => $this->hashValue((string) $request->userAgent()),
-            ],
             'requested_at' => now(),
+
             'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
             'delivery_channel' => $data['delivery_method'],
-            'delivered_to' => $this->maskDestination($destination),
-            'delivery_email' => $data['delivery_method'] === 'email' ? $destination : null,
-            'delivery_telegram_username' => $data['delivery_method'] === 'telegram' ? $destination : null,
-            'delivery_whatsapp_number' => $data['delivery_method'] === 'whatsapp' ? $destination : null,
-            'delivery_email_masked' => $maskedContact['email'],
-            'delivery_telegram_username_masked' => $maskedContact['telegram'],
-            'delivery_whatsapp_number_masked' => $maskedContact['whatsapp'],
+            'delivery_email' => $data['delivery_method'] === 'email' ? $this->vault->encrypt($destination) : null,
+            'delivery_telegram_username' => $data['delivery_method'] === 'telegram' ? $this->vault->encrypt($destination) : null,
+            'delivery_whatsapp_number' => $data['delivery_method'] === 'whatsapp' ? $this->vault->encrypt($destination) : null,
+
+            'metadata' => [
+                'integration_type' => $data['integration_type'],
+                'extension_version' => $data['extension_version'] ?? null,
+                'installation_uuid_hash' => filled($data['installation_uuid'] ?? null) ? hash('sha256', (string) $data['installation_uuid']) : null,
+                'user_agent_hash' => hash('sha256', (string) $request->userAgent()),
+            ],
         ]);
 
         ApiTokenRequestEvent::query()->create([
@@ -121,8 +121,8 @@ class PublicTokenRequestController
             'event' => 'public_request_created',
             'description' => 'Solicitud pública creada desde formulario web.',
             'metadata' => ['tracking_code' => $trackingCode, 'source' => $tokenRequest->request_source],
-            'ip_address' => $this->hashValue((string) $request->ip()),
-            'user_agent' => $this->hashValue((string) $request->userAgent()),
+            'ip_address' => hash('sha256', (string) $request->ip()),
+            'user_agent' => hash('sha256', (string) $request->userAgent()),
             'created_at' => now(),
         ]);
 

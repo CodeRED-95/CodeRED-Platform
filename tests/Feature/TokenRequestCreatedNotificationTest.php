@@ -145,9 +145,17 @@ class TokenRequestCreatedNotificationTest extends TestCase
 
     private function createTokenRequest(array $overrides = []): ApiTokenRequest
     {
+        $vault = app(\App\Services\ApiTokens\TokenVaultService::class);
+        $email = $overrides['delivery_email'] ?? null;
+        $name = $overrides['requester_name'] ?? 'Cliente Demo';
+
+        unset($overrides['requester_name']);
+        
         return ApiTokenRequest::query()->create(array_merge([
             'request_uuid' => (string) Str::uuid(),
-            'requester_name' => 'Cliente Demo',
+            'tracking_code' => 'CR-'.strtoupper(Str::random(10)),
+            'requester_name_encrypted' => $vault->encrypt($name),
+            'requester_email_blind_index' => $email ? $vault->generateBlindIndex($email) : null,
             'application_name' => 'Buscador Shalom Control',
             'requested_token_name' => 'Buscador Shalom Control',
             'requested_token_type' => 'agencies',
@@ -163,8 +171,7 @@ class TokenRequestCreatedNotificationTest extends TestCase
             'requested_at' => now(),
             'delivery_status' => 'not_available',
             'delivery_channel' => 'whatsapp',
-            'delivery_whatsapp_number' => '+51999888777',
-            'delivery_whatsapp_number_masked' => '+51 ******777',
+            'delivery_whatsapp_number' => $vault->encrypt('+51999888777'),
         ], $overrides));
     }
 }

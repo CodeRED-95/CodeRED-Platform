@@ -68,8 +68,85 @@ class Index extends Component
     public bool $deliveryContactRevealed = false;
 
     public bool $confirmingDelivery = false;
+    
+    public bool $confirmingManualReveal = false;
+
+    public ?string $manualDeliveryReason = null;
+
+    public ?string $manualDeliveryMethod = null;
+    
+    public ?string $revealedToken = null;
 
     public ?int $deleteRequestId = null;
+
+    public bool $manualDeliveryConfirmation = false;
+    
+    public function confirmManualReveal(TokenVaultService $vault): void
+    {
+        Gate::authorize('api-token-requests.reveal_token');
+
+        $this->validate([
+            'manualDeliveryReason' => ['required', 'string', 'max:500'],
+            'manualDeliveryMethod' => ['required', 'string', Rule::in(['presencial', 'llamada', 'canal_corporativo', 'otro'])],
+            'manualDeliveryConfirmation' => ['accepted'],
+        ]);
+
+        $result = DB::transaction(function () use ($vault) {
+            $request = ApiTokenRequest::query()->whereKey($this->selectedId)->lockForUpdate()->firstOrFail();
+
+            if ($request->status !== ApiTokenRequestStatus::Approved) {
+                return ['error' => 'La solicitud no está aprobada.'];
+            }
+            if ($request->token_revealed_at) {
+                return ['error' => 'El token ya fue revelado anteriormente.'];
+            }
+            if (empty($request->token_ciphertext)) {
+                return ['error' => 'No hay un token cifrado para revelar.'];
+            }
+            
+            $token = $request->token;
+            if (!$token || $token->revoked_at || ($token->expires_at && $token->expires_at->isPast())) {
+                return ['error' => 'El token asociado ha sido revocado o ha expirado.'];
+            }
+
+            $plainTextToken = $vault->decrypt($request->token_ciphertext);
+
+            $request->forceFill([
+                'token_revealed_at' => now(),
+                'token_revealed_by_type' => 'admin',
+                'token_revealed_by_user_id' => auth()->id(),
+                'delivery_status' => ApiTokenRequestDeliveryStatus::Delivered,
+                'delivered_at' => now(),
+                'delivered_by' => auth()->id(),
+                'delivery_method_encrypted' => $vault->encrypt($this->manualDeliveryMethod),
+                'delivery_reason_encrypted' => $vault->encrypt($this->manualDeliveryReason),
+            ])->save();
+
+            $this->event($request, 'admin_manual_reveal', 'Token revelado manualmente por administrador.', [
+                'method' => $this->manualDeliveryMethod,
+                'reason' => $this->manualDeliveryReason,
+            ]);
+
+            return ['token' => $plainTextToken];
+        });
+
+        if (isset($result['error'])) {
+            $this->dispatch('toast', type: 'error', message: $result['error']);
+        } else {
+            $this->revealedToken = $result['token'];
+            $this->dispatch('toast', type: 'success', message: 'Token revelado. Entrégalo de forma segura y cierra esta ventana.');
+        }
+
+        $this->confirmingManualReveal = false;
+    }
+
+    public function closeRevealModal(): void
+    {
+        $this->revealedToken = null;
+        $this->manualDeliveryConfirmation = false;
+        $this->manualDeliveryReason = null;
+        $this->manualDeliveryMethod = null;
+    }
 
     public function mount(): void
     {
@@ -101,13 +178,13 @@ class Index extends Component
         $this->event($request, 'viewed', 'Solicitud visualizada.');
     }
 
-    public function approve(N8nTelegramTokenSettings $settings, ApiTokenGenerator $generator): void
+    public function approve(N8nTelegramTokenSettings $settings, ApiTokenGenerator $generator, \App\Services\ApiTokens\TokenVaultService $vault): void
     {
         Gate::authorize('api-token-requests.approve');
 
         $current = ApiTokenRequest::query()->findOrFail($this->selectedId);
         if ($current->requestTypeValue() === ApiTokenRequestType::Rotation->value) {
-            $this->approveRotation($current, $generator);
+            $this->approveRotation($current, $generator, $vault);
 
             return;
         }
@@ -125,7 +202,7 @@ class Index extends Component
             abort(422, 'La solicitud ya fue procesada.');
         }
 
-        DB::transaction(function () use ($data, $settings, $generator): void {
+        DB::transaction(function () use ($data, $settings, $generator, $vault): void {
             $request = ApiTokenRequest::query()->whereKey($this->selectedId)->lockForUpdate()->firstOrFail();
 
             if ($request->status !== ApiTokenRequestStatus::Pending) {
@@ -164,7 +241,9 @@ class Index extends Component
                 'reviewed_at' => now(),
                 'approved_at' => now(),
                 'personal_access_token_id' => $token->id,
-                'encrypted_plain_text_token' => Crypt::encryptString($created->plainTextToken),
+                'token_ciphertext' => $vault->encrypt($created->plainTextToken),
+                'token_hash' => hash('sha256', $created->plainTextToken),
+                'token_last_four' => substr($created->plainTextToken, -4),
                 'delivery_status' => ApiTokenRequestDeliveryStatus::Pending,
             ])->save();
 

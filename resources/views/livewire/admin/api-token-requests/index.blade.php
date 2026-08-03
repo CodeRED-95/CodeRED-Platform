@@ -282,7 +282,14 @@
                             @if ($confirmingDelivery)
                                 <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100"><p class="font-semibold">Confirmar entrega</p><p class="mt-2">Al marcar esta solicitud como entregada, los datos completos dejarán de estar disponibles. Esta acción no se puede deshacer.</p><div class="mt-4 flex gap-2"><x-ui.button type="button" variant="ghost" wire:click="cancelDeliveryConfirmation">Cancelar</x-ui.button><x-ui.button type="button" variant="danger" wire:click="markSelectedAsDelivered" loading-target="markSelectedAsDelivered">Confirmar entrega</x-ui.button></div></div>
                             @else
-                                <x-ui.button type="button" class="w-full" wire:click="confirmDelivery">Marcar como entregado</x-ui.button>
+                                <div class="flex flex-wrap gap-2">
+                                    <x-ui.button type="button" wire:click="confirmDelivery">Marcar como entregado</x-ui.button>
+                                    @can('api-token-requests.reveal_token')
+                                        @if ($selected->status === \App\Enums\ApiTokenRequestStatus::Approved && !$selected->token_revealed_at)
+                                            <x-ui.button type="button" variant="warning" wire:click="$set('confirmingManualReveal', true)">Revelar token</x-ui.button>
+                                        @endif
+                                    @endcan
+                                </div>
                             @endif
                         @else
                             <p class="text-sm text-[color:var(--color-text-muted)]">No hay acciones de aprobación disponibles para este estado.</p>
@@ -312,6 +319,60 @@
                     <x-ui.button type="button" variant="danger" wire:click="deleteConfirmedRequest" loading-target="deleteConfirmedRequest">Eliminar</x-ui.button>
                 </div>
                 <p class="mt-4 text-xs font-semibold text-red-300">No se permite eliminar una solicitud entregada.</p>
+            </section>
+        </div>
+    @endif
+    
+    @if($confirmingManualReveal)
+        <div class="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="manual-reveal-title">
+            <section class="w-full max-w-lg rounded-2xl border border-white/10 bg-[color:var(--color-surface)] p-6 shadow-2xl">
+                <h2 id="manual-reveal-title" class="text-lg font-semibold">Confirmar entrega manual</h2>
+                <p class="mt-2 text-sm text-[color:var(--color-text-muted)]">Estás a punto de revelar el token completo. Esta acción quedará registrada y el token no podrá volver a mostrarse. Confirma que vas a realizar la entrega manual al solicitante.</p>
+                
+                <div class="mt-4 space-y-4">
+                    <x-ui.textarea wire:model.defer="manualDeliveryReason" label="Motivo de la revelación" placeholder="Ej: Entrega en persona al solicitante." required />
+                    <x-ui.dropdown-select wire:model.defer="manualDeliveryMethod" label="Método de entrega" :options="['presencial' => 'Presencial', 'llamada' => 'Llamada', 'canal_corporativo' => 'Canal corporativo', 'otro' => 'Otro']" required />
+                    <label class="flex gap-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-[color:var(--color-text-secondary)]">
+                        <input type="checkbox" wire:model.defer="manualDeliveryConfirmation" class="mt-1">
+                        <span>Confirmo que entregaré este token al solicitante autorizado.</span>
+                    </label>
+                    <x-ui.form-error :message="$errors->first('manualDeliveryConfirmation')" />
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <x-ui.button variant="secondary" wire:click="$set('confirmingManualReveal', false)">Cancelar</x-ui.button>
+                    <x-ui.button variant="warning" wire:click="confirmManualReveal" loading-target="confirmManualReveal">Revelar y marcar como entregado</x-ui.button>
+                </div>
+            </section>
+        </div>
+    @endif
+
+    @if($revealedToken)
+        <div class="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="revealed-token-title">
+            <section class="w-full max-w-lg rounded-2xl border border-amber-500/30 bg-[color:var(--color-surface)] p-6 shadow-2xl" x-data="{
+                token: @js($revealedToken),
+                copied: false,
+                copyToClipboard() {
+                    navigator.clipboard.writeText(this.token).then(() => {
+                        this.copied = true;
+                        setTimeout(() => this.copied = false, 2000);
+                    });
+                }
+            }">
+                <h2 id="revealed-token-title" class="text-lg font-semibold text-amber-200">Token Revelado</h2>
+                <p class="mt-2 text-sm text-amber-100/80">Este token se muestra <strong>una sola vez</strong>. Cópialo y entrégalo de forma segura al solicitante. Al cerrar esta ventana, el token no podrá recuperarse.</p>
+                
+                <div class="relative mt-4">
+                    <input type="text" :value="token" readonly class="w-full rounded-lg border-white/20 bg-white/10 pr-12 font-mono text-sm text-white">
+                    <button @click="copyToClipboard()" class="absolute inset-y-0 right-0 grid w-12 place-items-center rounded-r-lg hover:bg-white/20" :class="copied ? 'text-emerald-400' : ''">
+                        <span x-show="!copied" class="text-lg">📋</span>
+                        <span x-show="copied" class="text-lg">✓</span>
+                    </button>
+                </div>
+
+                <div class="mt-6 text-right">
+                    <x-ui.button variant="danger" wire:click="closeRevealModal">He copiado el token, cerrar</x-ui.button>
+                </div>
             </section>
         </div>
     @endif

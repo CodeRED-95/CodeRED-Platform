@@ -23,6 +23,7 @@ class UserFactory extends Factory
             'status' => 'active',
             'is_active' => true,
             'must_change_password' => false,
+            'public_code' => fn () => Str::uuid(),
         ];
     }
 
