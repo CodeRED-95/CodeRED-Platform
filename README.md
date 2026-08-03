@@ -202,6 +202,35 @@ grep -RInE '^[[:space:]]*(import|export)[[:space:]]' dist/content.js
 
 La carga manual se realiza desde `chrome://extensions` seleccionando únicamente `packages/codered-chrome-extension/dist` como extensión descomprimida.
 
+## Páginas legales para la extensión de Chrome
+
+Para cumplir con los requisitos de la Chrome Web Store, se han creado dos páginas públicas:
+
+- **Política de Privacidad:** `https://platform.codered.host/privacy/buscador-shalom`
+- **Soporte:** `https://platform.codered.host/support/buscador-shalom`
+
+Estas páginas no requieren autenticación y están diseñadas para ser responsive y consistentes con el branding de CodeRED Platform.
+
+### Variables de entorno
+
+Las siguientes variables de entorno se utilizan para configurar el contenido de las páginas legales:
+
+```env
+CODERED_SUPPORT_EMAIL=support@codered.host
+CODERED_LEGAL_NAME="CodeRED Platform"
+CODERED_LEGAL_COUNTRY="Perú"
+CODERED_PRIVACY_UPDATED_AT=2026-08-02
+```
+
+### Limpieza de caché
+
+Si modifica estas variables en su archivo `.env`, asegúrese de limpiar la caché de configuración para que los cambios se reflejen:
+
+```bash
+php artisan optimize:clear
+php artisan config:cache
+```
+
 ## Actualización
 
 ```bash

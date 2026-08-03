@@ -41,6 +41,10 @@ use App\Modules\Agencies\Http\Controllers\AgencyImportRunDownloadController;
 use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use App\Modules\Ruc\Http\Controllers\RucImportErrorsController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Public\BuscadorShalomLegalController;
+
+Route::get('/privacy/buscador-shalom', [BuscadorShalomLegalController::class, 'privacy'])->name('public.buscador-shalom.privacy');
+Route::get('/support/buscador-shalom', [BuscadorShalomLegalController::class, 'support'])->name('public.buscador-shalom.support');
 
 Route::get('/solicitar-token', [PublicTokenRequestController::class, 'create'])->middleware('throttle:public-token-request-form')->name('public.token-requests.create');
 Route::post('/solicitar-token', [PublicTokenRequestController::class, 'store'])->middleware('throttle:public-token-requests')->name('public.token-requests.store');

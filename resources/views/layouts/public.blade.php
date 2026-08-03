@@ -4,7 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $pageTitle ?? 'CodeRED Platform' }}</title>
+
+    <title>@yield('pageTitle', 'CodeRED Platform')</title>
+    <meta name="description" content="@yield('metaDescription', 'Plataforma de gestión de agencias y logística.')">
+    <link rel="canonical" href="@yield('canonical', url()->current())" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="@yield('ogTitle', 'CodeRED Platform')" />
+    <meta property="og:description" content="@yield('ogDescription', 'Plataforma de gestión de agencias y logística.')" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="@yield('ogUrl', url()->current())" />
+    <meta property="og:image" content="{{ asset('images/branding/og-image.png') }}" />
+
     <link rel="icon" href="{{ asset('images/branding/favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

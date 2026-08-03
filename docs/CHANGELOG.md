@@ -16,6 +16,16 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-08-03
+
+### Added
+
+- **Páginas legales para la extensión de Chrome:** Se crearon las páginas públicas de política de privacidad y soporte para la extensión "Buscador Shalom" para cumplir con los requisitos de la Chrome Web Store.
+  - `/privacy/buscador-shalom`
+  - `/support/buscador-shalom`
+- **Configuración legal centralizada:** Se añadió una nueva sección en `config/codered.php` para centralizar la información legal y de soporte, configurable a través de variables de entorno.
+- **Pruebas automatizadas:** Se crearon pruebas de feature para verificar el correcto funcionamiento y contenido de las nuevas páginas legales.
+
 ## [2.2.0] - 2026-08-02
 
 ### Added
