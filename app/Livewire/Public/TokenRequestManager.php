@@ -4,6 +4,7 @@ namespace App\Livewire\Public;
 
 use App\Models\ApiTokenRequest;
 use App\Services\ApiTokens\TokenVaultService;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,7 @@ class TokenRequestManager extends Component
     // Propiedades para el resultado
     public ?ApiTokenRequest $foundRequest = null;
     public ?string $errorMessage = null;
+    #[Locked]
     public ?string $revealedToken = null;
     public bool $confirmingReveal = false;
 
