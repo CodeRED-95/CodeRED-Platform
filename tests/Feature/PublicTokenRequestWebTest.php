@@ -16,7 +16,7 @@ class PublicTokenRequestWebTest extends TestCase
     {
         $this->get('/solicitar-token')
             ->assertOk()
-            ->assertSee('Solicitar token de acceso')
+            ->assertSee('Solicitud de token de acceso')
             ->assertDontSee('Dashboard')
             ->assertDontSee('Agencia no encontrada');
     }
