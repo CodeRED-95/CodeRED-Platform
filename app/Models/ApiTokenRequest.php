@@ -238,6 +238,96 @@ class ApiTokenRequest extends Model
             ->where('aggregate_type', self::class);
     }
 
+    public function otpValidations(): HasMany
+    {
+        return $this->hasMany(OtpValidation::class);
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(TokenRequestAuditLog::class);
+    }
+
+    /**
+     * Obtiene la validación OTP más reciente
+     */
+    public function getLatestOtpValidation(): ?OtpValidation
+    {
+        return $this->otpValidations()->latest('created_at')->first();
+    }
+
+    /**
+     * Verifica si el token ha sido revelado
+     */
+    public function hasTokenBeenRevealed(): bool
+    {
+        return $this->token_revealed_at !== null;
+    }
+
+    /**
+     * Verifica si el OTP ha sido validado
+     */
+    public function hasOtpBeenValidated(): bool
+    {
+        return $this->otp_validated_at !== null;
+    }
+
+    /**
+     * Verifica si el usuario puede ver datos protegidos
+     */
+    public function canUserViewProtectedData($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return $user->hasPermission('api-token-requests.view-protected-data');
+    }
+
+    /**
+     * Obtiene el count de revelaciones de token
+     */
+    public function getTokenRevealCount(): int
+    {
+        return $this->token_reveal_count ?? 0;
+    }
+
+    /**
+     * Obtiene el count de visualizaciones de datos protegidos
+     */
+    public function getProtectedDataViewCount(): int
+    {
+        return $this->protected_data_view_count ?? 0;
+    }
+
+    /**
+     * Valida que el token solo pueda revelarse una sola vez
+     */
+    public function canRevealToken(): bool
+    {
+        return !$this->hasTokenBeenRevealed() && $this->statusValue() === ApiTokenRequestStatus::Approved->value;
+    }
+
+    /**
+     * Incrementa el contador de revelaciones de token (con race condition protection)
+     */
+    public function incrementTokenRevealCount(): void
+    {
+        $this->increment('token_reveal_count');
+    }
+
+    /**
+     * Incrementa el contador de visualizaciones de datos protegidos
+     */
+    public function incrementProtectedDataViewCount(string $ip): void
+    {
+        $this->update([
+            'protected_data_view_count' => ($this->protected_data_view_count ?? 0) + 1,
+            'last_protected_view_ip' => $ip,
+            'last_protected_view_at' => now(),
+        ]);
+    }
+
     public function isDelivered(): bool
     {
         return $this->deliveryStatusValue() === ApiTokenRequestDeliveryStatus::Delivered->value || $this->delivered_at !== null;
