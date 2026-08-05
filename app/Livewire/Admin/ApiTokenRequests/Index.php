@@ -15,6 +15,7 @@ use App\Models\ApiTokenRequestEvent;
 use App\Models\User;
 use App\Services\ApiTokens\ApiTokenGenerator;
 use App\Services\ApiTokens\TelegramRequesterLinker;
+use App\Services\ApiTokens\TokenVaultService;
 use App\Services\Integrations\N8nTelegramTokenSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;

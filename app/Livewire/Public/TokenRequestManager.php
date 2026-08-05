@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Livewire\Public;
+namespace App\Livewire\Public;
 
 use App\Models\ApiTokenRequest;
 use App\Services\ApiTokens\TokenVaultService;

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
+use App\Services\ApiTokens\TokenVaultService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,19 +14,14 @@ use Illuminate\Support\Str;
 
 class ApiTokenRequest extends Model
 {
+    private ?TokenVaultService $vaultService = null;
+
     protected $fillable = [
         'request_uuid',
         'tracking_code',
         'request_type',
-        'requester_name',
-        'requester_email',
-        'requester_phone',
-        'requester_name_encrypted',
-        'requester_email_blind_index',
-        'requester_phone_encrypted',
-        'purpose_encrypted',
+        'requester_email', // Se mantiene para la búsqueda inicial, el blind index se genera a partir de este
         'application_name',
-        'purpose',
         'telegram_user_id',
         'telegram_chat_id',
         'telegram_username',
@@ -44,43 +40,12 @@ class ApiTokenRequest extends Model
         'idempotency_key',
         'metadata',
         'requested_at',
-        'reviewed_at',
-        'approved_at',
-        'rejected_at',
-        'cancelled_at',
-        'reviewed_by',
-        'rejection_reason',
-        'cancellation_reason',
-        'personal_access_token_id',
-        'source_personal_access_token_id',
-        'replacement_personal_access_token_id',
-        'token_ciphertext',
-        'token_hash',
-        'token_last_four',
-        'token_revealed_at',
-        'token_revealed_by_type',
-        'token_revealed_by_user_id',
-        'delivery_status',
-        'delivered_at',
-        'delivered_by',
-        'delivery_channel',
-        'delivered_to',
-        'delivery_email',
-        'delivery_telegram_username',
-        'delivery_whatsapp_number',
-        'delivery_email_masked',
-        'delivery_telegram_username_masked',
-        'delivery_whatsapp_number_masked',
-        'delivery_method_encrypted',
-        'delivery_reason_encrypted',
-        'delivery_metadata',
-        'delivery_attempts',
-        'delivery_reference',
-        'result_retrieved_at',
     ];
 
     protected $hidden = [
         'token_ciphertext',
+        'token_hash',
+        'requester_email_blind_index',
         'requester_name_encrypted',
         'requester_phone_encrypted',
         'purpose_encrypted',
@@ -89,6 +54,7 @@ class ApiTokenRequest extends Model
         'delivery_email',
         'delivery_telegram_username',
         'delivery_whatsapp_number',
+        'personal_access_token_id',
     ];
 
     protected function casts(): array
@@ -111,9 +77,59 @@ class ApiTokenRequest extends Model
         ];
     }
 
+    /**
+     * Lazily creates and returns an instance of the TokenVaultService.
+     */
+    private function vault(): TokenVaultService
+    {
+        if ($this->vaultService === null) {
+            $this->vaultService = new TokenVaultService();
+        }
+        return $this->vaultService;
+    }
+
+    public function getAttribute($key)
+    {
+        $encryptedFields = [
+            'requester_name' => 'requester_name_encrypted',
+            'requester_phone' => 'requester_phone_encrypted',
+            'purpose' => 'purpose_encrypted',
+            'delivery_method' => 'delivery_method_encrypted',
+            'delivery_reason' => 'delivery_reason_encrypted',
+        ];
+
+        if (array_key_exists($key, $encryptedFields) && ! empty(parent::getAttribute($encryptedFields[$key]))) {
+            return $this->vault()->decrypt(parent::getAttribute($encryptedFields[$key]));
+        }
+
+        return parent::getAttribute($key);
+    }
+
+    public function setAttribute($key, $value)
+    {
+        $encryptedFields = [
+            'requester_name' => 'requester_name_encrypted',
+            'requester_phone' => 'requester_phone_encrypted',
+            'purpose' => 'purpose_encrypted',
+            'delivery_method' => 'delivery_method_encrypted',
+            'delivery_reason' => 'delivery_reason_encrypted',
+        ];
+
+        if (array_key_exists($key, $encryptedFields)) {
+            $this->attributes[$encryptedFields[$key]] = $this->vault()->encrypt($value);
+            return $this;
+        }
+        
+        if ($key === 'requester_email') {
+            $this->attributes['requester_email_blind_index'] = $this->vault()->generateBlindIndex($value);
+        }
+
+        return parent::setAttribute($key, $value);
+    }
+    
     public function requestTypeValue(): string
     {
-        $type = $this->getAttribute('request_type');
+        $type = parent::getAttribute('request_type');
 
         if ($type instanceof ApiTokenRequestType) {
             return $type->value;
@@ -124,28 +140,28 @@ class ApiTokenRequest extends Model
 
     public function statusValue(): string
     {
-        $status = $this->getAttribute('status');
+        $status = parent::getAttribute('status');
 
         return $status instanceof ApiTokenRequestStatus ? $status->value : (string) $status;
     }
 
     public function deliveryStatusValue(): string
     {
-        $status = $this->getAttribute('delivery_status');
+        $status = parent::getAttribute('delivery_status');
 
         return $status instanceof ApiTokenRequestDeliveryStatus ? $status->value : (string) $status;
     }
 
     public function requestedAt(): ?Carbon
     {
-        $value = $this->getAttribute('requested_at');
+        $value = parent::getAttribute('requested_at');
 
         return $value === null ? null : $this->asDateTime($value);
     }
 
     public function reviewedAt(): ?Carbon
     {
-        $value = $this->getAttribute('reviewed_at');
+        $value = parent::getAttribute('reviewed_at');
 
         return $value === null ? null : $this->asDateTime($value);
     }
@@ -286,3 +302,4 @@ class ApiTokenRequest extends Model
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 }
+
