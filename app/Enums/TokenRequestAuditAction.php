@@ -4,7 +4,7 @@ namespace App\Enums;
 
 enum TokenRequestAuditAction: string
 {
-    // OTP actions
+    // Acciones de OTP
     case OtpRequested = 'otp_requested';
     case OtpVerified = 'otp_verified';
     case OtpResent = 'otp_resent';
@@ -12,25 +12,25 @@ enum TokenRequestAuditAction: string
     case OtpMaxAttemptsReached = 'otp_max_attempts_reached';
     case OtpMaxResendsReached = 'otp_max_resends_reached';
 
-    // Protected data actions
+    // Acciones de datos protegidos
     case ProtectedDataViewed = 'protected_data_viewed';
     case ProtectedDataViewDenied = 'protected_data_view_denied';
 
-    // Token reveal actions
+    // Acciones de revelación de token
     case TokenRevealed = 'token_revealed';
     case TokenCopied = 'token_copied';
     case TokenRevealDenied = 'token_reveal_denied';
     case TokenAlreadyRevealed = 'token_already_revealed';
 
-    // Delivery actions
+    // Acciones de entrega
     case DeliveryConfirmed = 'delivery_confirmed';
     case DeliveryDenied = 'delivery_denied';
 
-    // Administrative actions
+    // Acciones administrativas
     case ApprovalCancelled = 'approval_cancelled';
     case TokenRegenerated = 'token_regenerated';
 
-    // Request status changes
+    // Cambios de estado de solicitud
     case RequestApproved = 'request_approved';
     case RequestRejected = 'request_rejected';
     case RequestCancelled = 'request_cancelled';
