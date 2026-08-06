@@ -2,7 +2,10 @@
 
 namespace App\Livewire\Admin\ApiTokenRequests;
 
+use App\Actions\ApiTokenRequests\ConfirmTokenDeliveryAction;
 use App\Actions\ApiTokenRequests\MarkTokenRequestAsDeliveredAction;
+use App\Actions\ApiTokenRequests\RevealTokenAction;
+use App\Actions\ApiTokenRequests\ShowProtectedDataAction;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
@@ -79,6 +82,20 @@ class Index extends Component
 
     #[Locked]
     public ?string $revealedToken = null;
+
+    // Nuevas propiedades para FASE 2
+    #[Locked]
+    public ?array $protectedData = null;
+
+    public bool $showingProtectedData = false;
+
+    public bool $confirmingTokenReveal = false;
+
+    public bool $confirmingTokenDelivery = false;
+
+    public string $deliveryMethod = 'presencial';
+
+    public string $deliveryReason = '';
 
     public ?int $deleteRequestId = null;
 
@@ -569,6 +586,112 @@ class Index extends Component
         $tokenType = is_string($type) ? ApiTokenType::tryFrom($type) : null;
 
         return $prefix.($tokenType?->label() ?? 'Token sin preferencia');
+    }
+
+    // ========================================
+    // NUEVA FASE 2: Métodos para OTP y entrega
+    // ========================================
+
+    public function showProtectedData(ShowProtectedDataAction $action): void
+    {
+        if (!$this->selectedId) {
+            return;
+        }
+
+        try {
+            $request = ApiTokenRequest::find($this->selectedId);
+
+            $this->protectedData = $action->execute(
+                $request,
+                auth()->user(),
+                request()->ip(),
+                request()->userAgent(),
+            );
+
+            $this->showingProtectedData = true;
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->addError('protected_data', $e->getMessage());
+        } catch (\Exception $e) {
+            $this->addError('protected_data', 'Error al obtener datos protegidos: '.$e->getMessage());
+        }
+    }
+
+    public function closeProtectedData(): void
+    {
+        $this->showingProtectedData = false;
+        $this->protectedData = null;
+    }
+
+    public function revealTokenModal(): void
+    {
+        if (!$this->selectedId) {
+            return;
+        }
+
+        $this->confirmingTokenReveal = true;
+    }
+
+    public function revealToken(RevealTokenAction $action): void
+    {
+        if (!$this->selectedId) {
+            return;
+        }
+
+        try {
+            $request = ApiTokenRequest::find($this->selectedId);
+
+            $plainToken = $action->execute(
+                $request,
+                request()->ip(),
+                request()->userAgent(),
+                auth()->user(),
+            );
+
+            $this->revealedToken = $plainToken;
+            $this->confirmingTokenReveal = false;
+
+            // Refrescar el selectedId para actualizar UI
+            $this->selectedId = $this->selectedId;
+        } catch (\Exception $e) {
+            $this->addError('token_reveal', $e->getMessage());
+        }
+    }
+
+    public function confirmTokenDelivery(ConfirmTokenDeliveryAction $action): void
+    {
+        $this->validate([
+            'deliveryMethod' => ['required', 'string'],
+            'deliveryReason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if (!$this->selectedId) {
+            return;
+        }
+
+        try {
+            $request = ApiTokenRequest::find($this->selectedId);
+
+            $action->execute(
+                $request,
+                $this->deliveryMethod,
+                $this->deliveryReason ?: null,
+                auth()->user(),
+                request()->ip(),
+                request()->userAgent(),
+            );
+
+            $this->confirmingTokenDelivery = false;
+            $this->revealedToken = null;
+            $this->deliveryMethod = 'presencial';
+            $this->deliveryReason = '';
+
+            // Refrescar la solicitud
+            $this->selectedId = $this->selectedId;
+
+            session()->flash('message', 'Entrega confirmada exitosamente.');
+        } catch (\Exception $e) {
+            $this->addError('delivery', $e->getMessage());
+        }
     }
 
     public function render(): View

@@ -2,7 +2,15 @@
 
 namespace App\Livewire\Public;
 
+use App\Actions\ApiTokenRequests\CreateOtpTokenAction;
+use App\Actions\ApiTokenRequests\RevealTokenAction;
+use App\Actions\ApiTokenRequests\VerifyOtpTokenAction;
+use App\Exceptions\OtpExpiredException;
+use App\Exceptions\OtpMaxAttemptsExceededException;
+use App\Exceptions\OtpMaxResendsExceededException;
+use App\Exceptions\TokenAlreadyRevealedException;
 use App\Models\ApiTokenRequest;
+use App\Services\ApiTokens\AuditService;
 use App\Services\ApiTokens\TokenVaultService;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -35,6 +43,15 @@ class TokenRequestManager extends Component
     #[Locked]
     public ?string $revealedToken = null;
     public bool $confirmingReveal = false;
+
+    // FASE 2: Nuevas propiedades para flujo de OTP
+    public string $currentStep = 'status_check'; // status_check, otp_pending, token_ready
+    public string $otpCode = '';
+    public string $otpStatus = 'pending';
+    public int $otpAttemptsRemaining = 5;
+    public int $otpResendsRemaining = 3;
+    public ?string $otpExpiresAt = null;
+    public ?string $otpErrorMessage = null;
 
     public function mount(): void
     {
@@ -74,16 +91,96 @@ class TokenRequestManager extends Component
         ApiTokenRequestEvent::logPublicStatusCheck(true, $this->tracking_code_status, 'Status checked successfully', $request->id);
     }
 
+    // ========================================
+    // FASE 2: Nuevos métodos para flujo OTP
+    // ========================================
+
+    public function requestOtp(CreateOtpTokenAction $action): void
+    {
+        if (!$this->foundRequest) {
+            $this->otpErrorMessage = 'No se ha encontrado una solicitud.';
+            return;
+        }
+
+        try {
+            $result = $action->execute(
+                $this->foundRequest,
+                request()->ip(),
+                request()->userAgent(),
+            );
+
+            $this->currentStep = 'otp_pending';
+            $this->otpStatus = 'pending';
+            $this->otpAttemptsRemaining = 5;
+            $this->otpResendsRemaining = $result['resends_remaining'];
+            $this->otpExpiresAt = now()->addMinutes(10)->toIso8601String();
+            $this->otpErrorMessage = null;
+        } catch (\Exception $e) {
+            $this->otpErrorMessage = $e->getMessage();
+        }
+    }
+
+    public function verifyOtp(VerifyOtpTokenAction $action): void
+    {
+        if (!$this->foundRequest) {
+            $this->otpErrorMessage = 'La solicitud ha expirado.';
+            return;
+        }
+
+        $this->validate([
+            'otpCode' => ['required', 'string', 'size:6', 'regex:/^\d{6}$/'],
+        ]);
+
+        try {
+            $result = $action->execute(
+                $this->foundRequest,
+                $this->otpCode,
+                request()->ip(),
+                request()->userAgent(),
+            );
+
+            if ($result['success']) {
+                $this->currentStep = 'token_ready';
+                $this->otpStatus = 'verified';
+                $this->otpErrorMessage = null;
+                $this->otpCode = '';
+            } else {
+                $this->otpAttemptsRemaining = $result['remaining_attempts'] ?? 5;
+                $this->otpErrorMessage = $result['message'];
+            }
+        } catch (OtpExpiredException $e) {
+            $this->otpStatus = 'expired';
+            $this->otpErrorMessage = $e->getMessage();
+        } catch (OtpMaxAttemptsExceededException $e) {
+            $this->otpStatus = 'max_attempts';
+            $this->otpErrorMessage = $e->getMessage();
+        } catch (OtpMaxResendsExceededException $e) {
+            $this->otpStatus = 'max_resends';
+            $this->otpErrorMessage = $e->getMessage();
+        } catch (\Exception $e) {
+            $this->otpErrorMessage = $e->getMessage();
+        }
+    }
+
     public function revealToken(): void
     {
         if (!$this->foundRequest) {
             $this->errorMessage = 'No se ha encontrado una solicitud para revelar.';
             return;
         }
+
+        // Si no tiene OTP validado, pedir que lo haga primero
+        if (!$this->foundRequest->hasOtpBeenValidated() && $this->currentStep !== 'token_ready') {
+            $this->requestOtp(new CreateOtpTokenAction(
+                new \App\Services\ApiTokens\OtpService()
+            ));
+            return;
+        }
+
         $this->confirmingReveal = true;
     }
-    
-    public function confirmRevealToken(TokenVaultService $vault): void
+
+    public function confirmRevealToken(RevealTokenAction $action): void
     {
         if (!$this->foundRequest) {
             $this->errorMessage = 'La sesión ha expirado, por favor busca tu solicitud de nuevo.';
@@ -95,62 +192,28 @@ class TokenRequestManager extends Component
         $this->revealedToken = null;
 
         try {
-            $revealed = DB::transaction(function () use ($vault) {
-                $request = ApiTokenRequest::query()
-                    ->whereKey($this->foundRequest->id)
-                    ->lockForUpdate()
-                    ->first();
+            $plainToken = $action->execute(
+                $this->foundRequest,
+                request()->ip(),
+                request()->userAgent(),
+            );
 
-                if (!$request) {
-                     ApiTokenRequestEvent::logPublicStatusCheck(false, $this->tracking_code_status, 'Request not found in transaction', $this->foundRequest->id);
-                    return ['error' => 'No se encontró una solicitud con los datos proporcionados.'];
-                }
-                
-                if ($request->status !== ApiTokenRequestStatus::Approved) {
-                    ApiTokenRequestEvent::logPublicStatusCheck(true, $this->tracking_code_status, 'Request not approved', $request->id);
-                    return ['error' => 'La solicitud no ha sido aprobada.'];
-                }
+            $this->revealedToken = $plainToken;
+            $this->foundRequest->refresh();
 
-                if ($request->token_revealed_at) {
-                    ApiTokenRequestEvent::logPublicStatusCheck(true, $this->tracking_code_status, 'Token already revealed', $request->id);
-                    return ['error' => 'El token ya fue entregado y no puede volver a mostrarse.'];
-                }
-                
-                if (empty($request->token_ciphertext)) {
-                    ApiTokenRequestEvent::logPublicStatusCheck(true, $this->tracking_code_status, 'Ciphertext is empty', $request->id);
-                    return ['error' => 'Error al procesar la solicitud. Contacte a soporte. [EC:01]'];
-                }
+            // Registrar auditoría
+            AuditService::logTokenRevealed(
+                $this->foundRequest,
+                null,
+                request()->ip(),
+                request()->userAgent(),
+            );
 
-                $token = $request->token;
-                if (!$token || $token->revoked_at || ($token->expires_at && $token->expires_at->isPast())) {
-                    ApiTokenRequestEvent::logPublicStatusCheck(true, $this->tracking_code_status, 'Token revoked or expired', $request->id);
-                    return ['error' => 'El token asociado a esta solicitud ha sido revocado o ha expirado.'];
-                }
-
-                $plainTextToken = $vault->decrypt($request->token_ciphertext);
-
-                $request->forceFill([
-                    'token_revealed_at' => now(),
-                    'token_revealed_by_type' => 'public_requester',
-                    'delivery_status' => ApiTokenRequestDeliveryStatus::Delivered,
-                    'delivered_at' => now(),
-                ])->save();
-
-                ApiTokenRequestEvent::logPublicStatusCheck(true, $this->tracking_code_status, 'Token revealed to requester', $request->id);
-
-                return ['token' => $plainTextToken];
-            }, 3);
-
-            if (isset($revealed['error'])) {
-                $this->errorMessage = $revealed['error'];
-            } else {
-                $this->revealedToken = $revealed['token'];
-                $this->foundRequest->refresh();
-            }
-
+        } catch (TokenAlreadyRevealedException $e) {
+            $this->errorMessage = $e->getMessage();
         } catch (\Throwable $e) {
             logger()->error('Error revealing token for public request', [
-                'request_id' => $this->foundRequest->id, 
+                'request_id' => $this->foundRequest->id,
                 'error' => $e->getMessage()
             ]);
             $this->errorMessage = 'Ocurrió un error inesperado al procesar la solicitud. [EC:02]';
