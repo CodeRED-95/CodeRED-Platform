@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -16,28 +15,14 @@ return new class extends Migration
             Schema::create('ruc_import_events', function (Blueprint $table): void {
                 $table->id();
                 $table->foreignId('ruc_import_id')->constrained('ruc_imports')->cascadeOnDelete();
-                $table->string('event_type', 50);
+                $table->string('event_type', 50)->index();
                 $table->jsonb('data')->nullable();
                 $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->string('ip_address', 45)->nullable();
                 $table->text('user_agent')->nullable();
                 $table->timestamp('created_at')->useCurrent();
+                $table->index(['ruc_import_id', 'created_at']);
             });
-
-            // Crear índices solo si la tabla acaba de ser creada
-            if (!DB::table('information_schema.statistics')
-                ->where('table_name', 'ruc_import_events')
-                ->where('index_name', 'ruc_import_events_ruc_import_id_created_at_index')
-                ->exists()) {
-                DB::statement('CREATE INDEX ruc_import_events_ruc_import_id_created_at_index ON ruc_import_events(ruc_import_id, created_at)');
-            }
-
-            if (!DB::table('information_schema.statistics')
-                ->where('table_name', 'ruc_import_events')
-                ->where('index_name', 'ruc_import_events_event_type_index')
-                ->exists()) {
-                DB::statement('CREATE INDEX ruc_import_events_event_type_index ON ruc_import_events(event_type)');
-            }
         }
 
         // Tabla: ruc_import_duplicates (Rastrear duplicados)
@@ -50,29 +35,10 @@ return new class extends Migration
                 $table->unsignedBigInteger('duplicate_line');
                 $table->string('action', 30)->default('skipped');
                 $table->timestamp('created_at')->useCurrent();
+                $table->index('ruc_import_id');
+                $table->index('ruc');
+                $table->unique(['ruc_import_id', 'ruc', 'duplicate_line']);
             });
-
-            // Crear índices solo si la tabla acaba de ser creada
-            if (!DB::table('information_schema.statistics')
-                ->where('table_name', 'ruc_import_duplicates')
-                ->where('index_name', 'ruc_import_duplicates_ruc_import_id_index')
-                ->exists()) {
-                DB::statement('CREATE INDEX ruc_import_duplicates_ruc_import_id_index ON ruc_import_duplicates(ruc_import_id)');
-            }
-
-            if (!DB::table('information_schema.statistics')
-                ->where('table_name', 'ruc_import_duplicates')
-                ->where('index_name', 'ruc_import_duplicates_ruc_index')
-                ->exists()) {
-                DB::statement('CREATE INDEX ruc_import_duplicates_ruc_index ON ruc_import_duplicates(ruc)');
-            }
-
-            if (!DB::table('information_schema.statistics')
-                ->where('table_name', 'ruc_import_duplicates')
-                ->where('index_name', 'ruc_import_duplicates_ruc_import_id_ruc_duplicate_line_unique')
-                ->exists()) {
-                DB::statement('CREATE UNIQUE INDEX ruc_import_duplicates_ruc_import_id_ruc_duplicate_line_unique ON ruc_import_duplicates(ruc_import_id, ruc, duplicate_line)');
-            }
         }
 
         // Agregar nuevos campos a ruc_imports (solo si no existen)
