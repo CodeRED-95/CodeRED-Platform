@@ -13,14 +13,14 @@ use Symfony\Component\Process\Process;
 
 class RucBackupService
 {
-    private const BACKUP_DIR = '/tmp/ruc-backups';
+    private const BACKUP_DIR = 'backups/ruc'; // storage/app/backups/ruc
 
     private const COMPRESSION_LEVEL = 6; // 1-9, 6 es balance entre velocidad y compresión
 
     public function __construct()
     {
-        if (!is_dir(self::BACKUP_DIR)) {
-            mkdir(self::BACKUP_DIR, 0755, true);
+        if (!Storage::disk('local')->exists(self::BACKUP_DIR)) {
+            Storage::disk('local')->makeDirectory(self::BACKUP_DIR);
         }
     }
 
@@ -32,7 +32,7 @@ class RucBackupService
         $startTime = microtime(true);
         $timestamp = now()->format('Y-m-d-His');
         $backupName = "ruc_backup_{$timestamp}.sql.gz";
-        $localPath = self::BACKUP_DIR . '/' . $backupName;
+        $localPath = storage_path('app/' . self::BACKUP_DIR . '/' . $backupName);
 
         // Crear registro de backup
         $backup = RucBackup::create([
@@ -55,25 +55,13 @@ class RucBackupService
             $checksum = hash_file('sha256', $localPath);
             $recordCount = DB::table('ruc_records')->count();
 
-            // 3. Subir a S3 (si está configurado)
-            $s3Path = null;
-            if ($this->isS3Enabled()) {
-                $s3Path = $this->uploadToS3($localPath, $backupName);
-                // Eliminar archivo local después de subir
-                @unlink($localPath);
-                $storage = 's3';
-            } else {
-                $storage = 'local';
-                $s3Path = $localPath;
-            }
-
-            // 4. Actualizar registro como completado
+            // 3. Actualizar registro como completado
             $duration = intval(microtime(true) - $startTime);
             $backup->update([
                 'total_records' => $recordCount,
                 'file_size_bytes' => $fileSize,
-                'storage_path' => $s3Path,
-                'storage_type' => $storage,
+                'storage_path' => $localPath,
+                'storage_type' => 'local',
                 'checksum_sha256' => $checksum,
                 'duration_seconds' => $duration,
             ]);
@@ -110,6 +98,10 @@ class RucBackupService
             throw new \Exception('El backup debe estar completado para restaurar');
         }
 
+        if (!file_exists($backup->storage_path)) {
+            throw new \Exception('El archivo de backup no existe: ' . $backup->storage_path);
+        }
+
         Log::info('Starting RUC database restore', [
             'backup_id' => $backup->id,
             'dry_run' => $dryRun,
@@ -118,27 +110,21 @@ class RucBackupService
         $startTime = microtime(true);
 
         try {
-            // 1. Descargar archivo si está en S3
-            $filePath = $backup->storage_path;
-            if ($backup->storage_type === 's3') {
-                $filePath = $this->downloadFromS3($backup->storage_path);
-            }
-
-            // 2. Validar checksum
+            // 1. Validar checksum
             if ($backup->checksum_sha256) {
-                $calculatedChecksum = hash_file('sha256', $filePath);
+                $calculatedChecksum = hash_file('sha256', $backup->storage_path);
                 if ($calculatedChecksum !== $backup->checksum_sha256) {
                     throw new \Exception('Checksum validation failed - backup may be corrupted');
                 }
             }
 
-            // 3. Restaurar en BD
+            // 2. Restaurar en BD
             if (!$dryRun) {
                 // Backup actual antes de restaurar
                 $safetyBackup = $this->backup('safety_before_restore');
                 Log::warning('Safety backup created before restore', ['backup_id' => $safetyBackup->id]);
 
-                $this->restoreFromDump($filePath, $backup);
+                $this->restoreFromDump($backup->storage_path);
             }
 
             $duration = intval(microtime(true) - $startTime);
@@ -148,11 +134,6 @@ class RucBackupService
                 'duration' => $duration . 's',
                 'dry_run' => $dryRun,
             ]);
-
-            // Limpiar archivo temporal si fue descargado
-            if ($backup->storage_type === 's3') {
-                @unlink($filePath);
-            }
 
             return [
                 'success' => true,
@@ -207,7 +188,7 @@ class RucBackupService
     /**
      * Restaurar desde dump
      */
-    private function restoreFromDump(string $filePath, RucBackup $backup): void
+    private function restoreFromDump(string $filePath): void
     {
         $dbName = config('database.connections.pgsql.database');
         $dbUser = config('database.connections.pgsql.username');
@@ -236,51 +217,6 @@ class RucBackupService
     }
 
     /**
-     * Subir a S3
-     */
-    private function uploadToS3(string $filePath, string $fileName): string
-    {
-        $disk = Storage::disk('s3');
-        $path = 'ruc-backups/' . $fileName;
-
-        // Subir con streaming (para archivos grandes)
-        $stream = fopen($filePath, 'r');
-        $disk->put($path, $stream, ['ContentType' => 'application/gzip']);
-        @fclose($stream);
-
-        Log::info('Backup uploaded to S3', ['path' => $path]);
-
-        return $path;
-    }
-
-    /**
-     * Descargar de S3
-     */
-    private function downloadFromS3(string $s3Path): string
-    {
-        $disk = Storage::disk('s3');
-        $localPath = self::BACKUP_DIR . '/' . basename($s3Path);
-
-        // Descargar con streaming
-        $stream = fopen($localPath, 'w');
-        $s3Stream = $disk->readStream($s3Path);
-        stream_copy_to_stream($s3Stream, $stream);
-        @fclose($stream);
-        @fclose($s3Stream);
-
-        return $localPath;
-    }
-
-    /**
-     * Verificar si S3 está habilitado
-     */
-    private function isS3Enabled(): bool
-    {
-        return config('filesystems.disks.s3.key')
-            && config('filesystems.disks.s3.secret');
-    }
-
-    /**
      * Formatear bytes a formato legible
      */
     private function formatBytes(int $bytes): string
@@ -304,9 +240,7 @@ class RucBackupService
 
         foreach ($expired as $backup) {
             try {
-                if ($backup->storage_type === 's3') {
-                    Storage::disk('s3')->delete($backup->storage_path);
-                } else {
+                if (file_exists($backup->storage_path)) {
                     @unlink($backup->storage_path);
                 }
 

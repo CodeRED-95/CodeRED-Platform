@@ -1,19 +1,23 @@
 # Sistema de Backup y Restauración RUC
 
-Gestiona backups de la tabla `ruc_records` (18M+ registros) con almacenamiento en S3.
+Gestiona backups de la tabla `ruc_records` (18M+ registros) con almacenamiento local en tu PC.
 
 ## 🏗️ Arquitectura
 
 ```
-[Backup] → [Compresión gzip] → [S3 Storage] → [Historial]
-                                      ↓
+[Backup] → [Compresión gzip] → [Almacenamiento Local] → [Historial]
+                                       ↓
+                          [Descarga/Carga en PC]
+                                       ↓
                               [Restauración]
 ```
 
 **Características:**
 - ✅ Backup completo con compresión (gzip nivel 6)
 - ✅ Paralelización (4 jobs en restauración)
-- ✅ Almacenamiento en S3 (configurable)
+- ✅ Almacenamiento local en `storage/app/backups/ruc/`
+- ✅ Descarga de archivos a tu PC
+- ✅ Carga de archivos desde tu PC
 - ✅ Validación SHA-256
 - ✅ Rotación automática (30 días default)
 - ✅ Dry-run para restauraciones
@@ -24,12 +28,6 @@ Gestiona backups de la tabla `ruc_records` (18M+ registros) con almacenamiento e
 ## 📦 Variables de entorno
 
 ```env
-# S3 Configuration
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-AWS_DEFAULT_REGION=us-east-1
-AWS_BUCKET=your_bucket
-
 # Database
 DB_CONNECTION=pgsql
 DB_HOST=postgres
@@ -39,9 +37,22 @@ DB_USERNAME=codered
 DB_PASSWORD=secret
 
 # RUC Backup
-RUC_BACKUP_RETENTION_DAYS=30    # Retención por defecto
+RUC_BACKUP_RETENTION_DAYS=30    # Retención por defecto (días)
 RUC_BACKUP_SCHEDULE="0 2 * * *" # 2 AM cada día
 ```
+
+## 💾 Ubicación de Almacenamiento
+
+Los backups se guardan en:
+```
+storage/app/backups/ruc/ruc_backup_2026-08-06-143000.sql.gz
+```
+
+**Accesibilidad:**
+- ✅ Fácil acceso desde terminal
+- ✅ Descargar desde admin panel
+- ✅ Cargar desde admin panel o formulario
+- ✅ Tamaño: 2.5-3.5 GB para 18M+ registros
 
 ---
 
@@ -247,8 +258,8 @@ created_by          FK users - Quién lo creó
 # 1. Crear backup
 php artisan ruc:backup --type=full
 
-# 2. Verificar que llegó a S3
-aws s3 ls s3://your-bucket/ruc-backups/
+# 2. Verificar archivo creado
+ls -lh storage/app/backups/ruc/
 
 # 3. Hacer dry-run de restauración
 php artisan ruc:restore <backup_id> --dry-run
@@ -258,7 +269,22 @@ php artisan ruc:restore <backup_id>
 
 # 5. Validar datos después de restaurar
 SELECT COUNT(*) FROM ruc_records;
+
+# 6. Descargar desde admin panel
+# Ir a admin > Backups > Descargar
 ```
+
+---
+
+## 💻 Panel de Admin
+
+Acceder a **Admin → Gestor de Backups** para:
+
+1. **Descargar archivos** a tu PC
+2. **Cargar archivos** desde tu PC
+3. **Restaurar** backups
+4. **Eliminar** backups antiguos
+5. **Ver historial** con detalles
 
 ---
 
@@ -267,10 +293,10 @@ SELECT COUNT(*) FROM ruc_records;
 | Problema | Solución |
 |----------|----------|
 | Backup lento | Verificar CPU, I/O, considerar hacer en off-peak |
-| S3 upload lento | Aumentar ancho de banda, S3 Accelerate |
 | Restauración falla | Verificar checksum, intentar dry-run, revisar logs |
-| Espacio en disco | Limpiar `/tmp/ruc-backups`, aumentar retención |
-| Credenciales S3 | Verificar AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY |
+| Espacio en disco | Verificar `storage/app/backups/ruc/`, limpiar backups antiguos |
+| Archivo no se descarga | Verificar permisos de carpeta `storage/app/backups/ruc/` |
+| Carga de archivo lenta | Depende del tamaño (2.5-3.5 GB), usar ancho de banda suficiente |
 
 ---
 
@@ -308,8 +334,34 @@ $result = (new RucBackupService())->restore($backup, $dryRun = false);
 
 ---
 
-**Versión:** 1.0  
+## 📞 Rutas API
+
+```php
+// Descargar backup
+GET /api/backups/{id}/download
+
+// Listar backups
+GET /api/backups/list
+
+// Cargar backup
+POST /api/backups/upload
+Content-Type: multipart/form-data
+- backup_file: file (.sql.gz, max 5GB)
+```
+
+## 🔐 Seguridad
+
+- ✅ Solo admin puede descargar/cargar/restaurar
+- ✅ Validación de permisos en todos los endpoints
+- ✅ Checksum SHA-256 para integridad
+- ✅ Logs de auditoría de todas las operaciones
+- ✅ Archivos con permisos restringidos (0600)
+
+---
+
+**Versión:** 2.0  
 **Última actualización:** 2026-08-06  
 **Soporta:** 18M+ registros en ruc_records  
-**Almacenamiento:** S3 + Local  
-**Compresión:** Gzip nivel 6
+**Almacenamiento:** Local (PC)  
+**Compresión:** Gzip nivel 6  
+**Tamaño típico:** 2.5-3.5 GB

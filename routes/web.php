@@ -40,6 +40,7 @@ use App\Modules\Agencies\Http\Controllers\AgencyImportPreviewController;
 use App\Modules\Agencies\Http\Controllers\AgencyImportRunDownloadController;
 use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use App\Modules\Ruc\Http\Controllers\RucImportErrorsController;
+use App\Modules\Ruc\Livewire\Admin\BackupManager;
 use App\Modules\Shalom\Livewire\Admin\DeliveryRecordsManager;
 use App\Modules\Shalom\Http\Controllers\ShalomApiKeyController;
 use Illuminate\Support\Facades\Route;
@@ -95,6 +96,7 @@ Route::get('/admin/api-tools/ruc', RucTester::class)->middleware(['auth', 'throt
 Route::get('/admin/ruc', RucRecords::class)->middleware(['auth'])->name('admin.ruc.records');
 Route::get('/admin/ruc/importaciones', RucImports::class)->middleware(['auth'])->name('admin.ruc.imports');
 Route::get('/admin/ruc/importaciones/{import}/errores', RucImportErrorsController::class)->middleware(['auth'])->name('admin.ruc.imports.errors');
+Route::get('/admin/ruc/backups', BackupManager::class)->middleware(['auth'])->name('admin.ruc.backups');
 Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->name('admin.ruc.show');
 Route::get('/admin/shalom/entregas', DeliveryRecordsManager::class)->middleware(['auth'])->name('admin.shalom.delivery-records');
 Route::prefix('admin/shalom/api-keys')->middleware(['auth'])->name('admin.shalom.api-keys.')->group(function (): void {
