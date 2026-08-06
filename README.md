@@ -4,12 +4,35 @@ CodeRED Platform es el centro de control modular para administración y consulta
 
 ## Versión actual
 
-CodeRED Platform publica la versión `2.2.0` desde una fuente única de configuración. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en la documentación de release. La extensión Chrome mantiene su propio versionado en `packages/codered-chrome-extension` y publica `2.3.0`.
+CodeRED Platform publica la versión `2.2.0` desde una fuente única de configuración usando **versionado semántico automático**. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en la documentación de release. La extensión Chrome mantiene su propio versionado en `packages/codered-chrome-extension` y publica `2.3.0`.
 
 ```bash
 php artisan app:version
 curl https://platform.codered.host/api/v1/version
 ```
+
+### Sistema de versionado automático
+
+Las versiones se actualizan automáticamente basadas en el tipo de commit:
+
+```bash
+# Nueva característica → minor bump (2.2.0 → 2.3.0)
+git commit -m "feat: agregar importación RUC v3.0"
+
+# Bug fix → patch bump (2.2.0 → 2.2.1)
+git commit -m "fix: corregir error de validación"
+
+# Breaking change → major bump (2.2.0 → 3.0.0)
+git commit -m "feat: reescribir API BREAKING CHANGE: endpoint anterior removido"
+```
+
+El comando `php artisan app:bump-version {major|minor|patch}` actualiza automáticamente:
+- `composer.json`
+- `config/version.php`
+- `config/app.php`
+- `CHANGELOG.md`
+
+**Para setup:** Ver [docs-dev/VERSIONING.md](docs-dev/VERSIONING.md)
 
 Variables opcionales:
 
@@ -399,33 +422,60 @@ public function boot()
 
 ## Documentación
 
-### Documentación general
+**[📚 Estructura de documentación](docs/DOCUMENTATION_STRUCTURE.md)** — Guía sobre cómo está organizada la documentación y dónde encontrar cada tema.
+
+### 🚀 Inicio rápido
 - [Instalación](docs/INSTALL.md)
-- [Entorno](docs/ENVIRONMENT.md)
-- [Docker](docs/DOCKER.md)
-- [API](docs/API.md)
-- [Agencies](docs/AGENCIES.md)
-- [Changelog](docs/CHANGELOG.md)
+- [Guía de inicio](docs/DEVELOPMENT.md)
+- [RUC v3.0 en 60 segundos](docs-ruc/QUICK_START.md)
+
+### 📖 Documentación general
+- [Entorno y variables](docs/ENVIRONMENT.md)
+- [Docker y Compose](docs/DOCKER.md)
+- [Arquitectura general](docs/ARCHITECTURE.md)
+- [Seguridad](docs/SECURITY.md)
 - [ADR](docs/adr/README.md)
 
-### APIs
+### 🔌 APIs
+- [Guía de APIs](docs/API.md)
 - [API DNI](docs/api/dni.md)
 - [API RUC](docs/api/ruc.md)
+- [API Agencias](docs/api/agencies.md)
 
-### RUC Import System v3.0
-- [Implementación completa](RUC_IMPORT_V3_IMPLEMENTATION.md)
-- [Inicio rápido](RUC_IMPORT_V3_QUICK_START.md)
-- [Changelog v3.0](RUC_IMPORT_V3_CHANGELOG.md)
-- [Despliegue](DEPLOYMENT_RUC_V3.md)
-- [Checklist](RUC_IMPORT_V3_CHECKLIST.md)
-- [Auditoría v2.0](RUC_IMPORT_AUDIT.md)
-- [Arquitectura v3.0](RUC_IMPORT_NEW_ARCHITECTURE.md)
+### 📦 RUC Import System v3.0
+- [Implementación exhaustiva](docs-ruc/IMPLEMENTATION.md)
+- [Quick Start (60 segundos)](docs-ruc/QUICK_START.md)
+- [Arquitectura técnica](docs-ruc/ARCHITECTURE.md)
+- [Endpoints API](docs-ruc/API.md)
+- [Guía de despliegue](docs-ruc/DEPLOYMENT.md)
+- [Checklist de validación](docs-ruc/CHECKLIST.md)
+- [Troubleshooting](docs-ruc/TROUBLESHOOTING.md)
+- [Benchmarks y performance](docs-ruc/PERFORMANCE.md)
+- [Auditoría v2.0](docs-ruc/AUDIT.md)
 
-### CodeRED Agent
+### 🛡️ Seguridad
+- [Tokens API](docs-security/TOKENS.md)
+- [Encriptación de datos](docs-security/ENCRYPTION.md)
+- [Audit logging](docs-security/AUDIT_LOG.md)
+- [Cumplimiento normativo](docs-security/COMPLIANCE.md)
+
+### 🤖 CodeRED Agent
 - [Arquitectura](docs/agent/architecture.md)
 - [Instalación](docs/agent/installation.md)
-- [Seguridad](docs/agent/security.md)
-- [Migración n8n](docs/agent/n8n-migration.md)
+- [Seguridad y encriptación](docs/agent/security.md)
+- [Migración desde n8n](docs/agent/n8n-migration.md)
+
+### 👨‍💻 Desarrollo
+- [Guía de contribución](docs-dev/CONTRIBUTING.md)
+- [Estándares de código](docs-dev/CODE_STANDARDS.md)
+- [Sistema de versionado automático](docs-dev/VERSIONING.md)
+- [Testing y calidad](docs-dev/TESTING.md)
+
+### 📋 Guías operacionales
+- [Despliegue y actualización](docs/guides/deployment.md)
+- [Monitoreo y logs](docs/guides/monitoring.md)
+- [Troubleshooting](docs/guides/troubleshooting.md)
+- [Backup y restauración](docs/guides/backup-restore.md)
 
 ## Actualización rápida (recomendado)
 
