@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Shalom;
 
+use App\Modules\Shalom\Models\ShalomApiKey;
 use App\Modules\Shalom\Models\ShalomDeliveryRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -11,6 +12,24 @@ use Tests\TestCase;
 class StoreShalomSyncTest extends TestCase
 {
     use RefreshDatabase;
+
+    private ?string $validApiKey = null;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Crear una API key válida para testing
+        $result = ShalomApiKey::createNewKey('Test API Key', null, 'Testing key');
+        $this->validApiKey = $result['plain_key'];
+    }
+
+    private function makeRequest(array $payload)
+    {
+        return $this->postJson('/api/v1/shalom/sync', $payload, [
+            'X-Shalom-API-Key' => $this->validApiKey,
+        ]);
+    }
 
     public function test_receive_shalom_sync_stores_records(): void
     {
@@ -25,7 +44,7 @@ class StoreShalomSyncTest extends TestCase
             ],
         ];
 
-        $response = $this->postJson('/api/v1/shalom/sync', $payload);
+        $response = $this->makeRequest($payload);
 
         $response->assertOk()
             ->assertJsonStructure(['success', 'batch_id', 'record_count'])
@@ -60,11 +79,11 @@ class StoreShalomSyncTest extends TestCase
         $payload = [
             'username' => 'test_user_123',
             'records' => [
-                ['field' => 'INVALID', 'value' => 'test', 'timestamp' => now()->toIso8601String()],
+                ['field' => 'INVALID', 'value' => 'test', 'timestamp' => now()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z')],
             ],
         ];
 
-        $response = $this->postJson('/api/v1/shalom/sync', $payload);
+        $response = $this->makeRequest($payload);
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['records.0.field']);
@@ -81,7 +100,7 @@ class StoreShalomSyncTest extends TestCase
             ],
         ];
 
-        $response = $this->postJson('/api/v1/shalom/sync', $payload);
+        $response = $this->makeRequest($payload);
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['records.0.value', 'records.0.timestamp']);
@@ -96,7 +115,7 @@ class StoreShalomSyncTest extends TestCase
             ],
         ];
 
-        $response = $this->postJson('/api/v1/shalom/sync', $payload);
+        $response = $this->makeRequest($payload);
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['records.0.timestamp']);
@@ -116,7 +135,7 @@ class StoreShalomSyncTest extends TestCase
             'records' => $records,
         ];
 
-        $response = $this->postJson('/api/v1/shalom/sync', $payload);
+        $response = $this->makeRequest($payload);
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['records']);
@@ -134,7 +153,7 @@ class StoreShalomSyncTest extends TestCase
             ],
         ];
 
-        $response = $this->postJson('/api/v1/shalom/sync', $payload);
+        $response = $this->makeRequest($payload);
         $batchId = $response->json('batch_id');
 
         $this->assertNotEmpty($batchId);
@@ -161,8 +180,8 @@ class StoreShalomSyncTest extends TestCase
             ],
         ];
 
-        $response1 = $this->postJson('/api/v1/shalom/sync', $payload1);
-        $response2 = $this->postJson('/api/v1/shalom/sync', $payload2);
+        $response1 = $this->makeRequest($payload1);
+        $response2 = $this->makeRequest($payload2);
 
         $batchId1 = $response1->json('batch_id');
         $batchId2 = $response2->json('batch_id');
@@ -186,7 +205,7 @@ class StoreShalomSyncTest extends TestCase
             'records' => $records,
         ];
 
-        $response = $this->postJson('/api/v1/shalom/sync', $payload);
+        $response = $this->makeRequest($payload);
 
         $response->assertOk();
         $this->assertDatabaseCount('shalom_delivery_records', 5);
@@ -198,4 +217,43 @@ class StoreShalomSyncTest extends TestCase
             ]);
         }
     }
+
+    public function test_reject_missing_api_key(): void
+    {
+        $timestamp = now()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
+
+        $payload = [
+            'username' => 'test_user_123',
+            'records' => [
+                ['field' => 'DNI', 'value' => '12345678', 'timestamp' => $timestamp],
+            ],
+        ];
+
+        // Sin API key
+        $response = $this->postJson('/api/v1/shalom/sync', $payload);
+
+        $response->assertUnauthorized()
+            ->assertJson(['success' => false]);
+    }
+
+    public function test_reject_invalid_api_key(): void
+    {
+        $timestamp = now()->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
+
+        $payload = [
+            'username' => 'test_user_123',
+            'records' => [
+                ['field' => 'DNI', 'value' => '12345678', 'timestamp' => $timestamp],
+            ],
+        ];
+
+        // API key inválida
+        $response = $this->postJson('/api/v1/shalom/sync', $payload, [
+            'X-Shalom-API-Key' => 'shalom_invalid_key_that_does_not_exist',
+        ]);
+
+        $response->assertUnauthorized()
+            ->assertJson(['success' => false]);
+    }
+
 }

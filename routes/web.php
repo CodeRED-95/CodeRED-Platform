@@ -40,6 +40,8 @@ use App\Modules\Agencies\Http\Controllers\AgencyImportPreviewController;
 use App\Modules\Agencies\Http\Controllers\AgencyImportRunDownloadController;
 use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use App\Modules\Ruc\Http\Controllers\RucImportErrorsController;
+use App\Modules\Shalom\Livewire\Admin\DeliveryRecordsManager;
+use App\Modules\Shalom\Http\Controllers\ShalomApiKeyController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Public\BuscadorShalomLegalController;
 
@@ -94,6 +96,15 @@ Route::get('/admin/ruc', RucRecords::class)->middleware(['auth'])->name('admin.r
 Route::get('/admin/ruc/importaciones', RucImports::class)->middleware(['auth'])->name('admin.ruc.imports');
 Route::get('/admin/ruc/importaciones/{import}/errores', RucImportErrorsController::class)->middleware(['auth'])->name('admin.ruc.imports.errors');
 Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->name('admin.ruc.show');
+Route::get('/admin/shalom/entregas', DeliveryRecordsManager::class)->middleware(['auth'])->name('admin.shalom.delivery-records');
+Route::prefix('admin/shalom/api-keys')->middleware(['auth'])->name('admin.shalom.api-keys.')->group(function (): void {
+    Route::get('/', [ShalomApiKeyController::class, 'index'])->name('index');
+    Route::post('/', [ShalomApiKeyController::class, 'store'])->name('store');
+    Route::get('{key}', [ShalomApiKeyController::class, 'show'])->name('show');
+    Route::put('{key}', [ShalomApiKeyController::class, 'update'])->name('update');
+    Route::delete('{key}', [ShalomApiKeyController::class, 'destroy'])->name('destroy');
+    Route::post('{key}/revoke', [ShalomApiKeyController::class, 'revoke'])->name('revoke');
+});
 Route::get('/admin/settings/dni', DniSettings::class)->middleware(['auth'])->name('admin.settings.dni');
 Route::get('/admin/settings/api-documentation', ApiDocumentationSettings::class)->middleware(['auth'])->name('admin.settings.api-documentation');
 Route::get('/admin/settings/agency-backups', AgencyBackupSettings::class)->middleware(['auth'])->name('admin.settings.agency-backups');

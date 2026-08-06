@@ -17,13 +17,16 @@ use App\Http\Controllers\Api\V1\TokenRotationRequestController;
 use App\Modules\Ruc\Http\Controllers\RucApiController;
 use App\Modules\Ruc\Http\Controllers\RucSearchApiController;
 use App\Modules\Shalom\Http\Controllers\ShalomSyncController;
+use App\Modules\Shalom\Http\Controllers\DeliveryRecordsExportController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/health', HealthController::class)->name('health');
     Route::get('/version', SystemVersionController::class)->name('version');
     Route::get('/extension/chrome/config', ExtensionChromeConfigController::class)->middleware('throttle:api')->name('extension.chrome.config');
-    Route::post('/shalom/sync', [ShalomSyncController::class, 'sync'])->middleware('throttle:100,1')->name('shalom.sync');
+    Route::post('/shalom/sync', [ShalomSyncController::class, 'sync'])
+        ->middleware(['throttle:100,1', \App\Modules\Shalom\Http\Middleware\AuthenticateShalomApiKey::class])
+        ->name('shalom.sync');
     Route::post('/token-requests', PublicTokenRequestController::class)->middleware('throttle:api')->name('token-requests.store');
     Route::get('/integrations/discovery', [IntegrationDiscoveryController::class, 'index'])->name('integrations.discovery');
     Route::post('/integrations/n8n/pair', [IntegrationDiscoveryController::class, 'pair'])->middleware('throttle:api')->name('integrations.n8n.pair');
@@ -71,5 +74,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         });
         Route::post('/token-requests/rotation', TokenRotationRequestController::class)->middleware(['throttle:api'])->name('token-requests.rotation');
         Route::get('/me', MeController::class)->middleware(['throttle:api', 'abilities:profile:read'])->name('me');
+        Route::get('/admin/shalom/delivery-records/export', [DeliveryRecordsExportController::class, 'csv'])
+            ->middleware(['throttle:api'])
+            ->name('admin.shalom.delivery-records.export.csv');
     });
 });

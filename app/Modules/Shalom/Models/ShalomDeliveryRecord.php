@@ -19,6 +19,9 @@ class ShalomDeliveryRecord extends Model
         'timestamp',
         'sync_batch_id',
         'user_id',
+        'shalom_api_key_id',
+        'ip_address',
+        'user_agent',
     ];
 
     protected $casts = [
@@ -30,5 +33,10 @@ class ShalomDeliveryRecord extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function apiKey(): BelongsTo
+    {
+        return $this->belongsTo(ShalomApiKey::class, 'shalom_api_key_id');
     }
 }

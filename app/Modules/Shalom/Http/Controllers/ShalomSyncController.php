@@ -16,9 +16,13 @@ class ShalomSyncController extends Controller
      */
     public function sync(StoreShalomSyncRequest $request): JsonResponse
     {
+        $apiKey = $request->attributes->get('shalom_api_key');
+
         $batchId = (new RecibeShalomSyncAction())->execute(
             $request->validated('records'),
-            $request->validated('username')
+            $request->validated('username'),
+            $apiKey,
+            $request
         );
 
         return response()->json([
