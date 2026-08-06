@@ -1,237 +1,236 @@
-# Changelog - Token Requests Enhancement
+# Changelog - Mejora en Solicitudes de Tokens
 
 ## [2.3.0] - 2026-08-06
 
-### ADDED
+### AGREGADO
 
-#### Public Token Request Flow
-- ✅ Public endpoint for token requests without authentication
-- ✅ OTP validation with 6-digit codes
-- ✅ Single-use token revelation with transaction safety
-- ✅ Public status tracking with tracking code and email
-- ✅ Delivery confirmation flow
+#### Flujo de Solicitud de Token Público
+- ✅ Endpoint público para solicitudes de tokens sin autenticación
+- ✅ Validación OTP con códigos de 6 dígitos
+- ✅ Revelación de token de una sola vez con seguridad transaccional
+- ✅ Seguimiento de estado público con código de rastreo y email
+- ✅ Flujo de confirmación de entrega
 
-#### OTP System
-- ✅ OTP generation with bcrypt hashing
-- ✅ Configurable expiration (default: 10 minutes)
-- ✅ Rate limiting: 5 attempts, 3 resends
-- ✅ Email delivery with security warnings
-- ✅ Audit logging for each OTP action
+#### Sistema OTP
+- ✅ Generación de OTP con hash bcrypt
+- ✅ Expiración configurable (predeterminado: 10 minutos)
+- ✅ Límite de velocidad: 5 intentos, 3 reenvíos
+- ✅ Entrega por email con advertencias de seguridad
+- ✅ Registro de auditoría para cada acción OTP
 
-#### Security & Encryption
-- ✅ AES-256-CBC authenticated encryption for personal data
-- ✅ HMAC-SHA256 blind indexing for searchable email
-- ✅ Single-use token enforcement with `lockForUpdate()`
-- ✅ Memory-only decryption (no plaintext persistence)
-- ✅ Complete audit trail with IP, User Agent, timestamp
+#### Seguridad y Encriptación
+- ✅ Encriptación autenticada AES-256-CBC para datos personales
+- ✅ Índice ciego HMAC-SHA256 para búsqueda de email
+- ✅ Aplicación de token de una sola vez con `lockForUpdate()`
+- ✅ Desencriptación solo en memoria (sin persistencia en texto plano)
+- ✅ Registro de auditoría completo con IP, User Agent, timestamp
 
-#### Database Migrations
-- ✅ `otp_validations` table for OTP storage
-- ✅ `api_token_request_audit_logs` table for audit trail
-- ✅ New fields in `api_token_requests`:
-  - `otp_validated_at` - OTP verification timestamp
-  - `token_reveal_count` - Revelation counter
-  - `protected_data_view_count` - Admin data view counter
-  - `last_protected_view_ip` - IP of last data view
-  - `last_protected_view_at` - Timestamp of last view
+#### Migraciones de Base de Datos
+- ✅ Tabla `otp_validations` para almacenamiento de OTP
+- ✅ Tabla `api_token_request_audit_logs` para registro de auditoría
+- ✅ Nuevos campos en `api_token_requests`:
+  - `otp_validated_at` - Timestamp de verificación OTP
+  - `token_reveal_count` - Contador de revelaciones
+  - `protected_data_view_count` - Contador de visualizaciones de admin
+  - `last_protected_view_ip` - IP de última visualización de datos
+  - `last_protected_view_at` - Timestamp de última visualización
 
-#### Backend Services
-- ✅ `OtpService` - OTP generation, verification, resend
-- ✅ `AuditService` - Centralized audit logging
-- ✅ 5 Custom exceptions for OTP lifecycle
-- ✅ 6 Actions for each step of the flow
+#### Servicios Backend
+- ✅ `OtpService` - Generación, verificación, reenvío de OTP
+- ✅ `AuditService` - Registro de auditoría centralizado
+- ✅ 5 Excepciones personalizadas para ciclo de vida de OTP
+- ✅ 6 Acciones para cada paso del flujo
 
-#### Actions (Business Logic)
-- ✅ `CreateOtpTokenAction` - Generate and send OTP
-- ✅ `VerifyOtpTokenAction` - Verify OTP code
-- ✅ `RevealTokenAction` - Decrypt and reveal token
-- ✅ `ConfirmTokenDeliveryAction` - Mark as delivered
-- ✅ `ShowProtectedDataAction` - Display encrypted data
-- ✅ `ResendOtpTokenAction` - Resend OTP
+#### Acciones (Lógica de Negocio)
+- ✅ `CreateOtpTokenAction` - Generar y enviar OTP
+- ✅ `VerifyOtpTokenAction` - Verificar código OTP
+- ✅ `RevealTokenAction` - Desencriptar y revelar token
+- ✅ `ConfirmTokenDeliveryAction` - Marcar como entregado
+- ✅ `ShowProtectedDataAction` - Mostrar datos encriptados
+- ✅ `ResendOtpTokenAction` - Reenviar OTP
 
-#### Form Requests (Validation)
-- ✅ `VerifyOtpRequest` - OTP code validation
-- ✅ `ConfirmTokenDeliveryRequest` - Delivery confirmation
-- ✅ `RequestOtpRequest` - OTP request validation
+#### Validadores de Formularios (Form Requests)
+- ✅ `VerifyOtpRequest` - Validación de código OTP
+- ✅ `ConfirmTokenDeliveryRequest` - Confirmación de entrega
+- ✅ `RequestOtpRequest` - Validación de solicitud OTP
 
-#### Authorization
-- ✅ `ApiTokenRequestPolicy` with granular permissions
-- ✅ 9 permission gates for each admin action
-- ✅ `Gate::authorize()` integration
+#### Autorización
+- ✅ `ApiTokenRequestPolicy` con permisos granulares
+- ✅ 9 puertas de permiso para cada acción de admin
+- ✅ Integración de `Gate::authorize()`
 
-#### Livewire Components
-- ✅ **Admin Index** updated with:
-  - `showProtectedData()` - View encrypted data
-  - `revealToken()` - Reveal single-use token
-  - `confirmTokenDelivery()` - Confirm delivery
-  - New modals for each action
-  - `#[Locked]` attributes for sensitive data
+#### Componentes Livewire
+- ✅ **Índice Admin** actualizado con:
+  - `showProtectedData()` - Ver datos encriptados
+  - `revealToken()` - Revelar token de una sola vez
+  - `confirmTokenDelivery()` - Confirmar entrega
+  - Nuevos modales para cada acción
+  - Atributos `#[Locked]` para datos sensibles
 
-- ✅ **Public TokenRequestManager** updated with:
-  - `requestOtp()` - Generate OTP
-  - `verifyOtp()` - Verify OTP code
-  - `revealToken()` - Reveal token
-  - `confirmRevealToken()` - Process revelation
-  - OTP lifecycle management
+- ✅ **TokenRequestManager Público** actualizado con:
+  - `requestOtp()` - Generar OTP
+  - `verifyOtp()` - Verificar código OTP
+  - `revealToken()` - Revelar token
+  - `confirmRevealToken()` - Procesar revelación
+  - Gestión del ciclo de vida de OTP
 
-#### Blade Views & Modals
-- ✅ `protected-data-modal.blade.php` - Admin data viewer
-- ✅ `reveal-token-modal.blade.php` - Token revelation
-- ✅ `token-revealed-modal.blade.php` - Token display
-- ✅ `otp-form.blade.php` - Public OTP input
-- ✅ `token-display.blade.php` - Public token display
-- ✅ Email template: `emails/otp-code.blade.php`
+#### Vistas Blade y Modales
+- ✅ `protected-data-modal.blade.php` - Visor de datos de admin
+- ✅ `reveal-token-modal.blade.php` - Revelación de token
+- ✅ `token-revealed-modal.blade.php` - Visualización de token
+- ✅ `otp-form.blade.php` - Entrada de OTP pública
+- ✅ `token-display.blade.php` - Visualización de token pública
+- ✅ Plantilla de email: `emails/otp-code.blade.php`
 
-#### Configuration
-- ✅ `config/token-requests.php` - Centralized settings
-- ✅ OTP expiration, attempts, resends configuration
-- ✅ Delivery methods configuration
-- ✅ Audit logging configuration
+#### Configuración
+- ✅ `config/token-requests.php` - Configuración centralizada
+- ✅ Configuración de expiración, intentos, reenvíos de OTP
+- ✅ Configuración de métodos de entrega
+- ✅ Configuración de registro de auditoría
 
 #### Testing
-- ✅ `tests/Feature/OtpAndTokenRevealTest.php` - 25+ tests
-  - OTP generation and hashing
-  - OTP verification and expiration
-  - Token revelation (single-use)
-  - Delivery confirmation
-  - Audit logging
-  - Permission validation
+- ✅ `tests/Feature/OtpAndTokenRevealTest.php` - 25+ pruebas
+  - Generación y hash de OTP
+  - Verificación de OTP y expiración
+  - Revelación de token (de una sola vez)
+  - Confirmación de entrega
+  - Registro de auditoría
+  - Validación de permisos
 
-#### Documentation
-- ✅ `TOKEN_REQUESTS_README.md` - Complete documentation
-- ✅ Public flow diagrams and examples
-- ✅ Admin flow documentation
-- ✅ Security explanations
-- ✅ API examples
-- ✅ Troubleshooting guide
+#### Documentación
+- ✅ `TOKEN_REQUESTS_README.md` - Documentación completa
+- ✅ Diagramas de flujo público y ejemplos
+- ✅ Documentación de flujo de admin
+- ✅ Explicaciones de seguridad
+- ✅ Ejemplos de API
+- ✅ Guía de resolución de problemas
 
-### IMPROVED
+### MEJORADO
 
-#### Security Enhancements
-- ✅ Replaced plaintext token storage with AES-256-CBC
-- ✅ Added blind indexing for email queries
-- ✅ Implemented race condition prevention with `lockForUpdate()`
-- ✅ Enabled complete audit trail with sensitive data flagging
-- ✅ Added rate limiting configuration
+#### Mejoras de Seguridad
+- ✅ Almacenamiento de tokens en texto plano reemplazado con AES-256-CBC
+- ✅ Índice ciego agregado para consultas de email
+- ✅ Prevención de condición de carrera implementada con `lockForUpdate()`
+- ✅ Registro de auditoría completo habilitado con banderización de datos sensibles
+- ✅ Configuración de límite de velocidad agregada
 
-#### User Experience
-- ✅ Public users can now track solicitation status
-- ✅ OTP verification provides clear error messages
-- ✅ Single-use token prevents accidental loss
-- ✅ Admin modal UX improvements with warnings
-- ✅ Better delivery confirmation workflow
+#### Experiencia del Usuario
+- ✅ Los usuarios públicos ahora pueden rastrear el estado de la solicitud
+- ✅ Verificación de OTP proporciona mensajes de error claros
+- ✅ Token de una sola vez previene pérdida accidental
+- ✅ Mejoras de UX de modal de admin con advertencias
+- ✅ Mejor flujo de trabajo de confirmación de entrega
 
-#### Code Quality
-- ✅ Strong typing throughout (PHP 8.3)
-- ✅ Comprehensive exception handling
-- ✅ Action pattern for business logic
-- ✅ Service layer for encryption/auditing
-- ✅ Policy-based authorization
+#### Calidad del Código
+- ✅ Tipificación fuerte en toda la aplicación (PHP 8.3)
+- ✅ Manejo exhaustivo de excepciones
+- ✅ Patrón de acción para lógica de negocio
+- ✅ Capa de servicio para encriptación/auditoría
+- ✅ Autorización basada en políticas
 
-### FIXED
+### CORRECCIONES
 
-- ✅ Token visibility issue (never shown in plaintext in UI)
-- ✅ Race condition in token revelation (added transaction+lock)
-- ✅ Missing audit trail for sensitive operations
-- ✅ Encryption key configuration (added to .env.example)
-- ✅ Authorization gaps (added Policy class)
+- ✅ Problema de visibilidad de token (nunca se muestra en texto plano en la UI)
+- ✅ Condición de carrera en revelación de token (agregada transacción+bloqueo)
+- ✅ Registro de auditoría faltante para operaciones sensibles
+- ✅ Configuración de clave de encriptación (agregada a .env.example)
+- ✅ Brechas de autorización (agregada clase Policy)
 
-### CHANGED
+### CAMBIOS
 
-- ✅ Livewire components now use Actions instead of inline logic
-- ✅ Token revelation now requires OTP validation
-- ✅ Delivery status is explicit (Pending vs Delivered)
-- ✅ Audit logging is automatic via AuditService
-- ✅ Admin can view encrypted data temporarily (memory-only)
+- ✅ Los componentes Livewire ahora usan Acciones en lugar de lógica en línea
+- ✅ Revelación de token ahora requiere validación de OTP
+- ✅ El estado de entrega es explícito (Pendiente vs Entregado)
+- ✅ El registro de auditoría es automático a través de AuditService
+- ✅ El admin puede ver datos encriptados temporalmente (solo en memoria)
 
-### SECURITY
+### SEGURIDAD
 
-#### Critical Fixes
-- ✅ Plaintext tokens never appear in:
-  - Database (stored as ciphertext)
-  - API responses (only during revelation)
-  - Livewire hydration (#[Locked] attributes)
-  - Logs (audited, not logged)
-  - Exceptions (caught and sanitized)
+#### Correcciones Críticas
+- ✅ Tokens en texto plano nunca aparecen en:
+  - Base de datos (almacenados como texto cifrado)
+  - Respuestas de API (solo durante revelación)
+  - Hidratación de Livewire (atributos #[Locked])
+  - Logs (auditados, no registrados)
+  - Excepciones (capturadas y desinfectadas)
 
-#### New Protections
-- ✅ OTP brute force protected (5 attempts, 3 resends)
-- ✅ Token revelation protected by transaction (race condition prevention)
-- ✅ Data access protected by permissions and policies
-- ✅ All actions logged with IP, User Agent, timestamp
-- ✅ Encrypted data only decrypted in memory
+#### Nuevas Protecciones
+- ✅ Protección de fuerza bruta de OTP (5 intentos, 3 reenvíos)
+- ✅ Revelación de token protegida por transacción (prevención de condición de carrera)
+- ✅ Acceso a datos protegido por permisos y políticas
+- ✅ Todas las acciones registradas con IP, User Agent, timestamp
+- ✅ Datos encriptados solo desencriptados en memoria
 
-### DEPRECATED
+### DEPRECADO
 
-- None (new feature, backward compatible)
+- Ninguno (nueva característica, compatible hacia atrás)
 
-### REMOVED
+### REMOVIDO
 
-- None
+- Ninguno
 
-### NOTES
+### NOTAS
 
-- Requires PHP 8.3+
-- Requires Laravel 12+
-- Requires Livewire 3+
-- PostgreSQL 12+ recommended for row-level locking
-- No breaking changes to existing token API
+- Requiere PHP 8.3+
+- Requiere Laravel 12+
+- Requiere Livewire 3+
+- PostgreSQL 12+ recomendado para bloqueo de nivel de fila
+- Sin cambios graves en la API de tokens existente
 
-### MIGRATION PATH
+### RUTA DE MIGRACIÓN
 
-Existing token requests continue to work without changes. New public request flow available at `/solicitar-token`.
+Las solicitudes de token existentes continúan funcionando sin cambios. Nuevo flujo de solicitud pública disponible en `/solicitar-token`.
 
-### CONTRIBUTORS
+### CONTRIBUYENTES
 
 - Claude Code - Staff Software Engineer
-- Automated testing and documentation generation
+- Generación de pruebas y documentación automatizada
 
 ---
 
-## Deployment Instructions
+## Instrucciones de Despliegue
 
-See `TOKEN_REQUESTS_README.md` and `DOCKER_DEPLOYMENT_COMMANDS.md` for complete deployment procedures and validation steps.
+Ver `TOKEN_REQUESTS_README.md` y `DOCKER_DEPLOYMENT_COMMANDS.md` para procedimientos completos de despliegue y pasos de validación.
 
-### Quick Start (Production)
+### Inicio Rápido (Producción)
 
 ```bash
-# 1. Backup database
+# 1. Respaldar base de datos
 docker compose exec -T postgres pg_dump -U codered -d codered > backup.sql
 
-# 2. Pull changes
+# 2. Descargar cambios
 git pull origin main
 
-# 3. Run migrations
+# 3. Ejecutar migraciones
 docker compose exec -T codered-app php artisan migrate --force
 
-# 4. Clear caches
+# 4. Limpiar cachés
 docker compose exec -T codered-app php artisan optimize:clear
 
-# 5. Verify
+# 5. Verificar
 docker compose exec -T codered-app php artisan migrate:status
 ```
 
-### Known Limitations
+### Limitaciones Conocidas
 
-- OTP codes expire after 10 minutes (configurable)
-- Maximum 5 OTP verification attempts
-- Maximum 3 OTP resend attempts
-- Token can only be revealed once per solicitation
-- Admin data view is memory-only (not persisted)
+- Los códigos OTP expiran después de 10 minutos (configurable)
+- Máximo 5 intentos de verificación de OTP
+- Máximo 3 intentos de reenvío de OTP
+- El token solo se puede revelar una vez por solicitud
+- La visualización de datos del admin es solo en memoria (no persistida)
 
-### Performance
+### Rendimiento
 
-- OTP verification: ~50ms (bcrypt hashing)
-- Token revelation: ~30ms (AES-256-CBC decryption + DB transaction)
-- Audit logging: ~10ms (async via queue if configured)
+- Verificación de OTP: ~50ms (hash bcrypt)
+- Revelación de token: ~30ms (desencriptación AES-256-CBC + transacción de BD)
+- Registro de auditoría: ~10ms (asincrónico vía cola si está configurado)
 
 ---
 
-## Version History
+## Historial de Versiones
 
-| Version | Date | Status | Notes |
+| Versión | Fecha | Estado | Notas |
 |---------|------|--------|-------|
-| 2.3.0 | 2026-08-06 | Release | Public OTP flow + Single-use token |
-| 2.2.0 | 2026-07-XX | Release | Admin approval flow |
-| 2.1.0 | 2026-06-XX | Release | Initial token requests |
-
+| 2.3.0 | 2026-08-06 | Lanzamiento | Flujo OTP público + Token de una sola vez |
+| 2.2.0 | 2026-07-XX | Lanzamiento | Flujo de aprobación de admin |
+| 2.1.0 | 2026-06-XX | Lanzamiento | Solicitudes de token iniciales |
