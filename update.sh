@@ -208,18 +208,26 @@ ok "Servicios levantados sin borrar volumenes."
 step 7 "Ejecutando migraciones"
 docker compose exec -T app php artisan migrate --force
 
-step 8 "Ejecutando migraciones v3.0 RUC Import"
-docker compose exec -T app php artisan migrate --path=database/migrations/2026_08_06_000001_create_ruc_import_v3_tables.php --force || warn "Migración v3.0 ya ejecutada"
-ok "Migraciones v3.0 completadas"
+step 8 "Ejecutando migraciones Shalom y RUC Backup"
+docker compose exec -T app php artisan migrate --path=database/migrations/2026_08_06_000002_create_shalom_delivery_records_table.php --force || warn "Migración Shalom delivery records ya ejecutada"
+docker compose exec -T app php artisan migrate --path=database/migrations/2026_08_06_000003_create_shalom_api_keys_table.php --force || warn "Migración Shalom API keys ya ejecutada"
+docker compose exec -T app php artisan migrate --path=database/migrations/2026_08_06_000004_add_api_key_to_shalom_delivery_records.php --force || warn "Migración add API key ya ejecutada"
+docker compose exec -T app php artisan migrate --path=database/migrations/2026_08_06_000005_create_ruc_backups_table.php --force || warn "Migración RUC backups ya ejecutada"
+ok "Migraciones Shalom y RUC Backup completadas"
 
-step 9 "Limpiando cachés"
+step 9 "Creando directorios requeridos"
+docker compose exec -T app mkdir -p storage/app/backups/ruc
+docker compose exec -T app chmod 755 storage/app/backups/ruc
+ok "Directorios de backup creados"
+
+step 10 "Limpiando cachés"
 docker compose exec -T app php artisan optimize:clear
 docker compose exec -T app php artisan config:cache
 docker compose exec -T app php artisan route:cache
 docker compose exec -T app php artisan view:cache
 docker compose exec -T app php artisan queue:restart
 
-step 11 "Verificando salud"
+step 12 "Verificando salud"
 docker compose ps
 docker compose exec -T app php artisan about
 if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] && docker compose config --services | grep -qx codered-agent; then
@@ -233,6 +241,6 @@ else
     info "CodeRED Agent no está habilitado/configurado; se omite healthcheck."
 fi
 
-step 12 "Actualización completada"
+step 13 "Actualización completada"
 ok "CodeRED Platform actualizado correctamente."
 echo "Backup del .env: .env.backup-$STAMP"
