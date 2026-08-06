@@ -208,14 +208,18 @@ ok "Servicios levantados sin borrar volumenes."
 step 7 "Ejecutando migraciones"
 docker compose exec -T app php artisan migrate --force
 
-step 8 "Limpiando cachés"
+step 8 "Ejecutando migraciones v3.0 RUC Import"
+docker compose exec -T app php artisan migrate --path=database/migrations/2026_08_06_000001_create_ruc_import_v3_tables.php --force || warn "Migración v3.0 ya ejecutada"
+ok "Migraciones v3.0 completadas"
+
+step 9 "Limpiando cachés"
 docker compose exec -T app php artisan optimize:clear
 docker compose exec -T app php artisan config:cache
 docker compose exec -T app php artisan route:cache
 docker compose exec -T app php artisan view:cache
 docker compose exec -T app php artisan queue:restart
 
-step 9 "Verificando salud"
+step 11 "Verificando salud"
 docker compose ps
 docker compose exec -T app php artisan about
 if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] && docker compose config --services | grep -qx codered-agent; then
@@ -229,6 +233,6 @@ else
     info "CodeRED Agent no está habilitado/configurado; se omite healthcheck."
 fi
 
-step 10 "Actualización completada"
+step 12 "Actualización completada"
 ok "CodeRED Platform actualizado correctamente."
 echo "Backup del .env: .env.backup-$STAMP"
