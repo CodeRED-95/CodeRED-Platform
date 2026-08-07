@@ -98,6 +98,7 @@ Route::get('/admin/ruc', RucRecords::class)->middleware(['auth'])->name('admin.r
 Route::get('/admin/ruc/importaciones', RucImports::class)->middleware(['auth'])->name('admin.ruc.imports');
 Route::get('/admin/ruc/importaciones/{import}/errores', RucImportErrorsController::class)->middleware(['auth'])->name('admin.ruc.imports.errors');
 Route::get('/admin/ruc/backups', BackupManager::class)->middleware(['auth'])->name('admin.ruc.backups');
+Route::post('/admin/ruc/backups/create', [BackupUploadController::class, 'create'])->middleware(['auth'])->name('admin.ruc.backups.create');
 Route::post('/admin/ruc/backups/upload', [BackupUploadController::class, 'store'])->middleware(['auth'])->name('admin.ruc.backups.upload');
 Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->name('admin.ruc.show');
 Route::get('/admin/shalom/entregas', DeliveryRecordsManager::class)->middleware(['auth'])->name('admin.shalom.delivery-records');

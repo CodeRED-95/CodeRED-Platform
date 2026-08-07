@@ -5,13 +5,49 @@ declare(strict_types=1);
 namespace App\Modules\Ruc\Http\Controllers;
 
 use App\Modules\Ruc\Models\RucBackup;
+use App\Modules\Ruc\Services\RucBackupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BackupUploadController
 {
+    public function create(Request $request)
+    {
+        Gate::authorize('ruc.import');
+
+        try {
+            $service = new RucBackupService();
+            $backup = $service->backup('full', auth()->user());
+
+            Log::info('RUC backup created', [
+                'user_id' => auth()->id(),
+                'backup_id' => $backup->id,
+                'file_name' => $backup->name,
+                'size' => $backup->file_size_bytes,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => '✓ Backup creado exitosamente. Registros: ' . number_format($backup->total_records ?? 0) . ', Tamaño: ' . $this->formatBytes($backup->file_size_bytes),
+                'backup_id' => $backup->id,
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('RUC backup creation failed', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear backup: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function store(Request $request)
     {
         Gate::authorize('ruc.import');
@@ -19,6 +55,11 @@ class BackupUploadController
         try {
             $validated = $request->validate([
                 'backup_file' => 'required|file|mimes:gz|max:10485760',
+            ], [
+                'backup_file.required' => 'Debe seleccionar un archivo',
+                'backup_file.file' => 'Debe ser un archivo válido',
+                'backup_file.mimes' => 'El archivo debe tener extensión .gz',
+                'backup_file.max' => 'El archivo no puede exceder 10 MB',
             ]);
 
             $file = $validated['backup_file'];
@@ -27,10 +68,16 @@ class BackupUploadController
 
             $filePath = storage_path('app/' . $path);
             if (!file_exists($filePath)) {
-                throw new \Exception('Archivo no fue almacenado correctamente');
+                @unlink($filePath);
+                throw new \Exception('El archivo no se almacenó correctamente en el servidor');
             }
 
             $fileSize = filesize($filePath);
+            if ($fileSize === 0) {
+                @unlink($filePath);
+                throw new \Exception('El archivo está vacío');
+            }
+
             $checksum = hash_file('sha256', $filePath);
 
             RucBackup::create([
@@ -52,10 +99,10 @@ class BackupUploadController
 
             return response()->json([
                 'success' => true,
-                'message' => 'Backup cargado exitosamente. Tamaño: ' . $this->formatBytes($fileSize),
+                'message' => '✓ Backup cargado exitosamente. Tamaño: ' . $this->formatBytes($fileSize),
             ]);
 
-        } catch (ValidationException $e) {
+        } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('RUC backup validation failed', [
                 'user_id' => auth()->id(),
                 'errors' => $e->errors(),
@@ -63,13 +110,14 @@ class BackupUploadController
 
             return response()->json([
                 'success' => false,
-                'message' => 'Validación fallida: ' . $e->validator->errors()->first(),
+                'message' => $e->errors()['backup_file'][0] ?? 'Validación fallida',
             ], 422);
 
         } catch (\Throwable $e) {
             Log::error('RUC backup upload failed', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([

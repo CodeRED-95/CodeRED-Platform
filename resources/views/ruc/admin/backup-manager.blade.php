@@ -1,7 +1,19 @@
 <div class="space-y-6">
     <x-ui.page-header eyebrow="RUC" title="Gestor de Backups" subtitle="Crear, descargar y restaurar backups de la base de datos RUC con validación de integridad.">
         <x-slot:actions>
-            <x-ui.button wire:click="$set('show_upload', true)" loading-target="uploadBackup">
+            <form id="create-backup-form" action="{{ route('admin.ruc.backups.create') }}" method="POST" style="display: inline;">
+                @csrf
+                <button type="submit" class="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50" id="create-backup-btn">
+                    <span id="create-text">💾 Crear Backup</span>
+                    <span id="create-loading" style="display: none;">
+                        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </span>
+                </button>
+            </form>
+            <x-ui.button wire:click="$set('show_upload', true)">
                 📤 Cargar Backup
             </x-ui.button>
         </x-slot:actions>
@@ -87,24 +99,33 @@
             @this.set('show_upload', false);
         }
 
+        // Manejar envío de formulario de upload
         document.getElementById('backup-upload-form')?.addEventListener('submit', function(e) {
             e.preventDefault();
             const file = document.getElementById('backup_file_input').files[0];
-            if (!file) return;
+            if (!file) {
+                alert('Por favor selecciona un archivo');
+                return;
+            }
 
             document.getElementById('upload-text').style.display = 'none';
             document.getElementById('upload-loading').style.display = 'inline';
             document.getElementById('upload-submit-btn').disabled = true;
 
             const formData = new FormData(this);
+
             fetch(this.action, {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     Livewire.dispatch('toast', { type: 'success', message: data.message });
@@ -113,16 +134,60 @@
                     document.getElementById('backup-upload-form').reset();
                     document.getElementById('file-name-display').style.display = 'none';
                 } else {
-                    Livewire.dispatch('toast', { type: 'error', message: data.message });
+                    Livewire.dispatch('toast', { type: 'error', message: data.message || 'Error desconocido' });
                 }
             })
             .catch(error => {
-                Livewire.dispatch('toast', { type: 'error', message: 'Error en la solicitud: ' + error.message });
+                console.error('Upload error:', error);
+                Livewire.dispatch('toast', { type: 'error', message: error.message || 'Error al cargar el archivo' });
             })
             .finally(() => {
                 document.getElementById('upload-text').style.display = 'inline';
                 document.getElementById('upload-loading').style.display = 'none';
                 document.getElementById('upload-submit-btn').disabled = false;
+            });
+        });
+
+        // Manejar envío de formulario de crear backup
+        document.getElementById('create-backup-form')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('create-backup-btn');
+            document.getElementById('create-text').style.display = 'none';
+            document.getElementById('create-loading').style.display = 'inline';
+            btn.disabled = true;
+
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-Token': document.querySelector('input[name="_token"]').value,
+                    'Accept': 'application/json',
+                },
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    Livewire.dispatch('toast', { type: 'success', message: data.message });
+                    setTimeout(() => @this.resetPage(), 500);
+                } else {
+                    Livewire.dispatch('toast', { type: 'error', message: data.message || 'Error desconocido' });
+                }
+            })
+            .catch(error => {
+                console.error('Create backup error:', error);
+                Livewire.dispatch('toast', { type: 'error', message: error.message || 'Error al crear el backup' });
+            })
+            .finally(() => {
+                document.getElementById('create-text').style.display = 'inline';
+                document.getElementById('create-loading').style.display = 'none';
+                btn.disabled = false;
             });
         });
     </script>
