@@ -74,9 +74,13 @@ class BackupManager extends Component
             }
 
             $fileName = 'ruc_backup_uploaded_' . now()->format('Y-m-d-His') . '.sql.gz';
-            $this->backup_file->storeAs('backups/ruc', $fileName);
+            $path = $this->backup_file->storeAs('backups/ruc', $fileName);
 
-            $filePath = storage_path('app/backups/ruc/' . $fileName);
+            $filePath = storage_path('app/' . $path);
+            if (!file_exists($filePath)) {
+                throw new \Exception('Archivo no fue almacenado correctamente');
+            }
+
             $fileSize = filesize($filePath);
             $checksum = hash_file('sha256', $filePath);
 

@@ -13,28 +13,30 @@
         <div class="bg-white rounded-lg p-6 w-96">
             <h3 class="text-lg font-bold mb-4">Cargar archivo de backup</h3>
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-2">Archivo (.sql.gz)</label>
-                <input wire:model="backup_file" type="file" accept=".gz"
-                       class="w-full border rounded px-3 py-2">
-                @error('backup_file')
-                <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                @enderror
-            </div>
+            <form wire:submit="uploadBackup" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Archivo (.sql.gz)</label>
+                    <input wire:model.live="backup_file" type="file" accept=".gz"
+                           class="w-full border rounded px-3 py-2">
+                    @error('backup_file')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
 
-            <div class="flex gap-2 justify-end">
-                <button wire:click="$set('show_upload', false)"
-                        class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
-                    Cancelar
-                </button>
-                <button wire:click="uploadBackup"
-                        wire:loading.attr="disabled"
-                        {{ $loading ? 'disabled' : '' }}
-                        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-                    <span wire:loading.remove>Cargar</span>
-                    <span wire:loading>Cargando...</span>
-                </button>
-            </div>
+                <div class="flex gap-2 justify-end">
+                    <button type="button" wire:click="$set('show_upload', false)"
+                            class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            wire:loading.attr="disabled"
+                            {{ $loading ? 'disabled' : '' }}
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                        <span wire:loading.remove>Cargar</span>
+                        <span wire:loading>Cargando...</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
     @endif
