@@ -104,9 +104,11 @@ class BackupManager extends Component
         }
     }
 
-    public function restoreBackup(RucBackup $backup): void
+    public function restoreBackup(int $backupId): void
     {
         Gate::authorize('ruc.import');
+
+        $backup = RucBackup::findOrFail($backupId);
 
         if ($backup->status !== 'completed') {
             $this->dispatch('toast', type: 'error', message: 'El backup debe estar en estado Completado');
@@ -137,9 +139,11 @@ class BackupManager extends Component
         }
     }
 
-    public function deleteBackup(RucBackup $backup): void
+    public function deleteBackup(int $backupId): void
     {
         Gate::authorize('ruc.import');
+
+        $backup = RucBackup::findOrFail($backupId);
 
         try {
             if (file_exists($backup->storage_path)) {
@@ -153,14 +157,16 @@ class BackupManager extends Component
             Log::info('RUC backup deleted', ['backup_id' => $backup->id, 'user_id' => auth()->id()]);
 
         } catch (\Throwable $e) {
-            Log::error('RUC backup deletion failed', ['backup_id' => $backup->id, 'error' => $e->getMessage()]);
+            Log::error('RUC backup deletion failed', ['backup_id' => $backupId, 'error' => $e->getMessage()]);
             $this->dispatch('toast', type: 'error', message: 'Error al eliminar: ' . $e->getMessage());
         }
     }
 
-    public function download(RucBackup $backup)
+    public function download(int $backupId)
     {
         Gate::authorize('ruc.import');
+
+        $backup = RucBackup::findOrFail($backupId);
 
         if (!file_exists($backup->storage_path)) {
             $this->dispatch('toast', type: 'error', message: 'Archivo no encontrado en el servidor');

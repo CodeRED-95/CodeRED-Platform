@@ -140,55 +140,26 @@
                                         📥
                                     </button>
 
-                                    <x-ui.confirm-dialog
-                                        id="restore-backup-{{ $backup->id }}"
-                                        title="Restaurar desde Backup"
-                                        :message="'Se restaurarán ' . number_format($backup->total_records) . ' registros de RUC. Se creará un backup de seguridad automáticamente.'"
-                                        confirm-label="Restaurar"
-                                        tone="warning"
-                                        :confirm-action="false"
+                                    <button
+                                        wire:click="restoreBackup({{ $backup->id }})"
+                                        wire:confirm="⚠️ Restaurar {{ number_format($backup->total_records) }} registros. Se creará un backup de seguridad automáticamente. ¿Continuar?"
+                                        wire:loading.attr="disabled"
+                                        {{ $loading ? 'disabled' : '' }}
+                                        class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                                        title="Restaurar"
                                     >
-                                        <x-slot:trigger>
-                                            <button
-                                                class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors"
-                                                title="Restaurar"
-                                                wire:loading.attr="disabled"
-                                                {{ $loading ? 'disabled' : '' }}
-                                                @click="
-                                                    if(confirm('⚠️ Esta acción restaurará ' + {{ $backup->total_records }} + ' registros. Los datos actuales serán reemplazados. ¿Continuar?')) {
-                                                        Livewire.dispatch('call', { method: 'restoreBackup', params: [{{ $backup->id }}] })
-                                                    }
-                                                "
-                                            >
-                                                🔄
-                                            </button>
-                                        </x-slot:trigger>
-                                    </x-ui.confirm-dialog>
+                                        🔄
+                                    </button>
                                 @endif
 
-                                <x-ui.confirm-dialog
-                                    id="delete-backup-{{ $backup->id }}"
-                                    title="Eliminar Backup"
-                                    message="Esta acción es irreversible. El archivo se eliminará permanentemente."
-                                    confirm-label="Eliminar"
-                                    tone="danger"
-                                    confirmation-text="ELIMINAR"
-                                    :confirm-action="false"
+                                <button
+                                    wire:click="deleteBackup({{ $backup->id }})"
+                                    wire:confirm="🗑️ Eliminar este backup permanentemente. Esta acción no se puede deshacer. ¿Continuar?"
+                                    class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-red-500/10 text-[color:var(--color-danger)] hover:bg-red-500/20 transition-colors"
+                                    title="Eliminar"
                                 >
-                                    <x-slot:trigger>
-                                        <button
-                                            class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-red-500/10 text-[color:var(--color-danger)] hover:bg-red-500/20 transition-colors"
-                                            title="Eliminar"
-                                            @click="
-                                                if(prompt('Escribe ELIMINAR para confirmar:') === 'ELIMINAR') {
-                                                    Livewire.dispatch('call', { method: 'deleteBackup', params: [{{ $backup->id }}] })
-                                                }
-                                            "
-                                        >
-                                            🗑️
-                                        </button>
-                                    </x-slot:trigger>
-                                </x-ui.confirm-dialog>
+                                    🗑️
+                                </button>
                             </div>
                         </td>
                     </tr>
