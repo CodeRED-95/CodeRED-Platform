@@ -79,7 +79,19 @@ export class CodeREDClient {
         signal: controller.signal,
       });
       const text = await response.text();
-      const json = text ? JSON.parse(text) as Record<string, unknown> : {};
+      let json: Record<string, unknown> = {};
+
+      try {
+        json = text ? JSON.parse(text) as Record<string, unknown> : {};
+      } catch (parseError) {
+        // Response is not JSON (likely HTML error page from upstream)
+        const contentType = response.headers.get('content-type') || 'unknown';
+        const error = new Error(`CodeRED request failed ${response.status}: ${contentType}`) as HttpError;
+        error.status = response.status;
+        error.retryAfter = response.headers.get('retry-after') || undefined;
+        error.responseBody = { error: 'Non-JSON response', contentType, sample: text.substring(0, 200) };
+        throw error;
+      }
 
       if (!response.ok) {
         const error = new Error(`CodeRED request failed ${response.status}`) as HttpError;
@@ -125,7 +137,19 @@ export class CodeREDClient {
         signal: controller.signal,
       });
       const text = await response.text();
-      const json = text ? JSON.parse(text) as Record<string, unknown> : {};
+      let json: Record<string, unknown> = {};
+
+      try {
+        json = text ? JSON.parse(text) as Record<string, unknown> : {};
+      } catch (parseError) {
+        // Response is not JSON (likely HTML error page from upstream)
+        const contentType = response.headers.get('content-type') || 'unknown';
+        const error = new Error(`CodeRED request failed ${response.status}: ${contentType}`) as HttpError;
+        error.status = response.status;
+        error.retryAfter = response.headers.get('retry-after') || undefined;
+        error.responseBody = { error: 'Non-JSON response', contentType, sample: text.substring(0, 200) };
+        throw error;
+      }
 
       if (!response.ok) {
         const error = new Error(`CodeRED request failed ${response.status}`) as HttpError;
