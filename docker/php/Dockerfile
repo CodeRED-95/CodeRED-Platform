@@ -8,6 +8,7 @@ RUN apk add --no-cache \
     libpq-dev \
     libzip-dev \
     oniguruma-dev \
+    postgresql16-client \
     su-exec \
     unzip \
     zip \

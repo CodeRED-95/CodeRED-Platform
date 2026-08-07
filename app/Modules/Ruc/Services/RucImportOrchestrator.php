@@ -16,8 +16,7 @@ class RucImportOrchestrator
 {
     public function __construct(
         private readonly RucFileStreamReader $fileReader
-    ) {
-    }
+    ) {}
 
     /**
      * Inicia una importación desde un archivo cargado
@@ -65,7 +64,7 @@ class RucImportOrchestrator
     {
         // Validar tipo MIME
         $validMimes = ['text/plain', 'application/octet-stream'];
-        if (!in_array($file->getMimeType(), $validMimes)) {
+        if (! in_array($file->getMimeType(), $validMimes)) {
             throw new RuntimeException('El archivo debe ser de tipo texto (.txt)');
         }
 
@@ -74,11 +73,12 @@ class RucImportOrchestrator
             throw new RuntimeException('El archivo debe tener extensión .txt');
         }
 
-        // Validar tamaño
-        $maxSize = config('ruc.import.max_file_size', 5 * 1024 * 1024 * 1024); // 5GB default
+        // Validar tamaño (RUC_IMPORT_MAX_SIZE_MB; config('ruc.import.max_file_size')
+        // no existe, así que antes esto ignoraba el límite configurado)
+        $maxSize = max(1, (int) config('ruc.import.max_size_mb', 30000)) * 1024 * 1024;
         if ($file->getSize() > $maxSize) {
             throw new RuntimeException(
-                "El archivo excede el tamaño máximo de " .
+                'El archivo excede el tamaño máximo de '.
                 $this->formatBytes($maxSize)
             );
         }
@@ -100,11 +100,11 @@ class RucImportOrchestrator
         $directory = config('ruc.import.directories.incoming', 'private/ruc/incoming');
 
         // Generar nombre seguro
-        $filename = Str::uuid() . '-' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName());
+        $filename = Str::uuid().'-'.preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName());
 
         // Guardar
         $path = $disk->putFileAs($directory, $file, $filename, 'private');
-        if (!$path) {
+        if (! $path) {
             throw new RuntimeException('No se pudo guardar el archivo');
         }
 
@@ -182,6 +182,6 @@ class RucImportOrchestrator
         $pow = min($pow, count($units) - 1);
         $bytes /= 1 << (10 * $pow);
 
-        return round($bytes, 2) . ' ' . $units[$pow];
+        return round($bytes, 2).' '.$units[$pow];
     }
 }

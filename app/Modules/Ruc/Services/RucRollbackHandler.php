@@ -18,17 +18,18 @@ class RucRollbackHandler
         ?User $initiatedBy = null,
         ?string $reason = null
     ): RollbackResult {
-        $result = new RollbackResult();
+        $result = new RollbackResult;
 
         // Validar que se puede hacer rollback
-        if (!$import->canRollback()) {
+        if (! $import->canRollback()) {
             $result->success = false;
             $result->message = 'Esta importación no puede ser revertida. Solo completadas o con errores.';
+
             return $result;
         }
 
         try {
-            DB::transaction(function () use ($import, &$result) {
+            DB::transaction(function () use ($import, &$result, $initiatedBy, $reason) {
                 // Actualizar status a "rolling back"
                 $import->update([
                     'status' => RucImportStatusV3::RollingBack->value,
@@ -39,48 +40,25 @@ class RucRollbackHandler
                     'initiated_by' => auth()->id(),
                 ], $initiatedBy);
 
-                // Obtener lista de RUCs insertados en esta importación
-                $events = DB::table('ruc_import_events')
+                // Borrar únicamente los registros que esta importación insertó
+                // originalmente (ruc_import_id). No se usa una ventana de
+                // tiempo: eso podía arrastrar registros de importaciones
+                // concurrentes. ON CONFLICT nunca reescribe ruc_import_id
+                // (ver RucBatchInserter), así que la columna siempre refleja
+                // quién creó el registro, no quién lo tocó por última vez.
+                $deleted = DB::table('ruc_records')
                     ->where('ruc_import_id', $import->id)
-                    ->where('event_type', 'import.checkpoint')
-                    ->pluck('data');
+                    ->delete();
 
-                $rucsToDelete = [];
-                foreach ($events as $eventData) {
-                    if (is_string($eventData)) {
-                        $data = json_decode($eventData, true);
-                    } else {
-                        $data = $eventData;
-                    }
-
-                    // Opción 1: Borrar todos los registros inseridos por esta importación
-                    // Obtenemos los RUCs de los eventos si están disponibles
-                    // Si no, simplemente borramos registros creados recientemente
-                }
-
-                // Estrategia: Borrar registros con created_at cercana a started_at
-                if ($import->started_at) {
-                    $startTime = $import->started_at->subMinutes(5);
-                    $endTime = now()->addMinutes(5);
-
-                    // CUIDADO: Esto podría borrar registros de otras importaciones
-                    // Por eso guardamos el registro antes
-
-                    $deleted = DB::table('ruc_records')
-                        ->whereBetween('created_at', [$startTime, $endTime])
-                        ->where('updated_at', '<=', $import->finished_at ?? now())
-                        ->delete();
-
-                    $result->recordsDeleted = $deleted;
-                }
+                $result->recordsDeleted = $deleted;
 
                 // Marcar como rolled back
                 $import->update([
                     'status' => RucImportStatusV3::RolledBack->value,
                     'rollback_completed_at' => now(),
                     'rollback_reason' => $reason,
-                    'inserted_records' => 0,
-                    'updated_records' => 0,
+                    'inserted_rows' => 0,
+                    'updated_rows' => 0,
                 ]);
 
                 $import->recordEvent('import.rollback_completed', [
@@ -93,7 +71,7 @@ class RucRollbackHandler
             });
         } catch (\Exception $e) {
             $result->success = false;
-            $result->message = "Error durante rollback: " . $e->getMessage();
+            $result->message = 'Error durante rollback: '.$e->getMessage();
 
             // Registrar error
             $import->update([
@@ -114,26 +92,19 @@ class RucRollbackHandler
      */
     public function dryRun(RucImport $import): RollbackResult
     {
-        $result = new RollbackResult();
+        $result = new RollbackResult;
 
-        if (!$import->canRollback()) {
+        if (! $import->canRollback()) {
             $result->success = false;
             $result->message = 'Esta importación no puede ser revertida.';
+
             return $result;
         }
 
-        // Contar cuántos registros se borraría
-        if ($import->started_at) {
-            $startTime = $import->started_at->subMinutes(5);
-            $endTime = now()->addMinutes(5);
-
-            $wouldDelete = DB::table('ruc_records')
-                ->whereBetween('created_at', [$startTime, $endTime])
-                ->where('updated_at', '<=', $import->finished_at ?? now())
-                ->count();
-
-            $result->recordsDeleted = $wouldDelete;
-        }
+        // Contar cuántos registros se borrarían (misma condición que rollback())
+        $result->recordsDeleted = DB::table('ruc_records')
+            ->where('ruc_import_id', $import->id)
+            ->count();
 
         $result->success = true;
         $result->message = "Dry-run: Se borraría {$result->recordsDeleted} registros.";

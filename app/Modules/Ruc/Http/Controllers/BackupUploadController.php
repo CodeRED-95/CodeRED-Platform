@@ -9,16 +9,19 @@ use App\Modules\Ruc\Services\RucBackupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Validation\ValidationException;
 
 class BackupUploadController
 {
+    // max:10485760 más abajo está en KB (regla `max` de Laravel) => 10 GB reales.
+    private const MAX_UPLOAD_KB = 10485760;
+
     public function create(Request $request)
     {
-        Gate::authorize('ruc.import');
+        Gate::authorize('ruc.backup.create');
 
         try {
-            $service = new RucBackupService();
+            $service = new RucBackupService;
             $backup = $service->backup('full', auth()->user());
 
             Log::info('RUC backup created', [
@@ -30,7 +33,7 @@ class BackupUploadController
 
             return response()->json([
                 'success' => true,
-                'message' => '✓ Backup creado exitosamente. Registros: ' . number_format($backup->total_records ?? 0) . ', Tamaño: ' . $this->formatBytes($backup->file_size_bytes),
+                'message' => '✓ Backup creado exitosamente. Registros: '.number_format($backup->total_records ?? 0).', Tamaño: '.$this->formatBytes($backup->file_size_bytes),
                 'backup_id' => $backup->id,
             ]);
 
@@ -43,31 +46,31 @@ class BackupUploadController
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear backup: ' . $e->getMessage(),
+                'message' => 'Error al crear backup: '.$e->getMessage(),
             ], 500);
         }
     }
 
     public function store(Request $request)
     {
-        Gate::authorize('ruc.import');
+        Gate::authorize('ruc.backup.create');
 
         try {
             $validated = $request->validate([
-                'backup_file' => 'required|file|mimes:gz|max:10485760',
+                'backup_file' => 'required|file|mimes:gz|max:'.self::MAX_UPLOAD_KB,
             ], [
                 'backup_file.required' => 'Debe seleccionar un archivo',
                 'backup_file.file' => 'Debe ser un archivo válido',
                 'backup_file.mimes' => 'El archivo debe tener extensión .gz',
-                'backup_file.max' => 'El archivo no puede exceder 10 MB',
+                'backup_file.max' => 'El archivo no puede exceder '.round(self::MAX_UPLOAD_KB / 1024 / 1024).' GB',
             ]);
 
             $file = $validated['backup_file'];
-            $fileName = 'ruc_backup_uploaded_' . now()->format('Y-m-d-His') . '.sql.gz';
+            $fileName = 'ruc_backup_uploaded_'.now()->format('Y-m-d-His').'_'.bin2hex(random_bytes(4)).'.sql.gz';
             $path = $file->storeAs('backups/ruc', $fileName);
 
-            $filePath = storage_path('app/' . $path);
-            if (!file_exists($filePath)) {
+            $filePath = storage_path('app/'.$path);
+            if (! file_exists($filePath)) {
                 @unlink($filePath);
                 throw new \Exception('El archivo no se almacenó correctamente en el servidor');
             }
@@ -76,6 +79,17 @@ class BackupUploadController
             if ($fileSize === 0) {
                 @unlink($filePath);
                 throw new \Exception('El archivo está vacío');
+            }
+
+            // Rechazar cualquier archivo que no sea un dump real de pg_dump
+            // en formato custom: evita que un .gz arbitrario quede aceptado
+            // como backup y termine usándose (y truncando la tabla) en un
+            // restore posterior.
+            try {
+                (new RucBackupService)->validateDumpFile($filePath);
+            } catch (\Throwable $e) {
+                @unlink($filePath);
+                throw new \Exception('El archivo no es un dump válido de PostgreSQL: '.$e->getMessage());
             }
 
             $checksum = hash_file('sha256', $filePath);
@@ -99,10 +113,10 @@ class BackupUploadController
 
             return response()->json([
                 'success' => true,
-                'message' => '✓ Backup cargado exitosamente. Tamaño: ' . $this->formatBytes($fileSize),
+                'message' => '✓ Backup cargado exitosamente. Tamaño: '.$this->formatBytes($fileSize),
             ]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             Log::warning('RUC backup validation failed', [
                 'user_id' => auth()->id(),
                 'errors' => $e->errors(),
@@ -122,7 +136,7 @@ class BackupUploadController
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cargar: ' . $e->getMessage(),
+                'message' => 'Error al cargar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -135,6 +149,6 @@ class BackupUploadController
         $pow = min($pow, count($units) - 1);
         $bytes /= (1 << (10 * $pow));
 
-        return round($bytes, 2) . ' ' . $units[$pow];
+        return round($bytes, 2).' '.$units[$pow];
     }
 }

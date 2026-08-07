@@ -11,26 +11,26 @@ class RucBackupPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->is_admin;
+        return $user->hasPermission('ruc.backup.view');
     }
 
     public function download(User $user, RucBackup $backup): bool
     {
-        return $user->is_admin;
+        return $user->hasPermission('ruc.backup.download');
     }
 
     public function upload(User $user): bool
     {
-        return $user->is_admin;
+        return $user->hasPermission('ruc.backup.create');
     }
 
     public function restore(User $user, RucBackup $backup): bool
     {
-        return $user->is_admin;
+        return $user->hasPermission('ruc.backup.restore');
     }
 
     public function delete(User $user, RucBackup $backup): bool
     {
-        return $user->is_admin;
+        return $user->hasPermission('ruc.backup.delete');
     }
 }

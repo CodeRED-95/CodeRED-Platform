@@ -3,14 +3,14 @@
 namespace Tests\Feature\Ruc;
 
 use App\Models\User;
+use App\Modules\Ruc\Data\ValidationContext;
 use App\Modules\Ruc\Enums\RucImportStatusV3;
 use App\Modules\Ruc\Models\RucImport;
-use App\Modules\Ruc\Models\RucImportDuplicate;
-use App\Modules\Ruc\Models\RucImportError;
 use App\Modules\Ruc\Models\RucImportEvent;
 use App\Modules\Ruc\Models\RucRecord;
 use App\Modules\Ruc\Services\RucFileStreamReader;
 use App\Modules\Ruc\Services\RucLineValidator;
+use App\Modules\Ruc\Services\RucRollbackHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -21,6 +21,7 @@ class RucImportV3Test extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected string $disk = 'local';
 
     protected function setUp(): void
@@ -65,13 +66,13 @@ class RucImportV3Test extends TestCase
      */
     public function test_line_validation_with_errors(): void
     {
-        $validator = new RucLineValidator();
+        $validator = new RucLineValidator;
 
         // Línea con RUC inválido
         $result = $validator->validate(
             ['123', 'EMPRESA SAC', 'ACTIVO', 'ACTIVO', '150131'],
             2,
-            new \App\Modules\Ruc\Data\ValidationContext()
+            new ValidationContext
         );
 
         $this->assertFalse($result->valid);
@@ -83,8 +84,8 @@ class RucImportV3Test extends TestCase
      */
     public function test_detect_duplicates_in_file(): void
     {
-        $validator = new RucLineValidator();
-        $context = new \App\Modules\Ruc\Data\ValidationContext();
+        $validator = new RucLineValidator;
+        $context = new ValidationContext;
 
         // Primera línea
         $result1 = $validator->validate(
@@ -113,7 +114,7 @@ class RucImportV3Test extends TestCase
         // Crear archivo de 1MB
         $content = "RUC|Razón Social|Estado|Condición|UBIGEO\n";
         for ($i = 0; $i < 10000; $i++) {
-            $ruc = sprintf("20%09d", $i);
+            $ruc = sprintf('20%09d', $i);
             $content .= "{$ruc}|EMPRESA {$i}|ACTIVO|ACTIVO|150131\n";
         }
 
@@ -125,7 +126,7 @@ class RucImportV3Test extends TestCase
 
         $path = $file->store('test', $this->disk);
 
-        $reader = new RucFileStreamReader();
+        $reader = new RucFileStreamReader;
         $handle = $reader->open(Storage::disk($this->disk)->path($path));
 
         // Leer línea por línea sin cargar todo en memoria
@@ -185,25 +186,46 @@ class RucImportV3Test extends TestCase
     {
         $import = RucImport::factory()->create([
             'status' => RucImportStatusV3::Completed->value,
-            'inserted_records' => 100,
+            'inserted_rows' => 100,
             'started_at' => now()->subHour(),
             'finished_at' => now(),
         ]);
 
-        // Crear registros de prueba
+        // Otra importación "concurrente" cuyos registros NO deben borrarse.
+        $otherImport = RucImport::factory()->create([
+            'status' => RucImportStatusV3::Completed->value,
+            'started_at' => now()->subHour(),
+            'finished_at' => now(),
+        ]);
+
+        // Registros insertados por la importación que vamos a revertir.
         for ($i = 0; $i < 5; $i++) {
             RucRecord::create([
-                'ruc' => sprintf("20%09d", $i),
+                'ruc' => sprintf('20%09d', $i),
                 'razon_social' => "EMPRESA {$i}",
+                'ruc_import_id' => $import->id,
                 'created_at' => now()->subMinutes(30),
             ]);
         }
 
-        $rollbackHandler = app(\App\Modules\Ruc\Services\RucRollbackHandler::class);
+        // Registro de otra importación, creado en la misma ventana de tiempo:
+        // antes del fix, el rollback por ventana de tiempo lo habría borrado
+        // igual (regresión que este assert cubre).
+        RucRecord::create([
+            'ruc' => '20999999999',
+            'razon_social' => 'EMPRESA DE OTRA IMPORTACION',
+            'ruc_import_id' => $otherImport->id,
+            'created_at' => now()->subMinutes(30),
+        ]);
+
+        $rollbackHandler = app(RucRollbackHandler::class);
         $result = $rollbackHandler->rollback($import, $this->user, 'Test rollback');
 
-        $this->assertTrue($result->success);
-        $this->assertEquals(RucImportStatusV3::RolledBack->value, $import->fresh()->status);
+        $this->assertTrue($result->success, $result->message);
+        $this->assertEquals(5, $result->recordsDeleted);
+        $this->assertEquals(RucImportStatusV3::RolledBack->value, $import->fresh()->status->value);
+        $this->assertDatabaseCount('ruc_records', 1);
+        $this->assertDatabaseHas('ruc_records', ['ruc' => '20999999999']);
     }
 
     /**

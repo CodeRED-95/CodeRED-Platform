@@ -19,7 +19,7 @@ class RucBackupService
 
     public function __construct()
     {
-        if (!Storage::disk('local')->exists(self::BACKUP_DIR)) {
+        if (! Storage::disk('local')->exists(self::BACKUP_DIR)) {
             Storage::disk('local')->makeDirectory(self::BACKUP_DIR);
         }
     }
@@ -31,8 +31,10 @@ class RucBackupService
     {
         $startTime = microtime(true);
         $timestamp = now()->format('Y-m-d-His');
-        $backupName = "ruc_backup_{$timestamp}.sql.gz";
-        $localPath = storage_path('app/' . self::BACKUP_DIR . '/' . $backupName);
+        // Sufijo aleatorio: evita colisión si dos backups se disparan dentro
+        // del mismo segundo (p. ej. el "safety_before_restore" automático).
+        $backupName = "ruc_backup_{$timestamp}_".bin2hex(random_bytes(4)).'.sql.gz';
+        $localPath = storage_path('app/'.self::BACKUP_DIR.'/'.$backupName);
 
         try {
             Log::info('Starting RUC database backup', ['backup_type' => $backupType, 'user_id' => $user?->id]);
@@ -41,8 +43,8 @@ class RucBackupService
             $this->createDump($localPath);
 
             // 2. Validar que el archivo fue creado
-            if (!file_exists($localPath)) {
-                throw new \Exception('Dump file was not created at ' . $localPath);
+            if (! file_exists($localPath)) {
+                throw new \Exception('Dump file was not created at '.$localPath);
             }
 
             // 3. Obtener información del backup
@@ -77,7 +79,7 @@ class RucBackupService
                 'file_name' => $backupName,
                 'file_size' => $this->formatBytes($fileSize),
                 'records' => $recordCount,
-                'duration' => $duration . 's',
+                'duration' => $duration.'s',
             ]);
 
             return $backup;
@@ -106,8 +108,8 @@ class RucBackupService
             throw new \Exception('El backup debe estar completado para restaurar');
         }
 
-        if (!file_exists($backup->storage_path)) {
-            throw new \Exception('El archivo de backup no existe: ' . $backup->storage_path);
+        if (! file_exists($backup->storage_path)) {
+            throw new \Exception('El archivo de backup no existe: '.$backup->storage_path);
         }
 
         Log::info('Starting RUC database restore', [
@@ -127,19 +129,43 @@ class RucBackupService
             }
 
             // 2. Restaurar en BD
-            if (!$dryRun) {
+            if (! $dryRun) {
+                // Validar que el archivo es un dump de pg_restore válido ANTES
+                // de tocar la base de datos (el restore hace TRUNCATE primero).
+                $this->validateDumpFile($backup->storage_path);
+
                 // Backup actual antes de restaurar
                 $safetyBackup = $this->backup('safety_before_restore');
                 Log::warning('Safety backup created before restore', ['backup_id' => $safetyBackup->id]);
 
-                $this->restoreFromDump($backup->storage_path);
+                try {
+                    $this->restoreFromDump($backup->storage_path);
+                } catch (\Throwable $e) {
+                    Log::error('Restore failed after truncating ruc_records; attempting automatic recovery from safety backup', [
+                        'backup_id' => $backup->id,
+                        'safety_backup_id' => $safetyBackup->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    try {
+                        $this->restoreFromDump($safetyBackup->storage_path);
+                        Log::warning('Automatic recovery from safety backup succeeded', ['safety_backup_id' => $safetyBackup->id]);
+                    } catch (\Throwable $recoveryError) {
+                        Log::error('Automatic recovery from safety backup FAILED - ruc_records may be empty', [
+                            'safety_backup_id' => $safetyBackup->id,
+                            'error' => $recoveryError->getMessage(),
+                        ]);
+                    }
+
+                    throw $e;
+                }
             }
 
             $duration = intval(microtime(true) - $startTime);
 
             Log::info('RUC database restore completed', [
                 'backup_id' => $backup->id,
-                'duration' => $duration . 's',
+                'duration' => $duration.'s',
                 'dry_run' => $dryRun,
             ]);
 
@@ -171,20 +197,20 @@ class RucBackupService
 
         // Asegurar que el directorio existe
         $backupDir = dirname($outputPath);
-        if (!is_dir($backupDir)) {
+        if (! is_dir($backupDir)) {
             @mkdir($backupDir, 0755, true);
         }
 
         // Usar pg_dump con compresión
         $command = [
             'pg_dump',
-            '--host=' . $dbHost,
-            '--port=' . $dbPort,
-            '--username=' . $dbUser,
+            '--host='.$dbHost,
+            '--port='.$dbPort,
+            '--username='.$dbUser,
             '--table=ruc_records',
-            '--compress=' . self::COMPRESSION_LEVEL,
+            '--compress='.self::COMPRESSION_LEVEL,
             '--format=custom',
-            '--file=' . $outputPath,
+            '--file='.$outputPath,
             $dbName,
         ];
 
@@ -200,11 +226,11 @@ class RucBackupService
                 'error' => $e->getMessage(),
                 'stderr' => $process->getErrorOutput(),
             ]);
-            throw new \Exception('Failed to create backup dump: ' . $process->getErrorOutput());
+            throw new \Exception('Failed to create backup dump: '.$process->getErrorOutput());
         }
 
-        if (!file_exists($outputPath)) {
-            throw new \Exception('Dump file was not created at ' . $outputPath);
+        if (! file_exists($outputPath)) {
+            throw new \Exception('Dump file was not created at '.$outputPath);
         }
 
         if (filesize($outputPath) === 0) {
@@ -214,10 +240,35 @@ class RucBackupService
     }
 
     /**
+     * Verifica que el archivo sea un dump válido en formato "custom" de
+     * pg_dump/pg_restore antes de dejarlo usar en un restore. `pg_restore
+     * --list` solo lee la tabla de contenidos del archivo, no toca la BD.
+     * Público para poder validarlo también al momento de subir un archivo
+     * (antes de aceptarlo como backup), no solo al restaurar.
+     */
+    public function validateDumpFile(string $filePath): void
+    {
+        if (! file_exists($filePath) || filesize($filePath) === 0) {
+            throw new \Exception('El archivo de backup no existe o está vacío: '.$filePath);
+        }
+
+        $process = new Process(['pg_restore', '--list', $filePath]);
+        $process->setTimeout(120);
+
+        try {
+            $process->mustRun();
+        } catch (\Throwable $e) {
+            throw new \Exception('El archivo de backup no es un dump válido de PostgreSQL (formato custom de pg_dump): '.$process->getErrorOutput());
+        }
+    }
+
+    /**
      * Restaurar desde dump
      */
     private function restoreFromDump(string $filePath): void
     {
+        $this->validateDumpFile($filePath);
+
         $dbName = config('database.connections.pgsql.database');
         $dbUser = config('database.connections.pgsql.username');
         $dbHost = config('database.connections.pgsql.host');
@@ -228,10 +279,10 @@ class RucBackupService
 
         $command = [
             'pg_restore',
-            '--host=' . $dbHost,
-            '--port=' . $dbPort,
-            '--username=' . $dbUser,
-            '--dbname=' . $dbName,
+            '--host='.$dbHost,
+            '--port='.$dbPort,
+            '--username='.$dbUser,
+            '--dbname='.$dbName,
             '--single-transaction',  // Una transacción para atomicidad
             '--jobs=4',              // Restaurar en paralelo
             $filePath,
@@ -256,7 +307,7 @@ class RucBackupService
             $size /= 1024;
         }
 
-        return round($size, 2) . ' ' . $units[$i];
+        return round($size, 2).' '.$units[$i];
     }
 
     /**

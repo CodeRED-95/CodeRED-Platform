@@ -100,7 +100,24 @@
         }
 
         // Manejar envío de formulario de upload
-        document.getElementById('backup-upload-form')?.addEventListener('submit', function(e) {
+        //
+        // OJO: este formulario vive dentro de <x-ui.modal>, que usa
+        // Alpine x-teleport para moverlo a <body>. Mientras no se
+        // teletransporta, el contenido está dentro de un <template> inerte
+        // y document.getElementById() no lo encuentra. Ese teletransporte
+        // ocurre cuando Alpine inicializa (vía las scripts de Livewire,
+        // cargadas casi al final del <body>), que corre DESPUÉS de este
+        // <script> inline.
+        // Por eso NO se puede engancharlo con getElementById aquí arriba:
+        // el listener nunca se registraba y el formulario terminaba
+        // enviándose de forma nativa (sin preventDefault), disparando el
+        // aviso del navegador de "reenviar formulario" al recargar.
+        // Delegar el evento en document sí funciona sin importar cuándo
+        // se inserta el nodo real en el DOM.
+        document.addEventListener('submit', function(e) {
+            if (e.target?.id !== 'backup-upload-form') {
+                return;
+            }
             e.preventDefault();
             const file = document.getElementById('backup_file_input').files[0];
             if (!file) {
@@ -112,9 +129,9 @@
             document.getElementById('upload-loading').style.display = 'inline';
             document.getElementById('upload-submit-btn').disabled = true;
 
-            const formData = new FormData(this);
+            const formData = new FormData(e.target);
 
-            fetch(this.action, {
+            fetch(e.target.action, {
                 method: 'POST',
                 body: formData,
             })

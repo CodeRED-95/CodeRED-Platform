@@ -4,7 +4,9 @@ namespace App\Modules\Ruc\Models;
 
 use App\Models\User;
 use App\Modules\Ruc\Enums\RucImportStatus;
-use App\Modules\Ruc\Enums\RucImportStatusV3;
+use Database\Factories\RucImportFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -43,6 +45,13 @@ use Illuminate\Support\Carbon;
  */
 class RucImport extends Model
 {
+    use HasFactory;
+
+    protected static function newFactory(): Factory
+    {
+        return RucImportFactory::new();
+    }
+
     protected $fillable = [
         'uuid',
         'original_filename',
@@ -160,6 +169,7 @@ class RucImport extends Model
         if ($this->total_lines < 1) {
             return 0.0;
         }
+
         return min(100.0, ($this->processed_lines / $this->total_lines) * 100);
     }
 
@@ -175,6 +185,7 @@ class RucImport extends Model
         if ($remaining <= 0) {
             return 0;
         }
+
         return (int) ($remaining / $this->lines_per_second);
     }
 
@@ -183,7 +194,9 @@ class RucImport extends Model
      */
     public function canResume(): bool
     {
-        return $this->status === RucImportStatus::Paused->value;
+        // $this->status es un enum (cast), no un string: compararlo con
+        // ->value (string) via === siempre daba false.
+        return $this->status?->value === RucImportStatus::Paused->value;
     }
 
     /**
@@ -191,10 +204,10 @@ class RucImport extends Model
      */
     public function canCancel(): bool
     {
-        return in_array($this->status, [
+        return in_array($this->status?->value, [
             RucImportStatus::Processing->value,
             RucImportStatus::Paused->value,
-        ]);
+        ], true);
     }
 
     /**
@@ -202,10 +215,10 @@ class RucImport extends Model
      */
     public function canRollback(): bool
     {
-        return in_array($this->status, [
+        return in_array($this->status?->value, [
             RucImportStatus::Completed->value,
             RucImportStatus::CompletedWithErrors->value,
-        ]) && $this->inserted_rows > 0;
+        ], true) && $this->inserted_rows > 0;
     }
 
     /**
