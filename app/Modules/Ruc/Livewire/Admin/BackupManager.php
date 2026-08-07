@@ -10,15 +10,12 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Url;
 use Livewire\Component;
-use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class BackupManager extends Component
 {
-    use WithFileUploads, WithPagination;
+    use WithPagination;
 
-    public mixed $backup_file = null;
-    public bool $loading = false;
     public bool $show_upload = false;
 
     #[Url]
@@ -48,61 +45,6 @@ class BackupManager extends Component
         return $query->latest('created_at')->paginate($this->perPage);
     }
 
-    public function validateUpload(): void
-    {
-        $this->validate([
-            'backup_file' => 'required|file|mimes:gz|max:10485760',
-        ]);
-    }
-
-    public function uploadBackup(): void
-    {
-        Gate::authorize('ruc.import');
-
-        try {
-            $this->validateUpload();
-
-            $this->loading = true;
-
-            $fileName = 'ruc_backup_uploaded_' . now()->format('Y-m-d-His') . '.sql.gz';
-            $path = $this->backup_file->storeAs('backups/ruc', $fileName);
-
-            $filePath = storage_path('app/' . $path);
-            if (!file_exists($filePath)) {
-                throw new \Exception('Archivo no fue almacenado correctamente');
-            }
-
-            $fileSize = filesize($filePath);
-            $checksum = hash_file('sha256', $filePath);
-
-            RucBackup::create([
-                'name' => $fileName,
-                'backup_type' => 'uploaded',
-                'storage_type' => 'local',
-                'status' => 'completed',
-                'file_size_bytes' => $fileSize,
-                'storage_path' => $filePath,
-                'checksum_sha256' => $checksum,
-                'created_by' => auth()->id(),
-            ]);
-
-            $this->backup_file = null;
-            $this->show_upload = false;
-            $this->resetPage();
-
-            $this->dispatch('toast', type: 'success', message: 'Backup cargado exitosamente. Tamaño: ' . $this->formatBytes($fileSize));
-
-            Log::info('RUC backup uploaded', ['user_id' => auth()->id(), 'file_name' => $fileName, 'size' => $fileSize]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $this->dispatch('toast', type: 'error', message: 'Validación fallida: ' . $e->validator->errors()->first());
-        } catch (\Throwable $e) {
-            Log::error('RUC backup upload failed', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
-            $this->dispatch('toast', type: 'error', message: 'Error al cargar: ' . $e->getMessage());
-        } finally {
-            $this->loading = false;
-        }
-    }
 
     public function restoreBackup(int $backupId): void
     {

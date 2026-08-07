@@ -11,15 +11,18 @@
 
     <!-- Modal de Carga -->
     <x-ui.modal :open="$show_upload" title="Cargar archivo de backup" closeLabel="Cerrar">
-        <form wire:submit="uploadBackup" class="space-y-4">
+        <form id="backup-upload-form" action="{{ route('admin.ruc.backups.upload') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+            @csrf
             <div>
-                <label class="block text-sm font-medium text-[color:var(--color-text-primary)] mb-2">
+                <label for="backup_file_input" class="block text-sm font-medium text-[color:var(--color-text-primary)] mb-2">
                     Seleccionar archivo (.sql.gz)
                 </label>
                 <input
-                    wire:model.live="backup_file"
+                    id="backup_file_input"
+                    name="backup_file"
                     type="file"
                     accept=".gz"
+                    required
                     class="block w-full text-sm text-[color:var(--color-text-secondary)]
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-[var(--radius-control)]
@@ -28,15 +31,11 @@
                     file:bg-[color:var(--color-brand)]/10
                     file:text-[color:var(--color-brand)]
                     hover:file:bg-[color:var(--color-brand)]/20"
+                    onchange="updateFileName(this)"
                 >
-                @error('backup_file')
-                    <p class="text-[color:var(--color-danger)] text-sm mt-2">{{ $message }}</p>
-                @enderror
-                @if($backup_file)
-                    <p class="text-xs text-[color:var(--color-text-secondary)] mt-2">
-                        ✓ Archivo: {{ $backup_file->getClientOriginalName() }} ({{ $this->formatBytes($backup_file->getSize()) }})
-                    </p>
-                @endif
+                <p id="file-name-display" class="text-xs text-[color:var(--color-text-secondary)] mt-2" style="display: none;">
+                    ✓ Archivo: <span id="file-name"></span> (<span id="file-size"></span>)
+                </p>
             </div>
 
             <div class="bg-[color:var(--color-background)] p-3 rounded-[var(--radius-control)] border border-[color:var(--color-border)]">
@@ -46,16 +45,87 @@
             </div>
 
             <div class="flex gap-2 justify-end pt-4 border-t border-[color:var(--color-border)]">
-                <x-ui.button type="button" variant="secondary" wire:click="$set('show_upload', false)">
+                <button type="button" onclick="closeUploadModal()" class="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-primary)] shadow-sm hover:bg-[color:var(--color-background)]">
                     Cancelar
-                </x-ui.button>
-                <x-ui.button type="submit" wire:loading.attr="disabled">
-                    <span wire:loading.remove>Cargar Backup</span>
-                    <span wire:loading>Cargando...</span>
-                </x-ui.button>
+                </button>
+                <button type="submit" id="upload-submit-btn" class="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[color:var(--color-brand)] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[color:var(--color-brand)]/90">
+                    <span id="upload-text">Cargar Backup</span>
+                    <span id="upload-loading" style="display: none;">
+                        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </span>
+                </button>
             </div>
         </form>
     </x-ui.modal>
+
+    <script>
+        function formatBytes(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+            while (size > 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+            return (Math.round(size * 100) / 100) + ' ' + units[unitIndex];
+        }
+
+        function updateFileName(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('file-name').textContent = input.files[0].name;
+                document.getElementById('file-size').textContent = formatBytes(input.files[0].size);
+                document.getElementById('file-name-display').style.display = 'block';
+            } else {
+                document.getElementById('file-name-display').style.display = 'none';
+            }
+        }
+
+        function closeUploadModal() {
+            @this.set('show_upload', false);
+        }
+
+        document.getElementById('backup-upload-form')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const file = document.getElementById('backup_file_input').files[0];
+            if (!file) return;
+
+            document.getElementById('upload-text').style.display = 'none';
+            document.getElementById('upload-loading').style.display = 'inline';
+            document.getElementById('upload-submit-btn').disabled = true;
+
+            const formData = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Livewire.dispatch('toast', { type: 'success', message: data.message });
+                    @this.set('show_upload', false);
+                    @this.resetPage();
+                    document.getElementById('backup-upload-form').reset();
+                    document.getElementById('file-name-display').style.display = 'none';
+                } else {
+                    Livewire.dispatch('toast', { type: 'error', message: data.message });
+                }
+            })
+            .catch(error => {
+                Livewire.dispatch('toast', { type: 'error', message: 'Error en la solicitud: ' + error.message });
+            })
+            .finally(() => {
+                document.getElementById('upload-text').style.display = 'inline';
+                document.getElementById('upload-loading').style.display = 'none';
+                document.getElementById('upload-submit-btn').disabled = false;
+            });
+        });
+    </script>
 
     <!-- Filtros -->
     <x-ui.card class="p-0">
