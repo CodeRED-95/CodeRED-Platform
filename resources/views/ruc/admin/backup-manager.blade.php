@@ -49,7 +49,7 @@
                 <x-ui.button type="button" variant="secondary" wire:click="$set('show_upload', false)">
                     Cancelar
                 </x-ui.button>
-                <x-ui.button type="submit" wire:loading.attr="disabled" {{ $loading ? 'disabled' : '' }}>
+                <x-ui.button type="submit" wire:loading.attr="disabled">
                     <span wire:loading.remove>Cargar Backup</span>
                     <span wire:loading>Cargando...</span>
                 </x-ui.button>
@@ -102,11 +102,11 @@
                         </td>
                         <td class="px-6 py-4 text-sm">
                             @match($backup->backup_type)
-                                'full' => '<span class="text-[color:var(--color-info)]">📦 Completo</span>',
-                                'uploaded' => '<span class="text-[color:var(--color-success)]">📤 Cargado</span>',
-                                'incremental' => '<span class="text-[color:var(--color-warning)]">➕ Incremental</span>',
-                                'safety_before_restore' => '<span class="text-[color:var(--color-brand)]">🛡️ Seguridad</span>',
-                                default => '<span>' . $backup->backup_type . '</span>',
+                                'full' => <span class="text-[color:var(--color-info)]">📦 Completo</span>,
+                                'uploaded' => <span class="text-[color:var(--color-success)]">📤 Cargado</span>,
+                                'incremental' => <span class="text-[color:var(--color-warning)]">➕ Incremental</span>,
+                                'safety_before_restore' => <span class="text-[color:var(--color-brand)]">🛡️ Seguridad</span>,
+                                default => <span>{{ $backup->backup_type }}</span>,
                             @endmatch
                         </td>
                         <td class="px-6 py-4 text-sm text-right">{{ $this->formatBytes($backup->file_size_bytes) }}</td>
@@ -118,13 +118,22 @@
                             @endif
                         </td>
                         <td class="px-6 py-4 text-center">
-                            @match($backup->status)
-                                'completed' => '<x-ui.badge tone="success">✅ Completado</x-ui.badge>',
-                                'pending' => '<x-ui.badge tone="warning">⏳ Pendiente</x-ui.badge>',
-                                'failed' => '<x-ui.badge tone="danger">❌ Fallido</x-ui.badge>',
-                                'deleted' => '<x-ui.badge tone="neutral">🗑️ Eliminado</x-ui.badge>',
-                                default => '<x-ui.badge>' . $backup->status . '</x-ui.badge>',
-                            @endmatch
+                            @switch($backup->status)
+                                @case('completed')
+                                    <x-ui.badge tone="success">✅ Completado</x-ui.badge>
+                                    @break
+                                @case('pending')
+                                    <x-ui.badge tone="warning">⏳ Pendiente</x-ui.badge>
+                                    @break
+                                @case('failed')
+                                    <x-ui.badge tone="danger">❌ Fallido</x-ui.badge>
+                                    @break
+                                @case('deleted')
+                                    <x-ui.badge tone="neutral">🗑️ Eliminado</x-ui.badge>
+                                    @break
+                                @default
+                                    <x-ui.badge>{{ $backup->status }}</x-ui.badge>
+                            @endswitch
                         </td>
                         <td class="px-6 py-4 text-sm text-[color:var(--color-text-secondary)]">
                             {{ $backup->created_at->format('d/m/Y H:i') }}
@@ -144,7 +153,6 @@
                                         wire:click="restoreBackup({{ $backup->id }})"
                                         wire:confirm="⚠️ Restaurar {{ number_format($backup->total_records) }} registros. Se creará un backup de seguridad automáticamente. ¿Continuar?"
                                         wire:loading.attr="disabled"
-                                        {{ $loading ? 'disabled' : '' }}
                                         class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
                                         title="Restaurar"
                                     >
