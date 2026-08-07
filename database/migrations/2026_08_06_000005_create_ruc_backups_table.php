@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('ruc_backups', function (Blueprint $table): void {
+        Schema::createIfNotExists('ruc_backups', function (Blueprint $table): void {
             $table->id();
             $table->string('name'); // nombre: ruc_backup_2026-08-06-143000.sql.gz
             $table->string('backup_type', 50); // full, incremental, manual

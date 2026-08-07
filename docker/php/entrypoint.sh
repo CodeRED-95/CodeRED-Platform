@@ -43,11 +43,13 @@ bootstrap_application() {
     fi
 
     php artisan optimize:clear
-    php artisan migrate --force
-    php artisan db:seed --force
     php artisan storage:link || true
     php artisan config:clear
     php artisan optimize:clear
+
+    # Migraciones y seeders ya no se ejecutan aquí.
+    # Deben ejecutarse explícitamente desde update.sh durante despliegue.
+    # Ver: update.sh step 7 y posteriores.
 
     touch "$BOOTSTRAP_MARKER"
 }

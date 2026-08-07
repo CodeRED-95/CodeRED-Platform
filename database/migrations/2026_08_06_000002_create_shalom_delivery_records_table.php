@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('shalom_delivery_records', function (Blueprint $table): void {
+        Schema::createIfNotExists('shalom_delivery_records', function (Blueprint $table): void {
             $table->id();
             $table->string('username')->index();
             $table->string('field', 50); // DNI, CE, RUC, OS, Clave
