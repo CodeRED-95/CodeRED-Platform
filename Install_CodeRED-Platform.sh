@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
+# CodeRED Platform Installer
+# Uso: ./Install_CodeRED-Platform.sh [directorio_destino]
+#
+# Ejemplos:
+#   ./Install_CodeRED-Platform.sh                    # Usa ~/CodeRED-Platform
+#   ./Install_CodeRED-Platform.sh /opt/CodeRED       # Usa /opt/CodeRED
+#   PROJECT_DIR=/data/codered ./Install_CodeRED-Platform.sh
+
 set -Eeuo pipefail
 export LANG="${LANG:-C.UTF-8}"
 export LC_ALL="${LC_ALL:-C.UTF-8}"
 
 REPO_URL="https://github.com/CodeRED-95/CodeRED-Platform.git"
-PROJECT_DIR="${PROJECT_DIR:-$HOME/CodeRED-Platform}"
+
+# Si se proporciona argumento, usarlo; si no, usar variable de entorno; si no, usar default
+if [[ $# -gt 0 ]]; then
+    PROJECT_DIR="$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")"
+else
+    PROJECT_DIR="${PROJECT_DIR:-$HOME/CodeRED-Platform}"
+fi
+
 ENV_FILE="$PROJECT_DIR/.env"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 STAMP="$(date +%Y%m%d-%H%M%S)"
+CLONE_REPO=false
 
 ok(){ echo "[OK] $*"; }
 info(){ echo "[INFO] $*"; }
@@ -430,20 +446,53 @@ validate_env_file() {
 echo "============================================================"
 echo "        Instalador de CodeRED Platform"
 echo "============================================================"
+echo "Directorio de instalación: $PROJECT_DIR"
+echo "============================================================"
+
 command -v git >/dev/null || die "Git no está instalado."
 command -v docker >/dev/null || die "Docker no está instalado."
 docker compose version >/dev/null 2>&1 || die "Docker Compose v2 no está disponible."
 docker info >/dev/null 2>&1 || die "Docker no está iniciado o faltan permisos."
 
-if [[ -e "$PROJECT_DIR" ]]; then die "Ya existe $PROJECT_DIR. Renómbralo o elimínalo antes de instalar."; fi
+# Verificar si el directorio existe y contiene código
+if [[ -d "$PROJECT_DIR" ]]; then
+    if [[ -f "$PROJECT_DIR/.env" || -f "$PROJECT_DIR/docker-compose.yml" || -f "$PROJECT_DIR/artisan" ]]; then
+        if confirm "Ya existe un proyecto en $PROJECT_DIR. ¿Deseas continuar con la configuración?" n; then
+            info "Usando proyecto existente en $PROJECT_DIR"
+            CLONE_REPO=false
+            cd "$PROJECT_DIR"
+        else
+            die "Instalación cancelada. Renombra o elimina $PROJECT_DIR antes de instalar."
+        fi
+    else
+        info "Directorio $PROJECT_DIR existe pero está vacío. Se clonará el repositorio."
+        CLONE_REPO=true
+    fi
+else
+    info "Directorio $PROJECT_DIR no existe. Se creará y se clonará el repositorio."
+    mkdir -p "$PROJECT_DIR"
+    CLONE_REPO=true
+fi
 
-info "Clonando repositorio..."
-git clone --depth=1 "$REPO_URL" "$PROJECT_DIR"
-cd "$PROJECT_DIR"
-[[ -f .env.example ]] || die "No se encontró .env.example."
-cp .env.example .env
-cp .env ".env.backup-$STAMP"
-ok "Archivo .env creado. Backup: .env.backup-$STAMP"
+# Clonar repositorio si es necesario
+if [[ "$CLONE_REPO" == "true" ]]; then
+    info "Clonando repositorio..."
+    git clone --depth=1 "$REPO_URL" "$PROJECT_DIR"
+    cd "$PROJECT_DIR"
+fi
+
+[[ -f .env.example ]] || die "No se encontró .env.example en $PROJECT_DIR"
+
+# Solo copiar .env si no existe
+if [[ ! -f .env ]]; then
+    cp .env.example .env
+    cp .env ".env.backup-$STAMP"
+    ok "Archivo .env creado. Backup: .env.backup-$STAMP"
+else
+    ok "Archivo .env ya existe, se preservará"
+    cp .env ".env.backup-$STAMP"
+    ok "Backup creado: .env.backup-$STAMP"
+fi
 
 echo; echo "1) Producción"; echo "2) Desarrollo"; read -r -p "Modo [1]: " mode; mode="${mode:-1}"
 if [[ "$mode" == "2" ]]; then APP_ENV="local"; APP_DEBUG="true"; LOG_LEVEL="debug"; DEFAULT_URL="http://192.168.18.124:8090"; else APP_ENV="production"; APP_DEBUG="false"; LOG_LEVEL="info"; DEFAULT_URL="https://platform.codered.host"; fi
