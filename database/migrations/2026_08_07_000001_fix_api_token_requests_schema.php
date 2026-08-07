@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -61,7 +60,7 @@ return new class extends Migration
 
             // Remove tracking_code if it exists (added by broken migration)
             if (Schema::hasColumn('api_token_requests', 'tracking_code')) {
-                $table->dropIndex('api_token_requests_tracking_code_unique');
+                $table->dropUnique(['tracking_code']);
                 $table->dropColumn('tracking_code');
             }
 
