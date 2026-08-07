@@ -320,7 +320,9 @@ configure_n8n_env() {
     [[ -n "$(get_env N8N_WEBHOOK_URL)" ]] || set_env N8N_WEBHOOK_URL "https://n8n.codered.host/"
     [[ -n "$(get_env N8N_VERSION)" ]] || set_env N8N_VERSION "2.31.4"
     [[ -n "$(get_env CODERED_AGENT_LOCAL_URL)" ]] || set_env CODERED_AGENT_LOCAL_URL "http://codered-agent:5680"
+    [[ -n "$(get_env N8N_TOKEN_REQUEST_WEBHOOK_URL)" ]] || set_env N8N_TOKEN_REQUEST_WEBHOOK_URL "https://n8n.codered.host/webhook/codered-events"
     if [[ -z "$(get_env N8N_ENCRYPTION_KEY)" ]]; then set_env N8N_ENCRYPTION_KEY "$(generate_secret)"; ok "Clave de cifrado de n8n generada correctamente."; fi
+    if [[ -z "$(get_env N8N_TOKEN_REQUEST_WEBHOOK_SECRET)" ]]; then set_env N8N_TOKEN_REQUEST_WEBHOOK_SECRET "$(generate_secret)"; ok "Secreto de webhook n8n generado correctamente."; fi
     validate_n8n_compose_config
     ok "Variables n8n actualizadas en el .env principal."
 }
@@ -516,6 +518,24 @@ if confirm "¿Activar PeruDevs para consultas DNI?" n; then read_value "URL Peru
 
 configure_agent
 ensure_n8n_env_defaults
+
+# Configurar claves de encriptación de Token Request si no existen
+if [[ -z "$(get_env TOKEN_REQUEST_DATA_ENCRYPTION_KEY)" ]]; then
+    info "Generando clave de encriptación de datos de solicitudes de token..."
+    local enc_key
+    enc_key="base64:$(openssl rand -base64 32)"
+    set_env TOKEN_REQUEST_DATA_ENCRYPTION_KEY "$enc_key"
+    ok "Clave de encriptación de datos generada correctamente."
+fi
+
+if [[ -z "$(get_env TOKEN_REQUEST_BLIND_INDEX_KEY)" ]]; then
+    info "Generando clave de blind index para solicitudes de token..."
+    local blind_key
+    blind_key="$(php -r "echo hash_hmac('sha256', 'blind-index', bin2hex(random_bytes(32)), false);" 2>/dev/null || echo "$(openssl rand -hex 32)")"
+    set_env TOKEN_REQUEST_BLIND_INDEX_KEY "$blind_key"
+    ok "Clave de blind index generada correctamente."
+fi
+
 validate_env_file || die "Corrige las claves indicadas antes de continuar."
 unset DB_PASSWORD ADMIN_PASSWORD REPLY || true
 
