@@ -34,41 +34,47 @@ class RucBackupService
         $backupName = "ruc_backup_{$timestamp}.sql.gz";
         $localPath = storage_path('app/' . self::BACKUP_DIR . '/' . $backupName);
 
-        // Crear registro de backup
-        $backup = RucBackup::create([
-            'name' => $backupName,
-            'backup_type' => $backupType,
-            'storage_type' => 'local',
-            'status' => 'pending',
-            'started_at' => now(),
-            'created_by' => $user?->id,
-        ]);
-
         try {
-            Log::info('Starting RUC database backup', ['backup_id' => $backup->id]);
+            Log::info('Starting RUC database backup', ['backup_type' => $backupType, 'user_id' => $user?->id]);
 
-            // 1. Crear dump de la tabla ruc_records
+            // 1. Crear dump de la tabla ruc_records PRIMERO
             $this->createDump($localPath);
 
-            // 2. Obtener información del backup
+            // 2. Validar que el archivo fue creado
+            if (!file_exists($localPath)) {
+                throw new \Exception('Dump file was not created at ' . $localPath);
+            }
+
+            // 3. Obtener información del backup
             $fileSize = filesize($localPath);
+            if ($fileSize === 0) {
+                @unlink($localPath);
+                throw new \Exception('Dump file is empty');
+            }
+
             $checksum = hash_file('sha256', $localPath);
             $recordCount = DB::table('ruc_records')->count();
-
-            // 3. Actualizar registro como completado
             $duration = intval(microtime(true) - $startTime);
-            $backup->update([
+
+            // 4. Crear registro de backup CON todos los datos
+            $backup = RucBackup::create([
+                'name' => $backupName,
+                'backup_type' => $backupType,
+                'storage_type' => 'local',
+                'storage_path' => $localPath,
+                'status' => 'completed',
+                'started_at' => now(),
+                'completed_at' => now(),
                 'total_records' => $recordCount,
                 'file_size_bytes' => $fileSize,
-                'storage_path' => $localPath,
-                'storage_type' => 'local',
                 'checksum_sha256' => $checksum,
                 'duration_seconds' => $duration,
+                'created_by' => $user?->id,
             ]);
-            $backup->markAsCompleted($duration, $checksum);
 
             Log::info('RUC backup completed successfully', [
                 'backup_id' => $backup->id,
+                'file_name' => $backupName,
                 'file_size' => $this->formatBytes($fileSize),
                 'records' => $recordCount,
                 'duration' => $duration . 's',
@@ -78,12 +84,14 @@ class RucBackupService
 
         } catch (\Throwable $e) {
             Log::error('RUC backup failed', [
-                'backup_id' => $backup->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            $backup->markAsFailed($e->getMessage());
-            @unlink($localPath);
+            // Limpiar archivo si existe
+            if (isset($localPath) && file_exists($localPath)) {
+                @unlink($localPath);
+            }
 
             throw $e;
         }
