@@ -8,7 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::createIfNotExists('shalom_api_keys', function (Blueprint $table): void {
+        if (Schema::hasTable('shalom_api_keys')) {
+            return;
+        }
+        Schema::create('shalom_api_keys', function (Blueprint $table): void {
             $table->id();
             $table->string('name'); // Nombre descriptivo (ej: "Extensión Chrome")
             $table->string('key_hash'); // Hash SHA-256 de la clave
