@@ -188,6 +188,6 @@ class BackupManager extends Component
 
     public function render()
     {
-        return view('ruc::admin.backup-manager');
+        return view('ruc.admin.backup-manager');
     }
 }
