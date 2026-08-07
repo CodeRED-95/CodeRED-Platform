@@ -38,6 +38,8 @@ class Agency extends Model
 
     public ?int $nameChangeUserId = null;
 
+    public bool $shouldPreserveStatus = false;
+
     protected $fillable = [
         'external_id', 'code', 'name', 'old_name', 'short_name', 'slug', 'department', 'province', 'district',
         'address', 'reference', 'phone', 'secondary_phone', 'email', 'schedule',
@@ -101,12 +103,14 @@ class Agency extends Model
                 $agency->slug = self::makeUniqueSlug($desiredSlug, $agency->code ?: null, $agency->getKey());
             }
 
-            if ($agency->has_moved && $agency->status !== AgencyStatus::Moved) {
-                $agency->status = AgencyStatus::Moved;
-            }
+            if (! $agency->shouldPreserveStatus) {
+                if ($agency->has_moved && $agency->status !== AgencyStatus::Moved) {
+                    $agency->status = AgencyStatus::Moved;
+                }
 
-            if (! $agency->has_moved && $agency->status === AgencyStatus::Moved) {
-                $agency->status = AgencyStatus::UnderReview;
+                if (! $agency->has_moved && $agency->status === AgencyStatus::Moved) {
+                    $agency->status = AgencyStatus::UnderReview;
+                }
             }
         });
     }

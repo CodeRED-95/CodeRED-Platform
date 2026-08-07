@@ -1,6 +1,12 @@
 <div class="space-y-6">
     <x-ui.page-header eyebrow="Empresas y RUC" title="Importaciones RUC" subtitle="Padrón reducido SUNAT procesado por streaming, PostgreSQL COPY y cola exclusiva.">
-        <x-slot:actions><x-ui.button wire:click="scanFiles" loading-target="scanFiles">Detectar archivos</x-ui.button></x-slot:actions>
+        <x-slot:actions>
+            <x-ui.button wire:click="scanFiles" loading-target="scanFiles">Detectar archivos</x-ui.button>
+            <a href="{{ route('admin.ruc.backups') }}" class="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                Backups
+            </a>
+        </x-slot:actions>
     </x-ui.page-header>
 
     <x-ui.alert tone="info" title="Directorio de entrada">Coloca el TXT manualmente en <code>storage/app/private/ruc/incoming</code>. Los archivos de varios GB no se transfieren por Livewire.</x-ui.alert>

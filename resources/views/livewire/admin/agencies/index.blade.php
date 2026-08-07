@@ -43,7 +43,8 @@
             <x-ui.dropdown-select id="agencies-department-filter" wire:model.live="department" label="Departamento" :value="$department" :options="['' => 'Todos'] + $departments->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-province-filter" wire:model.live="province" label="Provincia" :value="$province" :options="['' => 'Todas'] + $provinces->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-district-filter" wire:model.live="district" label="Distrito" :value="$district" :options="['' => 'Todos'] + $districts->mapWithKeys(fn ($item) => [$item => $item])->all()" />
-            <x-ui.input wire:model.live.debounce.400ms="classification_category" label="Categoría" placeholder="Buscar por categoría" />
+            <x-ui.input wire:model.live.debounce.400ms="classification_category" label="Clasificación" placeholder="Buscar por clasificación" />
+            <x-ui.dropdown-select id="agencies-category-filter" wire:model.live="category" label="Categoría" :value="$category" :options="['' => 'Todas'] + $categories->mapWithKeys(fn ($cat) => [$cat => $cat])->all()" />
             <x-ui.dropdown-select id="agencies-operations-filter" wire:model.live="operationsCenter" label="Centro de Operaciones" :value="$operationsCenter" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
             <x-ui.dropdown-select id="agencies-moved-filter" wire:model.live="moved" label="Trasladadas" :value="$moved" :options="['' => 'Todas', '1' => 'Sí', '0' => 'No']" />
             <x-ui.dropdown-select id="agencies-chosen-terrestre-filter" wire:model.live="has_chosen_terrestre" label="Chosen Terrestre" :value="$has_chosen_terrestre" :options="['' => 'Todos', '1' => 'Sí']" />
