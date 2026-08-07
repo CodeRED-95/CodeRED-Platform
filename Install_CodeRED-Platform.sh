@@ -522,7 +522,6 @@ ensure_n8n_env_defaults
 # Configurar claves de encriptación de Token Request si no existen
 if [[ -z "$(get_env TOKEN_REQUEST_DATA_ENCRYPTION_KEY)" ]]; then
     info "Generando clave de encriptación de datos de solicitudes de token..."
-    local enc_key
     enc_key="base64:$(openssl rand -base64 32)"
     set_env TOKEN_REQUEST_DATA_ENCRYPTION_KEY "$enc_key"
     ok "Clave de encriptación de datos generada correctamente."
@@ -530,7 +529,6 @@ fi
 
 if [[ -z "$(get_env TOKEN_REQUEST_BLIND_INDEX_KEY)" ]]; then
     info "Generando clave de blind index para solicitudes de token..."
-    local blind_key
     blind_key="$(php -r "echo hash_hmac('sha256', 'blind-index', bin2hex(random_bytes(32)), false);" 2>/dev/null || echo "$(openssl rand -hex 32)")"
     set_env TOKEN_REQUEST_BLIND_INDEX_KEY "$blind_key"
     ok "Clave de blind index generada correctamente."
