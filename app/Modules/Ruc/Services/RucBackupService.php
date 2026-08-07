@@ -169,7 +169,13 @@ class RucBackupService
         $dbHost = config('database.connections.pgsql.host');
         $dbPort = config('database.connections.pgsql.port', 5432);
 
-        // Usar pg_dump con compresión y paralelización
+        // Asegurar que el directorio existe
+        $backupDir = dirname($outputPath);
+        if (!is_dir($backupDir)) {
+            @mkdir($backupDir, 0755, true);
+        }
+
+        // Usar pg_dump con compresión
         $command = [
             'pg_dump',
             '--host=' . $dbHost,
@@ -177,7 +183,7 @@ class RucBackupService
             '--username=' . $dbUser,
             '--table=ruc_records',
             '--compress=' . self::COMPRESSION_LEVEL,
-            '--format=custom',  // Format personalizado para mejor compresión
+            '--format=custom',
             '--file=' . $outputPath,
             $dbName,
         ];
@@ -186,10 +192,24 @@ class RucBackupService
         $process->setTimeout(3600); // 1 hora de timeout
         $process->setEnv(['PGPASSWORD' => config('database.connections.pgsql.password')]);
 
-        $process->mustRun();
+        try {
+            $process->mustRun();
+        } catch (\Throwable $e) {
+            Log::error('pg_dump command failed', [
+                'command' => implode(' ', $command),
+                'error' => $e->getMessage(),
+                'stderr' => $process->getErrorOutput(),
+            ]);
+            throw new \Exception('Failed to create backup dump: ' . $process->getErrorOutput());
+        }
 
         if (!file_exists($outputPath)) {
-            throw new \Exception('Dump file was not created');
+            throw new \Exception('Dump file was not created at ' . $outputPath);
+        }
+
+        if (filesize($outputPath) === 0) {
+            @unlink($outputPath);
+            throw new \Exception('Dump file is empty - no records to backup or pg_dump failed');
         }
     }
 
