@@ -6,26 +6,38 @@ namespace App\Modules\Ruc\Livewire\Admin;
 
 use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Services\RucBackupService;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 
 class BackupManager extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, WithPagination;
 
-    public array $backups = [];
     public mixed $backup_file = null;
-    public int $page = 1;
-    public string $status_filter = 'completed';
     public bool $loading = false;
     public bool $show_upload = false;
 
-    public function mount()
+    #[Url]
+    public string $status_filter = '';
+
+    #[Url]
+    public int $perPage = 10;
+
+    public function mount(): void
     {
-        $this->loadBackups();
+        Gate::authorize('ruc.import-history');
     }
 
-    public function loadBackups()
+    public function updatingStatusFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function getBackupsProperty()
     {
         $query = RucBackup::query();
 
@@ -33,45 +45,24 @@ class BackupManager extends Component
             $query->where('status', $this->status_filter);
         }
 
-        $this->backups = $query->latest('created_at')
-            ->paginate(10, page: $this->page)
-            ->toArray();
+        return $query->latest('created_at')->paginate($this->perPage);
     }
 
-    public function download(int $backupId)
+    public function validateUpload(): void
     {
-        $backup = RucBackup::findOrFail($backupId);
-
-        if (!file_exists($backup->storage_path)) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'Archivo no encontrado',
-            ]);
-
-            return;
-        }
-
-        return response()->download($backup->storage_path, $backup->name);
+        $this->validate([
+            'backup_file' => 'required|file|mimes:gz|max:10485760',
+        ]);
     }
 
-    public function uploadBackup()
+    public function uploadBackup(): void
     {
-        if (!$this->backup_file) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'Selecciona un archivo',
-            ]);
-
-            return;
-        }
-
-        $this->loading = true;
+        Gate::authorize('ruc.import');
 
         try {
-            $backupDir = storage_path('app/backups/ruc');
-            if (!is_dir($backupDir)) {
-                mkdir($backupDir, 0755, true);
-            }
+            $this->validateUpload();
+
+            $this->loading = true;
 
             $fileName = 'ruc_backup_uploaded_' . now()->format('Y-m-d-His') . '.sql.gz';
             $path = $this->backup_file->storeAs('backups/ruc', $fileName);
@@ -97,40 +88,33 @@ class BackupManager extends Component
 
             $this->backup_file = null;
             $this->show_upload = false;
-            $this->loadBackups();
+            $this->resetPage();
 
-            $this->dispatch('notify', [
-                'type' => 'success',
-                'message' => 'Backup cargado exitosamente',
-            ]);
+            $this->dispatch('toast', type: 'success', message: 'Backup cargado exitosamente. Tamaño: ' . $this->formatBytes($fileSize));
 
+            Log::info('RUC backup uploaded', ['user_id' => auth()->id(), 'file_name' => $fileName, 'size' => $fileSize]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->dispatch('toast', type: 'error', message: 'Validación fallida: ' . $e->validator->errors()->first());
         } catch (\Throwable $e) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'Error: ' . $e->getMessage(),
-            ]);
+            Log::error('RUC backup upload failed', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
+            $this->dispatch('toast', type: 'error', message: 'Error al cargar: ' . $e->getMessage());
         } finally {
             $this->loading = false;
         }
     }
 
-    public function restoreBackup(RucBackup $backup)
+    public function restoreBackup(RucBackup $backup): void
     {
-        if ($backup->status !== 'completed') {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'El backup debe estar completado',
-            ]);
+        Gate::authorize('ruc.import');
 
+        if ($backup->status !== 'completed') {
+            $this->dispatch('toast', type: 'error', message: 'El backup debe estar en estado Completado');
             return;
         }
 
         if (!file_exists($backup->storage_path)) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'Archivo no encontrado',
-            ]);
-
+            $this->dispatch('toast', type: 'error', message: 'Archivo de backup no encontrado');
             return;
         }
 
@@ -140,58 +124,69 @@ class BackupManager extends Component
             $service = new RucBackupService();
             $result = $service->restore($backup, dryRun: false);
 
-            $this->dispatch('notify', [
-                'type' => 'success',
-                'message' => "Restauración completada: {$result['records_restored']} registros en {$result['duration_seconds']}s",
-            ]);
+            $this->dispatch('toast', type: 'success', message: "✓ Restauración completada: {$result['records_restored']} registros en {$result['duration_seconds']}s");
+            $this->resetPage();
+
+            Log::warning('RUC backup restored', ['backup_id' => $backup->id, 'records' => $result['records_restored'], 'user_id' => auth()->id()]);
 
         } catch (\Throwable $e) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'Error: ' . $e->getMessage(),
-            ]);
+            Log::error('RUC restore failed', ['backup_id' => $backup->id, 'error' => $e->getMessage()]);
+            $this->dispatch('toast', type: 'error', message: 'Error al restaurar: ' . $e->getMessage());
         } finally {
             $this->loading = false;
         }
     }
 
-    public function deleteBackup(RucBackup $backup)
+    public function deleteBackup(RucBackup $backup): void
     {
+        Gate::authorize('ruc.import');
+
         try {
             if (file_exists($backup->storage_path)) {
                 @unlink($backup->storage_path);
             }
 
-            $backup->update(['status' => 'deleted']);
-            $this->loadBackups();
+            $backup->forceDelete();
+            $this->resetPage();
 
-            $this->dispatch('notify', [
-                'type' => 'success',
-                'message' => 'Backup eliminado',
-            ]);
+            $this->dispatch('toast', type: 'success', message: 'Backup eliminado correctamente');
+            Log::info('RUC backup deleted', ['backup_id' => $backup->id, 'user_id' => auth()->id()]);
 
         } catch (\Throwable $e) {
-            $this->dispatch('notify', [
-                'type' => 'error',
-                'message' => 'Error: ' . $e->getMessage(),
-            ]);
+            Log::error('RUC backup deletion failed', ['backup_id' => $backup->id, 'error' => $e->getMessage()]);
+            $this->dispatch('toast', type: 'error', message: 'Error al eliminar: ' . $e->getMessage());
         }
+    }
+
+    public function download(RucBackup $backup)
+    {
+        Gate::authorize('ruc.import');
+
+        if (!file_exists($backup->storage_path)) {
+            $this->dispatch('toast', type: 'error', message: 'Archivo no encontrado en el servidor');
+            return;
+        }
+
+        Log::info('RUC backup downloaded', ['backup_id' => $backup->id, 'user_id' => auth()->id()]);
+
+        return response()->download($backup->storage_path, $backup->name);
     }
 
     public function formatBytes($bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $size = $bytes;
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= (1 << (10 * $pow));
 
-        for ($i = 0; $size > 1024 && $i < count($units) - 1; $i++) {
-            $size /= 1024;
-        }
-
-        return round($size, 2) . ' ' . $units[$i];
+        return round($bytes, 2) . ' ' . $units[$pow];
     }
 
     public function render()
     {
-        return view('ruc.admin.backup-manager');
+        return view('ruc.admin.backup-manager', [
+            'backups' => $this->backups,
+        ]);
     }
 }

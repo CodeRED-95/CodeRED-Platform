@@ -1,154 +1,215 @@
-<div class="p-6">
-    <div class="mb-6 flex items-center justify-between">
-        <h2 class="text-2xl font-bold">Gestor de Backups RUC</h2>
-        <button wire:click="$set('show_upload', true)"
-                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            📤 Cargar Backup
-        </button>
-    </div>
+<div class="space-y-6">
+    <x-ui.page-header eyebrow="RUC" title="Gestor de Backups" subtitle="Crear, descargar y restaurar backups de la base de datos RUC con validación de integridad.">
+        <x-slot:actions>
+            <x-ui.button wire:click="$set('show_upload', true)" loading-target="uploadBackup">
+                📤 Cargar Backup
+            </x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <!-- Cargar Backup Modal -->
-    @if($show_upload)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 w-96">
-            <h3 class="text-lg font-bold mb-4">Cargar archivo de backup</h3>
+    <x-ui.alert tone="info" title="Almacenamiento de Backups">Todos los backups se almacenan en <code>storage/app/backups/ruc</code> con validación SHA-256 de integridad. Se crea un backup de seguridad automático antes de restaurar.</x-ui.alert>
 
-            <form wire:submit="uploadBackup" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Archivo (.sql.gz)</label>
-                    <input wire:model.live="backup_file" type="file" accept=".gz"
-                           class="w-full border rounded px-3 py-2">
-                    @error('backup_file')
-                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
+    <!-- Modal de Carga -->
+    <x-ui.modal :open="$show_upload" title="Cargar archivo de backup" closeLabel="Cerrar">
+        <form wire:submit="uploadBackup" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-[color:var(--color-text-primary)] mb-2">
+                    Seleccionar archivo (.sql.gz)
+                </label>
+                <input
+                    wire:model.live="backup_file"
+                    type="file"
+                    accept=".gz"
+                    class="block w-full text-sm text-[color:var(--color-text-secondary)]
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-[var(--radius-control)]
+                    file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-[color:var(--color-brand)]/10
+                    file:text-[color:var(--color-brand)]
+                    hover:file:bg-[color:var(--color-brand)]/20"
+                >
+                @error('backup_file')
+                    <p class="text-[color:var(--color-danger)] text-sm mt-2">{{ $message }}</p>
+                @enderror
+                @if($backup_file)
+                    <p class="text-xs text-[color:var(--color-text-secondary)] mt-2">
+                        ✓ Archivo: {{ $backup_file->getClientOriginalName() }} ({{ $this->formatBytes($backup_file->getSize()) }})
+                    </p>
+                @endif
+            </div>
 
-                <div class="flex gap-2 justify-end">
-                    <button type="button" wire:click="$set('show_upload', false)"
-                            class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
-                        Cancelar
-                    </button>
-                    <button type="submit"
-                            wire:loading.attr="disabled"
-                            {{ $loading ? 'disabled' : '' }}
-                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-                        <span wire:loading.remove>Cargar</span>
-                        <span wire:loading>Cargando...</span>
-                    </button>
-                </div>
-            </form>
+            <div class="bg-[color:var(--color-background)] p-3 rounded-[var(--radius-control)] border border-[color:var(--color-border)]">
+                <p class="text-xs text-[color:var(--color-text-secondary)]">
+                    📋 <strong>Requisitos:</strong> Máximo 10 MB, formato .gz de backup SQL de PostgreSQL
+                </p>
+            </div>
+
+            <div class="flex gap-2 justify-end pt-4 border-t border-[color:var(--color-border)]">
+                <x-ui.button type="button" variant="secondary" wire:click="$set('show_upload', false)">
+                    Cancelar
+                </x-ui.button>
+                <x-ui.button type="submit" wire:loading.attr="disabled" {{ $loading ? 'disabled' : '' }}>
+                    <span wire:loading.remove>Cargar Backup</span>
+                    <span wire:loading>Cargando...</span>
+                </x-ui.button>
+            </div>
+        </form>
+    </x-ui.modal>
+
+    <!-- Filtros -->
+    <x-ui.card class="p-0">
+        <div class="border-b border-[color:var(--color-border)] p-4">
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <x-ui.dropdown-select
+                    id="backup-status-filter"
+                    wire:model.live="status_filter"
+                    label="Estado"
+                    :value="$status_filter"
+                    :options="[
+                        '' => 'Todos',
+                        'pending' => '⏳ Pendiente',
+                        'completed' => '✅ Completado',
+                        'failed' => '❌ Fallido',
+                        'deleted' => '🗑️ Eliminado',
+                    ]"
+                />
+            </div>
         </div>
-    </div>
-    @endif
 
-    <!-- Filtro -->
-    <div class="mb-4">
-        <select wire:model.change="status_filter"
-                class="px-3 py-2 border rounded">
-            <option value="">Todos</option>
-            <option value="completed">✅ Completados</option>
-            <option value="pending">⏳ Pendientes</option>
-            <option value="failed">❌ Fallidos</option>
-        </select>
-    </div>
+        <!-- Tabla de Backups -->
+        <div wire:loading.delay class="p-4">
+            <x-ui.skeleton variant="table" :rows="5" />
+        </div>
 
-    <!-- Tabla de Backups -->
-    <div class="overflow-x-auto">
-        <table class="w-full border-collapse">
-            <thead class="bg-gray-100">
+        <x-ui.table wire:loading.class="opacity-50">
+            <thead class="bg-white/5">
                 <tr>
-                    <th class="border p-3 text-left">Nombre</th>
-                    <th class="border p-3 text-left">Tipo</th>
-                    <th class="border p-3 text-right">Tamaño</th>
-                    <th class="border p-3 text-center">Estado</th>
-                    <th class="border p-3 text-left">Creado</th>
-                    <th class="border p-3 text-center">Acciones</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Tipo</th>
+                    <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Tamaño</th>
+                    <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Registros</th>
+                    <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Estado</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Creado</th>
+                    <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">Acciones</th>
                 </tr>
             </thead>
-            <tbody>
-                @forelse($backups['data'] as $backup)
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="border p-3 text-sm">{{ $backup['name'] }}</td>
-                    <td class="border p-3 text-sm">
-                        @match($backup['backup_type'])
-                            'full' => '📦 Completo',
-                            'uploaded' => '📤 Cargado',
-                            'safety_before_restore' => '🛡️ Seguridad',
-                            default => $backup['backup_type'],
-                        @endmatch
-                    </td>
-                    <td class="border p-3 text-right text-sm">
-                        {{ $this->formatBytes($backup['file_size_bytes']) }}
-                    </td>
-                    <td class="border p-3 text-center">
-                        @match($backup['status'])
-                            'completed' => '<span class="text-green-600">✅ Completado</span>',
-                            'pending' => '<span class="text-yellow-600">⏳ Pendiente</span>',
-                            'failed' => '<span class="text-red-600">❌ Fallido</span>',
-                            'deleted' => '<span class="text-gray-400">🗑️ Eliminado</span>',
-                            default => $backup['status'],
-                        @endmatch
-                    </td>
-                    <td class="border p-3 text-sm">
-                        {{ \Carbon\Carbon::parse($backup['created_at'])->format('Y-m-d H:i') }}
-                    </td>
-                    <td class="border p-3 text-center">
-                        @if($backup['status'] === 'completed')
-                        <button wire:click="download({{ $backup['id'] }})"
-                                class="text-blue-600 hover:underline">
-                            📥 Descargar
-                        </button>
-                        <button wire:click="restoreBackup({{ $backup['id'] }})"
-                                wire:loading.attr="disabled"
-                                {{ $loading ? 'disabled' : '' }}
-                                onclick="return confirm('⚠️ Esto restaurará los datos. ¿Continuar?')"
-                                class="text-green-600 hover:underline ml-2 disabled:opacity-50">
-                            🔄 Restaurar
-                        </button>
-                        @endif
-                        <button wire:click="deleteBackup({{ $backup['id'] }})"
-                                onclick="return confirm('¿Eliminar este backup?')"
-                                class="text-red-600 hover:underline ml-2">
-                            🗑️ Eliminar
-                        </button>
-                    </td>
-                </tr>
+            <tbody class="divide-y divide-white/5">
+                @forelse($backups as $backup)
+                    <tr wire:key="backup-{{ $backup->id }}">
+                        <td class="px-6 py-4 text-sm font-mono">
+                            <span class="text-[color:var(--color-text-secondary)]">{{ $backup->name }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-sm">
+                            @match($backup->backup_type)
+                                'full' => '<span class="text-[color:var(--color-info)]">📦 Completo</span>',
+                                'uploaded' => '<span class="text-[color:var(--color-success)]">📤 Cargado</span>',
+                                'incremental' => '<span class="text-[color:var(--color-warning)]">➕ Incremental</span>',
+                                'safety_before_restore' => '<span class="text-[color:var(--color-brand)]">🛡️ Seguridad</span>',
+                                default => '<span>' . $backup->backup_type . '</span>',
+                            @endmatch
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right">{{ $this->formatBytes($backup->file_size_bytes) }}</td>
+                        <td class="px-6 py-4 text-sm text-center">
+                            @if($backup->total_records)
+                                <span class="text-[color:var(--color-text-secondary)]">{{ number_format($backup->total_records) }}</span>
+                            @else
+                                <span class="text-[color:var(--color-text-muted)]">—</span>
+                            @endif
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            @match($backup->status)
+                                'completed' => '<x-ui.badge tone="success">✅ Completado</x-ui.badge>',
+                                'pending' => '<x-ui.badge tone="warning">⏳ Pendiente</x-ui.badge>',
+                                'failed' => '<x-ui.badge tone="danger">❌ Fallido</x-ui.badge>',
+                                'deleted' => '<x-ui.badge tone="neutral">🗑️ Eliminado</x-ui.badge>',
+                                default => '<x-ui.badge>' . $backup->status . '</x-ui.badge>',
+                            @endmatch
+                        </td>
+                        <td class="px-6 py-4 text-sm text-[color:var(--color-text-secondary)]">
+                            {{ $backup->created_at->format('d/m/Y H:i') }}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex flex-wrap gap-1 justify-center">
+                                @if($backup->status === 'completed')
+                                    <button
+                                        wire:click="download({{ $backup->id }})"
+                                        class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-blue-500/10 text-[color:var(--color-brand)] hover:bg-blue-500/20 transition-colors"
+                                        title="Descargar"
+                                    >
+                                        📥
+                                    </button>
+
+                                    <x-ui.confirm-dialog
+                                        id="restore-backup-{{ $backup->id }}"
+                                        title="Restaurar desde Backup"
+                                        :message="'Se restaurarán ' . number_format($backup->total_records) . ' registros de RUC. Se creará un backup de seguridad automáticamente.'"
+                                        confirm-label="Restaurar"
+                                        tone="warning"
+                                        :confirm-action="false"
+                                    >
+                                        <x-slot:trigger>
+                                            <button
+                                                class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors"
+                                                title="Restaurar"
+                                                wire:loading.attr="disabled"
+                                                {{ $loading ? 'disabled' : '' }}
+                                                @click="
+                                                    if(confirm('⚠️ Esta acción restaurará ' + {{ $backup->total_records }} + ' registros. Los datos actuales serán reemplazados. ¿Continuar?')) {
+                                                        Livewire.dispatch('call', { method: 'restoreBackup', params: [{{ $backup->id }}] })
+                                                    }
+                                                "
+                                            >
+                                                🔄
+                                            </button>
+                                        </x-slot:trigger>
+                                    </x-ui.confirm-dialog>
+                                @endif
+
+                                <x-ui.confirm-dialog
+                                    id="delete-backup-{{ $backup->id }}"
+                                    title="Eliminar Backup"
+                                    message="Esta acción es irreversible. El archivo se eliminará permanentemente."
+                                    confirm-label="Eliminar"
+                                    tone="danger"
+                                    confirmation-text="ELIMINAR"
+                                    :confirm-action="false"
+                                >
+                                    <x-slot:trigger>
+                                        <button
+                                            class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-red-500/10 text-[color:var(--color-danger)] hover:bg-red-500/20 transition-colors"
+                                            title="Eliminar"
+                                            @click="
+                                                if(prompt('Escribe ELIMINAR para confirmar:') === 'ELIMINAR') {
+                                                    Livewire.dispatch('call', { method: 'deleteBackup', params: [{{ $backup->id }}] })
+                                                }
+                                            "
+                                        >
+                                            🗑️
+                                        </button>
+                                    </x-slot:trigger>
+                                </x-ui.confirm-dialog>
+                            </div>
+                        </td>
+                    </tr>
                 @empty
-                <tr>
-                    <td colspan="6" class="border p-3 text-center text-gray-500">
-                        No hay backups
-                    </td>
-                </tr>
+                    <tr>
+                        <td colspan="7" class="px-6 py-8">
+                            <x-ui.empty-state
+                                title="No hay backups"
+                                description="No hay backups disponibles con el filtro seleccionado. Crea uno nuevo usando el botón 'Cargar Backup' arriba."
+                            />
+                        </td>
+                    </tr>
                 @endforelse
             </tbody>
-        </table>
-    </div>
+        </x-ui.table>
 
-    <!-- Paginación -->
-    @if($backups['last_page'] > 1)
-    <div class="mt-4 flex justify-center gap-2">
-        @for($p = 1; $p <= $backups['last_page']; $p++)
-        <button wire:click="$set('page', {{ $p }})"
-                class="{{ $page == $p ? 'bg-blue-600 text-white' : 'bg-gray-300' }} px-3 py-1 rounded">
-            {{ $p }}
-        </button>
-        @endfor
-    </div>
-    @endif
+        <!-- Paginación -->
+        @if($backups->hasPages())
+            <div class="border-t border-[color:var(--color-border)] p-4">
+                {{ $backups->links() }}
+            </div>
+        @endif
+    </x-ui.card>
 </div>
-
-@script
-<script>
-    Livewire.on('notify', (event) => {
-        const { type, message } = event[0];
-        const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
-
-        const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded shadow-lg`;
-        notification.textContent = message;
-        document.body.appendChild(notification);
-
-        setTimeout(() => notification.remove(), 3000);
-    });
-</script>
-@endscript
