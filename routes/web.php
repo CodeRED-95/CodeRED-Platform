@@ -41,6 +41,7 @@ use App\Modules\Agencies\Http\Controllers\AgencyImportRunDownloadController;
 use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use App\Modules\Ruc\Http\Controllers\RucImportErrorsController;
 use App\Modules\Ruc\Http\Controllers\RucBackupController;
+use App\Modules\Ruc\Http\Controllers\RucBackupMultipartUploadController;
 use App\Modules\Shalom\Livewire\Admin\DeliveryRecordsManager;
 use App\Modules\Shalom\Http\Controllers\ShalomApiKeyController;
 use Illuminate\Support\Facades\Route;
@@ -102,6 +103,13 @@ Route::post('/admin/ruc/backups/import', [RucBackupController::class, 'import'])
 Route::get('/admin/ruc/backups/{backup}/download', [RucBackupController::class, 'download'])->middleware(['auth'])->name('admin.ruc.backups.download');
 Route::post('/admin/ruc/backups/{backup}/restore', [RucBackupController::class, 'restore'])->middleware(['auth'])->name('admin.ruc.backups.restore');
 Route::delete('/admin/ruc/backups/{backup}', [RucBackupController::class, 'destroy'])->middleware(['auth'])->name('admin.ruc.backups.destroy');
+// Backups multipart (manifest.json + partes de RUC Tools) — consumidos por
+// resources/js/ruc-backup-multipart-uploader.js, no por <form> tradicional
+// (cada parte necesita ser un request HTTP independiente).
+Route::post('/admin/ruc/backups/multipart', [RucBackupMultipartUploadController::class, 'store'])->middleware(['auth'])->name('admin.ruc.backups.multipart.store');
+Route::get('/admin/ruc/backups/multipart/{upload}', [RucBackupMultipartUploadController::class, 'show'])->middleware(['auth'])->name('admin.ruc.backups.multipart.show');
+Route::post('/admin/ruc/backups/multipart/{upload}/parts/{index}', [RucBackupMultipartUploadController::class, 'uploadPart'])->middleware(['auth'])->name('admin.ruc.backups.multipart.upload-part');
+Route::delete('/admin/ruc/backups/multipart/{upload}', [RucBackupMultipartUploadController::class, 'destroy'])->middleware(['auth'])->name('admin.ruc.backups.multipart.destroy');
 Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->name('admin.ruc.show');
 Route::get('/admin/shalom/entregas', DeliveryRecordsManager::class)->middleware(['auth'])->name('admin.shalom.delivery-records');
 Route::prefix('admin/shalom/api-keys')->middleware(['auth'])->name('admin.shalom.api-keys.')->group(function (): void {

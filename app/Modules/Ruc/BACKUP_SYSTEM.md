@@ -93,9 +93,16 @@ a mano con `storage_path('app/'.$path)`.
 
 1. **Crear Backup** — botón, ejecuta `pg_dump` contra `ruc_records` y
    registra el resultado.
-2. **Importar Backup** — selecciona un archivo `.dump` (o `.gz` legado) y
-   lo sube. Se valida por contenido, se calcula SHA-256, se guarda. **No
-   restaura automáticamente** — importar y restaurar son pasos separados.
+2. **Importar Backup** — dos pestañas:
+   - **Backup completo**: selecciona un archivo `.dump` (o `.gz` legado) y
+     lo sube en un solo request. Se valida por contenido, se calcula
+     SHA-256, se guarda.
+   - **Backup dividido**: importa un backup generado por
+     [packages/ruc-tools](../../../packages/ruc-tools) (`manifest.json` +
+     `*.partNNNN` de ~90 MiB cada uno). Ver "Importación multipart" abajo.
+
+   En ambos casos: **no restaura automáticamente** — importar y restaurar
+   son pasos separados.
 3. **Descargar** — descarga el archivo tal cual.
 4. **Restaurar** — reemplaza el contenido de `ruc_records` con el del
    backup. Antes de tocar nada, crea automáticamente un backup de seguridad
@@ -200,6 +207,103 @@ ataque.
 
 ---
 
+## Importación multipart (RUC Tools)
+
+[packages/ruc-tools](../../../packages/ruc-tools) (herramienta **local**,
+nunca desplegada aquí — ver su propio README) genera backups divididos en
+partes de ~90 MiB: `manifest.json` + `*.dump.partNNNN`. La razón de
+transportarlos así es evitar el límite de tamaño de request de Cloudflare
+(~100 MB en proxied) al subirlos de vuelta a producción — un `.dump` de
+cientos de MB o varios GB nunca cabría en un solo POST.
+
+### Por qué no se reconstruye el archivo en el navegador
+
+Reconstruir el `.dump` completo en el cliente (`new Blob([...])`) y subirlo
+de una sola vez volvería a chocar exactamente con el mismo límite de
+Cloudflare que este mecanismo existe para evitar. En cambio, **cada parte
+se sube en un request HTTP independiente** (`resources/js/
+ruc-backup-multipart-uploader.js`, vía `XMLHttpRequest` — no `fetch`, para
+poder leer `xhr.upload.onprogress` y mostrar progreso real). El ensamblado
+final ocurre siempre en el servidor.
+
+### Flujo
+
+1. El usuario selecciona el `manifest.json` en la pestaña "Backup dividido"
+   de `/admin/ruc/backups`. El frontend lo parsea y muestra su metadata
+   (registros, tamaño, número de partes, SHA-256) — validación básica solo
+   para feedback inmediato, **nunca la fuente de verdad**.
+2. El usuario selecciona las partes (`<input type="file" multiple>`); se
+   reordenan automáticamente por el índice en su nombre.
+3. `POST /admin/ruc/backups/multipart` crea la sesión
+   (`RucBackupUpload` + una fila `RucBackupUploadPart` por parte
+   esperada), revalidando el manifest íntegramente en el servidor
+   (`RucBackupMultipartUploadService::assertManifestIsWellFormed()`):
+   `format_version` soportado, `backup_type === 'ruc_records'`,
+   `total_parts`/`total_size_bytes`/`part_size_bytes` dentro de límites
+   configurables, nombres de archivo saneados (solo `basename`, nunca una
+   ruta), índices `1..N` consecutivos, `sha256` con formato válido.
+4. Cada parte se sube por separado: `POST /admin/ruc/backups/multipart/
+   {uuid}/parts/{index}`. El servidor valida propietario de la sesión,
+   índice esperado, **nombre de archivo declarado** (debe coincidir con el
+   del manifest), tamaño exacto, y `hash_file('sha256', ...)` de la parte
+   recibida contra el checksum del manifest — si no coincide, `422` con
+   `"Checksum incorrecto en partNNNN."` y la parte no se guarda como
+   verificada. La parte se guarda en disco con un nombre **generado por el
+   servidor** (`partNNNN.bin`), nunca con el filename que mandó el
+   cliente.
+5. Al recibir la última parte pendiente, el servidor ensambla el `.dump`
+   final por streaming (`fopen`/`stream_copy_to_stream`, nunca
+   `file_get_contents`), en el orden `part0001..partNNNN`.
+6. Valida: tamaño total == `manifest.total_size_bytes`, SHA-256 total ==
+   `manifest.sha256`, y `pg_restore --list` (misma validación de contenido
+   que un import de un solo archivo — rechaza cualquier tabla que no sea
+   `ruc_records`).
+7. Si todo pasa: registra un `RucBackup` normal (`backup_type = 'uploaded'`),
+   guarda una copia del `manifest.json` junto al backup (auditoría), y
+   borra las partes temporales. A partir de ahí, Download/Restore/Delete
+   funcionan exactamente igual que cualquier otro backup.
+
+### Reanudar y cancelar
+
+`GET /admin/ruc/backups/multipart/{uuid}` devuelve qué partes ya están
+verificadas — si el usuario recarga la página o vuelve más tarde, el
+frontend guarda el `upload_uuid` en `localStorage` (indexado por el
+`sha256` del manifest) y continúa solo con las partes que faltan, sin
+volver a subir las ya verificadas. `DELETE /admin/ruc/backups/multipart/
+{uuid}` cancela una sesión y borra sus partes temporales — nunca toca un
+backup ya completado.
+
+### Reintentos
+
+Cada parte reintenta hasta 3 veces (backoff 1s/3s/5s) ante errores de red.
+Un `422` (checksum/tamaño/permiso incorrecto) es un rechazo definitivo del
+servidor y no se reintenta — reintentar no lo arreglaría.
+
+### Limpieza automática
+
+`php artisan ruc:cleanup-backup-uploads` (programado cada hora, ver
+`routes/console.php`) cancela y borra las partes de sesiones que superaron
+su expiración (`ruc.backup.multipart.session_expires_hours`, default 24h)
+sin completarse. Nunca toca sesiones ya completadas ni sus backups.
+
+### Seguridad específica de multipart
+
+- El manifest se revalida por completo en el servidor — el frontend nunca
+  es la fuente de verdad.
+- Ningún nombre de archivo del cliente (manifest ni parte individual) se
+  usa como ruta de almacenamiento: se sanea a `basename()` y se compara,
+  pero el archivo en disco siempre usa un nombre generado por el servidor.
+- Límites configurables (`config('ruc.backup.multipart')`):
+  `max_part_size_mb` (techo duro independiente de lo que declare el
+  manifest), `max_total_parts`, `max_total_size_mb`.
+- Antes de crear la sesión se verifica espacio en disco libre
+  (~2x `total_size_bytes`, ya que durante el ensamblado coexisten todas
+  las partes + el archivo final).
+- Una sesión de subida pertenece a un único usuario; ninguna otra cuenta
+  puede leer su estado, subirle partes, ni cancelarla.
+
+---
+
 ## Límites de archivo
 
 `RUC_BACKUP_MAX_UPLOAD_MB` (`config/ruc.php` → `ruc.backup.max_upload_mb`,
@@ -239,6 +343,18 @@ camino.
 ---
 
 ## Troubleshooting
+
+### 413 Request Entity Too Large / Cloudflare al importar un backup grande
+
+Si `platform.codered.host` está detrás de Cloudflare (proxied, nube
+naranja), Cloudflare corta requests grandes (~100 MB en free/pro) **antes**
+de que lleguen a nginx — subir un `.dump` de cientos de MB en un solo
+request siempre dará 413, sin importar qué tan generoso sea
+`client_max_body_size`. La solución no es subir el límite de nginx (ya es
+generoso, ver "Límites de archivo" abajo): es usar un **backup multipart**
+(ver "Importación multipart" arriba) generado con `ruc-tool backup
+--part-size=90`, que sube cada parte (~90 MiB) en su propio request,
+siempre por debajo del límite de Cloudflare.
 
 ### 419 Page Expired
 
@@ -320,13 +436,24 @@ por el backend.
 
 ```bash
 docker compose exec app php artisan test --filter=RucBackup
+docker compose exec app php artisan test --filter=Multipart
 docker compose exec app php artisan test tests/Unit/DesignSystemComponentsTest.php tests/Unit/DesignSystemAccessibilityTest.php
 ```
 
 - `RucBackupCreateTest` — creación, validación de contenido, checksum, ruta relativa.
-- `RucBackupImportTest` — subida multipart tradicional, rechazo de archivos inválidos/de otra tabla.
+- `RucBackupImportTest` — subida de un solo archivo vía `enctype="multipart/form-data"` tradicional (no confundir con el import "multipart" de RUC Tools, que es un concepto distinto: un backup dividido en varias partes), rechazo de archivos inválidos/de otra tabla.
 - `RucBackupDownloadTest` — descarga, autorización, archivo faltante.
 - `RucBackupRestoreTest` — checksum, safety backup, atomicidad ante fallo, bloqueo de restores simultáneos.
 - `RucBackupPageTest` — la página carga, no hay `@match` literal ni `confirm()` nativo, usa `<x-ui.confirm-dialog>`, formularios tradicionales.
 - `RucBackupCsrfTest` — reproduce el flujo real de sesión y demuestra que no hay 419.
 - `DesignSystemComponentsTest` / `DesignSystemAccessibilityTest` (`tests/Unit/`) — contrato y accesibilidad de `confirm-dialog`, `file-dropzone`, `progress`, `process-steps`.
+
+### Backup multipart (RUC Tools)
+
+- `MultipartManifestTest` — validación del manifest: formato, `backup_type`, límites configurables, path traversal, índices no consecutivos, `sha256` inválido.
+- `MultipartUploadSessionTest` — creación de sesión, auth/permiso, endpoint de estado, aislamiento entre usuarios.
+- `MultipartPartUploadTest` — parte válida, checksum/tamaño/nombre incorrectos (422), índice inválido, reintento idempotente, nombre en disco nunca controlado por el cliente.
+- `MultipartCompleteTest` — flujo completo con un dump real (generado por `pg_dump`, dividido en memoria por el test — nunca 443 MB reales), ensamblado, limpieza de partes, copia del manifest, rechazo de dump de otra tabla.
+- `MultipartResumeTest` — estado parcial para reanudar, no reenvía partes ya verificadas, completar lo que falta termina el backup.
+- `MultipartCancelTest` — cancela y borra partes temporales, nunca borra un backup ya completado, rechaza cancelar la sesión de otro usuario.
+- `MultipartCleanupTest` — sesiones expiradas se cancelan y limpian, sesiones vigentes/completadas nunca se tocan, comando `ruc:cleanup-backup-uploads`.

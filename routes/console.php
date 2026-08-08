@@ -201,3 +201,4 @@ Artisan::command('ruc:has-active', function (): int {
 })->purpose('Devuelve éxito cuando existe una importación RUC que impide reiniciar el worker.');
 
 Schedule::command('tokens:expire-pending-requests')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('ruc:cleanup-backup-uploads')->hourly()->withoutOverlapping();

@@ -242,7 +242,10 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 echo Illuminate\Support\Facades\Storage::disk("local")->path("backups/ruc");
 ' 2>/dev/null)"
 [[ -n "$RUC_BACKUP_DIR" ]] || die "No se pudo resolver el directorio de backups RUC vía Laravel."
-docker compose exec -T app mkdir -p "$RUC_BACKUP_DIR"
+# uploads/ es donde aterrizan temporalmente las partes de un backup
+# multipart (manifest.json + *.partNNNN de packages/ruc-tools) mientras se
+# suben — mkdir -p también aquí no es destructivo.
+docker compose exec -T app mkdir -p "$RUC_BACKUP_DIR" "$RUC_BACKUP_DIR/uploads"
 docker compose exec -T app chown -R www:www "$RUC_BACKUP_DIR"
 docker compose exec -T app chmod -R 775 "$RUC_BACKUP_DIR"
 ok "Directorio de backups RUC listo: $RUC_BACKUP_DIR (backups existentes preservados)"
@@ -252,6 +255,32 @@ if docker compose exec -T app sh -c 'command -v pg_dump >/dev/null && command -v
 else
     warn "pg_dump/pg_restore/psql NO se encontraron en el contenedor app. El backup/restore de RUC fallará."
     warn "Verifique que docker/php/Dockerfile instale postgresql16-client y reconstruya con: docker compose build app queue scheduler"
+fi
+
+# Los backups RUC multipart (packages/ruc-tools, herramienta LOCAL — jamás
+# desplegada aquí) llegan en partes de hasta 90 MiB cada una, en requests
+# HTTP independientes (así se evita el límite de ~100 MB de Cloudflare).
+# Esto NO necesita subir client_max_body_size/upload_max_filesize: ya
+# superan 90 MiB de sobra (se verifica el valor real en MiB, no se asume —
+# ini_get() devuelve notación "5G"/"5100M" de PHP, hay que convertirla).
+to_mib(){
+    local raw="${1:-0}" num unit
+    num="$(echo "$raw" | grep -oE '^[0-9]+')"
+    unit="$(echo "$raw" | grep -oE '[GgMmKk]$')"
+    [[ -n "$num" ]] || { echo 0; return; }
+    case "$unit" in
+        [Gg]) echo $((num * 1024)) ;;
+        [Kk]) echo $((num / 1024)) ;;
+        *) echo "$num" ;; # M o sin sufijo (bytes puros, poco probable aquí)
+    esac
+}
+UPLOAD_MAX_MIB="$(to_mib "$(docker compose exec -T app php -r 'echo ini_get("upload_max_filesize");' 2>/dev/null)")"
+POST_MAX_MIB="$(to_mib "$(docker compose exec -T app php -r 'echo ini_get("post_max_size");' 2>/dev/null)")"
+NGINX_MAX_MIB="$(to_mib "$(docker compose exec -T nginx sh -c "grep -h client_max_body_size /etc/nginx/conf.d/*.conf 2>/dev/null | head -1" | grep -oE '[0-9]+[GgMmKk]')")"
+if ((UPLOAD_MAX_MIB >= 90 && POST_MAX_MIB >= 90 && NGINX_MAX_MIB >= 90)); then
+    ok "Límites de subida suficientes para partes de 90 MiB (upload_max_filesize=${UPLOAD_MAX_MIB}MiB, post_max_size=${POST_MAX_MIB}MiB, nginx client_max_body_size=${NGINX_MAX_MIB}MiB)."
+else
+    warn "upload_max_filesize/post_max_size/client_max_body_size podrían no soportar partes de 90 MiB (detectado: ${UPLOAD_MAX_MIB}/${POST_MAX_MIB}/${NGINX_MAX_MIB} MiB). Revise docker/php/php.ini y docker/nginx/default.conf."
 fi
 
 step 10 "Limpiando cachés"

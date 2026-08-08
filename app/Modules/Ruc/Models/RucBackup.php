@@ -43,6 +43,9 @@ class RucBackup extends Model
     /** Backup automático del estado actual, tomado justo antes de un restore. */
     public const TYPE_SAFETY = 'safety';
 
+    /** Backup ensamblado a partir de un manifest + partes subidas (RUC Tools). */
+    public const TYPE_UPLOADED = 'uploaded';
+
     protected $table = 'ruc_backups';
 
     protected $fillable = [

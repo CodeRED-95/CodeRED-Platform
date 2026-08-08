@@ -70,6 +70,16 @@ class RucBackupPageTest extends TestCase
 
     public function test_page_uses_traditional_forms_not_fetch(): void
     {
+        // Con la tabla vacía, x-ui.confirm-dialog (única fuente real de
+        // "requestSubmit" en la página) nunca se renderiza — se necesita al
+        // menos un backup completado para que la aserción pruebe algo real.
+        RucBackup::create([
+            'name' => 'ruc_backup_forms_test.dump',
+            'storage_path' => 'backups/ruc/ruc_backup_forms_test.dump',
+            'status' => RucBackup::STATUS_COMPLETED,
+            'total_records' => 1,
+        ]);
+
         $response = $this->actingAs($this->adminUser())->get(route('admin.ruc.backups'));
         $content = $response->getContent();
 

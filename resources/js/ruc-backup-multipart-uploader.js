@@ -1,0 +1,323 @@
+// Sube un backup RUC dividido en partes (manifest.json + *.partNNNN,
+// generado por packages/ruc-tools) sin reconstruir el archivo en el
+// navegador: cada parte se envía en un request HTTP independiente
+// (~90 MiB), justo lo que evita el 413 de Cloudflare. Usa XMLHttpRequest
+// (no fetch) porque necesita xhr.upload.onprogress para progreso real
+// dentro de cada parte en curso.
+//
+// No hace nada con el resultado más que reportarlo vía el estado de Alpine
+// — el ensamblado, la validación de checksums y el registro del backup
+// final ocurren siempre en el servidor (RucBackupMultipartUploadService).
+
+const RETRY_DELAYS_MS = [1000, 3000, 5000];
+const PART_FILENAME_PATTERN = /\.part(\d{4,})$/i;
+const RESUME_STORAGE_PREFIX = "codered:ruc-backup-multipart:";
+
+function csrfToken() {
+  return document.querySelector('meta[name="csrf-token"]')?.content ?? "";
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return "0 B";
+  const units = ["B", "KiB", "MiB", "GiB"];
+  const exponent = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  const value = bytes / Math.pow(1024, exponent);
+
+  return `${exponent === 0 ? value : value.toFixed(1)} ${units[exponent]}`;
+}
+
+function partIndexFromFilename(filename) {
+  const match = filename.match(PART_FILENAME_PATTERN);
+
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/** POST/GET/DELETE JSON vía XHR, con soporte opcional de onUploadProgress. */
+function xhrJson(method, url, { body, file, onUploadProgress } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    xhr.setRequestHeader("X-CSRF-TOKEN", csrfToken());
+    xhr.setRequestHeader("Accept", "application/json");
+
+    if (file) {
+      const form = new FormData();
+      form.append("part", file);
+      if (onUploadProgress) {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) onUploadProgress(event.loaded, event.total);
+        });
+      }
+      xhr.send(form);
+    } else if (body !== undefined) {
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.send(JSON.stringify(body));
+    } else {
+      xhr.send();
+    }
+
+    xhr.onload = () => {
+      let data = null;
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        // respuesta no-JSON (p. ej. 419/500 con página HTML): se maneja abajo
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data);
+      } else {
+        reject({
+          status: xhr.status,
+          message: data?.message || `Error HTTP ${xhr.status}.`,
+        });
+      }
+    };
+
+    xhr.onerror = () => reject({ status: 0, message: "Error de red." });
+  });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function createRucBackupMultipartUploader(routes) {
+  return {
+    // --- estado expuesto a la vista ---
+    stage: "select-manifest", // select-manifest | manifest-loaded | select-parts | ready | uploading | assembling | done | error | cancelled
+    manifest: null,
+    manifestError: null,
+    partFiles: [],
+    partsError: null,
+    uploadUuid: null,
+    completedParts: [],
+    currentPartIndex: null,
+    currentPartLoadedBytes: 0,
+    completedBytes: 0,
+    errorMessage: null,
+    rucBackupId: null,
+    cancelling: false,
+
+    get totalParts() {
+      return this.manifest?.total_parts ?? 0;
+    },
+    get totalSizeBytes() {
+      return this.manifest?.total_size_bytes ?? 0;
+    },
+    get overallProgressBytes() {
+      return this.completedBytes + this.currentPartLoadedBytes;
+    },
+    get overallProgressPercent() {
+      if (!this.totalSizeBytes) return 0;
+
+      return Math.min(100, Math.round((this.overallProgressBytes / this.totalSizeBytes) * 100));
+    },
+    get formattedProgress() {
+      return `${formatBytes(this.overallProgressBytes)} / ${formatBytes(this.totalSizeBytes)}`;
+    },
+    formatBytes,
+
+    async onManifestSelected(event) {
+      this.manifestError = null;
+      this.manifest = null;
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        this.assertManifestLooksValid(parsed);
+        this.manifest = parsed;
+        this.stage = "manifest-loaded";
+        this.tryResumePreviousSession();
+      } catch (error) {
+        this.manifestError =
+          error?.message || "No se pudo leer el manifest (¿es un JSON válido?).";
+      }
+    },
+
+    // Validación básica en el cliente — el servidor SIEMPRE revalida todo
+    // (nunca se confía en esto por seguridad, es solo para feedback rápido).
+    assertManifestLooksValid(manifest) {
+      if (!manifest || typeof manifest !== "object") {
+        throw new Error("El manifest no es un objeto JSON válido.");
+      }
+      for (const key of ["format_version", "backup_type", "total_parts", "total_size_bytes", "sha256", "parts", "original_filename"]) {
+        if (!(key in manifest)) {
+          throw new Error(`El manifest no contiene "${key}".`);
+        }
+      }
+      if (manifest.backup_type !== "ruc_records") {
+        throw new Error('El manifest no es de tipo "ruc_records".');
+      }
+      if (!Array.isArray(manifest.parts) || manifest.parts.length !== manifest.total_parts) {
+        throw new Error("El manifest está incompleto: el número de partes no coincide.");
+      }
+    },
+
+    onPartsSelected(event) {
+      this.partsError = null;
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+
+      const withIndex = files.map((file) => ({ file, index: partIndexFromFilename(file.name) }));
+      const missingIndex = withIndex.find((entry) => entry.index === null);
+      if (missingIndex) {
+        this.partsError = `"${missingIndex.file.name}" no parece una parte válida (se esperaba un nombre terminado en .partNNNN).`;
+        return;
+      }
+
+      withIndex.sort((a, b) => a.index - b.index);
+
+      const manifestFilenames = new Set(this.manifest.parts.map((p) => p.filename));
+      const unexpected = withIndex.find((entry) => !manifestFilenames.has(entry.file.name));
+      if (unexpected) {
+        this.partsError = `"${unexpected.file.name}" no pertenece a este backup (no aparece en el manifest).`;
+        return;
+      }
+
+      this.partFiles = withIndex.map((entry) => entry.file);
+      this.stage = this.partFiles.length === this.totalParts ? "ready" : "select-parts";
+      if (this.partFiles.length < this.totalParts) {
+        this.partsError = `Seleccionaste ${this.partFiles.length} de ${this.totalParts} partes. Selecciónalas todas juntas.`;
+      }
+    },
+
+    resumeStorageKey() {
+      return this.manifest ? RESUME_STORAGE_PREFIX + this.manifest.sha256 : null;
+    },
+
+    tryResumePreviousSession() {
+      const key = this.resumeStorageKey();
+      const savedUuid = key ? window.localStorage.getItem(key) : null;
+      if (savedUuid) {
+        this.uploadUuid = savedUuid;
+      }
+    },
+
+    async startUpload() {
+      if (this.stage !== "ready" || this.cancelling) return;
+
+      this.errorMessage = null;
+      this.stage = "uploading";
+
+      try {
+        if (this.uploadUuid) {
+          await this.resumeSession();
+        } else {
+          await this.createSession();
+        }
+
+        for (let i = 0; i < this.partFiles.length; i++) {
+          const index = partIndexFromFilename(this.partFiles[i].name);
+          if (this.completedParts.includes(index)) continue; // ya subida (resume)
+
+          this.currentPartIndex = index;
+          this.currentPartLoadedBytes = 0;
+          await this.uploadPartWithRetries(index, this.partFiles[i]);
+          this.completedBytes += this.partFiles[i].size;
+          this.completedParts.push(index);
+          this.currentPartLoadedBytes = 0;
+        }
+
+        this.forgetResumeSession();
+        this.stage = this.rucBackupId ? "done" : "assembling";
+      } catch (error) {
+        this.stage = "error";
+        this.errorMessage = error?.message || "La importación falló.";
+      }
+    },
+
+    async createSession() {
+      const response = await xhrJson("POST", routes.store, { body: { manifest: this.manifest } });
+      this.uploadUuid = response.upload_uuid;
+      this.completedParts = response.already_uploaded_parts || [];
+      const key = this.resumeStorageKey();
+      if (key) window.localStorage.setItem(key, this.uploadUuid);
+    },
+
+    async resumeSession() {
+      try {
+        const response = await xhrJson("GET", routes.show.replace(":upload", this.uploadUuid));
+        this.completedParts = response.uploaded_parts || [];
+        this.completedBytes = response.received_bytes || 0;
+        if (response.status === "completed") {
+          this.rucBackupId = response.ruc_backup_id;
+        }
+      } catch {
+        // La sesión guardada ya no existe (expiró/fue cancelada): empezar de nuevo.
+        this.forgetResumeSession();
+        this.uploadUuid = null;
+        this.completedParts = [];
+        this.completedBytes = 0;
+        await this.createSession();
+      }
+    },
+
+    async uploadPartWithRetries(index, file) {
+      let lastError = null;
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+        if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
+        this.currentPartLoadedBytes = 0;
+
+        try {
+          const url = routes.uploadPart
+            .replace(":upload", this.uploadUuid)
+            .replace(":index", String(index));
+          const response = await xhrJson("POST", url, {
+            file,
+            onUploadProgress: (loaded) => {
+              this.currentPartLoadedBytes = loaded;
+            },
+          });
+          if (response.ruc_backup_id) this.rucBackupId = response.ruc_backup_id;
+
+          return;
+        } catch (error) {
+          lastError = error;
+          // Un 422 es un rechazo definitivo del servidor (checksum/tamaño/
+          // permiso) — reintentar no lo va a arreglar.
+          if (error.status === 422 || error.status === 403) break;
+        }
+      }
+      throw new Error(lastError?.message || `No se pudo subir la parte ${index}.`);
+    },
+
+    forgetResumeSession() {
+      const key = this.resumeStorageKey();
+      if (key) window.localStorage.removeItem(key);
+    },
+
+    async cancel() {
+      if (!this.uploadUuid || this.cancelling) return;
+      this.cancelling = true;
+      try {
+        await xhrJson("DELETE", routes.destroy.replace(":upload", this.uploadUuid));
+      } catch {
+        // Si el servidor ya la había marcado terminal, no es un error real.
+      }
+      this.forgetResumeSession();
+      this.stage = "cancelled";
+      this.cancelling = false;
+    },
+
+    reset() {
+      this.stage = "select-manifest";
+      this.manifest = null;
+      this.manifestError = null;
+      this.partFiles = [];
+      this.partsError = null;
+      this.uploadUuid = null;
+      this.completedParts = [];
+      this.currentPartIndex = null;
+      this.currentPartLoadedBytes = 0;
+      this.completedBytes = 0;
+      this.errorMessage = null;
+      this.rucBackupId = null;
+    },
+  };
+}

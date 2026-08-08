@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { codeRedTokenCopy } from "./api-token-copy";
 import { codeRedApiDocs, createApiDocsAuthStore } from "./api-docs";
 import { registerClipboardListener } from "./clipboard";
+import { createRucBackupMultipartUploader } from "./ruc-backup-multipart-uploader";
 
 registerClipboardListener();
 
@@ -341,6 +342,7 @@ document.addEventListener("alpine:init", () => {
   }));
 
   window.Alpine.data("codeRedApiDocs", codeRedApiDocs);
+  window.Alpine.data("rucBackupMultipartUploader", createRucBackupMultipartUploader);
 
   window.Alpine.data("codeRedMap", (config) => ({
     map: null,

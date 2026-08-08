@@ -41,5 +41,19 @@ return [
         // client_max_body_size 5G. Si subes este valor, sube también esos
         // tres al mismo tiempo — ver docs-ruc/BACKUP_SYSTEM.md "Límites".
         'max_upload_mb' => (int) env('RUC_BACKUP_MAX_UPLOAD_MB', 5000),
+
+        // Backups multipart (manifest.json + *.partNNNN generados por
+        // packages/ruc-tools). Cada parte llega en un request HTTP
+        // independiente — el límite real que importa aquí es el de
+        // Cloudflare (100 MB en planes free/pro), no el de nginx/PHP (que
+        // ya son generosos, ver arriba). max_part_size_mb es un techo duro
+        // del servidor, independiente de lo que declare el manifest.
+        'multipart' => [
+            'max_part_size_mb' => (int) env('RUC_BACKUP_MULTIPART_MAX_PART_MB', 95),
+            'max_total_parts' => (int) env('RUC_BACKUP_MULTIPART_MAX_PARTS', 500),
+            'max_total_size_mb' => (int) env('RUC_BACKUP_MULTIPART_MAX_TOTAL_MB', 20000),
+            'session_expires_hours' => (int) env('RUC_BACKUP_MULTIPART_EXPIRES_HOURS', 24),
+            'supported_format_versions' => [1],
+        ],
     ],
 ];
