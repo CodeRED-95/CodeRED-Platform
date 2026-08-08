@@ -168,19 +168,28 @@ class RestoreConcurrencyTest extends TestCase
         $user = $this->adminUser();
 
         // Primer intento: debe crear operación
-        $response1 = $this->actingAs($user)->post(route('admin.ruc.backups.restore', $backup));
+        $response1 = $this->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-token')
+            ->post(route('admin.ruc.backups.restore', $backup->id));
         $response1->assertRedirect();
         $response1->assertSessionHas('success');
         $this->assertSame(1, RucBackupOperation::count());
 
         // Segundo intento: debe ser rechazado (hay una operación activa)
-        $response2 = $this->actingAs($user)->post(route('admin.ruc.backups.restore', $backup));
+        $response2 = $this->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-token')
+            ->post(route('admin.ruc.backups.restore', $backup->id));
         $response2->assertRedirect();
         $response2->assertSessionHas('error');
         $this->assertSame(1, RucBackupOperation::count());
 
         // Tercer intento: debe ser rechazado
-        $response3 = $this->actingAs($user)->post(route('admin.ruc.backups.restore', $backup));
+        $response3 = $this->actingAs($user)
+            ->withSession(['_token' => 'test-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-token')
+            ->post(route('admin.ruc.backups.restore', $backup->id));
         $response3->assertRedirect();
         $response3->assertSessionHas('error');
         $this->assertSame(1, RucBackupOperation::count());
@@ -201,7 +210,7 @@ class RestoreConcurrencyTest extends TestCase
 
         $user = $this->adminUser();
 
-        $response = $this->actingAs($user)->get(route('admin.ruc.backups.operation-status', ['operation' => $operation->uuid]));
+        $response = $this->actingAs($user)->get(route('admin.ruc.backups.operations.status', ['operation' => $operation->uuid]));
 
         $response->assertOk();
         $data = $response->json();
