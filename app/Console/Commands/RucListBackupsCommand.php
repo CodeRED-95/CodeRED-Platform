@@ -9,59 +9,56 @@ use Illuminate\Console\Command;
 
 class RucListBackupsCommand extends Command
 {
-    protected $signature = 'ruc:backups-list {--status= : Filtrar por estado (completed, failed, pending)}';
+    protected $signature = 'ruc:backups-list {--status= : Filtrar por estado (completed, creating, failed)}';
 
-    protected $description = 'Listar todos los backups de RUC';
+    protected $description = 'Listar todos los backups de ruc_records';
 
     public function handle(): int
     {
         $status = $this->option('status');
 
-        $query = RucBackup::query()
+        $backups = RucBackup::query()
             ->when($status, fn ($q) => $q->where('status', $status))
-            ->latest('created_at');
-
-        $backups = $query->get();
+            ->latest('created_at')
+            ->get();
 
         if ($backups->isEmpty()) {
             $this->info('No hay backups.');
-            return 0;
+
+            return self::SUCCESS;
         }
 
         $rows = $backups->map(function (RucBackup $backup) {
             $statusEmoji = match ($backup->status) {
-                'completed' => '✅',
-                'failed' => '❌',
-                'pending' => '⏳',
-                'deleted' => '🗑️',
+                RucBackup::STATUS_COMPLETED => '✅',
+                RucBackup::STATUS_FAILED => '❌',
+                RucBackup::STATUS_CREATING => '⏳',
                 default => '❓',
             };
 
             return [
                 $backup->id,
-                $statusEmoji . ' ' . $backup->status,
+                $statusEmoji.' '.$backup->status,
                 $backup->name,
-                $backup->backup_type,
+                $backup->backup_type ?? '-',
                 number_format($backup->total_records ?? 0),
-                $backup->getFormattedSize(),
-                $backup->storage_type,
+                $backup->formattedSize(),
                 $backup->created_at->format('Y-m-d H:i'),
-                $backup->duration_seconds ? $backup->duration_seconds . 's' : '-',
             ];
         })->toArray();
 
         $this->table(
-            ['ID', 'Status', 'Nombre', 'Tipo', 'Registros', 'Tamaño', 'Almacenamiento', 'Creado', 'Duración'],
+            ['ID', 'Estado', 'Nombre', 'Tipo', 'Registros', 'Tamaño', 'Creado'],
             $rows
         );
 
         $this->newLine();
         $this->info("Total: {$backups->count()} backups");
 
-        $completed = $backups->where('status', 'completed')->count();
-        $failed = $backups->where('status', 'failed')->count();
+        $completed = $backups->where('status', RucBackup::STATUS_COMPLETED)->count();
+        $failed = $backups->where('status', RucBackup::STATUS_FAILED)->count();
         $this->line("✅ Completados: {$completed} | ❌ Fallidos: {$failed}");
 
-        return 0;
+        return self::SUCCESS;
     }
 }

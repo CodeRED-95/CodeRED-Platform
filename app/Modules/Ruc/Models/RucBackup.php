@@ -8,33 +8,56 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Registro de un backup de la tabla ruc_records.
+ *
+ * `storage_path` es SIEMPRE relativo al disco "local" (ver
+ * config/filesystems.php) — nunca una ruta absoluta. Para obtener la ruta
+ * real en disco usar siempre absolutePath(), nunca concatenar
+ * storage_path('app/...') a mano.
+ */
 class RucBackup extends Model
 {
+    /**
+     * Extensión de los backups nuevos. Es un dump de pg_dump en formato
+     * "custom" (firma "PGDMP"), NO un archivo gzip real, aunque backups
+     * creados antes de este sistema se nombraran *.sql.gz. Esos archivos
+     * antiguos se siguen sirviendo/restaurando igual — el formato real
+     * siempre se determina por contenido (pg_restore --list), nunca por la
+     * extensión.
+     */
+    public const FILE_EXTENSION = 'dump';
+
+    /** @var list<string> extensiones aceptadas al importar un backup manualmente */
+    public const ALLOWED_IMPORT_EXTENSIONS = ['dump', 'gz'];
+
+    public const STATUS_CREATING = 'creating';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_FAILED = 'failed';
+
+    /** Backup creado manualmente (botón "Crear Backup") o importado. */
+    public const TYPE_MANUAL = 'manual';
+
+    /** Backup automático del estado actual, tomado justo antes de un restore. */
+    public const TYPE_SAFETY = 'safety';
+
     protected $table = 'ruc_backups';
 
     protected $fillable = [
         'name',
         'backup_type',
-        'total_records',
-        'file_size_bytes',
         'storage_path',
-        'storage_type',
-        'compression_type',
-        'status',
-        'started_at',
-        'completed_at',
-        'duration_seconds',
-        'error_message',
+        'file_size_bytes',
         'checksum_sha256',
-        'retention_days',
-        'expires_at',
+        'total_records',
+        'status',
+        'error_message',
         'created_by',
     ];
 
     protected $casts = [
-        'started_at' => 'datetime',
-        'completed_at' => 'datetime',
-        'expires_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -44,69 +67,38 @@ class RucBackup extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function scopeCompleted($query)
+    public function isCompleted(): bool
     {
-        return $query->where('status', 'completed');
-    }
-
-    public function scopeFailed($query)
-    {
-        return $query->where('status', 'failed');
-    }
-
-    public function scopeActive($query)
-    {
-        return $query->whereNull('expires_at')
-            ->orWhere('expires_at', '>', now());
-    }
-
-    public function scopeExpired($query)
-    {
-        return $query->where('expires_at', '<=', now());
+        return $this->status === self::STATUS_COMPLETED;
     }
 
     /**
-     * Obtener el tamaño formateado
+     * Ruta absoluta real en el filesystem, resuelta siempre a través del
+     * disco "local" configurado (nunca storage_path('app/...') a mano: el
+     * root de ese disco cambió entre versiones de Laravel).
      */
-    public function getFormattedSize(): string
+    public function absolutePath(): string
     {
-        if (!$this->file_size_bytes) {
-            return 'N/A';
+        return \Illuminate\Support\Facades\Storage::disk('local')->path($this->storage_path);
+    }
+
+    public function fileExists(): bool
+    {
+        return file_exists($this->absolutePath());
+    }
+
+    public function formattedSize(): string
+    {
+        $bytes = $this->file_size_bytes;
+        if (! $bytes) {
+            return 'N/D';
         }
 
-        $bytes = $this->file_size_bytes;
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
             $bytes /= 1024;
         }
 
-        return round($bytes, 2) . ' ' . $units[$i];
-    }
-
-    /**
-     * Marcar como completado
-     */
-    public function markAsCompleted(int $durationSeconds, ?string $checksum = null): void
-    {
-        $this->update([
-            'status' => 'completed',
-            'completed_at' => now(),
-            'duration_seconds' => $durationSeconds,
-            'checksum_sha256' => $checksum,
-            'expires_at' => now()->addDays($this->retention_days),
-        ]);
-    }
-
-    /**
-     * Marcar como fallido
-     */
-    public function markAsFailed(string $errorMessage): void
-    {
-        $this->update([
-            'status' => 'failed',
-            'completed_at' => now(),
-            'error_message' => $errorMessage,
-        ]);
+        return round($bytes, 2).' '.$units[$i];
     }
 }

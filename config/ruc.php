@@ -34,4 +34,12 @@ return [
         'staging_unlogged' => (bool) env('RUC_IMPORT_STAGING_UNLOGGED', true),
         'validate_checksum' => (bool) env('RUC_IMPORT_VALIDATE_CHECKSUM', true),
     ],
+    'backup' => [
+        // Debe ser <= los límites reales de la infraestructura (nunca al
+        // revés): docker/php/php.ini tiene upload_max_filesize=5G y
+        // post_max_size=5100M; docker/nginx/default.conf tiene
+        // client_max_body_size 5G. Si subes este valor, sube también esos
+        // tres al mismo tiempo — ver docs-ruc/BACKUP_SYSTEM.md "Límites".
+        'max_upload_mb' => (int) env('RUC_BACKUP_MAX_UPLOAD_MB', 5000),
+    ],
 ];

@@ -475,7 +475,7 @@ public function boot()
 - [Despliegue y actualización](docs/guides/deployment.md)
 - [Monitoreo y logs](docs/guides/monitoring.md)
 - [Troubleshooting](docs/guides/troubleshooting.md)
-- [Backup y restauración](docs/guides/backup-restore.md)
+- [Backup y restauración de RUC](app/Modules/Ruc/BACKUP_SYSTEM.md)
 
 ## Actualización rápida (recomendado)
 

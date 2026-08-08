@@ -210,9 +210,29 @@ docker compose exec -T app php artisan migrate --force
 ok "Todas las migraciones completadas (incluyendo Shalom y RUC Backup)"
 
 step 8 "Creando directorios requeridos"
-docker compose exec -T app mkdir -p storage/app/backups/ruc
-docker compose exec -T app chmod 755 storage/app/backups/ruc
-ok "Directorios de backup creados"
+# La ruta real depende del disco "local" configurado en
+# config/filesystems.php (cambió de storage/app a storage/app/private entre
+# versiones de Laravel) — se resuelve siempre a través de Laravel, nunca
+# hardcodeada, para no volver a desincronizarse si el disco cambia. NO borra
+# nada: mkdir -p es no destructivo y preserva cualquier backup existente.
+RUC_BACKUP_DIR="$(docker compose exec -T app php -r '
+require "vendor/autoload.php";
+$app = require "bootstrap/app.php";
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo Illuminate\Support\Facades\Storage::disk("local")->path("backups/ruc");
+' 2>/dev/null)"
+[[ -n "$RUC_BACKUP_DIR" ]] || die "No se pudo resolver el directorio de backups RUC vía Laravel."
+docker compose exec -T app mkdir -p "$RUC_BACKUP_DIR"
+docker compose exec -T app chown -R www:www "$RUC_BACKUP_DIR"
+docker compose exec -T app chmod -R 775 "$RUC_BACKUP_DIR"
+ok "Directorio de backups RUC listo: $RUC_BACKUP_DIR (backups existentes preservados)"
+
+if docker compose exec -T app sh -c 'command -v pg_dump >/dev/null && command -v pg_restore >/dev/null && command -v psql >/dev/null'; then
+    ok "pg_dump/pg_restore/psql disponibles en el contenedor app."
+else
+    warn "pg_dump/pg_restore/psql NO se encontraron en el contenedor app. El backup/restore de RUC fallará."
+    warn "Verifique que docker/php/Dockerfile instale postgresql16-client y reconstruya con: docker compose build app queue scheduler"
+fi
 
 step 9 "Limpiando cachés"
 docker compose exec -T app php artisan optimize:clear

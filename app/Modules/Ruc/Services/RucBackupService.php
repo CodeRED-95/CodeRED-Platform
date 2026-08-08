@@ -11,11 +11,27 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 
+/**
+ * Backup y restore de la tabla ruc_records. Únicamente datos: el schema de
+ * ruc_records sigue siendo responsabilidad exclusiva de las migrations de
+ * Laravel, nunca del dump (--data-only en todo momento). Ver
+ * docs-ruc/BACKUP_SYSTEM.md para el diseño completo.
+ */
 class RucBackupService
 {
-    private const BACKUP_DIR = 'backups/ruc'; // storage/app/backups/ruc
+    private const BACKUP_DIR = 'backups/ruc'; // relativo al disco "local"
 
-    private const COMPRESSION_LEVEL = 6; // 1-9, 6 es balance entre velocidad y compresión
+    /** Tabla que todo backup RUC debe contener, y la única que puede contener. */
+    private const EXPECTED_TABLE = 'ruc_records';
+
+    /**
+     * Objetos de PostgreSQL que puede legítimamente traer un dump de
+     * --table=ruc_records (la tabla en sí, su secuencia de id, y los
+     * comentarios SQL neutros que pg_dump siempre agrega). Cualquier otro
+     * nombre de tabla/secuencia en el TOC hace que se rechace el archivo:
+     * así un backup subido por un usuario nunca puede tocar otra tabla.
+     */
+    private const ALLOWED_TOC_PATTERN = '/^(ruc_records|ruc_records_id_seq)$/';
 
     public function __construct()
     {
@@ -25,324 +41,477 @@ class RucBackupService
     }
 
     /**
-     * Realizar backup completo de la tabla ruc_records
+     * Crea un backup (solo datos) de ruc_records.
      */
-    public function backup(string $backupType = 'full', ?User $user = null): RucBackup
+    public function create(?User $user = null): RucBackup
     {
-        $startTime = microtime(true);
-        $timestamp = now()->format('Y-m-d-His');
-        // Sufijo aleatorio: evita colisión si dos backups se disparan dentro
-        // del mismo segundo (p. ej. el "safety_before_restore" automático).
-        $backupName = "ruc_backup_{$timestamp}_".bin2hex(random_bytes(4)).'.sql.gz';
-        $localPath = storage_path('app/'.self::BACKUP_DIR.'/'.$backupName);
+        $name = $this->generateFileName('ruc_backup');
 
-        try {
-            Log::info('Starting RUC database backup', ['backup_type' => $backupType, 'user_id' => $user?->id]);
-
-            // 1. Crear dump de la tabla ruc_records PRIMERO
-            $this->createDump($localPath);
-
-            // 2. Validar que el archivo fue creado
-            if (! file_exists($localPath)) {
-                throw new \Exception('Dump file was not created at '.$localPath);
-            }
-
-            // 3. Obtener información del backup
-            $fileSize = filesize($localPath);
-            if ($fileSize === 0) {
-                @unlink($localPath);
-                throw new \Exception('Dump file is empty');
-            }
-
-            $checksum = hash_file('sha256', $localPath);
-            $recordCount = DB::table('ruc_records')->count();
-            $duration = intval(microtime(true) - $startTime);
-
-            // 4. Crear registro de backup CON todos los datos
-            $backup = RucBackup::create([
-                'name' => $backupName,
-                'backup_type' => $backupType,
-                'storage_type' => 'local',
-                'storage_path' => $localPath,
-                'status' => 'completed',
-                'started_at' => now(),
-                'completed_at' => now(),
-                'total_records' => $recordCount,
-                'file_size_bytes' => $fileSize,
-                'checksum_sha256' => $checksum,
-                'duration_seconds' => $duration,
-                'created_by' => $user?->id,
-            ]);
-
-            Log::info('RUC backup completed successfully', [
-                'backup_id' => $backup->id,
-                'file_name' => $backupName,
-                'file_size' => $this->formatBytes($fileSize),
-                'records' => $recordCount,
-                'duration' => $duration.'s',
-            ]);
-
-            return $backup;
-
-        } catch (\Throwable $e) {
-            Log::error('RUC backup failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            // Limpiar archivo si existe
-            if (isset($localPath) && file_exists($localPath)) {
-                @unlink($localPath);
-            }
-
-            throw $e;
-        }
+        return $this->dumpToNewBackup($name, RucBackup::TYPE_MANUAL, $user);
     }
 
     /**
-     * Restaurar desde un backup
+     * Backup de seguridad tomado automáticamente antes de un restore.
      */
-    public function restore(RucBackup $backup, bool $dryRun = true): array
+    public function createSafetyBackup(?User $user = null): RucBackup
     {
-        if ($backup->status !== 'completed') {
-            throw new \Exception('El backup debe estar completado para restaurar');
-        }
+        $name = $this->generateFileName('ruc_safety_before_restore');
 
-        if (! file_exists($backup->storage_path)) {
-            throw new \Exception('El archivo de backup no existe: '.$backup->storage_path);
-        }
+        return $this->dumpToNewBackup($name, RucBackup::TYPE_SAFETY, $user);
+    }
 
-        Log::info('Starting RUC database restore', [
-            'backup_id' => $backup->id,
-            'dry_run' => $dryRun,
+    private function generateFileName(string $prefix): string
+    {
+        $timestamp = now()->format('Y-m-d_His');
+        $random = bin2hex(random_bytes(4));
+
+        return "{$prefix}_{$timestamp}_{$random}.".RucBackup::FILE_EXTENSION;
+    }
+
+    /**
+     * Ejecuta pg_dump y registra el resultado en ruc_backups.
+     *
+     * Pasos (según BACKUP_SYSTEM.md):
+     *   1. pg_dump --data-only --table=ruc_records
+     *   2. comprobar exit code / archivo existe / size > 0
+     *   3. pg_restore --list y confirmar que solo contiene ruc_records
+     *   4. SHA-256
+     *   5. contar registros actuales
+     *   6. marcar como completed (o failed si algo de esto falla)
+     */
+    private function dumpToNewBackup(string $name, string $type, ?User $user): RucBackup
+    {
+        $relativePath = self::BACKUP_DIR.'/'.$name;
+        $absolutePath = Storage::disk('local')->path($relativePath);
+
+        $backup = RucBackup::create([
+            'name' => $name,
+            'backup_type' => $type,
+            'storage_path' => $relativePath,
+            'status' => RucBackup::STATUS_CREATING,
+            'created_by' => $user?->id,
         ]);
 
-        $startTime = microtime(true);
-
         try {
-            // 1. Validar checksum
-            if ($backup->checksum_sha256) {
-                $calculatedChecksum = hash_file('sha256', $backup->storage_path);
-                if ($calculatedChecksum !== $backup->checksum_sha256) {
-                    throw new \Exception('Checksum validation failed - backup may be corrupted');
-                }
+            $this->runPgDump($absolutePath);
+
+            if (! file_exists($absolutePath)) {
+                throw new \RuntimeException('El archivo de backup no se creó.');
             }
 
-            // 2. Restaurar en BD
-            if (! $dryRun) {
-                // Validar que el archivo es un dump de pg_restore válido ANTES
-                // de tocar la base de datos (el restore hace TRUNCATE primero).
-                $this->validateDumpFile($backup->storage_path);
-
-                // Backup actual antes de restaurar
-                $safetyBackup = $this->backup('safety_before_restore');
-                Log::warning('Safety backup created before restore', ['backup_id' => $safetyBackup->id]);
-
-                try {
-                    $this->restoreFromDump($backup->storage_path);
-                } catch (\Throwable $e) {
-                    Log::error('Restore failed after truncating ruc_records; attempting automatic recovery from safety backup', [
-                        'backup_id' => $backup->id,
-                        'safety_backup_id' => $safetyBackup->id,
-                        'error' => $e->getMessage(),
-                    ]);
-
-                    try {
-                        $this->restoreFromDump($safetyBackup->storage_path);
-                        Log::warning('Automatic recovery from safety backup succeeded', ['safety_backup_id' => $safetyBackup->id]);
-                    } catch (\Throwable $recoveryError) {
-                        Log::error('Automatic recovery from safety backup FAILED - ruc_records may be empty', [
-                            'safety_backup_id' => $safetyBackup->id,
-                            'error' => $recoveryError->getMessage(),
-                        ]);
-                    }
-
-                    throw $e;
-                }
+            $fileSize = filesize($absolutePath);
+            if ($fileSize === 0) {
+                throw new \RuntimeException('El archivo de backup quedó vacío.');
             }
 
-            $duration = intval(microtime(true) - $startTime);
+            // pg_restore --list debe confirmar formato Y contenido antes de
+            // aceptar el archivo como backup válido.
+            $this->assertDumpBelongsToRucRecords($absolutePath);
 
-            Log::info('RUC database restore completed', [
-                'backup_id' => $backup->id,
-                'duration' => $duration.'s',
-                'dry_run' => $dryRun,
+            $checksum = hash_file('sha256', $absolutePath);
+            $recordCount = DB::table('ruc_records')->count();
+
+            $backup->update([
+                'file_size_bytes' => $fileSize,
+                'checksum_sha256' => $checksum,
+                'total_records' => $recordCount,
+                'status' => RucBackup::STATUS_COMPLETED,
             ]);
 
-            return [
-                'success' => true,
+            Log::info('RUC backup created', [
                 'backup_id' => $backup->id,
-                'records_restored' => $backup->total_records,
-                'duration_seconds' => $duration,
-            ];
+                'type' => $type,
+                'records' => $recordCount,
+                'size' => $fileSize,
+                'user_id' => $user?->id,
+            ]);
 
+            return $backup->fresh();
         } catch (\Throwable $e) {
-            Log::error('RUC restore failed', [
+            Log::error('RUC backup failed', [
                 'backup_id' => $backup->id,
+                'type' => $type,
                 'error' => $e->getMessage(),
+                'user_id' => $user?->id,
             ]);
+
+            $backup->update([
+                'status' => RucBackup::STATUS_FAILED,
+                'error_message' => substr($e->getMessage(), 0, 1000),
+            ]);
+
+            if (file_exists($absolutePath)) {
+                @unlink($absolutePath);
+            }
+
             throw $e;
         }
     }
 
-    /**
-     * Crear dump SQL comprimido
-     */
-    private function createDump(string $outputPath): void
+    private function runPgDump(string $outputPath): void
     {
-        $dbName = config('database.connections.pgsql.database');
-        $dbUser = config('database.connections.pgsql.username');
-        $dbHost = config('database.connections.pgsql.host');
-        $dbPort = config('database.connections.pgsql.port', 5432);
-
-        // Asegurar que el directorio existe
         $backupDir = dirname($outputPath);
         if (! is_dir($backupDir)) {
             @mkdir($backupDir, 0755, true);
         }
 
-        // Usar pg_dump con compresión
         $command = [
             'pg_dump',
-            '--host='.$dbHost,
-            '--port='.$dbPort,
-            '--username='.$dbUser,
-            '--table=ruc_records',
-            '--compress='.self::COMPRESSION_LEVEL,
+            '--host='.$this->dbConfig('host'),
+            '--port='.$this->dbConfig('port', '5432'),
+            '--username='.$this->dbConfig('username'),
+            '--table='.self::EXPECTED_TABLE,
             '--format=custom',
+            '--data-only',      // el schema lo controlan las migrations de Laravel, nunca el dump
+            '--no-owner',
+            '--no-privileges',
             '--file='.$outputPath,
-            $dbName,
+            $this->dbConfig('database'),
         ];
 
         $process = new Process($command);
-        $process->setTimeout(3600); // 1 hora de timeout
-        $process->setEnv(['PGPASSWORD' => config('database.connections.pgsql.password')]);
+        $process->setTimeout(null); // ruc_records puede tener millones de filas; sin límite artificial
+        $process->setEnv(['PGPASSWORD' => (string) $this->dbConfig('password')]);
 
         try {
             $process->mustRun();
         } catch (\Throwable $e) {
-            Log::error('pg_dump command failed', [
-                'command' => implode(' ', $command),
-                'error' => $e->getMessage(),
+            Log::error('pg_dump failed', [
                 'stderr' => $process->getErrorOutput(),
+                'exit_code' => $process->getExitCode(),
             ]);
-            throw new \Exception('Failed to create backup dump: '.$process->getErrorOutput());
-        }
-
-        if (! file_exists($outputPath)) {
-            throw new \Exception('Dump file was not created at '.$outputPath);
-        }
-
-        if (filesize($outputPath) === 0) {
-            @unlink($outputPath);
-            throw new \Exception('Dump file is empty - no records to backup or pg_dump failed');
+            throw new \RuntimeException('pg_dump falló: '.$process->getErrorOutput());
         }
     }
 
     /**
-     * Verifica que el archivo sea un dump válido en formato "custom" de
-     * pg_dump/pg_restore antes de dejarlo usar en un restore. `pg_restore
-     * --list` solo lee la tabla de contenidos del archivo, no toca la BD.
-     * Público para poder validarlo también al momento de subir un archivo
-     * (antes de aceptarlo como backup), no solo al restaurar.
+     * Importa un backup subido manualmente (archivo ya guardado en disco).
+     * Importar NO restaura — solo valida y registra el archivo.
      */
-    public function validateDumpFile(string $filePath): void
+    public function import(string $absolutePath, string $originalName, ?User $user = null): RucBackup
     {
-        if (! file_exists($filePath) || filesize($filePath) === 0) {
-            throw new \Exception('El archivo de backup no existe o está vacío: '.$filePath);
+        if (! file_exists($absolutePath) || filesize($absolutePath) === 0) {
+            throw new \RuntimeException('El archivo está vacío o no existe.');
         }
 
-        $process = new Process(['pg_restore', '--list', $filePath]);
-        $process->setTimeout(120);
+        // Rechaza cualquier archivo que no sea un dump de ruc_records ANTES
+        // de aceptarlo como backup válido.
+        $this->assertDumpBelongsToRucRecords($absolutePath);
 
-        try {
-            $process->mustRun();
-        } catch (\Throwable $e) {
-            throw new \Exception('El archivo de backup no es un dump válido de PostgreSQL (formato custom de pg_dump): '.$process->getErrorOutput());
+        $name = $this->generateFileName('ruc_backup_imported');
+        $relativePath = self::BACKUP_DIR.'/'.$name;
+        $finalAbsolutePath = Storage::disk('local')->path($relativePath);
+
+        if (! @rename($absolutePath, $finalAbsolutePath)) {
+            // rename() puede fallar entre filesystems distintos (p. ej. /tmp
+            // en otro punto de montaje); copiar+borrar es el fallback seguro.
+            if (! @copy($absolutePath, $finalAbsolutePath)) {
+                throw new \RuntimeException('No se pudo guardar el archivo importado.');
+            }
+            @unlink($absolutePath);
         }
+
+        $fileSize = filesize($finalAbsolutePath);
+        $checksum = hash_file('sha256', $finalAbsolutePath);
+        $recordCount = $this->countRowsInDump($finalAbsolutePath);
+
+        $backup = RucBackup::create([
+            'name' => $name,
+            'backup_type' => RucBackup::TYPE_MANUAL,
+            'storage_path' => $relativePath,
+            'file_size_bytes' => $fileSize,
+            'checksum_sha256' => $checksum,
+            'total_records' => $recordCount,
+            'status' => RucBackup::STATUS_COMPLETED,
+            'created_by' => $user?->id,
+        ]);
+
+        Log::info('RUC backup imported', [
+            'backup_id' => $backup->id,
+            'original_name' => $originalName,
+            'size' => $fileSize,
+            'user_id' => $user?->id,
+        ]);
+
+        return $backup;
     }
 
     /**
-     * Restaurar desde dump
+     * Restaura ruc_records desde un backup.
+     *
+     * Orden (BACKUP_SYSTEM.md):
+     *   1. el archivo existe
+     *   2. checksum SHA-256 coincide
+     *   3. pg_restore --list confirma formato
+     *   4. el dump contiene EXCLUSIVAMENTE objetos de ruc_records
+     *   5. se crea un safety backup del estado actual
+     *   6. si el safety backup falla: ABORTAR, nunca restaurar sin él
+     *   7. restore atómico (TRUNCATE + datos en una sola transacción de
+     *      psql — ver restoreDataAtomically())
+     *   8. verificar resultado
+     *   9. auditoría (log)
      */
-    private function restoreFromDump(string $filePath): void
+    public function restore(RucBackup $backup, ?User $performedBy = null): array
     {
-        $this->validateDumpFile($filePath);
-
-        $dbName = config('database.connections.pgsql.database');
-        $dbUser = config('database.connections.pgsql.username');
-        $dbHost = config('database.connections.pgsql.host');
-        $dbPort = config('database.connections.pgsql.port', 5432);
-
-        // NO hacemos TRUNCATE manual aquí. El dump incluye el CREATE TABLE
-        // completo (pg_dump --table=ruc_records sin --data-only), así que
-        // un TRUNCATE previo no sirve: la tabla sigue existiendo y
-        // pg_restore falla con "relation already exists". La forma correcta
-        // es --clean --if-exists (DROP + CREATE dentro del propio dump) +
-        // --single-transaction: si algo falla a mitad de camino, Postgres
-        // revierte TODO automáticamente y ruc_records queda exactamente
-        // como estaba antes — no hace falta truncar por fuera ni arriesgarse
-        // a dejar la tabla vacía si pg_restore aborta.
-        //
-        // --single-transaction y --jobs son además mutuamente excluyentes en
-        // pg_restore (el restore paralelo usa varias conexiones, incompatible
-        // con una sola transacción), así que tampoco se puede paralelizar.
-        $command = [
-            'pg_restore',
-            '--host='.$dbHost,
-            '--port='.$dbPort,
-            '--username='.$dbUser,
-            '--dbname='.$dbName,
-            '--clean',               // DROP de los objetos existentes antes de recrearlos
-            '--if-exists',           // no fallar si algo ya no existe
-            '--single-transaction',  // todo o nada
-            $filePath,
-        ];
-
-        $process = new Process($command);
-        $process->setTimeout(3600); // 1 hora de timeout
-        $process->setEnv(['PGPASSWORD' => config('database.connections.pgsql.password')]);
-
-        $process->mustRun();
-    }
-
-    /**
-     * Formatear bytes a formato legible
-     */
-    private function formatBytes(int $bytes): string
-    {
-        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $size = $bytes;
-
-        for ($i = 0; $size > 1024 && $i < count($units) - 1; $i++) {
-            $size /= 1024;
+        if (! $backup->isCompleted()) {
+            throw new \RuntimeException('El backup debe estar completado para restaurar.');
         }
 
-        return round($size, 2).' '.$units[$i];
-    }
+        if (! $backup->fileExists()) {
+            throw new \RuntimeException('El archivo de backup no existe en el servidor.');
+        }
 
-    /**
-     * Limpiar backups expirados
-     */
-    public function cleanupExpiredBackups(): void
-    {
-        $expired = RucBackup::expired()->get();
+        $absolutePath = $backup->absolutePath();
 
-        foreach ($expired as $backup) {
-            try {
-                if (file_exists($backup->storage_path)) {
-                    @unlink($backup->storage_path);
-                }
-
-                $backup->update(['status' => 'deleted']);
-                Log::info('Backup deleted', ['backup_id' => $backup->id]);
-
-            } catch (\Throwable $e) {
-                Log::error('Failed to delete backup', [
-                    'backup_id' => $backup->id,
-                    'error' => $e->getMessage(),
-                ]);
+        // 2. Checksum
+        if ($backup->checksum_sha256) {
+            $actualChecksum = hash_file('sha256', $absolutePath);
+            if ($actualChecksum !== $backup->checksum_sha256) {
+                throw new \RuntimeException('El checksum del archivo no coincide con el registrado. El backup puede estar corrupto.');
             }
         }
+
+        // 3-4. Formato y contenido
+        $this->assertDumpBelongsToRucRecords($absolutePath);
+
+        Log::info('Starting RUC restore', ['backup_id' => $backup->id, 'performed_by' => $performedBy?->id]);
+        $startedAt = microtime(true);
+
+        // 5-6. Safety backup obligatorio
+        try {
+            $safetyBackup = $this->createSafetyBackup($performedBy);
+        } catch (\Throwable $e) {
+            Log::error('Restore aborted: safety backup failed', [
+                'backup_id' => $backup->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \RuntimeException('No se pudo crear el backup de seguridad; restore cancelado. '.$e->getMessage());
+        }
+
+        $recordsBefore = DB::table('ruc_records')->count();
+
+        // 7. Restore atómico
+        $this->restoreDataAtomically($absolutePath);
+
+        // 8. Verificar resultado
+        $recordsAfter = DB::table('ruc_records')->count();
+        if ($backup->total_records !== null && $recordsAfter !== $backup->total_records) {
+            Log::warning('Restored record count differs from backup metadata', [
+                'backup_id' => $backup->id,
+                'expected' => $backup->total_records,
+                'actual' => $recordsAfter,
+            ]);
+        }
+
+        $duration = (int) round(microtime(true) - $startedAt);
+
+        // 9. Auditoría
+        Log::info('RUC restore completed', [
+            'backup_id' => $backup->id,
+            'safety_backup_id' => $safetyBackup->id,
+            'records_before' => $recordsBefore,
+            'records_after' => $recordsAfter,
+            'duration_seconds' => $duration,
+            'performed_by' => $performedBy?->id,
+        ]);
+
+        return [
+            'records_restored' => $recordsAfter,
+            'safety_backup_id' => $safetyBackup->id,
+            'duration_seconds' => $duration,
+        ];
+    }
+
+    /**
+     * TRUNCATE ruc_records + carga de datos del dump, TODO dentro de UNA
+     * sola transacción real de PostgreSQL.
+     *
+     * pg_restore --single-transaction abre su PROPIA conexión y transacción
+     * — no se puede anidar ahí un TRUNCATE emitido por Laravel/PDO desde
+     * otra conexión (dejaría de ser atómico: si pg_restore fallara después,
+     * el TRUNCATE ya habría quedado confirmado por su cuenta). La forma
+     * correcta de que "vaciar la tabla" y "cargar los datos nuevos" sean
+     * una única operación atómica es:
+     *
+     *   1. pg_restore --data-only -f archivo.sql backup.dump
+     *      (convierte el dump a SQL plano SIN tocar ninguna base de datos)
+     *   2. armar un script wrapper.sql: BEGIN; TRUNCATE ruc_records;
+     *      \i archivo.sql; COMMIT;
+     *   3. ejecutar ESE wrapper con una sola sesión de psql
+     *      (-v ON_ERROR_STOP=1)
+     *
+     * Si el COPY del paso 3 falla, psql nunca llega al COMMIT; al cerrar la
+     * conexión, PostgreSQL revierte automáticamente TODA la transacción
+     * abierta — incluido el TRUNCATE — dejando ruc_records exactamente como
+     * estaba. Verificado con pruebas manuales (dump truncado a mitad de
+     * archivo): la tabla queda intacta cuando esto falla.
+     */
+    private function restoreDataAtomically(string $dumpPath): void
+    {
+        $workDir = sys_get_temp_dir();
+        $dataSqlPath = $workDir.'/ruc_restore_data_'.bin2hex(random_bytes(6)).'.sql';
+        $wrapperSqlPath = $workDir.'/ruc_restore_wrapper_'.bin2hex(random_bytes(6)).'.sql';
+
+        try {
+            // 1. Convertir el dump a SQL plano (no toca ninguna BD).
+            $convert = new Process([
+                'pg_restore',
+                '--data-only',
+                '--no-owner',
+                '--no-privileges',
+                '--file='.$dataSqlPath,
+                $dumpPath,
+            ]);
+            $convert->setTimeout(null);
+            $convert->run();
+            if (! $convert->isSuccessful()) {
+                throw new \RuntimeException('No se pudo preparar el archivo de restore: '.$convert->getErrorOutput());
+            }
+
+            // 2. Armar el wrapper transaccional.
+            $wrapperSql = "BEGIN;\nTRUNCATE TABLE ".self::EXPECTED_TABLE.";\n\\i ".$dataSqlPath."\nCOMMIT;\n";
+            file_put_contents($wrapperSqlPath, $wrapperSql);
+
+            // 3. Ejecutar TODO en una sola sesión de psql.
+            $restore = new Process([
+                'psql',
+                '--host='.$this->dbConfig('host'),
+                '--port='.$this->dbConfig('port', '5432'),
+                '--username='.$this->dbConfig('username'),
+                '--dbname='.$this->dbConfig('database'),
+                '--set=ON_ERROR_STOP=1',
+                '--no-psqlrc',
+                '--file='.$wrapperSqlPath,
+            ]);
+            $restore->setTimeout(null);
+            $restore->setEnv(['PGPASSWORD' => (string) $this->dbConfig('password')]);
+            $restore->run();
+
+            if (! $restore->isSuccessful()) {
+                // psql nunca llegó al COMMIT: Postgres ya revirtió todo por
+                // su cuenta al cerrar la conexión. ruc_records quedó como
+                // estaba antes de este intento.
+                Log::error('Atomic restore failed; PostgreSQL rolled back automatically', [
+                    'stderr' => $restore->getErrorOutput(),
+                    'exit_code' => $restore->getExitCode(),
+                ]);
+                throw new \RuntimeException('La restauración falló y fue revertida automáticamente. ruc_records no se modificó. Detalle: '.$restore->getErrorOutput());
+            }
+        } finally {
+            @unlink($dataSqlPath);
+            @unlink($wrapperSqlPath);
+        }
+    }
+
+    /**
+     * Verifica que el archivo sea un dump custom de PostgreSQL válido Y que
+     * el TOC (`pg_restore --list`) contenga EXCLUSIVAMENTE objetos de
+     * ruc_records. Cualquier otra tabla/secuencia presente hace que se
+     * rechace el archivo por completo — así un dump subido por un usuario
+     * nunca puede usarse para tocar otra parte de la base de datos.
+     */
+    public function assertDumpBelongsToRucRecords(string $filePath): void
+    {
+        if (! file_exists($filePath) || filesize($filePath) === 0) {
+            throw new \RuntimeException('El archivo no existe o está vacío.');
+        }
+
+        $list = new Process(['pg_restore', '--list', $filePath]);
+        $list->setTimeout(120);
+        $list->run();
+
+        if (! $list->isSuccessful()) {
+            throw new \RuntimeException('El archivo no es un dump válido de PostgreSQL (formato custom de pg_dump). '.$list->getErrorOutput());
+        }
+
+        $toc = $list->getOutput();
+        $sawExpectedTable = false;
+
+        foreach (explode("\n", $toc) as $line) {
+            $line = trim($line);
+            // Líneas de comentario del encabezado (";  Archive created at...").
+            if ($line === '' || str_starts_with($line, ';')) {
+                continue;
+            }
+
+            // Formato real: "3243; 1259 24592 TABLE public ruc_records codered"
+            if (! preg_match('/^\d+;\s+\d+\s+\d+\s+(TABLE DATA|TABLE|SEQUENCE SET|SEQUENCE|CONSTRAINT|INDEX|DEFAULT)\s+(\S+)\s+(\S+)/', $line, $m)) {
+                continue;
+            }
+
+            $objectName = $m[3];
+
+            if (! preg_match(self::ALLOWED_TOC_PATTERN, $objectName)) {
+                throw new \RuntimeException(
+                    "El archivo contiene el objeto \"{$objectName}\", ajeno a ruc_records. ".
+                    'Por seguridad solo se aceptan backups que contengan exclusivamente la tabla ruc_records.'
+                );
+            }
+
+            if ($objectName === self::EXPECTED_TABLE) {
+                $sawExpectedTable = true;
+            }
+        }
+
+        if (! $sawExpectedTable) {
+            throw new \RuntimeException('El archivo no contiene la tabla "ruc_records" esperada. Este backup no corresponde al padrón RUC.');
+        }
+    }
+
+    /**
+     * Cuenta cuántas filas trae un dump sin restaurarlo, contando las
+     * líneas de datos entre "COPY ... FROM stdin;" y "\.". Usado solo para
+     * mostrar metadata informativa al importar (no crítico si falla).
+     *
+     * Escribe a un archivo temporal y lo recorre línea por línea (fopen /
+     * fgets) en vez de capturar toda la salida de Process: un dump de
+     * millones de filas nunca debe pasar completo por la memoria de PHP.
+     */
+    private function countRowsInDump(string $dumpPath): ?int
+    {
+        $tmpSqlPath = sys_get_temp_dir().'/ruc_count_'.bin2hex(random_bytes(6)).'.sql';
+
+        $convert = new Process(['pg_restore', '--data-only', '--no-owner', '--no-privileges', '--file='.$tmpSqlPath, $dumpPath]);
+        $convert->setTimeout(120);
+        $convert->run();
+
+        if (! $convert->isSuccessful() || ! file_exists($tmpSqlPath)) {
+            @unlink($tmpSqlPath);
+
+            return null;
+        }
+
+        $handle = fopen($tmpSqlPath, 'rb');
+        if ($handle === false) {
+            @unlink($tmpSqlPath);
+
+            return null;
+        }
+
+        $inCopyBlock = false;
+        $count = 0;
+        while (($line = fgets($handle)) !== false) {
+            $line = rtrim($line, "\n");
+            if (str_starts_with($line, 'COPY ')) {
+                $inCopyBlock = true;
+
+                continue;
+            }
+            if ($inCopyBlock && $line === '\\.') {
+                break;
+            }
+            if ($inCopyBlock) {
+                $count++;
+            }
+        }
+        fclose($handle);
+        @unlink($tmpSqlPath);
+
+        return $count;
+    }
+
+    private function dbConfig(string $key, ?string $default = null): ?string
+    {
+        return config("database.connections.pgsql.{$key}", $default);
     }
 }
