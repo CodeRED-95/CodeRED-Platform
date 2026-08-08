@@ -49,6 +49,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - ./docker/postgres/codered.conf:/etc/postgresql/codered.conf:ro
+    command: [ "postgres", "-c", "config_file=/etc/postgresql/codered.conf" ]
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" || exit 1" ]
       interval: 10s
