@@ -9,6 +9,7 @@ use App\Modules\Ruc\Models\RucRecord;
 use App\Modules\Ruc\Services\RucBackupService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -70,6 +71,32 @@ class RucBackupRestoreTest extends TestCase
         $response = $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.restore', $backup));
 
         $response->assertForbidden();
+    }
+
+    /**
+     * Dos restores a la vez harían TRUNCATE sobre ruc_records desde procesos
+     * psql distintos. Cache::lock('ruc-restore-process') debe bloquear el
+     * segundo intento sin tocar los datos.
+     */
+    public function test_concurrent_restore_is_blocked(): void
+    {
+        $this->seedRecords(2, '27');
+        $backup = $this->service()->create();
+
+        $lock = Cache::lock('ruc-restore-process', 3600);
+        $this->assertTrue($lock->get(), 'No se pudo simular un restore ya en curso.');
+
+        try {
+            $countBefore = DB::table('ruc_records')->count();
+
+            $response = $this->actingAs($this->adminUser())->postWithCsrf(route('admin.ruc.backups.restore', $backup));
+
+            $response->assertSessionHas('error');
+            $this->assertStringContainsString('restauración', mb_strtolower(session('error')));
+            $this->assertSame($countBefore, DB::table('ruc_records')->count());
+        } finally {
+            $lock->release();
+        }
     }
 
     public function test_checksum_is_validated_before_restoring(): void

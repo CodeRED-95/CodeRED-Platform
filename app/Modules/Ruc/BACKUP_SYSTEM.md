@@ -99,9 +99,15 @@ a mano con `storage_path('app/'.$path)`.
 3. **Descargar** — descarga el archivo tal cual.
 4. **Restaurar** — reemplaza el contenido de `ruc_records` con el del
    backup. Antes de tocar nada, crea automáticamente un backup de seguridad
-   del estado actual (ver abajo). Pide confirmación del navegador
-   (`confirm()`) antes de enviar el formulario.
-5. **Eliminar** — borra el registro y el archivo.
+   del estado actual (ver abajo). La confirmación usa
+   `<x-ui.confirm-dialog>` del Design System (ver `/admin/design-system`),
+   **no** el `confirm()` nativo del navegador — sigue siendo un `<form
+   method="POST">` con `@csrf` real; Alpine solo abre/cierra el diálogo y
+   dispara `form.requestSubmit()` al confirmar. Si ya hay una restauración
+   en curso, la segunda queda bloqueada (`Cache::lock('ruc-restore-process')`)
+   en vez de ejecutarse en paralelo sobre la misma tabla.
+5. **Eliminar** — borra el registro y el archivo. Misma confirmación vía
+   `<x-ui.confirm-dialog>` (`tone="danger"`).
 
 ## Uso desde consola
 
@@ -180,11 +186,17 @@ excluyentes en `pg_restore`).
 Antes de aceptar un backup (al importar) o de usarlo para restaurar,
 `RucBackupService::assertDumpBelongsToRucRecords()` ejecuta
 `pg_restore --list` y revisa **cada objeto** del archivo (tablas,
-secuencias, datos, índices, constraints). Si aparece **cualquier objeto que
-no sea `ruc_records` o `ruc_records_id_seq`**, el archivo se rechaza por
-completo — así un dump de otra tabla (`users`, `agencies`, `ruc_backups`,
-lo que sea), subido por un usuario con permiso de importar, nunca puede
-usarse para tocar nada fuera de `ruc_records`.
+secuencias, datos, índices, constraints). Se acepta cualquier objeto cuyo
+nombre sea exactamente `ruc_records`/`ruc_records_id_seq`, o que **empiece
+con el prefijo `ruc_records_`** (cubre los nombres que PostgreSQL genera
+automáticamente para índices/constraints propios de la tabla, como
+`ruc_records_pkey` o `ruc_records_condicion_index`). Si aparece cualquier
+otro objeto, el archivo se rechaza por completo — así un dump de otra tabla
+(`users`, `agencies`, `ruc_backups`, lo que sea), subido por un usuario con
+permiso de importar, nunca puede usarse para tocar nada fuera de
+`ruc_records`. Verificado contra `pg_tables`: ninguna otra tabla del
+esquema comparte ese prefijo, así que el match no amplía la superficie de
+ataque.
 
 ---
 
@@ -280,15 +292,41 @@ instalar `postgresql16-client` — reconstruir con
 
 ---
 
+## Design System
+
+La vista (`resources/views/ruc/admin/backups/index.blade.php`) usa
+exclusivamente componentes de `resources/views/components/ui/`, documentados
+con ejemplos interactivos en `/admin/design-system` (sección
+**"Feedback & Operations"**):
+
+| Componente | Uso en este módulo |
+|---|---|
+| `<x-ui.confirm-dialog>` | Confirmar restaurar (`tone="warning"`) y eliminar (`tone="danger"`), modo `form="id-del-form"` — sin `window.confirm()`, sin Livewire. |
+| `<x-ui.file-dropzone>` | Selección del archivo a importar (drag & drop nativo; el `<form>` sigue haciendo el submit, el componente no sube nada). |
+| `<x-ui.button>` | Todos los botones de acción, con `:loading`/spinner integrado para evitar doble submit. |
+| `<x-ui.progress indeterminate>` | Estado "en curso" del diálogo de confirmación mientras el POST síncrono está en vuelo (nunca un porcentaje inventado). |
+| `<x-ui.badge>` | Estado de cada backup (`success`/`info`/`danger`/`neutral`/`warning`). |
+
+No se implementó un panel de progreso por etapas en vivo (`process-steps`)
+para el restore de RUC: el restore sigue siendo **síncrono** (una sola
+petición HTTP bloqueante, por diseño — ver "Restauración atómica" arriba),
+así que no hay forma honesta de reportar avance real etapa por etapa desde
+el navegador durante esa única petición. `<x-ui.process-steps>` y
+`<x-ui.operation-status>` sí están disponibles y documentados en el Design
+System para módulos que corran como job/cola con progreso real reportado
+por el backend.
+
 ## Tests
 
 ```bash
 docker compose exec app php artisan test --filter=RucBackup
+docker compose exec app php artisan test tests/Unit/DesignSystemComponentsTest.php tests/Unit/DesignSystemAccessibilityTest.php
 ```
 
 - `RucBackupCreateTest` — creación, validación de contenido, checksum, ruta relativa.
 - `RucBackupImportTest` — subida multipart tradicional, rechazo de archivos inválidos/de otra tabla.
 - `RucBackupDownloadTest` — descarga, autorización, archivo faltante.
-- `RucBackupRestoreTest` — checksum, safety backup, atomicidad ante fallo.
-- `RucBackupPageTest` — la página carga, no hay `@match` literal, usa formularios tradicionales.
+- `RucBackupRestoreTest` — checksum, safety backup, atomicidad ante fallo, bloqueo de restores simultáneos.
+- `RucBackupPageTest` — la página carga, no hay `@match` literal ni `confirm()` nativo, usa `<x-ui.confirm-dialog>`, formularios tradicionales.
 - `RucBackupCsrfTest` — reproduce el flujo real de sesión y demuestra que no hay 419.
+- `DesignSystemComponentsTest` / `DesignSystemAccessibilityTest` (`tests/Unit/`) — contrato y accesibilidad de `confirm-dialog`, `file-dropzone`, `progress`, `process-steps`.

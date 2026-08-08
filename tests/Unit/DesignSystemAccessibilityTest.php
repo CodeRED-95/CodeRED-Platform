@@ -44,6 +44,35 @@ class DesignSystemAccessibilityTest extends TestCase
     }
 
     #[Test]
+    public function confirm_dialog_keeps_focus_trap_and_escape_guard_in_form_mode(): void
+    {
+        $html = Blade::render(<<<'BLADE'
+            <x-ui.confirm-dialog id="restore-2" title="Restaurar" tone="warning" form="restore-form-2" message="m">
+                <x-slot:trigger><x-ui.button>Restaurar</x-ui.button></x-slot:trigger>
+            </x-ui.confirm-dialog>
+        BLADE);
+
+        $this->assertStringContainsString('role="dialog"', $html);
+        $this->assertStringContainsString('aria-modal="true"', $html);
+        $this->assertStringContainsString('aria-labelledby="restore-2-title"', $html);
+        $this->assertStringContainsString('aria-describedby="restore-2-description"', $html);
+        // Escape no debe cerrar el diálogo mientras se está enviando el formulario.
+        $this->assertStringContainsString('if (open && !submitting) close()', $html);
+        $this->assertStringContainsString('x-on:keydown.tab="trapFocus($event)"', $html);
+    }
+
+    #[Test]
+    public function file_dropzone_associates_label_error_and_invalid_state(): void
+    {
+        $html = Blade::render('<x-ui.file-dropzone id="backup-file" name="backup" label="Archivo" error="Extensión inválida" />');
+
+        $this->assertStringContainsString('for="backup-file"', $html);
+        $this->assertStringContainsString('id="backup-file"', $html);
+        $this->assertStringContainsString('aria-invalid="true"', $html);
+        $this->assertStringContainsString('Extensión inválida', $html);
+    }
+
+    #[Test]
     public function card_supports_optional_header_actions_and_legacy_slot(): void
     {
         $structured = Blade::render(<<<'BLADE'

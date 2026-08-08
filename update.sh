@@ -10,7 +10,7 @@ ok(){ echo "[OK] $*"; }
 info(){ echo "[INFO] $*"; }
 warn(){ echo "[WARN] $*"; }
 die(){ echo "[ERROR] $*" >&2; exit 1; }
-step(){ echo; echo "[$1/10] $2"; }
+step(){ echo; echo "[$1/12] $2"; }
 
 trap 'code=$?; echo "[ERROR] Fallo en la línea $LINENO" >&2; echo "[ERROR] Comando: ${BASH_COMMAND}" >&2; echo "[ERROR] Código de salida: $code" >&2; echo "[INFO] Siguiente paso recomendado: revise el mensaje anterior, restaure .env desde .env.backup-* si el cambio fue de configuración y vuelva a ejecutar ./update.sh" >&2; exit $code' ERR
 
@@ -205,11 +205,24 @@ if [[ "${N8N_REBUILD_REQUIRED:-0}" == "1" ]]; then
 fi
 ok "Servicios levantados sin borrar volumenes."
 
-step 7 "Ejecutando migraciones"
+step 7 "Actualizando assets del frontend"
+# El manifest de Vite (public/build) vive fuera de git (.gitignore) y solo
+# se reconstruye en el arranque del contenedor SI faltara — un contenedor
+# que ya tenía uno de un deploy anterior no lo regenera solo, así que un
+# cambio en resources/ (nuevos componentes Blade con clases Tailwind
+# nuevas, JS, etc.) quedaría con CSS/JS desactualizado sin este paso.
+if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] && changed '(^resources/|^package\.json$|^package-lock\.json$|^tailwind\.config\.|^vite\.config\.)'; then
+    docker compose exec -T app npm run build
+    ok "Assets del frontend reconstruidos (Tailwind/Vite)."
+else
+    info "No se detectaron cambios en resources/ que requieran reconstruir el frontend."
+fi
+
+step 8 "Ejecutando migraciones"
 docker compose exec -T app php artisan migrate --force
 ok "Todas las migraciones completadas (incluyendo Shalom y RUC Backup)"
 
-step 8 "Creando directorios requeridos"
+step 9 "Creando directorios requeridos"
 # La ruta real depende del disco "local" configurado en
 # config/filesystems.php (cambió de storage/app a storage/app/private entre
 # versiones de Laravel) — se resuelve siempre a través de Laravel, nunca
@@ -234,14 +247,14 @@ else
     warn "Verifique que docker/php/Dockerfile instale postgresql16-client y reconstruya con: docker compose build app queue scheduler"
 fi
 
-step 9 "Limpiando cachés"
+step 10 "Limpiando cachés"
 docker compose exec -T app php artisan optimize:clear
 docker compose exec -T app php artisan config:cache
 docker compose exec -T app php artisan route:cache
 docker compose exec -T app php artisan view:cache
 docker compose exec -T app php artisan queue:restart
 
-step 10 "Verificando salud"
+step 11 "Verificando salud"
 docker compose ps
 docker compose exec -T app php artisan about
 if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] && docker compose config --services | grep -qx codered-agent; then
@@ -255,6 +268,6 @@ else
     info "CodeRED Agent no está habilitado/configurado; se omite healthcheck."
 fi
 
-step 11 "Actualización completada"
+step 12 "Actualización completada"
 ok "CodeRED Platform actualizado correctamente."
 echo "Backup del .env: .env.backup-$STAMP"

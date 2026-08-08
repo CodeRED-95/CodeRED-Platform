@@ -477,6 +477,12 @@ public function boot()
 - [Troubleshooting](docs/guides/troubleshooting.md)
 - [Backup y restauración de RUC](app/Modules/Ruc/BACKUP_SYSTEM.md)
 
+### 🎨 Design System
+- **[/admin/design-system](/admin/design-system)** — referencia interna en vivo: paleta, botones, badges, alertas, formularios y la sección **"Feedback & Operations"** con ejemplos interactivos de `ConfirmDialog`, `FileDropzone`, `Progress` y `ProcessSteps`.
+- Componentes en `resources/views/components/ui/*.blade.php`; tests de contrato/accesibilidad en `tests/Unit/DesignSystemComponentsTest.php` y `tests/Unit/DesignSystemAccessibilityTest.php`.
+- `<x-ui.confirm-dialog>` reemplaza `window.confirm()`/`alert()` en toda acción sensible (restaurar, eliminar, revocar). Dos modos: Livewire (`confirm-action`) o formulario tradicional (`form="id-del-form"`, vía `form.requestSubmit()` — nunca `fetch`/AJAX). Ejemplo real: `resources/views/ruc/admin/backups/index.blade.php`.
+- Tonos consistentes en todo el panel: `neutral`, `brand`, `info`, `success`, `warning`, `danger`.
+
 ## Actualización rápida (recomendado)
 
 ```bash

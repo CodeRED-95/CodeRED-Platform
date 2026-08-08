@@ -115,6 +115,126 @@
         </div>
     </x-ui.card>
 
+    {{-- ================================================================
+         Feedback & Operations
+         Componentes para acciones peligrosas y operaciones largas: mismos
+         principios que RUC Backup (ver /admin/ruc/backups), demostrados
+         aquí de forma genérica y reutilizable en cualquier módulo.
+    ================================================================= --}}
+    <x-ui.page-header title="Feedback &amp; Operations" subtitle="Confirmaciones, progreso y estado de operaciones largas — sin alert()/confirm() nativos del navegador." />
+
+    <x-ui.card>
+        <x-ui.section-header title="Botones con estado loading" description="El spinner es parte del componente: :loading en Blade, o wire:loading vía loading-target." />
+        <div class="mt-5 flex flex-wrap items-center gap-3">
+            <x-ui.button variant="primary" :loading="false">Normal</x-ui.button>
+            <x-ui.button variant="primary" :loading="true">Cargando</x-ui.button>
+            <x-ui.button variant="warning" :loading="true" loading-label="Restaurando…">Restaurar</x-ui.button>
+            <x-ui.button variant="danger" disabled>Deshabilitado</x-ui.button>
+        </div>
+    </x-ui.card>
+
+    <x-ui.card>
+        <x-ui.section-header title="ConfirmDialog — tonos" description="Header con ícono + título, body con metadata, footer Cancelar/Acción. Reemplaza window.confirm() en todo el panel." />
+        <div class="mt-5 flex flex-wrap gap-3">
+            <x-ui.confirm-dialog id="ds-confirm-neutral" tone="neutral" title="Confirmación estándar" message="Verifica la información antes de continuar.">
+                <x-slot:trigger><x-ui.button variant="secondary">Confirmación estándar</x-ui.button></x-slot:trigger>
+            </x-ui.confirm-dialog>
+
+            <x-ui.confirm-dialog id="ds-confirm-warning" tone="warning" icon="restore" title="Restaurar datos" confirm-label="Restaurar" message="Esta acción reemplazará los datos actuales por los del backup seleccionado.">
+                <dl class="mt-2 space-y-2">
+                    <div class="flex justify-between gap-4"><dt class="text-[color:var(--color-text-secondary)]">Backup</dt><dd class="font-mono text-xs">ruc_backup_2026-08-07.dump</dd></div>
+                    <div class="flex justify-between gap-4"><dt class="text-[color:var(--color-text-secondary)]">Registros</dt><dd class="font-medium">18,316,242</dd></div>
+                </dl>
+                <x-ui.alert tone="warning" class="mt-4">Se creará un Safety Backup automáticamente antes de continuar.</x-ui.alert>
+                <x-slot:trigger><x-ui.button variant="warning">Restaurar datos</x-ui.button></x-slot:trigger>
+            </x-ui.confirm-dialog>
+
+            <x-ui.confirm-dialog id="ds-confirm-danger" tone="danger" icon="trash" title="Eliminar registro" confirm-label="Eliminar" message="Esta acción no se puede deshacer.">
+                <x-slot:trigger><x-ui.button variant="danger">Eliminar registro</x-ui.button></x-slot:trigger>
+            </x-ui.confirm-dialog>
+        </div>
+        <p class="mt-4 text-xs text-[color:var(--color-text-secondary)]">
+            Dos modos de confirmación: Livewire (<code>confirm-action="metodo"</code>, usado arriba) o formulario tradicional
+            (<code>form="id-del-form"</code>, usado en RUC Backup — ver <code>resources/views/ruc/admin/backups/index.blade.php</code>).
+            El segundo ejecuta <code>form.requestSubmit()</code> sobre un <code>&lt;form method="POST"&gt;@csrf&lt;/form&gt;</code> real; nunca fetch/AJAX.
+        </p>
+    </x-ui.card>
+
+    <x-ui.card>
+        <x-ui.section-header title="FileDropzone" description="Drag &amp; drop nativo. No sube nada por su cuenta: el <form> padre es responsable del submit." />
+        <div class="grid gap-5 lg:grid-cols-2">
+            <div>
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Vacío</p>
+                <x-ui.file-dropzone name="demo-empty" label="Archivo de backup" accept=".dump,.gz" help="Archivos .dump / .sql.gz" max-size="5000 MB" />
+            </div>
+            <div>
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Con error</p>
+                <x-ui.file-dropzone name="demo-error" label="Archivo de backup" accept=".dump,.gz" error="El archivo debe tener extensión .dump o .gz." />
+            </div>
+            <div>
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Deshabilitado</p>
+                <x-ui.file-dropzone name="demo-disabled" label="Archivo de backup" disabled help="No disponible mientras haya una operación en curso." />
+            </div>
+            <div x-data="{ demo: true }">
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Seleccionado (simulado)</p>
+                <x-ui.file-dropzone name="demo-selected" label="Archivo de backup" help="Arrastra un archivo o selecciónalo" />
+            </div>
+        </div>
+    </x-ui.card>
+
+    <div class="grid gap-6 xl:grid-cols-2">
+        <x-ui.card>
+            <x-ui.section-header title="Progress" description="value/max representan progreso real; sin dato real, usar indeterminate." />
+            <div class="mt-5 space-y-5">
+                <x-ui.progress :value="25" label="Importando datos" />
+                <x-ui.progress :value="65" label="Procesando registros" tone="info" />
+                <x-ui.progress :value="100" label="Completado" tone="success" />
+                <x-ui.progress indeterminate label="Restaurando datos (progreso indeterminado)" tone="warning" />
+            </div>
+        </x-ui.card>
+
+        <x-ui.card>
+            <x-ui.section-header title="ProcessSteps" description="Estados: completed, active, pending, failed." />
+            <div class="mt-5 space-y-6">
+                <x-ui.process-steps :steps="[
+                    ['label' => 'Validando archivo', 'status' => 'completed'],
+                    ['label' => 'Creando backup', 'status' => 'completed'],
+                    ['label' => 'Restaurando', 'status' => 'active'],
+                    ['label' => 'Verificando', 'status' => 'pending'],
+                    ['label' => 'Finalizando', 'status' => 'pending'],
+                ]" />
+                <div class="border-t border-[color:var(--color-border-subtle)] pt-4">
+                    <x-ui.process-steps :steps="[
+                        ['label' => 'Validando', 'status' => 'completed'],
+                        ['label' => 'Restauración fallida', 'status' => 'failed', 'description' => 'ruc_records no se modificó: rollback automático.'],
+                        ['label' => 'Verificando', 'status' => 'pending'],
+                    ]" />
+                </div>
+            </div>
+        </x-ui.card>
+    </div>
+
+    <x-ui.card>
+        <x-ui.section-header title="OperationStatus" description="Composición de título + badge + tiempo transcurrido + progreso/pasos, para operaciones largas (backups, restores, imports, syncs)." />
+        <div class="mt-5">
+            <x-ui.operation-status title="Restauración en progreso" status="running" elapsed="02:14">
+                <x-slot:progress>
+                    <x-ui.progress :value="50" label="Restaurando datos de ruc_records" tone="warning" />
+                </x-slot:progress>
+                <x-slot:steps>
+                    <x-ui.process-steps :steps="[
+                        ['label' => 'Backup validado', 'status' => 'completed'],
+                        ['label' => 'Checksum verificado', 'status' => 'completed'],
+                        ['label' => 'Safety Backup creado', 'status' => 'completed'],
+                        ['label' => 'Restaurando datos', 'status' => 'active'],
+                        ['label' => 'Verificando', 'status' => 'pending'],
+                        ['label' => 'Finalizando', 'status' => 'pending'],
+                    ]" />
+                </x-slot:steps>
+            </x-ui.operation-status>
+        </div>
+    </x-ui.card>
+
     <div class="grid gap-6 xl:grid-cols-2">
         <x-ui.card>
             <x-ui.section-header title="Carga y skeletons" description="Feedback para operaciones y contenido asíncrono." />
