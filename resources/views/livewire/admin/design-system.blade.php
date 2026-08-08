@@ -72,13 +72,25 @@
         </x-ui.card>
 
         <x-ui.card>
-            <x-ui.section-header title="Alertas" />
+            <x-ui.section-header title="Alertas" description="icon + title + descripción + actions opcionales, un tono por cada estado." />
             <div class="mt-5 space-y-3">
+                <x-ui.alert tone="neutral">Mensaje informativo sin énfasis particular.</x-ui.alert>
                 <x-ui.alert tone="info">Información general para el usuario.</x-ui.alert>
                 <x-ui.alert tone="success">Operación completada correctamente.</x-ui.alert>
                 <x-ui.alert tone="warning">Revisa algunos campos antes de continuar.</x-ui.alert>
                 <x-ui.alert tone="danger">Algo salió mal.</x-ui.alert>
+                <x-ui.alert tone="success" title="Backup importado correctamente">
+                    ruc_backup_2026-08-08-131307.dump — 442.9 MiB · 18,316,242 registros
+                    <x-slot:actions>
+                        <x-ui.button size="sm" variant="secondary">Ver en la lista</x-ui.button>
+                        <x-ui.button size="sm" variant="ghost">Importar otro</x-ui.button>
+                    </x-slot:actions>
+                </x-ui.alert>
             </div>
+            <p class="mt-3 text-xs text-[color:var(--color-text-secondary)]">
+                <code>&lt;x-ui.alert tone="..." title="..."&gt;</code>descripción<code>&lt;x-slot:actions&gt;...&lt;/x-slot:actions&gt;&lt;/x-ui.alert&gt;</code>.
+                Si el caller pasa su propio <code>x-show</code> (p. ej. dentro de una máquina de estados), se combina automáticamente con la visibilidad interna del botón de descartar — nunca se duplica el atributo.
+            </p>
         </x-ui.card>
     </div>
 
@@ -179,6 +191,10 @@
                 <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Seleccionado (simulado)</p>
                 <x-ui.file-dropzone name="demo-selected" label="Archivo de backup" help="Arrastra un archivo o selecciónalo" />
             </div>
+            <div>
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Múltiple (partes de un backup)</p>
+                <x-ui.file-dropzone name="demo-multiple" label="Partes del backup" multiple help="Selecciona varias partes .partNNNN juntas" />
+            </div>
         </div>
     </x-ui.card>
 
@@ -232,6 +248,45 @@
                     ]" />
                 </x-slot:steps>
             </x-ui.operation-status>
+        </div>
+    </x-ui.card>
+
+    <x-ui.card>
+        <x-ui.section-header
+            title="Estados terminales de una operación"
+            description="Ejemplo real: importación multipart de RUC (/admin/ruc/backups). Solo referencia — en la página real, la máquina de estados (Alpine) garantiza que un único bloque se renderiza a la vez; aquí se muestran los tres lado a lado únicamente con fines de catálogo."
+        />
+        <div class="mt-5 grid gap-4 lg:grid-cols-3">
+            <div>
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">completed</p>
+                <x-ui.alert tone="success" title="Backup importado correctamente">
+                    <p class="font-mono text-xs">ruc_backup_2026-08-08-131307.dump</p>
+                    <p class="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">442.9 MiB · 18,316,242 registros</p>
+                    <x-slot:actions>
+                        <x-ui.button size="sm" variant="secondary">Ver en la lista</x-ui.button>
+                        <x-ui.button size="sm" variant="ghost">Importar otro</x-ui.button>
+                    </x-slot:actions>
+                </x-ui.alert>
+            </div>
+            <div>
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">failed</p>
+                <x-ui.alert tone="danger" title="Error al importar el backup">
+                    Checksum incorrecto en part0004.
+                    <x-slot:actions>
+                        <x-ui.button size="sm" variant="secondary">Reintentar</x-ui.button>
+                        <x-ui.button size="sm" variant="ghost">Empezar de nuevo</x-ui.button>
+                    </x-slot:actions>
+                </x-ui.alert>
+            </div>
+            <div>
+                <p class="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">cancelled</p>
+                <x-ui.alert tone="neutral" title="Importación cancelada">
+                    Las partes temporales fueron eliminadas.
+                    <x-slot:actions>
+                        <x-ui.button size="sm" variant="secondary">Empezar de nuevo</x-ui.button>
+                    </x-slot:actions>
+                </x-ui.alert>
+            </div>
         </div>
     </x-ui.card>
 

@@ -7,6 +7,8 @@
     'required' => false,
     'error' => null,
     'disabled' => false,
+    'multiple' => false,
+    'onSelect' => null,
 ])
 
 {{--
@@ -24,6 +26,7 @@
         fileName: null,
         fileSize: null,
         disabled: @js((bool) $disabled),
+        multiple: @js((bool) $multiple),
         formatSize(bytes) {
             if (!bytes) return '0 B';
             const units = ['B', 'KB', 'MB', 'GB'];
@@ -32,8 +35,13 @@
         },
         setFiles(fileList) {
             if (this.disabled || !fileList || !fileList.length) return;
-            this.fileName = fileList[0].name;
-            this.fileSize = this.formatSize(fileList[0].size);
+            if (this.multiple && fileList.length > 1) {
+                this.fileName = fileList.length + ' archivos seleccionados';
+                this.fileSize = this.formatSize(Array.from(fileList).reduce((sum, f) => sum + f.size, 0));
+            } else {
+                this.fileName = fileList[0].name;
+                this.fileSize = this.formatSize(fileList[0].size);
+            }
         },
         onDrop(event) {
             if (this.disabled) return;
@@ -42,6 +50,7 @@
             if (!files || !files.length) return;
             this.$refs.input.files = files;
             this.setFiles(files);
+            this.$refs.input.dispatchEvent(new Event('change', { bubbles: true }));
         },
     }"
 >
@@ -60,7 +69,7 @@
             <x-ui.icon name="upload" />
         </span>
 
-        <span class="mt-3 max-w-full truncate text-sm font-medium" x-show="!fileName">Arrastra un archivo o selecciónalo</span>
+        <span class="mt-3 max-w-full truncate text-sm font-medium" x-show="!fileName" x-text="multiple ? 'Arrastra los archivos o selecciónalos' : 'Arrastra un archivo o selecciónalo'"></span>
         <span class="mt-3 max-w-full truncate text-sm font-medium" x-show="fileName" x-text="fileName" x-cloak></span>
         <span class="mt-1 text-xs text-[color:var(--color-text-secondary)]" x-show="fileSize" x-text="fileSize" x-cloak></span>
 
@@ -77,11 +86,12 @@
             type="file"
             name="{{ $name }}"
             @if($accept) accept="{{ $accept }}" @endif
+            @if($multiple) multiple @endif
             @if($required) required @endif
             @if($disabled) disabled @endif
             aria-invalid="{{ $error ? 'true' : 'false' }}"
-            x-on:change="setFiles($event.target.files)"
-            {{ $attributes->except(['id', 'name', 'accept', 'required', 'disabled'])->merge(['class' => 'sr-only']) }}
+            x-on:change="setFiles($event.target.files); {{ $onSelect }}"
+            {{ $attributes->except(['id', 'name', 'accept', 'required', 'disabled', 'multiple', 'onSelect'])->merge(['class' => 'sr-only']) }}
         >
     </label>
 

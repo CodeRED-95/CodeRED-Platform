@@ -8,6 +8,77 @@ use Tests\TestCase;
 
 class DesignSystemComponentsTest extends TestCase
 {
+    /**
+     * Regresión directa del bug reportado en /admin/ruc/backups: x-ui.alert
+     * tenía x-show="visible" fijo en su raíz. Un caller externo pasando su
+     * propio x-show (p. ej. dentro de una máquina de estados) generaba DOS
+     * atributos x-show duplicados en el mismo <div> — HTML colapsa
+     * duplicados al primero, así que el x-show externo quedaba
+     * silenciosamente ignorado y el alert se mostraba siempre, sin importar
+     * el estado real (los tres estados terminales visibles a la vez).
+     */
+    #[Test]
+    public function alert_combines_external_x_show_with_internal_visible_without_duplicating_the_attribute(): void
+    {
+        $html = Blade::render(<<<'BLADE'
+            <x-ui.alert tone="danger" x-show="stage === 'failed'">Error</x-ui.alert>
+        BLADE);
+
+        // Debe existir EXACTAMENTE un atributo x-show en todo el HTML.
+        $this->assertSame(1, substr_count($html, 'x-show='));
+        $this->assertStringContainsString("stage === &#039;failed&#039;", $html);
+        $this->assertStringContainsString('&amp;&amp; visible', $html);
+    }
+
+    #[Test]
+    public function alert_without_external_x_show_keeps_default_dismiss_behavior(): void
+    {
+        $html = Blade::render('<x-ui.alert tone="info">Mensaje</x-ui.alert>');
+
+        $this->assertSame(1, substr_count($html, 'x-show='));
+        $this->assertStringContainsString('x-show="visible"', $html);
+    }
+
+    #[Test]
+    public function alert_supports_title_description_and_actions_slot(): void
+    {
+        $html = Blade::render(<<<'BLADE'
+            <x-ui.alert tone="success" title="Backup importado correctamente">
+                ruc_backup_2026-08-08.dump
+                <x-slot:actions>
+                    <x-ui.button size="sm">Ver en la lista</x-ui.button>
+                </x-slot:actions>
+            </x-ui.alert>
+        BLADE);
+
+        $this->assertStringContainsString('Backup importado correctamente', $html);
+        $this->assertStringContainsString('ruc_backup_2026-08-08.dump', $html);
+        $this->assertStringContainsString('Ver en la lista', $html);
+    }
+
+    #[Test]
+    public function alert_supports_all_six_design_system_tones(): void
+    {
+        foreach (['neutral', 'brand', 'info', 'success', 'warning', 'danger'] as $tone) {
+            $html = Blade::render('<x-ui.alert tone="'.$tone.'">Mensaje</x-ui.alert>');
+            $this->assertStringContainsString('<svg', $html, "tone {$tone} debe renderizar un ícono real, no un glifo de texto");
+        }
+    }
+
+    #[Test]
+    public function file_dropzone_supports_multiple_files_and_on_select_hook(): void
+    {
+        $html = Blade::render(
+            '<x-ui.file-dropzone name="parts" label="Partes" multiple on-select="onPartsSelected($event)" />'
+        );
+
+        $this->assertStringContainsString('multiple', $html);
+        $this->assertStringContainsString('onPartsSelected($event)', $html);
+        // El hook se compone CON setFiles, nunca lo reemplaza (si no, se
+        // pierde el preview visual del dropzone).
+        $this->assertStringContainsString('setFiles($event.target.files); onPartsSelected($event)', $html);
+    }
+
     #[Test]
     public function input_supports_prefix_suffix_and_error_state(): void
     {

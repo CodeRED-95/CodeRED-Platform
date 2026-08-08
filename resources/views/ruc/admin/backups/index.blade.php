@@ -40,22 +40,27 @@
                     o un backup multipart generado por RUC Tools (<code>manifest.json</code> + archivos <code>.partXXXX</code>).
                 </p>
 
-                <div class="mb-4 flex gap-1 border-b border-[color:var(--color-border)]" role="tablist">
+                {{-- Tabs tipo "segmented control": sin componente x-ui.tabs
+                     dedicado porque es un único toggle de 2 opciones usado
+                     en una sola página — extraerlo sería una abstracción
+                     prematura. Usa tokens existentes (--radius-control,
+                     --color-surface, --shadow-sm), no colores inventados. --}}
+                <div class="mb-5 inline-flex gap-1 rounded-[var(--radius-control)] bg-white/5 p-1" role="tablist">
                     <button
                         type="button"
                         role="tab"
                         x-on:click="importTab = 'complete'"
                         x-bind:aria-selected="importTab === 'complete' ? 'true' : 'false'"
-                        x-bind:class="importTab === 'complete' ? 'border-[color:var(--color-brand)] text-[color:var(--color-text-primary)]' : 'border-transparent text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'"
-                        class="-mb-px border-b-2 px-3 py-2 text-sm font-medium transition"
+                        x-bind:class="importTab === 'complete' ? 'bg-[color:var(--color-surface)] text-[color:var(--color-text-primary)] shadow-[var(--shadow-sm)]' : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'"
+                        class="rounded-[calc(var(--radius-control)-2px)] px-4 py-2 text-sm font-medium transition"
                     >Backup completo</button>
                     <button
                         type="button"
                         role="tab"
                         x-on:click="importTab = 'multipart'"
                         x-bind:aria-selected="importTab === 'multipart' ? 'true' : 'false'"
-                        x-bind:class="importTab === 'multipart' ? 'border-[color:var(--color-brand)] text-[color:var(--color-text-primary)]' : 'border-transparent text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'"
-                        class="-mb-px border-b-2 px-3 py-2 text-sm font-medium transition"
+                        x-bind:class="importTab === 'multipart' ? 'bg-[color:var(--color-surface)] text-[color:var(--color-text-primary)] shadow-[var(--shadow-sm)]' : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'"
+                        class="rounded-[calc(var(--radius-control)-2px)] px-4 py-2 text-sm font-medium transition"
                     >Backup dividido</button>
                 </div>
 
@@ -82,6 +87,7 @@
                     x-show="importTab === 'multipart'"
                     x-cloak
                     role="tabpanel"
+                    aria-live="polite"
                     x-data="rucBackupMultipartUploader({
                         store: @js(route('admin.ruc.backups.multipart.store')),
                         show: @js(route('admin.ruc.backups.multipart.store').'/:upload'),
@@ -89,95 +95,168 @@
                         destroy: @js(route('admin.ruc.backups.multipart.store').'/:upload'),
                     })"
                 >
-                    {{-- Paso 1: manifest --}}
-                    <div x-show="stage === 'select-manifest' || stage === 'manifest-loaded'" class="space-y-3">
-                        <x-ui.form-label for="multipart-manifest">Manifest del backup</x-ui.form-label>
-                        <input
-                            id="multipart-manifest"
-                            type="file"
-                            accept=".json"
-                            x-on:change="onManifestSelected($event)"
-                            class="block w-full text-sm text-[color:var(--color-text-secondary)] file:mr-4 file:rounded-[var(--radius-control)] file:border-0 file:bg-[color:var(--color-brand)]/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[color:var(--color-brand)] hover:file:bg-[color:var(--color-brand)]/20"
-                        >
-                        <p class="text-xs text-[color:var(--color-text-secondary)]">Selecciona el archivo <code>*.manifest.json</code> generado por <code>ruc-tool backup</code>.</p>
-                        <x-ui.alert x-show="manifestError" x-cloak tone="danger" x-text="manifestError"></x-ui.alert>
-                    </div>
+                    {{-- Máquina de estados: exactamente UN <template x-if> es
+                         verdadero a la vez (no x-show — a diferencia de
+                         x-show, x-if realmente quita del DOM lo que no
+                         corresponde, así un bug en otro estado nunca puede
+                         dejar dos bloques visibles al mismo tiempo). --}}
 
-                    {{-- Metadata del manifest + selector de partes --}}
-                    <div x-show="manifest && (stage === 'manifest-loaded' || stage === 'select-parts' || stage === 'ready')" x-cloak class="mt-4 space-y-4">
-                        <dl class="grid grid-cols-2 gap-3 rounded-[var(--radius-card)] border border-[color:var(--color-border)] p-4 text-sm sm:grid-cols-3">
-                            <div><dt class="text-[color:var(--color-text-secondary)]">Backup</dt><dd class="truncate font-mono text-xs" x-text="manifest?.original_filename"></dd></div>
-                            <div><dt class="text-[color:var(--color-text-secondary)]">Registros</dt><dd x-text="manifest ? new Intl.NumberFormat('es-PE').format(manifest.total_records) : ''"></dd></div>
-                            <div><dt class="text-[color:var(--color-text-secondary)]">Tamaño total</dt><dd x-text="formatBytes(totalSizeBytes)"></dd></div>
-                            <div><dt class="text-[color:var(--color-text-secondary)]">Partes</dt><dd x-text="totalParts"></dd></div>
-                            <div><dt class="text-[color:var(--color-text-secondary)]">Tamaño máx. por parte</dt><dd x-text="manifest ? formatBytes(manifest.part_size_bytes) : ''"></dd></div>
-                            <div class="col-span-2 sm:col-span-1"><dt class="text-[color:var(--color-text-secondary)]">SHA-256</dt><dd class="truncate font-mono text-xs" x-text="manifest?.sha256"></dd></div>
-                        </dl>
-
-                        <div>
-                            <x-ui.form-label for="multipart-parts">Partes del backup</x-ui.form-label>
-                            <input
-                                id="multipart-parts"
-                                type="file"
-                                multiple
-                                x-on:change="onPartsSelected($event)"
-                                class="block w-full text-sm text-[color:var(--color-text-secondary)] file:mr-4 file:rounded-[var(--radius-control)] file:border-0 file:bg-[color:var(--color-brand)]/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[color:var(--color-brand)] hover:file:bg-[color:var(--color-brand)]/20"
-                            >
-                            <p class="text-xs text-[color:var(--color-text-secondary)]">Selecciona las <span x-text="totalParts"></span> partes juntas (<code>.part0001</code>, <code>.part0002</code>...); se ordenan automáticamente.</p>
-                            <x-ui.alert x-show="partsError" x-cloak tone="warning" class="mt-2" x-text="partsError"></x-ui.alert>
-                            <p class="mt-2 text-xs text-[color:var(--color-success)]" x-show="partFiles.length > 0" x-cloak>
-                                <span x-text="partFiles.length"></span> de <span x-text="totalParts"></span> partes seleccionadas.
-                            </p>
+                    <template x-if="stage === 'idle'">
+                        <div class="space-y-3">
+                            <p class="text-sm text-[color:var(--color-text-secondary)]">Selecciona el archivo manifest generado por RUC Tools.</p>
+                            <x-ui.file-dropzone
+                                name="manifest"
+                                label="Manifest del backup"
+                                accept=".json"
+                                help="Archivo *.manifest.json generado por ruc-tool backup"
+                                on-select="onManifestSelected($event)"
+                            />
+                            <x-ui.alert x-show="manifestError" tone="danger">
+                                <span x-text="manifestError"></span>
+                            </x-ui.alert>
                         </div>
+                    </template>
 
-                        <x-ui.button type="button" variant="primary" x-bind:disabled="stage !== 'ready'" x-on:click="startUpload()">
-                            <x-ui.icon name="upload" class="size-4" /> Importar backup dividido
-                        </x-ui.button>
-                    </div>
-
-                    {{-- Progreso. x-ui.progress renderiza value/description del lado
-                         del servidor (Blade), no admite estado Alpine en vivo — así
-                         que esta barra se arma inline, con las mismas clases
-                         visuales, pero 100% dirigida por Alpine (track + fill +
-                         texto reactivos). --}}
-                    <div x-show="['uploading', 'assembling'].includes(stage)" x-cloak class="mt-4 space-y-3">
-                        <x-ui.operation-status title="Importando backup" status="running">
-                            <x-slot:progress>
-                                <div>
-                                    <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
-                                        <span class="font-medium" x-text="manifest?.original_filename"></span>
-                                        <span class="text-[color:var(--color-text-secondary)]" x-text="overallProgressPercent + '%'"></span>
+                    <template x-if="stage === 'manifest_selected'">
+                        <div class="space-y-4">
+                            <div class="rounded-[var(--radius-card)] border border-[color:var(--color-border)] p-4">
+                                <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">Backup detectado</p>
+                                <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
+                                    <div class="col-span-2 sm:col-span-4">
+                                        <dt class="text-xs text-[color:var(--color-text-secondary)]">Nombre</dt>
+                                        <dd class="truncate font-mono text-xs" x-text="manifest?.original_filename"></dd>
                                     </div>
-                                    <div role="progressbar" aria-valuemin="0" aria-valuemax="100" x-bind:aria-valuenow="overallProgressPercent" class="h-2 overflow-hidden rounded-full bg-white/10">
-                                        <div class="h-full rounded-full bg-[color:var(--color-brand)] transition-[width] duration-300" x-bind:style="'width: ' + overallProgressPercent + '%'"></div>
+                                    <div><dt class="text-xs text-[color:var(--color-text-secondary)]">Registros</dt><dd class="font-medium" x-text="manifest ? new Intl.NumberFormat('es-PE').format(manifest.total_records) : ''"></dd></div>
+                                    <div><dt class="text-xs text-[color:var(--color-text-secondary)]">Tamaño</dt><dd class="font-medium" x-text="formatBytes(totalSizeBytes)"></dd></div>
+                                    <div><dt class="text-xs text-[color:var(--color-text-secondary)]">Partes</dt><dd class="font-medium" x-text="totalParts"></dd></div>
+                                    <div><dt class="text-xs text-[color:var(--color-text-secondary)]">Tamaño máximo</dt><dd class="font-medium" x-text="manifest ? formatBytes(manifest.part_size_bytes) : ''"></dd></div>
+                                    <div class="col-span-2 sm:col-span-4">
+                                        <dt class="text-xs text-[color:var(--color-text-secondary)]">Checksum</dt>
+                                        <dd class="truncate font-mono text-xs" x-text="manifest?.sha256"></dd>
                                     </div>
-                                    <p class="mt-1.5 text-xs text-[color:var(--color-text-secondary)]" x-text="stage === 'assembling' ? 'Ensamblando backup en el servidor…' : ('Parte ' + currentPartIndex + ' de ' + totalParts + ' — ' + formattedProgress)"></p>
-                                </div>
-                            </x-slot:progress>
-                        </x-ui.operation-status>
-                        <p class="text-xs text-[color:var(--color-text-secondary)]" x-text="completedParts.length + ' de ' + totalParts + ' partes completadas'"></p>
-                        <x-ui.button type="button" variant="secondary" size="sm" x-on:click="cancel()" x-bind:disabled="cancelling">Cancelar</x-ui.button>
-                    </div>
+                                </dl>
+                            </div>
 
-                    {{-- Resultado --}}
-                    <x-ui.alert x-show="stage === 'done'" x-cloak tone="success" class="mt-4">
-                        Backup importado correctamente.
-                        <x-slot:action>
-                            <x-ui.button type="button" size="sm" variant="secondary" x-on:click="window.location.reload()">Ver en la lista</x-ui.button>
-                        </x-slot:action>
-                    </x-ui.alert>
-                    <x-ui.alert x-show="stage === 'error'" x-cloak tone="danger" class="mt-4">
-                        <span x-text="errorMessage"></span>
-                        <x-slot:action>
-                            <x-ui.button type="button" size="sm" variant="secondary" x-on:click="reset()">Reintentar</x-ui.button>
-                        </x-slot:action>
-                    </x-ui.alert>
-                    <x-ui.alert x-show="stage === 'cancelled'" x-cloak tone="neutral" class="mt-4">
-                        Importación cancelada.
-                        <x-slot:action>
-                            <x-ui.button type="button" size="sm" variant="secondary" x-on:click="reset()">Empezar de nuevo</x-ui.button>
-                        </x-slot:action>
-                    </x-ui.alert>
+                            <div>
+                                <x-ui.file-dropzone
+                                    name="parts"
+                                    label="Partes del backup"
+                                    multiple
+                                    help="Selecciona todas las partes juntas (.part0001, .part0002...); se ordenan automáticamente."
+                                    on-select="onPartsSelected($event)"
+                                />
+                                <x-ui.alert x-show="partsError" tone="warning" class="mt-2">
+                                    <span x-text="partsError"></span>
+                                </x-ui.alert>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="stage === 'ready'">
+                        <div class="space-y-4">
+                            <div class="rounded-[var(--radius-card)] border border-[color:var(--color-border)] p-4 text-sm">
+                                <p class="font-medium" x-text="selectedPartsSummary"></p>
+                                <p class="text-[color:var(--color-text-secondary)]"><span x-text="selectedPartsSizeLabel"></span> seleccionados</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <x-ui.button type="button" variant="primary" x-on:click="startUpload()">
+                                    <x-ui.icon name="upload" class="size-4" /> Importar Backup
+                                </x-ui.button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="stage === 'uploading'">
+                        <div class="space-y-3">
+                            <x-ui.operation-status title="Importando backup" status="running">
+                                <x-slot:progress>
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between gap-2 text-sm">
+                                            <span class="truncate font-medium" x-text="manifest?.original_filename"></span>
+                                            <span class="shrink-0 text-[color:var(--color-text-secondary)]" x-text="overallProgressPercent + '%'"></span>
+                                        </div>
+                                        <div role="progressbar" aria-valuemin="0" aria-valuemax="100" x-bind:aria-valuenow="overallProgressPercent" class="h-2 overflow-hidden rounded-full bg-white/10">
+                                            <div class="h-full rounded-full bg-[color:var(--color-brand)] transition-[width] duration-300" x-bind:style="'width: ' + overallProgressPercent + '%'"></div>
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-[color:var(--color-text-secondary)]">
+                                            <span>Parte <span x-text="currentPartIndex"></span> de <span x-text="totalParts"></span> — <span x-text="formattedProgress"></span></span>
+                                            <span class="inline-flex items-center gap-1.5">
+                                                <x-ui.icon name="clock" class="size-3.5" />
+                                                <span x-text="elapsedLabel"></span>
+                                                <template x-if="speedLabel"><span>· <span x-text="speedLabel"></span></span></template>
+                                                <template x-if="etaLabel"><span>· <span x-text="etaLabel"></span></span></template>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </x-slot:progress>
+                            </x-ui.operation-status>
+                            <div class="flex justify-end">
+                                <x-ui.button type="button" variant="secondary" size="sm" x-on:click="cancel()" x-bind:disabled="cancelling">Cancelar</x-ui.button>
+                            </div>
+                        </div>
+                    </template>
+
+                    {{-- El ensamblado y la validación (checksum final,
+                         pg_restore --list, registro del RucBackup) ocurren
+                         en el servidor dentro de UNA sola respuesta HTTP (la
+                         de la última parte) — no hay forma honesta de
+                         reportar sub-progreso granular ahí sin inventar
+                         temporización falsa. Se muestra progreso
+                         indeterminado + lo único que el cliente sabe con
+                         certeza en este punto: todas las partes ya fueron
+                         verificadas individualmente. --}}
+                    <template x-if="stage === 'assembling'">
+                        <div>
+                            <x-ui.operation-status
+                                title="Ensamblando backup"
+                                status="running"
+                                message="Todas las partes fueron recibidas correctamente."
+                            >
+                                <x-slot:progress>
+                                    <x-ui.progress indeterminate label="Uniendo partes…" :show-value="false" />
+                                </x-slot:progress>
+                                <x-slot:steps>
+                                    <x-ui.process-steps class="mt-1" :steps="[
+                                        ['label' => 'Partes verificadas y subidas', 'status' => 'completed'],
+                                        ['label' => 'Ensamblando y validando en el servidor', 'status' => 'active'],
+                                        ['label' => 'Registrando backup', 'status' => 'pending'],
+                                    ]" />
+                                </x-slot:steps>
+                            </x-ui.operation-status>
+                        </div>
+                    </template>
+
+                    <template x-if="stage === 'completed'">
+                        <x-ui.alert tone="success" title="Backup importado correctamente">
+                            <p class="truncate font-mono text-xs" x-text="manifest?.original_filename"></p>
+                            <p class="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">
+                                <span x-text="formatBytes(totalSizeBytes)"></span> · <span x-text="manifest ? new Intl.NumberFormat('es-PE').format(manifest.total_records) : ''"></span> registros
+                            </p>
+                            <x-slot:actions>
+                                <x-ui.button type="button" size="sm" variant="secondary" x-on:click="window.location.reload()">Ver en la lista</x-ui.button>
+                                <x-ui.button type="button" size="sm" variant="ghost" x-on:click="reset()">Importar otro</x-ui.button>
+                            </x-slot:actions>
+                        </x-ui.alert>
+                    </template>
+
+                    <template x-if="stage === 'failed'">
+                        <x-ui.alert tone="danger" title="Error al importar el backup">
+                            <span x-text="errorMessage"></span>
+                            <x-slot:actions>
+                                <x-ui.button type="button" size="sm" variant="secondary" x-on:click="retry()">Reintentar</x-ui.button>
+                                <x-ui.button type="button" size="sm" variant="ghost" x-on:click="reset()">Empezar de nuevo</x-ui.button>
+                            </x-slot:actions>
+                        </x-ui.alert>
+                    </template>
+
+                    <template x-if="stage === 'cancelled'">
+                        <x-ui.alert tone="neutral" title="Importación cancelada">
+                            Las partes temporales fueron eliminadas.
+                            <x-slot:actions>
+                                <x-ui.button type="button" size="sm" variant="secondary" x-on:click="reset()">Empezar de nuevo</x-ui.button>
+                            </x-slot:actions>
+                        </x-ui.alert>
+                    </template>
                 </div>
             </x-ui.card>
         </div>

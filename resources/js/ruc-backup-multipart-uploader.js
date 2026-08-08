@@ -8,10 +8,24 @@
 // No hace nada con el resultado más que reportarlo vía el estado de Alpine
 // — el ensamblado, la validación de checksums y el registro del backup
 // final ocurren siempre en el servidor (RucBackupMultipartUploadService).
+//
+// Máquina de estados — exactamente uno a la vez, nunca combinados:
+//   idle -> manifest_selected -> ready -> uploading -> assembling -> completed
+//                                                                  -> failed
+//   (cualquier estado no terminal) -> cancelled
+//
+// Nota: "assembling" cubre tanto el ensamblado como la validación del lado
+// servidor (checksum final, pg_restore --list, registro del RucBackup).
+// Esas sub-etapas ocurren dentro de UNA sola respuesta HTTP (la de la
+// última parte) — el cliente no tiene forma honesta de mostrar progreso
+// granular ahí sin inventar temporización falsa, así que se muestra un
+// progreso indeterminado + lo único que el cliente sabe con certeza en ese
+// punto (todas las partes ya fueron verificadas individualmente).
 
 const RETRY_DELAYS_MS = [1000, 3000, 5000];
 const PART_FILENAME_PATTERN = /\.part(\d{4,})$/i;
 const RESUME_STORAGE_PREFIX = "codered:ruc-backup-multipart:";
+const SPEED_SAMPLE_WINDOW = 5;
 
 function csrfToken() {
   return document.querySelector('meta[name="csrf-token"]')?.content ?? "";
@@ -27,6 +41,22 @@ function formatBytes(bytes) {
   const value = bytes / Math.pow(1024, exponent);
 
   return `${exponent === 0 ? value : value.toFixed(1)} ${units[exponent]}`;
+}
+
+function formatDuration(totalSeconds) {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+function formatClock(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+
+  return `${m}:${s}`;
 }
 
 function partIndexFromFilename(filename) {
@@ -77,7 +107,7 @@ function xhrJson(method, url, { body, file, onUploadProgress } = {}) {
       }
     };
 
-    xhr.onerror = () => reject({ status: 0, message: "Error de red." });
+    xhr.onerror = () => reject({ status: 0, message: "Error de red. Verifica tu conexión." });
   });
 }
 
@@ -87,8 +117,8 @@ function sleep(ms) {
 
 export function createRucBackupMultipartUploader(routes) {
   return {
-    // --- estado expuesto a la vista ---
-    stage: "select-manifest", // select-manifest | manifest-loaded | select-parts | ready | uploading | assembling | done | error | cancelled
+    // --- estado expuesto a la vista: SIEMPRE uno de estos, nunca combinados ---
+    stage: "idle",
     manifest: null,
     manifestError: null,
     partFiles: [],
@@ -101,6 +131,12 @@ export function createRucBackupMultipartUploader(routes) {
     errorMessage: null,
     rucBackupId: null,
     cancelling: false,
+
+    // --- velocidad / tiempo transcurrido ---
+    startedAt: null,
+    nowTick: 0,
+    _tickTimer: null,
+    _speedSamples: [],
 
     get totalParts() {
       return this.manifest?.total_parts ?? 0;
@@ -119,7 +155,53 @@ export function createRucBackupMultipartUploader(routes) {
     get formattedProgress() {
       return `${formatBytes(this.overallProgressBytes)} / ${formatBytes(this.totalSizeBytes)}`;
     },
+    get elapsedLabel() {
+      if (!this.startedAt) return "00:00";
+
+      return formatClock(((this.nowTick || Date.now()) - this.startedAt) / 1000);
+    },
+    get speedBytesPerSecond() {
+      const samples = this._speedSamples;
+      if (samples.length < 2) return 0;
+      const first = samples[0];
+      const last = samples[samples.length - 1];
+      const deltaSeconds = (last.t - first.t) / 1000;
+      if (deltaSeconds <= 0) return 0;
+
+      return Math.max(0, (last.bytes - first.bytes) / deltaSeconds);
+    },
+    get speedLabel() {
+      const speed = this.speedBytesPerSecond;
+
+      return speed > 0 ? `${formatBytes(speed)}/s` : null;
+    },
+    get etaLabel() {
+      const speed = this.speedBytesPerSecond;
+      if (speed <= 0) return null;
+      const remaining = Math.max(0, this.totalSizeBytes - this.overallProgressBytes);
+
+      return `~${formatDuration(remaining / speed)} restantes`;
+    },
     formatBytes,
+
+    startTicking() {
+      this.startedAt = this.startedAt || Date.now();
+      this.nowTick = Date.now();
+      this._tickTimer = window.setInterval(() => {
+        this.nowTick = Date.now();
+      }, 1000);
+    },
+    stopTicking() {
+      if (this._tickTimer) {
+        window.clearInterval(this._tickTimer);
+        this._tickTimer = null;
+      }
+    },
+    recordProgressSample(bytes) {
+      const samples = this._speedSamples;
+      samples.push({ t: Date.now(), bytes });
+      if (samples.length > SPEED_SAMPLE_WINDOW) samples.shift();
+    },
 
     async onManifestSelected(event) {
       this.manifestError = null;
@@ -132,7 +214,7 @@ export function createRucBackupMultipartUploader(routes) {
         const parsed = JSON.parse(text);
         this.assertManifestLooksValid(parsed);
         this.manifest = parsed;
-        this.stage = "manifest-loaded";
+        this.stage = "manifest_selected";
         this.tryResumePreviousSession();
       } catch (error) {
         this.manifestError =
@@ -181,10 +263,19 @@ export function createRucBackupMultipartUploader(routes) {
       }
 
       this.partFiles = withIndex.map((entry) => entry.file);
-      this.stage = this.partFiles.length === this.totalParts ? "ready" : "select-parts";
-      if (this.partFiles.length < this.totalParts) {
+      if (this.partFiles.length === this.totalParts) {
+        this.stage = "ready";
+      } else {
+        this.stage = "manifest_selected";
         this.partsError = `Seleccionaste ${this.partFiles.length} de ${this.totalParts} partes. Selecciónalas todas juntas.`;
       }
+    },
+
+    get selectedPartsSummary() {
+      return `${this.partFiles.length} de ${this.totalParts} partes listas`;
+    },
+    get selectedPartsSizeLabel() {
+      return formatBytes(this.partFiles.reduce((sum, f) => sum + f.size, 0));
     },
 
     resumeStorageKey() {
@@ -204,6 +295,8 @@ export function createRucBackupMultipartUploader(routes) {
 
       this.errorMessage = null;
       this.stage = "uploading";
+      this._speedSamples = [];
+      this.startTicking();
 
       try {
         if (this.uploadUuid) {
@@ -225,11 +318,24 @@ export function createRucBackupMultipartUploader(routes) {
         }
 
         this.forgetResumeSession();
-        this.stage = this.rucBackupId ? "done" : "assembling";
+
+        if (this.rucBackupId) {
+          this.finishSuccessfully();
+        } else {
+          // Última parte ya enviada por completo: el servidor está
+          // ensamblando + validando dentro de esa misma respuesta.
+          this.stage = "assembling";
+        }
       } catch (error) {
-        this.stage = "error";
+        this.stopTicking();
+        this.stage = "failed";
         this.errorMessage = error?.message || "La importación falló.";
       }
+    },
+
+    finishSuccessfully() {
+      this.stopTicking();
+      this.stage = "completed";
     },
 
     async createSession() {
@@ -272,9 +378,12 @@ export function createRucBackupMultipartUploader(routes) {
             file,
             onUploadProgress: (loaded) => {
               this.currentPartLoadedBytes = loaded;
+              this.recordProgressSample(this.completedBytes + loaded);
             },
           });
-          if (response.ruc_backup_id) this.rucBackupId = response.ruc_backup_id;
+          if (response.ruc_backup_id) {
+            this.rucBackupId = response.ruc_backup_id;
+          }
 
           return;
         } catch (error) {
@@ -301,12 +410,14 @@ export function createRucBackupMultipartUploader(routes) {
         // Si el servidor ya la había marcado terminal, no es un error real.
       }
       this.forgetResumeSession();
+      this.stopTicking();
       this.stage = "cancelled";
       this.cancelling = false;
     },
 
     reset() {
-      this.stage = "select-manifest";
+      this.stopTicking();
+      this.stage = "idle";
       this.manifest = null;
       this.manifestError = null;
       this.partFiles = [];
@@ -318,6 +429,16 @@ export function createRucBackupMultipartUploader(routes) {
       this.completedBytes = 0;
       this.errorMessage = null;
       this.rucBackupId = null;
+      this.startedAt = null;
+      this._speedSamples = [];
+    },
+
+    // Reintentar tras un error: vuelve a "ready" conservando manifest y
+    // partes ya seleccionadas (no hay que re-seleccionar archivos).
+    retry() {
+      this.stopTicking();
+      this.errorMessage = null;
+      this.stage = this.partFiles.length === this.totalParts ? "ready" : "manifest_selected";
     },
   };
 }
