@@ -174,14 +174,20 @@ step 2 "Verificando que no haya un restore RUC activo"
 # fuente de verdad persistente (no depende de que el proceso original
 # siga vivo para saberlo) — si la tabla aún no existe (primer deploy de
 # esta funcionalidad) se asume que no hay nada que proteger todavía.
-RUNNING_RESTORE_COUNT="$(docker compose exec -T app php -r '
+RUNNING_RESTORE_COUNT="0"
+if docker compose exec -T app php -r '
 require "vendor/autoload.php";
 $app = require "bootstrap/app.php";
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 if (!Illuminate\Support\Facades\Schema::hasTable("ruc_backup_operations")) { echo "0"; exit; }
 echo (string) Illuminate\Support\Facades\DB::table("ruc_backup_operations")->whereIn("status", ["pending", "running"])->count();
-' 2>/dev/null)"
-RUNNING_RESTORE_COUNT="${RUNNING_RESTORE_COUNT:-0}"
+' 2>/dev/null > /tmp/restore_count.txt; then
+    RUNNING_RESTORE_COUNT="$(cat /tmp/restore_count.txt)"
+else
+    # Si el comando falla (DB no accesible todavía, app no listo), asume 0 y continúa
+    info "No se pudo verificar restore status (DB no accesible aún); asumiendo 0 restauraciones activas."
+    RUNNING_RESTORE_COUNT="0"
+fi
 if [[ "$RUNNING_RESTORE_COUNT" != "0" ]]; then
     die "Hay una restauración RUC activa (ruc_backup_operations.status=pending/running). Deployment cancelado por seguridad. Reintente cuando termine (revise /admin/ruc/backups)."
 fi
