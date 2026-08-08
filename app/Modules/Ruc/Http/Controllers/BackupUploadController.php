@@ -9,6 +9,7 @@ use App\Modules\Ruc\Services\RucBackupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class BackupUploadController
@@ -56,12 +57,20 @@ class BackupUploadController
         Gate::authorize('ruc.backup.create');
 
         try {
+            // Los backups que genera este sistema (RucBackupService::backup())
+            // usan `pg_dump --format=custom`, que NO es un archivo gzip real
+            // (firma "PGDMP", no "\x1f\x8b") aunque se nombre *.sql.gz. La
+            // regla `mimes:` husmea el contenido y siempre los rechazaba —
+            // ni tus propios backups descargados se podían volver a subir.
+            // `extensions:` valida por extensión de archivo; la autenticidad
+            // real del contenido la verifica validateDumpFile() más abajo
+            // con `pg_restore --list`.
             $validated = $request->validate([
-                'backup_file' => 'required|file|mimes:gz|max:'.self::MAX_UPLOAD_KB,
+                'backup_file' => 'required|file|extensions:gz|max:'.self::MAX_UPLOAD_KB,
             ], [
                 'backup_file.required' => 'Debe seleccionar un archivo',
                 'backup_file.file' => 'Debe ser un archivo válido',
-                'backup_file.mimes' => 'El archivo debe tener extensión .gz',
+                'backup_file.extensions' => 'El archivo debe tener extensión .gz',
                 'backup_file.max' => 'El archivo no puede exceder '.round(self::MAX_UPLOAD_KB / 1024 / 1024).' GB',
             ]);
 
@@ -69,7 +78,12 @@ class BackupUploadController
             $fileName = 'ruc_backup_uploaded_'.now()->format('Y-m-d-His').'_'.bin2hex(random_bytes(4)).'.sql.gz';
             $path = $file->storeAs('backups/ruc', $fileName);
 
-            $filePath = storage_path('app/'.$path);
+            // storage_path('app/'.$path) asume que el disco "local" vive en
+            // storage/app, pero desde Laravel 11 su root por defecto es
+            // storage/app/private (config/filesystems.php). Con la ruta
+            // vieja, el archivo SÍ se guardaba pero esta verificación
+            // siempre lo reportaba como "no encontrado".
+            $filePath = Storage::disk('local')->path($path);
             if (! file_exists($filePath)) {
                 @unlink($filePath);
                 throw new \Exception('El archivo no se almacenó correctamente en el servidor');

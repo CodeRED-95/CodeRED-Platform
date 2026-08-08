@@ -274,17 +274,28 @@ class RucBackupService
         $dbHost = config('database.connections.pgsql.host');
         $dbPort = config('database.connections.pgsql.port', 5432);
 
-        // Limpiar tabla antes de restaurar
-        DB::statement('TRUNCATE TABLE ruc_records CASCADE');
-
+        // NO hacemos TRUNCATE manual aquí. El dump incluye el CREATE TABLE
+        // completo (pg_dump --table=ruc_records sin --data-only), así que
+        // un TRUNCATE previo no sirve: la tabla sigue existiendo y
+        // pg_restore falla con "relation already exists". La forma correcta
+        // es --clean --if-exists (DROP + CREATE dentro del propio dump) +
+        // --single-transaction: si algo falla a mitad de camino, Postgres
+        // revierte TODO automáticamente y ruc_records queda exactamente
+        // como estaba antes — no hace falta truncar por fuera ni arriesgarse
+        // a dejar la tabla vacía si pg_restore aborta.
+        //
+        // --single-transaction y --jobs son además mutuamente excluyentes en
+        // pg_restore (el restore paralelo usa varias conexiones, incompatible
+        // con una sola transacción), así que tampoco se puede paralelizar.
         $command = [
             'pg_restore',
             '--host='.$dbHost,
             '--port='.$dbPort,
             '--username='.$dbUser,
             '--dbname='.$dbName,
-            '--single-transaction',  // Una transacción para atomicidad
-            '--jobs=4',              // Restaurar en paralelo
+            '--clean',               // DROP de los objetos existentes antes de recrearlos
+            '--if-exists',           // no fallar si algo ya no existe
+            '--single-transaction',  // todo o nada
             $filePath,
         ];
 

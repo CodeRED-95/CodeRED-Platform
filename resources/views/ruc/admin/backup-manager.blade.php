@@ -101,13 +101,13 @@
 
         // Manejar envío de formulario de upload
         //
-        // OJO: este formulario vive dentro de <x-ui.modal>, que usa
-        // Alpine x-teleport para moverlo a <body>. Mientras no se
-        // teletransporta, el contenido está dentro de un <template> inerte
-        // y document.getElementById() no lo encuentra. Ese teletransporte
-        // ocurre cuando Alpine inicializa (vía las scripts de Livewire,
-        // cargadas casi al final del <body>), que corre DESPUÉS de este
-        // <script> inline.
+        // OJO: este formulario vive dentro del componente modal (ui.modal),
+        // que usa Alpine x-teleport para moverlo al final del documento.
+        // Mientras no se teletransporta, el contenido está dentro de un
+        // template inerte y document.getElementById() no lo encuentra. Ese
+        // teletransporte ocurre cuando Alpine inicializa (vía las scripts de
+        // Livewire, cargadas casi al final del documento), que corre
+        // DESPUÉS de este bloque de script inline.
         // Por eso NO se puede engancharlo con getElementById aquí arriba:
         // el listener nunca se registraba y el formulario terminaba
         // enviándose de forma nativa (sin preventDefault), disparando el
