@@ -25,13 +25,13 @@
 
                     <x-slot:steps>
                         <x-ui.process-steps :steps="[
-                            ['label' => 'Validando backup', 'status' => \$activeRestoreOperation->stage === 'validating_backup' ? 'active' : (\$activeRestoreOperation->progress >= 5 ? 'completed' : 'pending')],
-                            ['label' => 'Verificando checksum', 'status' => \$activeRestoreOperation->stage === 'verifying_checksum' ? 'active' : (\$activeRestoreOperation->progress >= 10 ? 'completed' : 'pending')],
-                            ['label' => 'Creando Safety Backup', 'status' => \$activeRestoreOperation->stage === 'creating_safety_backup' ? 'active' : (\$activeRestoreOperation->progress >= 20 ? 'completed' : 'pending')],
-                            ['label' => 'Validando Safety Backup', 'status' => \$activeRestoreOperation->stage === 'validating_safety_backup' ? 'active' : (\$activeRestoreOperation->progress >= 35 ? 'completed' : 'pending')],
-                            ['label' => 'Preparando Restore', 'status' => \$activeRestoreOperation->stage === 'preparing_restore' ? 'active' : (\$activeRestoreOperation->progress >= 45 ? 'completed' : 'pending')],
-                            ['label' => 'Restaurando datos', 'status' => \$activeRestoreOperation->stage === 'restoring' ? 'active' : (\$activeRestoreOperation->progress >= 50 ? 'completed' : 'pending')],
-                            ['label' => 'Verificando resultado', 'status' => \$activeRestoreOperation->stage === 'verifying_restore' ? 'active' : (\$activeRestoreOperation->progress >= 90 ? 'completed' : 'pending')],
+                            ['label' => 'Validando backup', 'status' => $activeRestoreOperation->stage === 'validating_backup' ? 'active' : ($activeRestoreOperation->progress >= 5 ? 'completed' : 'pending')],
+                            ['label' => 'Verificando checksum', 'status' => $activeRestoreOperation->stage === 'verifying_checksum' ? 'active' : ($activeRestoreOperation->progress >= 10 ? 'completed' : 'pending')],
+                            ['label' => 'Creando Safety Backup', 'status' => $activeRestoreOperation->stage === 'creating_safety_backup' ? 'active' : ($activeRestoreOperation->progress >= 20 ? 'completed' : 'pending')],
+                            ['label' => 'Validando Safety Backup', 'status' => $activeRestoreOperation->stage === 'validating_safety_backup' ? 'active' : ($activeRestoreOperation->progress >= 35 ? 'completed' : 'pending')],
+                            ['label' => 'Preparando Restore', 'status' => $activeRestoreOperation->stage === 'preparing_restore' ? 'active' : ($activeRestoreOperation->progress >= 45 ? 'completed' : 'pending')],
+                            ['label' => 'Restaurando datos', 'status' => $activeRestoreOperation->stage === 'restoring' ? 'active' : ($activeRestoreOperation->progress >= 50 ? 'completed' : 'pending')],
+                            ['label' => 'Verificando resultado', 'status' => $activeRestoreOperation->stage === 'verifying_restore' ? 'active' : ($activeRestoreOperation->progress >= 90 ? 'completed' : 'pending')],
                         ]" />
                     </x-slot:steps>
                 </x-ui.operation-status>
