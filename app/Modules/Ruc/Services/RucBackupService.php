@@ -26,12 +26,16 @@ class RucBackupService
 
     /**
      * Objetos de PostgreSQL que puede legítimamente traer un dump de
-     * --table=ruc_records (la tabla en sí, su secuencia de id, y los
-     * comentarios SQL neutros que pg_dump siempre agrega). Cualquier otro
-     * nombre de tabla/secuencia en el TOC hace que se rechace el archivo:
-     * así un backup subido por un usuario nunca puede tocar otra tabla.
+     * --table=ruc_records: la tabla, su secuencia de id, y cualquier índice
+     * o constraint propio (ruc_records_pkey, ruc_records_condicion_index,
+     * etc. — PostgreSQL siempre los nombra con el prefijo de la tabla).
+     * Cualquier otro nombre de tabla/secuencia en el TOC hace que se
+     * rechace el archivo: así un backup subido por un usuario nunca puede
+     * tocar otra tabla. Verificado contra `pg_tables`: ninguna otra tabla
+     * del esquema (ruc_backups, ruc_imports, ruc_staging, ...) comparte el
+     * prefijo "ruc_records", por lo que el match por prefijo es seguro.
      */
-    private const ALLOWED_TOC_PATTERN = '/^(ruc_records|ruc_records_id_seq)$/';
+    private const ALLOWED_TOC_PATTERN = '/^ruc_records(_.*)?$/';
 
     public function __construct()
     {
@@ -435,7 +439,13 @@ class RucBackupService
             }
 
             // Formato real: "3243; 1259 24592 TABLE public ruc_records codered"
-            if (! preg_match('/^\d+;\s+\d+\s+\d+\s+(TABLE DATA|TABLE|SEQUENCE SET|SEQUENCE|CONSTRAINT|INDEX|DEFAULT)\s+(\S+)\s+(\S+)/', $line, $m)) {
+            // El orden importa: alternativas más largas/específicas primero
+            // (p. ej. "SEQUENCE OWNED BY" antes que "SEQUENCE"), o la
+            // alternancia hace match parcial y desplaza qué token cae en
+            // cada grupo capturado (bug real: "SEQUENCE OWNED BY ... ruc_records_id_seq"
+            // matcheaba solo "SEQUENCE", capturando "OWNED"/"BY" como si
+            // fueran schema/nombre).
+            if (! preg_match('/^\d+;\s+\d+\s+\d+\s+(TABLE DATA|SEQUENCE OWNED BY|SEQUENCE SET|SEQUENCE|TABLE|CONSTRAINT|INDEX|DEFAULT)\s+(\S+)\s+(\S+)/', $line, $m)) {
                 continue;
             }
 

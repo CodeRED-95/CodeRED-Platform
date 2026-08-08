@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Services\RucBackupService;
 use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
@@ -20,7 +19,6 @@ class RucBackupImportTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
-        $this->withoutMiddleware(VerifyCsrfToken::class);
     }
 
     private function adminUser(): User
@@ -29,6 +27,14 @@ class RucBackupImportTest extends TestCase
         $user->roles()->attach(Role::query()->where('slug', 'super-admin')->firstOrFail());
 
         return $user;
+    }
+
+    /** Ver RucBackupCreateTest::postWithCsrf() / PublicTokenRequestWebTest. */
+    private function postWithCsrf(string $uri, array $data = [])
+    {
+        $token = 'csrf-token-for-test';
+
+        return $this->withSession(['_token' => $token])->post($uri, array_merge($data, ['_token' => $token]));
     }
 
     /** Dump real y válido de ruc_records, generado con pg_dump de verdad. */
@@ -41,7 +47,7 @@ class RucBackupImportTest extends TestCase
 
     public function test_import_requires_authentication(): void
     {
-        $response = $this->post(route('admin.ruc.backups.import'), []);
+        $response = $this->postWithCsrf(route('admin.ruc.backups.import'));
 
         $response->assertRedirect(route('login'));
     }
@@ -51,7 +57,7 @@ class RucBackupImportTest extends TestCase
         $user = $this->adminUser();
         $file = $this->validDumpFile();
 
-        $response = $this->actingAs($user)->post(route('admin.ruc.backups.import'), [
+        $response = $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.import'), [
             'backup' => $file,
         ]);
 
@@ -66,7 +72,7 @@ class RucBackupImportTest extends TestCase
         $user = $this->adminUser();
         $file = $this->validDumpFile();
 
-        $this->actingAs($user)->post(route('admin.ruc.backups.import'), ['backup' => $file]);
+        $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.import'), ['backup' => $file]);
 
         $imported = RucBackup::latest('id')->first();
         $this->assertTrue($imported->fileExists());
@@ -80,7 +86,7 @@ class RucBackupImportTest extends TestCase
 
         $countBefore = RucBackup::count();
 
-        $response = $this->actingAs($user)->post(route('admin.ruc.backups.import'), ['backup' => $file]);
+        $response = $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.import'), ['backup' => $file]);
 
         $response->assertRedirect(route('admin.ruc.backups'));
         $response->assertSessionHas('error');
@@ -109,7 +115,7 @@ class RucBackupImportTest extends TestCase
         $file = new UploadedFile($tmpPath, 'other_table.dump', null, null, true);
         $countBefore = RucBackup::count();
 
-        $response = $this->actingAs($user)->post(route('admin.ruc.backups.import'), ['backup' => $file]);
+        $response = $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.import'), ['backup' => $file]);
 
         $response->assertSessionHas('error');
         $this->assertStringContainsString('ruc_records', session('error'));
@@ -124,7 +130,7 @@ class RucBackupImportTest extends TestCase
         $file = $this->validDumpFile();
         $expectedChecksum = hash_file('sha256', $file->getRealPath());
 
-        $this->actingAs($user)->post(route('admin.ruc.backups.import'), ['backup' => $file]);
+        $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.import'), ['backup' => $file]);
 
         $this->assertDatabaseHas('ruc_backups', ['checksum_sha256' => $expectedChecksum]);
     }
@@ -134,7 +140,7 @@ class RucBackupImportTest extends TestCase
         $user = $this->adminUser();
         $file = $this->validDumpFile();
 
-        $this->actingAs($user)->post(route('admin.ruc.backups.import'), ['backup' => $file]);
+        $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.import'), ['backup' => $file]);
 
         $imported = RucBackup::latest('id')->first();
         $this->assertFileExists($imported->absolutePath());
@@ -145,7 +151,7 @@ class RucBackupImportTest extends TestCase
         $user = $this->adminUser();
         $file = $this->validDumpFile('legacy.sql.gz');
 
-        $response = $this->actingAs($user)->post(route('admin.ruc.backups.import'), ['backup' => $file]);
+        $response = $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.import'), ['backup' => $file]);
 
         $response->assertSessionHas('success');
     }
@@ -155,7 +161,7 @@ class RucBackupImportTest extends TestCase
         $user = $this->adminUser();
         $file = UploadedFile::fake()->create('not-a-backup.txt', 10);
 
-        $response = $this->actingAs($user)->post(route('admin.ruc.backups.import'), ['backup' => $file]);
+        $response = $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.import'), ['backup' => $file]);
 
         $response->assertSessionHasErrors('backup');
     }

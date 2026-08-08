@@ -8,20 +8,27 @@ use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucRecord;
 use App\Modules\Ruc\Services\RucBackupService;
 use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
+/**
+ * DatabaseTruncation (no RefreshDatabase): el restore real hace TRUNCATE vía
+ * un proceso `psql` externo. Si Laravel envolviera el test en una
+ * transacción sin confirmar (RefreshDatabase), ese TRUNCATE externo nunca
+ * podría tomar el lock exclusivo mientras la conexión de PHP -bloqueada
+ * esperando a psql- sigue reteniendo la transacción abierta: deadlock
+ * garantizado. DatabaseTruncation confirma (commit) los datos entre tests,
+ * visibles para el proceso externo.
+ */
 class RucBackupRestoreTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTruncation;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
-        $this->withoutMiddleware(VerifyCsrfToken::class);
     }
 
     private function adminUser(): User
@@ -30,6 +37,14 @@ class RucBackupRestoreTest extends TestCase
         $user->roles()->attach(Role::query()->where('slug', 'super-admin')->firstOrFail());
 
         return $user;
+    }
+
+    /** Ver RucBackupCreateTest::postWithCsrf() / PublicTokenRequestWebTest. */
+    private function postWithCsrf(string $uri, array $data = [])
+    {
+        $token = 'csrf-token-for-test';
+
+        return $this->withSession(['_token' => $token])->post($uri, array_merge($data, ['_token' => $token]));
     }
 
     private function service(): RucBackupService
@@ -52,7 +67,7 @@ class RucBackupRestoreTest extends TestCase
         $backup = $this->service()->create();
         $user = User::factory()->create(); // sin permiso
 
-        $response = $this->actingAs($user)->post(route('admin.ruc.backups.restore', $backup));
+        $response = $this->actingAs($user)->postWithCsrf(route('admin.ruc.backups.restore', $backup));
 
         $response->assertForbidden();
     }
@@ -65,7 +80,7 @@ class RucBackupRestoreTest extends TestCase
 
         $countBefore = DB::table('ruc_records')->count();
 
-        $response = $this->actingAs($this->adminUser())->post(route('admin.ruc.backups.restore', $backup));
+        $response = $this->actingAs($this->adminUser())->postWithCsrf(route('admin.ruc.backups.restore', $backup));
 
         $response->assertSessionHas('error');
         $this->assertStringContainsString('checksum', mb_strtolower(session('error')));
@@ -102,7 +117,7 @@ class RucBackupRestoreTest extends TestCase
 
         $countBefore = DB::table('ruc_records')->count();
 
-        $response = $this->actingAs($this->adminUser())->post(route('admin.ruc.backups.restore', $backup));
+        $response = $this->actingAs($this->adminUser())->postWithCsrf(route('admin.ruc.backups.restore', $backup));
 
         $response->assertSessionHas('error');
         $this->assertSame($countBefore, DB::table('ruc_records')->count());
@@ -117,7 +132,7 @@ class RucBackupRestoreTest extends TestCase
 
         $safetyCountBefore = RucBackup::where('backup_type', RucBackup::TYPE_SAFETY)->count();
 
-        $this->actingAs($this->adminUser())->post(route('admin.ruc.backups.restore', $backup));
+        $this->actingAs($this->adminUser())->postWithCsrf(route('admin.ruc.backups.restore', $backup));
 
         $this->assertSame($safetyCountBefore + 1, RucBackup::where('backup_type', RucBackup::TYPE_SAFETY)->count());
 
@@ -134,7 +149,7 @@ class RucBackupRestoreTest extends TestCase
         RucRecord::query()->delete();
         $this->seedRecords(1, '24'); // estado "actual" distinto al del backup
 
-        $response = $this->actingAs($this->adminUser())->post(route('admin.ruc.backups.restore', $backup));
+        $response = $this->actingAs($this->adminUser())->postWithCsrf(route('admin.ruc.backups.restore', $backup));
 
         $response->assertSessionHas('success');
         $this->assertSame(3, DB::table('ruc_records')->count());
@@ -172,7 +187,7 @@ class RucBackupRestoreTest extends TestCase
         $countBefore = DB::table('ruc_records')->count();
         $this->assertGreaterThan(0, $countBefore);
 
-        $response = $this->actingAs($this->adminUser())->post(route('admin.ruc.backups.restore', $truncatedBackup));
+        $response = $this->actingAs($this->adminUser())->postWithCsrf(route('admin.ruc.backups.restore', $truncatedBackup));
 
         $response->assertSessionHas('error');
         $this->assertSame($countBefore, DB::table('ruc_records')->count(), 'ruc_records debe quedar EXACTAMENTE como estaba tras un restore fallido');
@@ -196,7 +211,7 @@ class RucBackupRestoreTest extends TestCase
             'file_size_bytes' => filesize($garbageAbsolute),
         ]);
 
-        $this->actingAs($this->adminUser())->post(route('admin.ruc.backups.restore', $garbageBackup));
+        $this->actingAs($this->adminUser())->postWithCsrf(route('admin.ruc.backups.restore', $garbageBackup));
 
         $this->assertFileExists($backup->absolutePath());
         $this->assertDatabaseHas('ruc_backups', ['id' => $backup->id]);

@@ -32,3 +32,4 @@ packages/codered-agent/data/
 packages/codered-agent/*.enc
 n8n-data/
 codered-agent-data/
+/storage/app/private/backups/ruc
