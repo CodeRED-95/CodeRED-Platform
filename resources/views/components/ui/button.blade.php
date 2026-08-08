@@ -21,6 +21,7 @@
         'primary' => 'bg-[color:var(--color-brand)] text-white hover:bg-[color:var(--color-brand-hover)] active:bg-[color:var(--color-brand-active)]',
         'secondary' => 'bg-[color:var(--color-surface)] text-[color:var(--color-text-primary)] ring-1 ring-inset ring-[color:var(--color-border)] hover:bg-[color:var(--color-surface-hover)]',
         'danger' => 'bg-[color:var(--color-danger)] text-white hover:opacity-90',
+        'info' => 'bg-[color:var(--color-info)] text-white hover:opacity-90',
         'success' => 'bg-[color:var(--color-success)] text-slate-950 hover:brightness-110',
         'warning' => 'bg-[color:var(--color-warning)] text-slate-950 hover:brightness-110',
         'ghost' => 'bg-transparent text-[color:var(--color-text-primary)] hover:bg-white/5',

@@ -8,6 +8,7 @@ use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Services\RucBackupService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
@@ -26,6 +27,8 @@ class RucBackupController
         Gate::authorize('ruc.backup.view');
 
         $backups = RucBackup::query()->latest('id')->paginate(15);
+        $currentRecordCount = DB::table('ruc_records')->count();
+        $lastBackup = RucBackup::query()->where('status', RucBackup::STATUS_COMPLETED)->latest('id')->first();
 
         // layouts.app (resources/views/layouts/app.blade.php) espera un
         // $slot, igual que lo consume Livewire para las páginas completas
@@ -35,7 +38,11 @@ class RucBackupController
         // "{{ $slot }}" sin sidebar/toast/head, un archivo DISTINTO que
         // eclipsa al layout real y deja la página sin su chrome visual).
         return view('layouts.app', [
-            'slot' => new HtmlString(view('ruc.admin.backups.index', ['backups' => $backups])->render()),
+            'slot' => new HtmlString(view('ruc.admin.backups.index', [
+                'backups' => $backups,
+                'currentRecordCount' => $currentRecordCount,
+                'lastBackup' => $lastBackup,
+            ])->render()),
         ]);
     }
 

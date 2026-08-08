@@ -7,14 +7,29 @@
                 <p class="text-sm text-[color:var(--color-text-secondary)] mb-4">
                     Genera un dump de <code>ruc_records</code> (solo datos) y lo guarda en el servidor.
                 </p>
+
+                <dl class="mb-4 space-y-1.5 text-sm">
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-[color:var(--color-text-secondary)]">Registros actuales</dt>
+                        <dd class="font-medium">{{ number_format($currentRecordCount) }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-[color:var(--color-text-secondary)]">Último backup</dt>
+                        <dd>{{ $lastBackup?->created_at->format('d/m/Y H:i') ?? '—' }}</dd>
+                    </div>
+                </dl>
+
                 {{-- Formulario HTML tradicional: POST normal del navegador, sin
                      JavaScript interceptando el submit. Laravel procesa la
-                     petición y responde con un redirect. --}}
-                <form method="POST" action="{{ route('admin.ruc.backups.store') }}">
+                     petición y responde con un redirect. El único JS es
+                     cosmético (deshabilitar el botón para evitar doble
+                     submit durante una operación que puede tardar minutos). --}}
+                <form method="POST" action="{{ route('admin.ruc.backups.store') }}" x-data="{ submitting: false }" x-on:submit="submitting = true">
                     @csrf
-                    <button type="submit" class="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700">
-                        💾 Crear Backup
-                    </button>
+                    <x-ui.button type="submit" variant="success" x-bind:disabled="submitting">
+                        <span x-show="!submitting" class="inline-flex items-center gap-2"><x-ui.icon name="backup" class="size-4" /> Crear Backup</span>
+                        <span x-show="submitting" x-cloak class="inline-flex items-center gap-2"><x-ui.spinner size="sm" /> Creando backup…</span>
+                    </x-ui.button>
                 </form>
             </x-ui.card>
 
@@ -23,24 +38,21 @@
                 <p class="text-sm text-[color:var(--color-text-secondary)] mb-4">
                     Sube un archivo <code>.dump</code> generado por este mismo sistema (o <code>.gz</code> de versiones anteriores). Se valida el contenido, nunca la extensión.
                 </p>
-                <form method="POST" action="{{ route('admin.ruc.backups.import') }}" enctype="multipart/form-data" class="space-y-3">
+                <form method="POST" action="{{ route('admin.ruc.backups.import') }}" enctype="multipart/form-data" class="space-y-4" x-data="{ submitting: false }" x-on:submit="submitting = true">
                     @csrf
-                    <input
-                        type="file"
+                    <x-ui.file-dropzone
                         name="backup"
+                        label="Archivo de Backup"
                         accept=".dump,.gz"
                         required
-                        class="block w-full text-sm text-[color:var(--color-text-secondary)]
-                        file:mr-4 file:py-2 file:px-4 file:rounded-[var(--radius-control)] file:border-0
-                        file:text-sm file:font-semibold file:bg-[color:var(--color-brand)]/10
-                        file:text-[color:var(--color-brand)] hover:file:bg-[color:var(--color-brand)]/20"
-                    >
-                    <button type="submit" class="inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[color:var(--color-brand)] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[color:var(--color-brand)]/90">
-                        📤 Importar Backup
-                    </button>
-                    <p class="text-xs text-[color:var(--color-text-secondary)]">
-                        Máximo {{ number_format(config('ruc.backup.max_upload_mb')) }} MB.
-                    </p>
+                        help="Archivos .dump / backups legacy .sql.gz"
+                        max-size="{{ number_format(config('ruc.backup.max_upload_mb')) }} MB"
+                        :error="$errors->first('backup')"
+                    />
+                    <x-ui.button type="submit" variant="primary" x-bind:disabled="submitting">
+                        <span x-show="!submitting" class="inline-flex items-center gap-2"><x-ui.icon name="upload" class="size-4" /> Importar Backup</span>
+                        <span x-show="submitting" x-cloak class="inline-flex items-center gap-2"><x-ui.spinner size="sm" /> Importando…</span>
+                    </x-ui.button>
                 </form>
             </x-ui.card>
         </div>
@@ -67,7 +79,9 @@
                             <td class="px-6 py-4 text-sm font-mono">
                                 <span class="text-[color:var(--color-text-secondary)]">{{ $backup->name }}</span>
                                 @if($backup->backup_type === \App\Modules\Ruc\Models\RucBackup::TYPE_SAFETY)
-                                    <span class="ml-1 text-xs text-[color:var(--color-brand)]">🛡️ seguridad</span>
+                                    <x-ui.badge tone="warning" class="ml-1">
+                                        <x-ui.icon name="shield" class="size-3" /> <span class="ml-1">seguridad</span>
+                                    </x-ui.badge>
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-sm text-right">{{ $backup->formattedSize() }}</td>
@@ -81,16 +95,16 @@
                             <td class="px-6 py-4 text-center">
                                 @switch($backup->status)
                                     @case(\App\Modules\Ruc\Models\RucBackup::STATUS_COMPLETED)
-                                        <x-ui.badge tone="success">✅ Completado</x-ui.badge>
+                                        <x-ui.badge tone="success">Completado</x-ui.badge>
                                         @break
                                     @case(\App\Modules\Ruc\Models\RucBackup::STATUS_CREATING)
-                                        <x-ui.badge tone="warning">⏳ Creando</x-ui.badge>
+                                        <x-ui.badge tone="info">Creando</x-ui.badge>
                                         @break
                                     @case(\App\Modules\Ruc\Models\RucBackup::STATUS_FAILED)
-                                        <x-ui.badge tone="danger">❌ Fallido</x-ui.badge>
+                                        <x-ui.badge tone="danger">Fallido</x-ui.badge>
                                         @break
                                     @default
-                                        <x-ui.badge>{{ $backup->status }}</x-ui.badge>
+                                        <x-ui.badge tone="neutral">{{ $backup->status }}</x-ui.badge>
                                 @endswitch
                             </td>
                             <td class="px-6 py-4 text-sm text-[color:var(--color-text-secondary)]">
@@ -99,36 +113,86 @@
                             <td class="px-6 py-4 text-center">
                                 <div class="flex flex-wrap gap-2 justify-center">
                                     @if($backup->isCompleted())
-                                        <a
-                                            href="{{ route('admin.ruc.backups.download', $backup) }}"
-                                            class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-blue-500/10 text-[color:var(--color-brand)] hover:bg-blue-500/20 transition-colors"
-                                        >
-                                            📥 Descargar
-                                        </a>
+                                        <x-ui.button href="{{ route('admin.ruc.backups.download', $backup) }}" size="sm" variant="secondary">
+                                            <x-ui.icon name="download" class="size-4" /> Descargar
+                                        </x-ui.button>
 
-                                        <form method="POST" action="{{ route('admin.ruc.backups.restore', $backup) }}" class="inline">
+                                        <form id="restore-form-{{ $backup->id }}" method="POST" action="{{ route('admin.ruc.backups.restore', $backup) }}" class="inline">
                                             @csrf
-                                            <button
-                                                type="submit"
-                                                onclick="return confirm('¿Restaurar {{ number_format($backup->total_records ?? 0) }} registros? Se reemplazarán TODOS los RUC actuales. Se creará un backup de seguridad automáticamente.')"
-                                                class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors"
-                                            >
-                                                🔄 Restaurar
-                                            </button>
                                         </form>
+                                        <x-ui.confirm-dialog
+                                            id="restore-dialog-{{ $backup->id }}"
+                                            tone="warning"
+                                            icon="restore"
+                                            title="Restaurar backup"
+                                            confirm-label="Restaurar Backup"
+                                            cancel-label="Cancelar"
+                                            form="restore-form-{{ $backup->id }}"
+                                            loading-label="Iniciando restauración…"
+                                        >
+                                            <x-slot:trigger>
+                                                <x-ui.button type="button" size="sm" variant="warning">
+                                                    <x-ui.icon name="restore" class="size-4" /> Restaurar
+                                                </x-ui.button>
+                                            </x-slot:trigger>
+
+                                            <p>Esta acción reemplazará todos los registros actuales de RUC por los contenidos en este backup.</p>
+                                            <dl class="mt-4 space-y-2">
+                                                <div class="flex justify-between gap-4">
+                                                    <dt class="text-[color:var(--color-text-secondary)]">Backup</dt>
+                                                    <dd class="break-all text-right font-mono text-xs">{{ $backup->name }}</dd>
+                                                </div>
+                                                <div class="flex justify-between gap-4">
+                                                    <dt class="text-[color:var(--color-text-secondary)]">Registros del backup</dt>
+                                                    <dd class="font-medium text-[color:var(--color-text-primary)]">{{ number_format($backup->total_records ?? 0) }}</dd>
+                                                </div>
+                                                <div class="flex justify-between gap-4">
+                                                    <dt class="text-[color:var(--color-text-secondary)]">Registros actuales</dt>
+                                                    <dd class="font-medium text-[color:var(--color-text-primary)]">{{ number_format($currentRecordCount) }}</dd>
+                                                </div>
+                                            </dl>
+                                            <x-ui.alert tone="warning" class="mt-4">
+                                                Antes de continuar se creará automáticamente un <strong>Safety Backup</strong> del estado actual. El proceso puede tardar varios minutos.
+                                            </x-ui.alert>
+                                        </x-ui.confirm-dialog>
                                     @endif
 
-                                    <form method="POST" action="{{ route('admin.ruc.backups.destroy', $backup) }}" class="inline">
+                                    <form id="delete-form-{{ $backup->id }}" method="POST" action="{{ route('admin.ruc.backups.destroy', $backup) }}" class="inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button
-                                            type="submit"
-                                            onclick="return confirm('¿Eliminar este backup permanentemente? Esta acción no se puede deshacer.')"
-                                            class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-red-500/10 text-[color:var(--color-danger)] hover:bg-red-500/20 transition-colors"
-                                        >
-                                            🗑️ Eliminar
-                                        </button>
                                     </form>
+                                    <x-ui.confirm-dialog
+                                        id="delete-dialog-{{ $backup->id }}"
+                                        tone="danger"
+                                        icon="trash"
+                                        title="Eliminar backup"
+                                        confirm-label="Eliminar"
+                                        cancel-label="Cancelar"
+                                        form="delete-form-{{ $backup->id }}"
+                                        loading-label="Eliminando…"
+                                    >
+                                        <x-slot:trigger>
+                                            <x-ui.button type="button" size="sm" variant="danger">
+                                                <x-ui.icon name="trash" class="size-4" /> Eliminar
+                                            </x-ui.button>
+                                        </x-slot:trigger>
+
+                                        <p>El archivo y su registro serán eliminados permanentemente.</p>
+                                        <dl class="mt-4 space-y-2">
+                                            <div class="flex justify-between gap-4">
+                                                <dt class="text-[color:var(--color-text-secondary)]">Nombre</dt>
+                                                <dd class="break-all text-right font-mono text-xs">{{ $backup->name }}</dd>
+                                            </div>
+                                            <div class="flex justify-between gap-4">
+                                                <dt class="text-[color:var(--color-text-secondary)]">Tamaño</dt>
+                                                <dd class="font-medium text-[color:var(--color-text-primary)]">{{ $backup->formattedSize() }}</dd>
+                                            </div>
+                                            <div class="flex justify-between gap-4">
+                                                <dt class="text-[color:var(--color-text-secondary)]">Fecha</dt>
+                                                <dd class="font-medium text-[color:var(--color-text-primary)]">{{ $backup->created_at->format('d/m/Y H:i') }}</dd>
+                                            </div>
+                                        </dl>
+                                    </x-ui.confirm-dialog>
                                 </div>
                             </td>
                         </tr>

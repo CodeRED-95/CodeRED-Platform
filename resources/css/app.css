@@ -152,6 +152,11 @@
   .layer-toast { z-index: var(--layer-toast); }
   .layer-critical { z-index: var(--layer-critical); }
 
+  @keyframes progress-indeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+  }
+
   .codered-cluster-icon {
     display: grid !important;
     place-items: center;

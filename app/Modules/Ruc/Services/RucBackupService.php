@@ -6,6 +6,7 @@ namespace App\Modules\Ruc\Services;
 
 use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -255,7 +256,29 @@ class RucBackupService
      *   8. verificar resultado
      *   9. auditoría (log)
      */
+    /**
+     * Bloqueo de restores simultáneos: dos restores a la vez harían TRUNCATE
+     * sobre la misma tabla desde procesos psql distintos (colisión real, no
+     * hipotética). Cache::lock (mismo mecanismo que RucImportService) en vez
+     * de una columna de estado: se autolibera si el proceso muere sin
+     * liberar, y no requiere una migración nueva.
+     */
     public function restore(RucBackup $backup, ?User $performedBy = null): array
+    {
+        $lock = Cache::lock('ruc-restore-process', 3600);
+
+        if (! $lock->get()) {
+            throw new \RuntimeException('Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
+        }
+
+        try {
+            return $this->performRestore($backup, $performedBy);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function performRestore(RucBackup $backup, ?User $performedBy): array
     {
         if (! $backup->isCompleted()) {
             throw new \RuntimeException('El backup debe estar completado para restaurar.');
