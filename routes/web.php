@@ -102,6 +102,9 @@ Route::post('/admin/ruc/backups', [RucBackupController::class, 'store'])->middle
 Route::post('/admin/ruc/backups/import', [RucBackupController::class, 'import'])->middleware(['auth'])->name('admin.ruc.backups.import');
 Route::get('/admin/ruc/backups/{backup}/download', [RucBackupController::class, 'download'])->middleware(['auth'])->name('admin.ruc.backups.download');
 Route::post('/admin/ruc/backups/{backup}/restore', [RucBackupController::class, 'restore'])->middleware(['auth'])->name('admin.ruc.backups.restore');
+// Polling de progreso del restore (RestoreRucBackupJob, cola dedicada
+// "ruc-backups") — GET simple, sin CSRF, cada 2-3s desde la UI.
+Route::get('/admin/ruc/backups/operations/{operation}/status', [RucBackupController::class, 'operationStatus'])->middleware(['auth'])->name('admin.ruc.backups.operations.status');
 Route::delete('/admin/ruc/backups/{backup}', [RucBackupController::class, 'destroy'])->middleware(['auth'])->name('admin.ruc.backups.destroy');
 // Backups multipart (manifest.json + partes de RUC Tools) — consumidos por
 // resources/js/ruc-backup-multipart-uploader.js, no por <form> tradicional

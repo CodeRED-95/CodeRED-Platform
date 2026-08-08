@@ -209,10 +209,20 @@ class Dashboard extends Component
 
     private function rucMetrics(): array
     {
+        // Cache 60s, pero RucStatistics se actualiza inmediatamente después
+        // de import/restore (ver RestoreRucBackupJob y ProcessRucImportJobV3).
+        // Si RucStatistics no existe (primeros desploys), fallback a COUNT.
         return Cache::remember('dashboard:ruc', 60, function (): array {
+            $stats = DB::table('ruc_statistics')->first();
             $last = RucImport::query()->latest()->first();
 
-            return ['records' => RucRecord::query()->count(), 'requests_today' => ApiRequestLog::query()->where('service', 'ruc')->whereDate('created_at', today())->count(), 'imports' => RucImport::query()->count(), 'last_import' => $last?->finished_at?->toIso8601String(), 'active_import' => $last?->status->active() ? $last : null];
+            return [
+                'records' => $stats?->total_records ?? 0,
+                'requests_today' => ApiRequestLog::query()->where('service', 'ruc')->whereDate('created_at', today())->count(),
+                'imports' => $stats?->total_imports ?? 0,
+                'last_import' => $last?->finished_at?->toIso8601String(),
+                'active_import' => $last?->status->active() ? $last : null,
+            ];
         });
     }
 }

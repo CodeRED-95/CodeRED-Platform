@@ -17,7 +17,7 @@ ok(){ echo "[OK] $*"; }
 info(){ echo "[INFO] $*"; }
 warn(){ echo "[WARN] $*"; }
 die(){ echo "[ERROR] $*" >&2; exit 1; }
-step(){ echo; echo "[$1/12] $2"; }
+step(){ echo; echo "[$1/14] $2"; }
 
 trap 'code=$?; echo "[ERROR] Fallo en la línea $LINENO" >&2; echo "[ERROR] Comando: ${BASH_COMMAND}" >&2; echo "[ERROR] Código de salida: $code" >&2; echo "[INFO] Siguiente paso recomendado: revise el mensaje anterior, restaure .env desde .env.backup-* si el cambio fue de configuración y vuelva a ejecutar ./update.sh" >&2; exit $code' ERR
 
@@ -165,11 +165,33 @@ command -v docker >/dev/null || die "Docker no está instalado."
 docker compose version >/dev/null 2>&1 || die "Docker Compose v2 no está disponible."
 ok "Entorno válido usando $COMPOSE_FILE"
 
-step 2 "Respaldando configuración"
+step 2 "Verificando que no haya un restore RUC activo"
+# RestoreRucBackupJob corre en segundo plano (cola dedicada "ruc-backups")
+# y puede tardar horas en un backup de millones de filas. Si este script
+# reconstruye/recrea el contenedor "app", "queue-ruc-backups" o reinicia
+# postgres MIENTRAS un restore sigue vivo, puede matar el proceso psql a
+# mitad de un TRUNCATE+COPY. RucBackupOperation.status=running es la
+# fuente de verdad persistente (no depende de que el proceso original
+# siga vivo para saberlo) — si la tabla aún no existe (primer deploy de
+# esta funcionalidad) se asume que no hay nada que proteger todavía.
+RUNNING_RESTORE_COUNT="$(docker compose exec -T app php -r '
+require "vendor/autoload.php";
+$app = require "bootstrap/app.php";
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+if (!Illuminate\Support\Facades\Schema::hasTable("ruc_backup_operations")) { echo "0"; exit; }
+echo (string) Illuminate\Support\Facades\DB::table("ruc_backup_operations")->whereIn("status", ["pending", "running"])->count();
+' 2>/dev/null)"
+RUNNING_RESTORE_COUNT="${RUNNING_RESTORE_COUNT:-0}"
+if [[ "$RUNNING_RESTORE_COUNT" != "0" ]]; then
+    die "Hay una restauración RUC activa (ruc_backup_operations.status=pending/running). Deployment cancelado por seguridad. Reintente cuando termine (revise /admin/ruc/backups)."
+fi
+ok "Sin restauraciones RUC activas; es seguro continuar."
+
+step 3 "Respaldando configuración"
 cp .env ".env.backup-$STAMP"
 ok "Backup creado: .env.backup-$STAMP"
 
-step 3 "Actualizando repositorio"
+step 4 "Actualizando repositorio"
 if ! git diff --quiet || ! git diff --cached --quiet; then
     warn "Hay cambios locales sin confirmar. Se intentará actualizar solo si Git puede hacer fast-forward limpio."
     git status --short
@@ -179,15 +201,15 @@ git pull --ff-only || die "git pull falló. Resuelva cambios locales o sincroniz
 NEW_HEAD="$(git rev-parse HEAD)"
 ok "Repositorio actualizado: $OLD_HEAD -> $NEW_HEAD"
 
-step 4 "Revisando variables nuevas"
+step 5 "Revisando variables nuevas"
 sync_postgres_env
 ensure_agent_env
 ok "Variables PostgreSQL, CodeRED Agent y n8n verificadas sin mostrar secretos."
 
-step 5 "Construyendo imágenes"
+step 6 "Construyendo imágenes"
 BUILD_SERVICES=()
 if [[ "$OLD_HEAD" != "$NEW_HEAD" ]]; then
-    if changed '(^composer.lock$|^docker/php/Dockerfile$|^docker-compose.yml$|^compose.yml$|^app/|^bootstrap/|^config/|^routes/)'; then BUILD_SERVICES+=(app queue scheduler); fi
+    if changed '(^composer.lock$|^docker/php/Dockerfile$|^docker-compose.yml$|^compose.yml$|^app/|^bootstrap/|^config/|^routes/)'; then BUILD_SERVICES+=(app queue queue-ruc-backups scheduler); fi
     if changed '(^packages/codered-agent/|^docker-compose.yml$|^compose.yml$)'; then BUILD_SERVICES+=(codered-agent); fi
 fi
 if ((${#BUILD_SERVICES[@]})); then
@@ -204,7 +226,7 @@ else
     info "No se detectaron cambios que requieran reconstruir codered-n8n."
 fi
 
-step 6 "Levantando servicios"
+step 7 "Levantando servicios"
 docker compose up -d --remove-orphans
 wait_for_postgres
 if [[ "${N8N_REBUILD_REQUIRED:-0}" == "1" ]]; then
@@ -212,7 +234,32 @@ if [[ "${N8N_REBUILD_REQUIRED:-0}" == "1" ]]; then
 fi
 ok "Servicios levantados sin borrar volumenes."
 
-step 7 "Actualizando assets del frontend"
+step 8 "Validando configuración de PostgreSQL"
+# Con 18M+ registros, /dev/shm debe ser >= 512MB para que VACUUM ANALYZE
+# funcione sin errores "No space left on device". Ver
+# docs-ruc/PERFORMANCE.md y docker-compose.yml postgres.shm_size.
+EXPECTED_SHM=536870912  # 512 * 1024 * 1024 bytes
+SHM_SIZE="$(docker inspect codered-postgres 2>/dev/null | \
+    grep -A 5 '"ShmSize"' | head -1 | grep -oE '[0-9]+' || echo 0)"
+
+if [[ "$SHM_SIZE" -lt "$EXPECTED_SHM" ]]; then
+    warn "PostgreSQL ShmSize es $SHM_SIZE bytes, se espera >= $EXPECTED_SHM (512MB)."
+    warn "VACUUM ANALYZE puede fallar con 'No space left on device' en tablas grandes."
+    info "Reiniciando postgres para aplicar shm_size del docker-compose.yml…"
+    docker compose restart postgres
+    sleep 20
+    SHM_SIZE="$(docker inspect codered-postgres 2>/dev/null | \
+        grep -A 5 '"ShmSize"' | head -1 | grep -oE '[0-9]+' || echo 0)"
+    if [[ "$SHM_SIZE" -ge "$EXPECTED_SHM" ]]; then
+        ok "ShmSize ahora es correcto ($SHM_SIZE bytes >= $EXPECTED_SHM)."
+    else
+        warn "ShmSize sigue siendo bajo ($SHM_SIZE bytes < $EXPECTED_SHM). Intervención manual puede ser necesaria."
+    fi
+else
+    ok "PostgreSQL ShmSize es suficiente ($SHM_SIZE bytes >= $EXPECTED_SHM)."
+fi
+
+step 9 "Actualizando assets del frontend"
 # El manifest de Vite (public/build) vive fuera de git (.gitignore) y solo
 # se reconstruye en el arranque del contenedor SI faltara — un contenedor
 # que ya tenía uno de un deploy anterior no lo regenera solo, así que un
@@ -225,11 +272,11 @@ else
     info "No se detectaron cambios en resources/ que requieran reconstruir el frontend."
 fi
 
-step 8 "Ejecutando migraciones"
+step 10 "Ejecutando migraciones"
 docker compose exec -T app php artisan migrate --force
 ok "Todas las migraciones completadas (incluyendo Shalom y RUC Backup)"
 
-step 9 "Creando directorios requeridos"
+step 11 "Creando directorios requeridos"
 # La ruta real depende del disco "local" configurado en
 # config/filesystems.php (cambió de storage/app a storage/app/private entre
 # versiones de Laravel) — se resuelve siempre a través de Laravel, nunca
@@ -283,14 +330,26 @@ else
     warn "upload_max_filesize/post_max_size/client_max_body_size podrían no soportar partes de 90 MiB (detectado: ${UPLOAD_MAX_MIB}/${POST_MAX_MIB}/${NGINX_MAX_MIB} MiB). Revise docker/php/php.ini y docker/nginx/default.conf."
 fi
 
-step 10 "Limpiando cachés"
+step 12 "Limpiando cachés"
 docker compose exec -T app php artisan optimize:clear
 docker compose exec -T app php artisan config:cache
 docker compose exec -T app php artisan route:cache
 docker compose exec -T app php artisan view:cache
 docker compose exec -T app php artisan queue:restart
 
-step 11 "Verificando salud"
+# Limpiar caches de estadísticas RUC que se actualizarán en el siguiente
+# import/restore. Ver RucStatisticsService y PERFORMANCE.md.
+docker compose exec -T app php artisan cache:clear
+docker compose exec -T app php -r "
+require 'vendor/autoload.php';
+\$app = require 'bootstrap/app.php';
+\$app->make('cache')->forget('ruc:records:count');
+\$app->make('cache')->forget('dashboard:ruc');
+" 2>/dev/null || true
+
+ok "Cachés limpiados; estadísticas RUC se recalcularán en el siguiente import/restore."
+
+step 13 "Verificando salud"
 docker compose ps
 docker compose exec -T app php artisan about
 if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] && docker compose config --services | grep -qx codered-agent; then
@@ -304,6 +363,6 @@ else
     info "CodeRED Agent no está habilitado/configurado; se omite healthcheck."
 fi
 
-step 12 "Actualización completada"
+step 14 "Actualización completada"
 ok "CodeRED Platform actualizado correctamente."
 echo "Backup del .env: .env.backup-$STAMP"

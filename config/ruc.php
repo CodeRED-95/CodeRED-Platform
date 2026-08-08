@@ -55,5 +55,14 @@ return [
             'session_expires_hours' => (int) env('RUC_BACKUP_MULTIPART_EXPIRES_HOURS', 24),
             'supported_format_versions' => [1],
         ],
+
+        // RestoreRucBackupJob corre en la cola/conexión dedicada
+        // "ruc-backups" (ver config/queue.php): un restore de 18M+ filas
+        // puede tardar varias horas. queue debe coincidir con
+        // config('queue.connections.ruc-backups.queue').
+        'restore' => [
+            'queue' => env('RUC_BACKUP_QUEUE', 'ruc-backups'),
+            'timeout' => (int) env('RUC_BACKUP_RESTORE_TIMEOUT', 86400),
+        ],
     ],
 ];

@@ -242,34 +242,28 @@ class RucBackupService
     }
 
     /**
-     * Restaura ruc_records desde un backup.
+     * Restaura ruc_records desde un backup, de forma SÍNCRONA — usado
+     * únicamente por `php artisan ruc:restore` (operador en una terminal,
+     * sin Cloudflare/nginx/PHP-FPM de por medio, así que no hay problema de
+     * timeout). El flujo web (RucBackupController) NUNCA llama a este
+     * método: despacha RestoreRucBackupJob, que orquesta las mismas etapas
+     * (métodos públicos de abajo) actualizando progreso entre cada una. Ver
+     * app/Modules/Ruc/Jobs/RestoreRucBackupJob.php.
      *
      * Orden (BACKUP_SYSTEM.md):
-     *   1. el archivo existe
+     *   1. el archivo existe, formato válido, contiene solo ruc_records
      *   2. checksum SHA-256 coincide
-     *   3. pg_restore --list confirma formato
-     *   4. el dump contiene EXCLUSIVAMENTE objetos de ruc_records
-     *   5. se crea un safety backup del estado actual
-     *   6. si el safety backup falla: ABORTAR, nunca restaurar sin él
-     *   7. restore atómico (TRUNCATE + datos en una sola transacción de
+     *   3. se crea un safety backup del estado actual
+     *   4. se valida que el safety backup sea confiable (no vacío si
+     *      ruc_records no lo estaba) — si no, ABORTAR
+     *   5. se comprueba espacio en disco suficiente para preparar el restore
+     *   6. restore atómico (TRUNCATE + datos en una sola transacción de
      *      psql — ver restoreDataAtomically())
-     *   8. verificar resultado
-     *   9. auditoría (log)
-     */
-    /**
-     * Bloqueo de restores simultáneos: dos restores a la vez harían TRUNCATE
-     * sobre la misma tabla desde procesos psql distintos (colisión real, no
-     * hipotética). Cache::lock (mismo mecanismo que RucImportService) en vez
-     * de una columna de estado: se autolibera si el proceso muere sin
-     * liberar, y no requiere una migración nueva.
+     *   7. verificar resultado, auditoría (log)
      */
     public function restore(RucBackup $backup, ?User $performedBy = null): array
     {
-        $lock = Cache::lock('ruc-restore-process', 3600);
-
-        if (! $lock->get()) {
-            throw new \RuntimeException('Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
-        }
+        $lock = $this->acquireRestoreLock();
 
         try {
             return $this->performRestore($backup, $performedBy);
@@ -278,33 +272,43 @@ class RucBackupService
         }
     }
 
+    /**
+     * Mutex exclusivo para todo restore de ruc_records, sin importar el
+     * origen (comando CLI o RestoreRucBackupJob): dos restores a la vez
+     * harían TRUNCATE sobre la misma tabla desde procesos psql distintos
+     * (colisión real, no hipotética). El TTL debe cubrir la duración
+     * máxima real del job (hasta 24h), nunca un valor arbitrario corto: un
+     * lock que expira mientras psql sigue vivo deja de proteger nada. La
+     * fuente de verdad "hay un restore activo" para la UI/controller/
+     * update.sh es RucBackupOperation.status=running (persistente); este
+     * lock es la exclusión mutua inmediata a nivel de proceso.
+     */
+    public function acquireRestoreLock(): \Illuminate\Contracts\Cache\Lock
+    {
+        $ttl = max(3600, (int) config('queue.connections.ruc-backups.retry_after', 90000));
+        $lock = Cache::lock('ruc-restore-process', $ttl);
+
+        if (! $lock->get()) {
+            throw new \RuntimeException('Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
+        }
+
+        return $lock;
+    }
+
     private function performRestore(RucBackup $backup, ?User $performedBy): array
     {
-        if (! $backup->isCompleted()) {
-            throw new \RuntimeException('El backup debe estar completado para restaurar.');
-        }
-
-        if (! $backup->fileExists()) {
-            throw new \RuntimeException('El archivo de backup no existe en el servidor.');
-        }
-
-        $absolutePath = $backup->absolutePath();
-
-        // 2. Checksum
-        if ($backup->checksum_sha256) {
-            $actualChecksum = hash_file('sha256', $absolutePath);
-            if ($actualChecksum !== $backup->checksum_sha256) {
-                throw new \RuntimeException('El checksum del archivo no coincide con el registrado. El backup puede estar corrupto.');
-            }
-        }
-
-        // 3-4. Formato y contenido
-        $this->assertDumpBelongsToRucRecords($absolutePath);
+        $this->validateBackup($backup);
+        $this->verifyChecksum($backup);
 
         Log::info('Starting RUC restore', ['backup_id' => $backup->id, 'performed_by' => $performedBy?->id]);
         $startedAt = microtime(true);
 
-        // 5-6. Safety backup obligatorio
+        $recordsBefore = $this->countRucRecords();
+        Log::info('RUC restore: records before safety backup', [
+            'backup_id' => $backup->id,
+            'records_before_safety' => $recordsBefore,
+        ]);
+
         try {
             $safetyBackup = $this->createSafetyBackup($performedBy);
         } catch (\Throwable $e) {
@@ -315,24 +319,15 @@ class RucBackupService
             throw new \RuntimeException('No se pudo crear el backup de seguridad; restore cancelado. '.$e->getMessage());
         }
 
-        $recordsBefore = DB::table('ruc_records')->count();
+        $this->validateSafetyBackup($safetyBackup, $recordsBefore);
+        $this->assertSufficientDiskSpaceForRestore($backup->absolutePath());
+        $this->restoreDataAtomically($backup->absolutePath());
 
-        // 7. Restore atómico
-        $this->restoreDataAtomically($absolutePath);
-
-        // 8. Verificar resultado
-        $recordsAfter = DB::table('ruc_records')->count();
-        if ($backup->total_records !== null && $recordsAfter !== $backup->total_records) {
-            Log::warning('Restored record count differs from backup metadata', [
-                'backup_id' => $backup->id,
-                'expected' => $backup->total_records,
-                'actual' => $recordsAfter,
-            ]);
-        }
+        $recordsAfter = $this->countRucRecords();
+        $this->verifyRestoreRecordCount($backup, $recordsAfter);
 
         $duration = (int) round(microtime(true) - $startedAt);
 
-        // 9. Auditoría
         Log::info('RUC restore completed', [
             'backup_id' => $backup->id,
             'safety_backup_id' => $safetyBackup->id,
@@ -344,9 +339,155 @@ class RucBackupService
 
         return [
             'records_restored' => $recordsAfter,
+            'records_before' => $recordsBefore,
             'safety_backup_id' => $safetyBackup->id,
             'duration_seconds' => $duration,
         ];
+    }
+
+    /**
+     * Etapa "validating_backup": el backup debe estar completado, su
+     * archivo debe existir, y el dump debe contener EXCLUSIVAMENTE objetos
+     * de ruc_records. Público: RestoreRucBackupJob la llama directamente
+     * para poder actualizar stage/progress entre cada etapa.
+     */
+    public function validateBackup(RucBackup $backup): void
+    {
+        if (! $backup->isCompleted()) {
+            throw new \RuntimeException('El backup debe estar completado para restaurar.');
+        }
+
+        if (! $backup->fileExists()) {
+            throw new \RuntimeException('El archivo de backup no existe en el servidor.');
+        }
+
+        $this->assertDumpBelongsToRucRecords($backup->absolutePath());
+    }
+
+    /** Etapa "verifying_checksum". */
+    public function verifyChecksum(RucBackup $backup): void
+    {
+        if (! $backup->checksum_sha256) {
+            return;
+        }
+
+        $actualChecksum = hash_file('sha256', $backup->absolutePath());
+        if ($actualChecksum !== $backup->checksum_sha256) {
+            throw new \RuntimeException('El checksum del archivo no coincide con el registrado. El backup puede estar corrupto.');
+        }
+    }
+
+    public function countRucRecords(): int
+    {
+        return (int) DB::table('ruc_records')->count();
+    }
+
+    /**
+     * Etapa "validating_safety_backup". Si ruc_records tenía registros
+     * ANTES de crear el safety backup y este reporta un total distinto (en
+     * particular 0), el safety backup NO es confiable: continuar el
+     * restore sería darle al operador una falsa sensación de seguridad
+     * (justo el escenario que produjo "RUC backup created type=safety
+     * records=0" en producción). Abortar es la única opción segura.
+     */
+    public function validateSafetyBackup(RucBackup $safetyBackup, int $recordsBefore): void
+    {
+        if ($safetyBackup->status !== RucBackup::STATUS_COMPLETED) {
+            throw new \RuntimeException('El backup de seguridad no se completó correctamente.');
+        }
+
+        if (! $safetyBackup->fileExists()) {
+            throw new \RuntimeException('El archivo del backup de seguridad no existe.');
+        }
+
+        if (! $safetyBackup->file_size_bytes) {
+            throw new \RuntimeException('El backup de seguridad quedó vacío.');
+        }
+
+        if (! $safetyBackup->checksum_sha256) {
+            throw new \RuntimeException('El backup de seguridad no tiene checksum registrado.');
+        }
+
+        // Re-confirma formato Y contenido (pg_restore --list), no solo que
+        // el archivo exista.
+        $this->assertDumpBelongsToRucRecords($safetyBackup->absolutePath());
+
+        if ($recordsBefore > 0 && (int) ($safetyBackup->total_records ?? 0) !== $recordsBefore) {
+            throw new \RuntimeException(sprintf(
+                'El backup de seguridad reporta %d registros pero ruc_records tenía %d antes de crearlo. Restore abortado: un safety backup vacío o incompleto no protege nada.',
+                $safetyBackup->total_records ?? 0,
+                $recordsBefore
+            ));
+        }
+    }
+
+    private const PLAIN_SQL_SIZE_MULTIPLIER = 6;
+
+    private const DISK_SPACE_SAFETY_MARGIN = 1.2;
+
+    /**
+     * Etapa "preparing_restore": pg_restore --data-only convierte el dump
+     * (formato custom, comprimido) a SQL plano ANTES de poder ejecutarlo —
+     * ese archivo intermedio puede ser varias veces más grande que el
+     * .dump original. Estimación conservadora (multiplicador fijo + margen)
+     * para no quedarnos sin espacio a mitad de un restore de millones de
+     * filas; sys_get_temp_dir() es el mismo directorio que usa
+     * restoreDataAtomically() para data.sql/wrapper.sql.
+     */
+    public function assertSufficientDiskSpaceForRestore(string $dumpPath): void
+    {
+        $dumpSize = filesize($dumpPath);
+        if ($dumpSize === false) {
+            throw new \RuntimeException('No se pudo determinar el tamaño del backup.');
+        }
+
+        $estimatedRequired = (int) ($dumpSize * self::PLAIN_SQL_SIZE_MULTIPLIER * self::DISK_SPACE_SAFETY_MARGIN);
+        $workDir = sys_get_temp_dir();
+        $free = @disk_free_space($workDir);
+
+        if ($free === false) {
+            Log::warning('No se pudo determinar el espacio libre en disco antes del restore', ['work_dir' => $workDir]);
+
+            return;
+        }
+
+        if ($free < $estimatedRequired) {
+            throw new \RuntimeException(sprintf(
+                'Espacio insuficiente en disco para preparar el restore (%s libres en %s, se estiman %s necesarios).',
+                $this->formatBytes((int) $free),
+                $workDir,
+                $this->formatBytes($estimatedRequired)
+            ));
+        }
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $value = $bytes;
+        $i = 0;
+        for (; $value > 1024 && $i < count($units) - 1; $i++) {
+            $value /= 1024;
+        }
+
+        return round($value, 2).' '.$units[$i];
+    }
+
+    /**
+     * Etapa "verifying_restore". No revierte nada (el restore ya se
+     * confirmó con COMMIT; revertir después sería más peligroso que dejar
+     * constancia) — solo advierte si el conteo final no coincide con la
+     * metadata del backup.
+     */
+    public function verifyRestoreRecordCount(RucBackup $backup, int $recordsAfter): void
+    {
+        if ($backup->total_records !== null && $recordsAfter !== $backup->total_records) {
+            Log::warning('Restored record count differs from backup metadata', [
+                'backup_id' => $backup->id,
+                'expected' => $backup->total_records,
+                'actual' => $recordsAfter,
+            ]);
+        }
     }
 
     /**
@@ -372,8 +513,10 @@ class RucBackupService
      * abierta — incluido el TRUNCATE — dejando ruc_records exactamente como
      * estaba. Verificado con pruebas manuales (dump truncado a mitad de
      * archivo): la tabla queda intacta cuando esto falla.
+     *
+     * Etapa "restoring". Pública: RestoreRucBackupJob la llama directamente.
      */
-    private function restoreDataAtomically(string $dumpPath): void
+    public function restoreDataAtomically(string $dumpPath): void
     {
         $workDir = sys_get_temp_dir();
         $dataSqlPath = $workDir.'/ruc_restore_data_'.bin2hex(random_bytes(6)).'.sql';

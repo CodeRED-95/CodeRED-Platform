@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace App\Modules\Ruc\Http\Controllers;
 
+use App\Modules\Ruc\Jobs\RestoreRucBackupJob;
 use App\Modules\Ruc\Models\RucBackup;
+use App\Modules\Ruc\Models\RucBackupOperation;
 use App\Modules\Ruc\Services\RucBackupService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -27,8 +32,21 @@ class RucBackupController
         Gate::authorize('ruc.backup.view');
 
         $backups = RucBackup::query()->latest('id')->paginate(15);
-        $currentRecordCount = DB::table('ruc_records')->count();
+
+        // NO ejecutar COUNT(*) sobre 18M filas en cada page load.
+        // Usar cache invalidado solo después de import/restore.
+        // Estrategia: RucStatistics tabla + cache con TTL 24h.
+        // Ver docs-ruc/PERFORMANCE.md y fase 1 del plan de optimización.
+        $currentRecordCount = Cache::remember('ruc:records:count', 86400, function () {
+            return DB::table('ruc_statistics')->first()?->total_records ?? 0;
+        });
+
         $lastBackup = RucBackup::query()->where('status', RucBackup::STATUS_COMPLETED)->latest('id')->first();
+        // Solo la operación activa (pending/running): así, si alguien
+        // recarga la página mientras un restore sigue corriendo en segundo
+        // plano, la UI retoma el polling de inmediato en vez de volver al
+        // estado "idle".
+        $activeRestoreOperation = RucBackupOperation::activeRestore();
 
         // layouts.app (resources/views/layouts/app.blade.php) espera un
         // $slot, igual que lo consume Livewire para las páginas completas
@@ -42,6 +60,7 @@ class RucBackupController
                 'backups' => $backups,
                 'currentRecordCount' => $currentRecordCount,
                 'lastBackup' => $lastBackup,
+                'activeRestoreOperation' => $activeRestoreOperation,
             ])->render()),
         ]);
     }
@@ -101,28 +120,78 @@ class RucBackupController
         }
     }
 
+    /**
+     * SOLO valida, crea la operación y despacha el Job — nunca ejecuta
+     * pg_dump/psql aquí. Restaurar 18M+ registros dentro del request HTTP
+     * es lo que causaba el 524 de Cloudflare (Cloudflare/nginx cortan la
+     * conexión mucho antes de que un restore de esa magnitud termine); esta
+     * respuesta debe volver en <2s siempre, sin importar cuánto tarde el
+     * restore real. Ver RestoreRucBackupJob.
+     */
     public function restore(RucBackup $backup): RedirectResponse
     {
         Gate::authorize('ruc.backup.restore');
 
-        try {
-            $result = app(RucBackupService::class)->restore($backup, auth()->user());
-
-            return redirect()->route('admin.ruc.backups')->with(
-                'success',
-                "RUC restaurados correctamente: {$result['records_restored']} registros en {$result['duration_seconds']}s. ".
-                "Se creó un backup de seguridad (#{$result['safety_backup_id']}) antes de restaurar."
-            );
-        } catch (\Throwable $e) {
-            Log::error('RUC restore failed', ['backup_id' => $backup->id, 'error' => $e->getMessage(), 'user_id' => auth()->id()]);
-
-            return redirect()->route('admin.ruc.backups')->with('error', 'Restore cancelado: '.$e->getMessage());
+        if (! $backup->isCompleted()) {
+            return redirect()->route('admin.ruc.backups')->with('error', 'El backup debe estar completado para restaurar.');
         }
+
+        if (RucBackupOperation::hasActiveRestore()) {
+            return redirect()->route('admin.ruc.backups')->with('error', 'Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
+        }
+
+        $operation = RucBackupOperation::create([
+            'uuid' => (string) Str::uuid(),
+            'backup_id' => $backup->id,
+            'operation_type' => RucBackupOperation::TYPE_RESTORE,
+            'status' => RucBackupOperation::STATUS_PENDING,
+            'stage' => RucBackupOperation::STAGE_QUEUED,
+            'progress' => 0,
+            'message' => 'En cola',
+            'created_by' => auth()->id(),
+        ]);
+
+        RestoreRucBackupJob::dispatch($operation->id);
+
+        Log::info('RUC restore queued', ['operation_id' => $operation->id, 'operation_uuid' => $operation->uuid, 'backup_id' => $backup->id, 'user_id' => auth()->id()]);
+
+        return redirect()->route('admin.ruc.backups')->with('success', 'Restauración iniciada.');
+    }
+
+    /** Consultado por polling desde la UI cada 2-3s mientras hay una operación activa. */
+    public function operationStatus(RucBackupOperation $operation): JsonResponse
+    {
+        Gate::authorize('ruc.backup.view');
+
+        return response()->json([
+            'uuid' => $operation->uuid,
+            'status' => $operation->status,
+            'stage' => $operation->stage,
+            'progress' => $operation->progress,
+            'message' => $operation->message,
+            'backup_name' => $operation->backup?->name,
+            'safety_backup_id' => $operation->safety_backup_id,
+            'records_before' => $operation->records_before,
+            'records_after' => $operation->records_after,
+            'started_at' => $operation->started_at?->toIso8601String(),
+            'finished_at' => $operation->finished_at?->toIso8601String(),
+            'duration_seconds' => $operation->duration_seconds,
+            'error_message' => $operation->error_message,
+        ]);
     }
 
     public function destroy(RucBackup $backup): RedirectResponse
     {
         Gate::authorize('ruc.backup.delete');
+
+        $usedByActiveOperation = RucBackupOperation::query()
+            ->whereIn('status', [RucBackupOperation::STATUS_PENDING, RucBackupOperation::STATUS_RUNNING])
+            ->where(fn ($query) => $query->where('backup_id', $backup->id)->orWhere('safety_backup_id', $backup->id))
+            ->exists();
+
+        if ($usedByActiveOperation) {
+            return redirect()->route('admin.ruc.backups')->with('error', 'No se puede eliminar: este backup está siendo usado por una restauración en curso.');
+        }
 
         if ($backup->fileExists()) {
             @unlink($backup->absolutePath());

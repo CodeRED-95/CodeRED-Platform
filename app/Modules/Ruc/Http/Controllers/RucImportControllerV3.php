@@ -4,6 +4,7 @@ namespace App\Modules\Ruc\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Ruc\Models\RucBackupOperation;
 use App\Modules\Ruc\Models\RucImport;
 use App\Modules\Ruc\Services\RucImportOrchestrator;
 use App\Modules\Ruc\Services\RucProgressTracker;
@@ -23,6 +24,17 @@ class RucImportControllerV3 extends Controller
         RucImportOrchestrator $orchestrator
     ): JsonResponse {
         $this->authorize('create', RucImport::class);
+
+        // Un import escribe en ruc_records (INSERT/UPDATE por lotes) al
+        // mismo tiempo que un restore activo la reemplaza por completo
+        // (TRUNCATE + COPY) — nunca deben correr a la vez. Ver
+        // RucBackupOperation::hasActiveRestore().
+        if (RucBackupOperation::hasActiveRestore()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hay una restauración de backup RUC en curso. Espera a que termine antes de iniciar una importación.',
+            ], 409);
+        }
 
         $validated = $request->validate([
             'file' => 'required|file|mimes:txt',

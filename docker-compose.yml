@@ -33,6 +33,12 @@ services:
     image: postgres:16-alpine
     container_name: codered-postgres
     restart: unless-stopped
+    # /dev/shm (shared memory) es usado por VACUUM FULL y ANALYZE con
+    # parallel workers. Con 64MB default, operaciones grandes fallan con
+    # "No space left on device". Para 18M+ registros, mínimo 512MB.
+    # Host tiene ~4GB RAM, así que 512MB es seguro (~13% RAM).
+    # Ver docs-ruc/PERFORMANCE.md "PHASE 2: PostgreSQL Infrastructure".
+    shm_size: 512mb
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -72,6 +78,34 @@ services:
     working_dir: /var/www/html
     command: [ "php", "artisan", "queue:work", "redis", "--queue=agency-imports,ruc-imports,default", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768" ]
     stop_grace_period: 2h
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  # Worker DEDICADO para RestoreRucBackupJob (cola/conexión "ruc-backups",
+  # ver config/queue.php). Separado del worker "queue" a propósito: un
+  # restore de ruc_records puede tardar decenas de minutos u horas y NO
+  # debe bloquear emails/tokens/imports/agency jobs del worker general, ni
+  # verse bloqueado por ellos. stop_grace_period cubre el timeout máximo
+  # del job (86400s) para que `docker compose stop`/recreación de imagen
+  # nunca SIGKILL-ee un restore a mitad de camino — aunque el flujo normal
+  # ya evita llegar a ese punto (ver update.sh, paso "Verificando que no
+  # haya un restore RUC activo").
+  queue-ruc-backups:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: codered-queue-ruc-backups
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: [ "php", "artisan", "queue:work", "ruc-backups", "--queue=ruc-backups", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768" ]
+    stop_grace_period: 25h
     volumes:
       - ./:/var/www/html
     depends_on:

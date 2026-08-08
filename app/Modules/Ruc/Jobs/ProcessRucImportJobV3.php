@@ -11,6 +11,7 @@ use App\Modules\Ruc\Services\RucErrorRecorder;
 use App\Modules\Ruc\Services\RucFileStreamReader;
 use App\Modules\Ruc\Services\RucLineValidator;
 use App\Modules\Ruc\Services\RucProgressTracker;
+use App\Modules\Ruc\Services\RucStatisticsService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -286,6 +287,19 @@ class ProcessRucImportJobV3 implements ShouldQueue
                 'memory_peak_mb' => $memoryPeakMb,
                 'speed' => $recordsProcessed > 0 ? $recordsProcessed / $elapsedSeconds : 0,
             ]);
+
+            // Post-import: actualizar estadísticas para query planner (ANALYZE).
+            // Después de INSERT masivo, pg_class.n_live_tup puede estar stale,
+            // causando planes ineficientes. ANALYZE actualiza estadísticas;
+            // es rápido (~2-5s) y no bloquea.
+            Log::info('Starting ANALYZE after RUC import', ['import_id' => $import->id]);
+            DB::statement('ANALYZE ruc_records');
+            Log::info('ANALYZE completed after RUC import', ['import_id' => $import->id]);
+
+            // Actualizar tabla ruc_statistics (usado por dashboard, páginas admin)
+            // e invalidar caches para que reflejen el nuevo conteo inmediatamente.
+            app(RucStatisticsService::class)->updateAllStatistics('import');
+            app(RucStatisticsService::class)->recordAnalyzeComplete();
 
         } catch (Throwable $e) {
             $fileReader->close($file ?? null);
