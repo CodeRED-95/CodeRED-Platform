@@ -1,0 +1,14 @@
+{
+  "database": {
+    "driver": "pgsql",
+    "host": "localhost",
+    "port": 5432,
+    "database": "ruc_db",
+    "username": "ruc_user",
+    "password": "secret"
+  },
+  "backup_directory": "~/.ruc-tool/backups",
+  "logs_directory": "~/.ruc-tool/logs",
+  "copy_batch_size": 50000,
+  "timeout": 3600
+}

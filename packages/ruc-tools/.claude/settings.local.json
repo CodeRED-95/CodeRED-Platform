@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -ExecutionPolicy Bypass -Command \"& {Write-Host 'Test: Setup script loaded' -ForegroundColor Green}\")",
+      "Bash(powershell -ExecutionPolicy Bypass -Command \"& {[scriptblock]::Create\\([io.file]::ReadAllText\\('setup.ps1'\\)\\) | Out-Null; Write-Host 'Setup.ps1 syntax OK' -ForegroundColor Green}\")"
+    ]
+  }
+}

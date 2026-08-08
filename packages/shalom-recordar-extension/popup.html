@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 350px; padding: 15px; font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: #121212; color: #e0e0e0; margin: 0; border-radius: 15px;
+        }
+        .header-container { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; gap: 10px; }
+        .logo-box {
+            display: inline-flex; height: 32px; width: 32px; align-items: center;
+            justify-content: center; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+            background: white;
+        }
+        .logo-text { color: #d32f2f; font-weight: 900; font-size: 18px; }
+
+        h3 { margin: 0; color: #ffffff; text-align: center; }
+        p.hint { font-size: 12px; color: #999; text-align: center; margin: 8px 0 14px; }
+
+        input[type="password"] {
+            width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 10px;
+            background: #1f1f1f; border: 1px solid #333; border-radius: 8px; color: #e0e0e0;
+        }
+
+        button {
+            width: 100%; padding: 10px; margin-bottom: 10px; cursor: pointer;
+            background: #007bff; color: white; border: none; border-radius: 10px;
+            font-weight: bold; transition: opacity 0.2s;
+        }
+        button#btnExportar { background: #28a745; }
+        button#btnRefrescar { background: #444; }
+        button#btnLock { background: #444; }
+        button:hover { opacity: 0.9; }
+
+        #msgError { color: #ff6b6b; font-size: 12px; text-align: center; margin: -4px 0 10px; min-height: 14px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; border-radius: 10px; overflow: hidden; }
+        th, td { border: 1px solid #333; padding: 6px; text-align: left; }
+        th { background-color: #1f1f1f; color: #bbb; }
+        tr:nth-child(even) { background-color: #1a1a1a; }
+        tr:hover { background-color: #252525; }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <div class="logo-box"><span class="logo-text">S</span></div>
+        <h3>Historial Shalom</h3>
+    </div>
+
+    <!-- Vista: primer uso, crear passphrase -->
+    <div id="vistaSetup" class="hidden">
+        <p class="hint">Crea una contraseña para cifrar los datos guardados. No se almacena en ningún lado: solo se pide una vez por sesión del navegador.</p>
+        <input type="password" id="setupPass1" placeholder="Nueva contraseña">
+        <input type="password" id="setupPass2" placeholder="Repetir contraseña">
+        <div id="msgErrorSetup" style="color:#ff6b6b;font-size:12px;text-align:center;margin:-4px 0 10px;min-height:14px;"></div>
+        <button id="btnSetup">Crear y continuar</button>
+    </div>
+
+    <!-- Vista: desbloqueo -->
+    <div id="vistaUnlock" class="hidden">
+        <p class="hint">Ingresa tu contraseña para ver y registrar el historial.</p>
+        <input type="password" id="unlockPass" placeholder="Contraseña">
+        <div id="msgErrorUnlock" style="color:#ff6b6b;font-size:12px;text-align:center;margin:-4px 0 10px;min-height:14px;"></div>
+        <button id="btnUnlock">Desbloquear</button>
+    </div>
+
+    <!-- Vista: app principal -->
+    <div id="vistaApp" class="hidden">
+        <div style="background:#1f1f1f;padding:10px;border-radius:8px;margin-bottom:10px;font-size:12px;">
+            <label style="color:#999;">Usuario sincronización:</label>
+            <input type="text" id="inputUsuario" placeholder="Nombre de usuario" style="width:100%;box-sizing:border-box;padding:6px;margin-top:4px;background:#0a0a0a;border:1px solid #333;border-radius:6px;color:#e0e0e0;">
+            <div id="syncStatus" style="margin-top:6px;font-size:11px;color:#999;"></div>
+        </div>
+
+        <button id="btnExportar">Exportar a Excel (.xls)</button>
+        <button id="btnRefrescar">Refrescar Lista</button>
+        <button id="btnSync">Sincronizar Ahora</button>
+        <button id="btnLock">Bloquear</button>
+
+        <table id="tabla">
+            <thead>
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Campo</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoTabla"></tbody>
+        </table>
+    </div>
+
+    <script src="crypto.js"></script>
+    <script src="db.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

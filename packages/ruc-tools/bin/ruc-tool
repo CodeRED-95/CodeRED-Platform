@@ -1,0 +1,32 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Symfony\Component\Console\Application;
+use RucTool\Commands\InitCommand;
+use RucTool\Commands\ImportCommand;
+use RucTool\Commands\ValidateCommand;
+use RucTool\Commands\ExportCommand;
+use RucTool\Commands\StatsCommand;
+use RucTool\Commands\SearchCommand;
+use RucTool\Commands\BackupCommand;
+use RucTool\Commands\RestoreCommand;
+use RucTool\Commands\RebuildUbigeoCommand;
+use RucTool\Commands\ConfigCommand;
+
+$application = new Application('RUC Tool', '2.2.0');
+
+// Registrar comandos
+$application->add(new InitCommand());
+$application->add(new ImportCommand());
+$application->add(new ValidateCommand());
+$application->add(new ExportCommand());
+$application->add(new StatsCommand());
+$application->add(new SearchCommand());
+$application->add(new BackupCommand());
+$application->add(new RestoreCommand());
+$application->add(new RebuildUbigeoCommand());
+$application->add(new ConfigCommand());
+
+$application->run();

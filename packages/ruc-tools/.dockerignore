@@ -1,0 +1,15 @@
+vendor/
+.git/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+composer.phar
+composer.json.original
+composer.json.https
+php.ini
+php-local.bat
+*.ps1
+*.bat
+.env
+.env.local

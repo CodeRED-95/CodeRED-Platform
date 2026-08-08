@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ruc-tool-postgres
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - work_mem=1GB
+      - -c
+      - maintenance_work_mem=1GB
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - synchronous_commit=off
+      - -c
+      - checkpoint_timeout=30min
+      # Favorece planes de Sort explícito (uso de work_mem) por sobre Index
+      # Scan para ORDER BY/window functions sobre tablas grandes: un Index
+      # Scan que no está clusterizado con el orden del índice degenera en
+      # I/O aleatorio por fila, mucho más lento que un sort secuencial.
+      - -c
+      - random_page_cost=2.0
+    environment:
+      POSTGRES_DB: ruc_db
+      POSTGRES_USER: ruc_user
+      POSTGRES_PASSWORD: secret
+    ports:
+      # Puerto externo distinto a 5432 para no chocar con el Postgres de CodeRED-Platform
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ruc_user -d ruc_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ruc-network
+
+  ruc-tool:
+    build: .
+    container_name: ruc-tool-cli
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_DRIVER: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ruc_db
+      DB_USERNAME: ruc_user
+      DB_PASSWORD: secret
+    volumes:
+      - ./:/app
+      - ruc_vendor:/app/vendor
+      - ruc_data:/root/.ruc-tool
+      # Carpeta de Descargas del host, montada de solo lectura para importar
+      # el padrón sin copiarlo dentro del proyecto (el archivo pesa ~1.5GB+)
+      - E:/Documentos/Descargas:/data:ro
+    networks:
+      - ruc-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  postgres_data:
+  ruc_vendor:
+  ruc_data:
+
+networks:
+  ruc-network:
+    driver: bridge
