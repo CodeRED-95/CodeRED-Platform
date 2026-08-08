@@ -1,4 +1,23 @@
-# RUC Tool v2.2.0
+# RUC Tool v2.3.0
+
+> ## ⚠️ IMPORTANT — LOCAL TOOL ONLY
+>
+> **RUC Tools es una herramienta administrativa local (offline, de
+> desarrollo/operación).** NO forma parte del runtime ni del despliegue de
+> CodeRED Platform.
+>
+> - **NO** se despliega en producción.
+> - **NO** se copia dentro de `codered-app` ni de `/var/www/html`.
+> - **NO** aparece en el `Dockerfile` ni en el `docker-compose.yml` principal
+>   de CodeRED Platform.
+> - **NO** la instala, construye ni ejecuta `update.sh`.
+>
+> Este paquete (`packages/ruc-tools`) vive en el repositorio porque está
+> versionado junto al resto del proyecto, pero se usa **exclusivamente en tu
+> máquina**, con su propio `docker-compose.yml` local (ver más abajo). Todo lo
+> que produce (backups, partes, manifests) se prepara aquí y se transporta
+> manualmente a donde corresponda — RUC Tools nunca sube nada ni se conecta a
+> producción por su cuenta.
 
 Herramienta CLI standalone para importar el **padrón reducido de RUC (SUNAT)** a una base de datos **PostgreSQL local**, con un esquema **idéntico** al que usa [CodeRED-Platform](https://github.com/CodeRED-95/CodeRED-Platform) en producción. Los backups que genera son restaurables directamente con `php artisan ruc:restore` en el servidor, y viceversa.
 
@@ -100,12 +119,125 @@ ruc-tool search --departamento=LIMA --estado=ACTIVO
 
 ### Backup y restore
 
+`ruc-tool backup` hace **UN SOLO** `pg_dump` consistente de `ruc_records` y
+lo divide automáticamente en partes de tamaño fijo (90 MiB por defecto),
+pensadas para transportarse fácilmente (USB, subida por partes, etc.). Nunca
+hace varios `pg_dump` independientes ni divide por rangos de RUC/id — el
+split es puramente binario, después de que el dump ya existe completo.
+
 ```powershell
-ruc-tool backup                                    # pg_dump --format=custom
-ruc-tool restore ruc_backup_2026-08-07-041050.sql.gz
+ruc-tool backup
 ```
 
-El archivo generado en `~/.ruc-tool/backups/` es compatible 1:1 con `php artisan ruc:restore` en producción, y puedes copiar backups de producción aquí y restaurarlos con `ruc-tool restore`.
+```
+RUC Backup
+==========
+
+ Registros:
+ 18,316,242
+
+ Creando PostgreSQL dump...
+ OK
+
+ Tamaño:
+ 442.9 MiB
+
+ Validando dump...
+ OK
+
+ SHA-256:
+ d8542da4c863229aa968373887e2456523c2e2be7e932039d73adf6e4a1b9182
+
+ Dividiendo en partes de 90 MiB...
+
+ Parte 1/5      90 MiB  OK
+ Parte 2/5      90 MiB  OK
+ Parte 3/5      90 MiB  OK
+ Parte 4/5      90 MiB  OK
+ Parte 5/5    82.9 MiB  OK
+
+ Verificando partes...
+ OK
+
+ [OK] Backup preparado correctamente.
+```
+
+El resultado es una carpeta en `~/.ruc-tool/backups/`, no un único archivo:
+
+```
+~/.ruc-tool/backups/ruc_backup_2026-08-08-125938/
+  ruc_backup_2026-08-08-125938.manifest.json
+  ruc_backup_2026-08-08-125938.dump.part0001   (90 MiB)
+  ruc_backup_2026-08-08-125938.dump.part0002   (90 MiB)
+  ruc_backup_2026-08-08-125938.dump.part0003   (90 MiB)
+  ruc_backup_2026-08-08-125938.dump.part0004   (90 MiB)
+  ruc_backup_2026-08-08-125938.dump.part0005   (82.9 MiB, resto)
+```
+
+Eso es lo que se transporta: las partes + el `manifest.json`. El `.dump`
+completo se genera solo como paso intermedio y se borra automáticamente al
+terminar (usa `--keep-full` si lo quieres conservar también).
+
+Opciones:
+
+```powershell
+ruc-tool backup --part-size=90     # tamaño de cada parte, en MiB (default: 90)
+ruc-tool backup --keep-full        # conserva también el .dump completo sin dividir
+```
+
+**Verificar** un backup dividido (manifest válido, todas las partes
+presentes, checksums, SHA-256 total reconstruido por streaming):
+
+```powershell
+ruc-tool backup:verify ruc_backup_2026-08-08-125938.manifest.json
+```
+
+**Reconstruir** el `.dump` completo a partir de las partes (streaming, nunca
+carga todo en memoria; el resultado es byte-idéntico al original y pasa
+`pg_restore --list`):
+
+```powershell
+ruc-tool backup:join ruc_backup_2026-08-08-125938.manifest.json
+```
+
+**Restaurar** acepta tres formas de backup — nuevo dividido (manifest),
+`.dump` de un solo archivo, o legado `.sql.gz`:
+
+```powershell
+ruc-tool restore ruc_backup_2026-08-08-125938.manifest.json   # dividido: verifica, reconstruye, restaura, borra el temporal
+ruc-tool restore ruc_backup_2026-08-07-041050.dump            # un solo archivo
+ruc-tool restore ruc_backup_2026-08-07-041050.sql.gz           # legado (ver nota abajo)
+```
+
+El backup generado es compatible 1:1 con `php artisan ruc:restore` en
+producción (`pg_restore --list` acepta ambos formatos sin importar la
+extensión), y puedes copiar backups de producción aquí y restaurarlos con
+`ruc-tool restore`.
+
+#### Nota sobre `.sql.gz`
+
+El nombre `.sql.gz` de los backups **antiguos** es legado y engañoso: el
+contenido siempre fue (y sigue siendo) un dump en **formato custom de
+`pg_dump`**, no un archivo gzip real. Los backups **nuevos** usan la
+extensión `.dump`, que refleja correctamente el formato. Ambos se
+reconocen **por contenido** (`pg_restore --list`), nunca por extensión ni
+MIME type — puedes renombrar cualquiera de los dos y seguirá funcionando.
+
+#### Por qué el dump conserva el schema (no `--data-only`)
+
+`ruc-tool restore` usa `pg_restore --clean --if-exists --single-transaction`
+para hacer DROP+CREATE+COPY de forma atómica, lo que **requiere** que el
+dump traiga el schema completo (`CREATE TABLE`, índices, secuencia). Un
+`--data-only` dejaría a `--clean` sin nada que dropear y, sin un `TRUNCATE`
+explícito en su lugar, un segundo restore duplicaría claves. CodeRED
+Platform en producción sí generó su backup como `--data-only` (las
+migrations de Laravel son la fuente de verdad del schema ahí), pero su
+restore también funciona igual de bien con un dump full-schema como el que
+genera esta herramienta: valida y restaura solo por contenido
+(`pg_restore --data-only` sobre el archivo, sin importar si el archivo
+tiene schema o no). Por eso mantener schema aquí no rompe compatibilidad en
+ningún sentido con producción, y sí evita reescribir el mecanismo de
+restore de esta herramienta (que si necesita `--clean --if-exists`).
 
 ### Reconstruir geografía (automatización de ubigeo)
 
@@ -163,8 +295,10 @@ validate         Validar un archivo sin importarlo
 export           Exportar ruc_records a CSV/JSON
 stats            Ver estadísticas
 search           Buscar registros
-backup           Backup vía pg_dump --format=custom
-restore          Restore vía pg_restore
+backup           Backup vía pg_dump, dividido en partes + manifest.json
+backup:verify    Verificar un backup dividido (manifest, partes, checksums)
+backup:join      Reconstruir el .dump completo a partir de las partes
+restore          Restore desde manifest.json, .dump o .sql.gz legado
 ubigeo:rebuild   Re-resolver departamento/provincia/distrito
 config           Ver/editar configuración
 ```

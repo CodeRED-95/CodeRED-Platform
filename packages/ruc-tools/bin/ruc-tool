@@ -11,11 +11,13 @@ use RucTool\Commands\ExportCommand;
 use RucTool\Commands\StatsCommand;
 use RucTool\Commands\SearchCommand;
 use RucTool\Commands\BackupCommand;
+use RucTool\Commands\BackupVerifyCommand;
+use RucTool\Commands\BackupJoinCommand;
 use RucTool\Commands\RestoreCommand;
 use RucTool\Commands\RebuildUbigeoCommand;
 use RucTool\Commands\ConfigCommand;
 
-$application = new Application('RUC Tool', '2.2.0');
+$application = new Application('RUC Tool', '2.3.0');
 
 // Registrar comandos
 $application->add(new InitCommand());
@@ -25,6 +27,8 @@ $application->add(new ExportCommand());
 $application->add(new StatsCommand());
 $application->add(new SearchCommand());
 $application->add(new BackupCommand());
+$application->add(new BackupVerifyCommand());
+$application->add(new BackupJoinCommand());
 $application->add(new RestoreCommand());
 $application->add(new RebuildUbigeoCommand());
 $application->add(new ConfigCommand());

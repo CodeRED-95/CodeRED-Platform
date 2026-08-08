@@ -153,5 +153,14 @@ class Schema
                 created_at TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP
             )
         ');
+
+        // v2.3.0: backup dividido en partes (manifest.json + *.partNNNN).
+        // ADD COLUMN IF NOT EXISTS es idempotente en Postgres — necesario
+        // además del CREATE TABLE IF NOT EXISTS de arriba para que una BD
+        // local ya existente (creada con una versión anterior de ruc-tools)
+        // también reciba las columnas nuevas sin perder sus backups previos.
+        $pdo->exec('ALTER TABLE ruc_tool_backups ADD COLUMN IF NOT EXISTS manifest_path VARCHAR(500)');
+        $pdo->exec('ALTER TABLE ruc_tool_backups ADD COLUMN IF NOT EXISTS total_parts INTEGER');
+        $pdo->exec('ALTER TABLE ruc_tool_backups ADD COLUMN IF NOT EXISTS part_size_bytes BIGINT');
     }
 }

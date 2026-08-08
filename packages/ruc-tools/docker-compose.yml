@@ -1,3 +1,12 @@
+# ============================================================================
+# DO NOT USE AS PART OF CODERED PLATFORM PRODUCTION STACK.
+#
+# Este compose es exclusivamente para desarrollo/operación LOCAL de RUC
+# Tools. No lo incluyas, referencies ni levantes desde el docker-compose.yml
+# principal de CodeRED Platform, desde update.sh, ni desde ningún servidor
+# de producción. Ver packages/ruc-tools/README.md ("IMPORTANT — LOCAL TOOL
+# ONLY") para el detalle completo de esta regla.
+# ============================================================================
 services:
   postgres:
     image: postgres:16-alpine

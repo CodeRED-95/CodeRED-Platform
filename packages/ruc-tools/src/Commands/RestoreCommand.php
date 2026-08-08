@@ -14,18 +14,19 @@ use RucTool\Services\BackupService;
 use RucTool\Helpers\ConfigManager;
 use RucTool\Helpers\Logger;
 
-#[AsCommand(name: 'restore', description: 'Restore ruc_records from a local pg_dump backup')]
+#[AsCommand(name: 'restore', description: 'Restore ruc_records from a local pg_dump backup (.dump, legacy .sql.gz, or *.manifest.json)')]
 class RestoreCommand extends Command
 {
     protected function configure(): void
     {
-        $this->addArgument('backup', InputArgument::REQUIRED, 'Backup filename to restore (see: ruc-tool backup)');
+        $this->addArgument('backup', InputArgument::REQUIRED, 'Backup filename, path, or *.manifest.json to restore (see: ruc-tool backup)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         $backupFilename = $input->getArgument('backup');
+        $isManifest = str_ends_with($backupFilename, '.manifest.json');
 
         try {
             $configManager = new ConfigManager();
@@ -47,7 +48,12 @@ class RestoreCommand extends Command
 
             $io->info("Restoring from: $backupFilename");
 
-            $result = $backupService->restore($backupFilename);
+            if ($isManifest) {
+                $io->text('Detectado manifest.json: verificando partes y reconstruyendo el backup...');
+                $result = $backupService->restoreFromManifest($backupFilename);
+            } else {
+                $result = $backupService->restore($backupFilename);
+            }
 
             $io->newLine();
             $io->section('Restore Completed');

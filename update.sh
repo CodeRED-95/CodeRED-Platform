@@ -3,6 +3,13 @@ set -Eeuo pipefail
 export LANG="${LANG:-C.UTF-8}"
 export LC_ALL="${LC_ALL:-C.UTF-8}"
 
+# NOTA: packages/ruc-tools es una herramienta administrativa LOCAL (CLI
+# standalone de desarrollo/operación) y NUNCA forma parte de este deploy.
+# git pull la trae al repo porque está versionada junto al resto del
+# proyecto, pero este script no debe instalar sus dependencias (composer
+# install de packages/ruc-tools), construir su imagen, ni iniciar su propio
+# docker-compose.yml. Ver packages/ruc-tools/README.md.
+
 PROJECT_DIR="${PROJECT_DIR:-$PWD}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 

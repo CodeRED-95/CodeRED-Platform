@@ -2,6 +2,44 @@
 
 Todos los cambios notables de este proyecto están documentados en este archivo.
 
+## [2.3.0] - 2026-08-08
+
+### Added
+- `ruc-tool backup` ahora divide automáticamente el dump en partes de
+  tamaño fijo (90 MiB por defecto, `--part-size=N` configurable) más un
+  `manifest.json` — sigue siendo UN SOLO `pg_dump` consistente, dividido
+  binariamente después, nunca varios dumps independientes.
+- `ruc-tool backup:verify <manifest>` — valida manifest, partes, checksums
+  individuales y SHA-256 total reconstruido por streaming.
+- `ruc-tool backup:join <manifest>` — reconstruye el `.dump` completo a
+  partir de las partes (streaming, byte-idéntico al original).
+- `ruc-tool restore <manifest.json>` — restaura directamente desde un
+  backup dividido (verify → join a temporal → pg_restore → borra temporal).
+- `--keep-full` en `backup` para conservar también el `.dump` sin dividir.
+- Validación de contenido (`pg_restore --list`) antes de dividir o
+  restaurar: rechaza dumps corruptos o que no pertenezcan a `ruc_records`.
+- Checksum SHA-256 por parte además del checksum del backup completo.
+- Chequeo de espacio en disco antes de dividir (aborta con mensaje claro en
+  vez de llenar el disco).
+
+### Changed
+- Backups nuevos usan extensión `.dump` (formato custom de `pg_dump`, no
+  cambia); `.sql.gz` queda como alias legado, ambos reconocidos por
+  contenido, no por extensión.
+- `pg_dump` agrega `--no-owner --no-privileges` para portabilidad entre
+  entornos con usuarios de base de datos distintos.
+- `ruc_tool_backups` (esquema local) gana columnas `manifest_path`,
+  `total_parts`, `part_size_bytes` (migración idempotente vía `init`).
+
+### Compatibility
+- Restore de un solo archivo (`.dump`/`.sql.gz`) sin cambios de
+  comportamiento.
+- Se evaluó cambiar el dump a `--data-only` para igualar exactamente el
+  mecanismo actual de CodeRED-Platform; se decidió NO hacerlo en esta
+  versión porque el restore propio de esta herramienta (`--clean
+  --if-exists`) depende de que el dump traiga schema. Ver README.md,
+  sección "Por qué el dump conserva el schema".
+
 ## [2.2.0] - 2026-08-06
 
 ### Added
