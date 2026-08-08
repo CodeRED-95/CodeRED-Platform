@@ -2,6 +2,7 @@
 
 namespace App\Modules\Ruc\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -28,5 +29,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class RucRecord extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['ruc', 'razon_social', 'ruc_import_id', 'estado', 'condicion', 'ubigeo', 'tipo_via', 'nombre_via', 'codigo_zona', 'tipo_zona', 'numero', 'interior', 'lote', 'departamento_direccion', 'manzana', 'kilometro', 'departamento', 'provincia', 'distrito', 'direccion'];
 }

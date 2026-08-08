@@ -2,6 +2,9 @@
     <x-ui.page-header title="Padrón RUC" subtitle="Consulta paginada del padrón reducido SUNAT almacenado en PostgreSQL.">
         <x-slot:actions>@if(auth()->user()->hasPermission('ruc.import-history'))<x-ui.button href="{{ route('admin.ruc.imports') }}" variant="secondary">Importaciones</x-ui.button>@endif</x-slot:actions>
     </x-ui.page-header>
+    @if($searchError)
+        <x-ui.alert tone="warning">{{ $searchError }}</x-ui.alert>
+    @endif
     <x-ui.card><div class="grid gap-3 md:grid-cols-4">
         <x-ui.search-box wire:model.live.debounce.500ms="search" label="RUC o razón social" placeholder="20123456789 o empresa" />
         <x-ui.dropdown-select id="ruc-estado" wire:model.live="estado" label="Estado del contribuyente" :value="$estado" :options="$estados" />
