@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ruc\Models;
 
 use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class RucBackup extends Model
 {
+    use HasFactory;
+
     /**
      * Extensión de los backups nuevos. Es un dump de pg_dump en formato
      * "custom" (firma "PGDMP"), NO un archivo gzip real, aunque backups

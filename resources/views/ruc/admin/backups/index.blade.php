@@ -1,4 +1,80 @@
     <div class="space-y-6">
+        {{-- Panel de Restauración en Progreso: visible solo si hay operación activa
+             (pending/running). Polling GET cada 2-3s a /admin/ruc/backups/operations/{id}/status
+             para actualizar stage, progress, message en tiempo real. --}}
+        @if($activeRestoreOperation)
+            <div class="space-y-4" x-data="rucRestoreProgress(@js($activeRestoreOperation->uuid))" x-init="startPolling()">
+                <x-ui.operation-status
+                    title="Restauración en progreso"
+                    :status="$activeRestoreOperation->status"
+                    :message="$activeRestoreOperation->message"
+                    :elapsed="$activeRestoreOperation->started_at?->diffInSeconds(now()) ?? 0"
+                >
+                    <x-slot:progress>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between gap-2 text-sm">
+                                <span class="font-medium" x-text="operation?.backup_name || 'Backup'"></span>
+                                <span class="text-[color:var(--color-text-secondary)]" x-text="progress + '%'"></span>
+                            </div>
+                            <div role="progressbar" aria-valuemin="0" aria-valuemax="100" x-bind:aria-valuenow="progress" class="h-2 overflow-hidden rounded-full bg-white/10">
+                                <div class="h-full rounded-full bg-[color:var(--color-brand)] transition-[width] duration-300" x-bind:style="'width: ' + progress + '%'"></div>
+                            </div>
+                            <p class="text-xs text-[color:var(--color-text-secondary)]" x-text="message"></p>
+                        </div>
+                    </x-slot:progress>
+
+                    <x-slot:steps>
+                        <x-ui.process-steps :steps="[
+                            ['label' => 'Validando backup', 'status' => \$activeRestoreOperation->stage === 'validating_backup' ? 'active' : (\$activeRestoreOperation->progress >= 5 ? 'completed' : 'pending')],
+                            ['label' => 'Verificando checksum', 'status' => \$activeRestoreOperation->stage === 'verifying_checksum' ? 'active' : (\$activeRestoreOperation->progress >= 10 ? 'completed' : 'pending')],
+                            ['label' => 'Creando Safety Backup', 'status' => \$activeRestoreOperation->stage === 'creating_safety_backup' ? 'active' : (\$activeRestoreOperation->progress >= 20 ? 'completed' : 'pending')],
+                            ['label' => 'Validando Safety Backup', 'status' => \$activeRestoreOperation->stage === 'validating_safety_backup' ? 'active' : (\$activeRestoreOperation->progress >= 35 ? 'completed' : 'pending')],
+                            ['label' => 'Preparando Restore', 'status' => \$activeRestoreOperation->stage === 'preparing_restore' ? 'active' : (\$activeRestoreOperation->progress >= 45 ? 'completed' : 'pending')],
+                            ['label' => 'Restaurando datos', 'status' => \$activeRestoreOperation->stage === 'restoring' ? 'active' : (\$activeRestoreOperation->progress >= 50 ? 'completed' : 'pending')],
+                            ['label' => 'Verificando resultado', 'status' => \$activeRestoreOperation->stage === 'verifying_restore' ? 'active' : (\$activeRestoreOperation->progress >= 90 ? 'completed' : 'pending')],
+                        ]" />
+                    </x-slot:steps>
+                </x-ui.operation-status>
+
+                {{-- Polling script: GET /admin/ruc/backups/operations/{uuid}/status cada 2s --}}
+                <script>
+                    function rucRestoreProgress(operationUuid) {
+                        return {
+                            operation: @js($activeRestoreOperation),
+                            progress: {{ $activeRestoreOperation->progress ?? 0 }},
+                            message: "{{ $activeRestoreOperation->message ?? '' }}",
+                            pollInterval: null,
+
+                            startPolling() {
+                                this.pollInterval = setInterval(() => this.fetchStatus(), 2000);
+                            },
+
+                            async fetchStatus() {
+                                try {
+                                    const res = await fetch(`{{ route('admin.ruc.backups.operations.status', ['operation' => '']) }}${operationUuid}`);
+                                    if (!res.ok) return;
+
+                                    const data = await res.json();
+                                    this.operation = data;
+                                    this.progress = data.progress || 0;
+                                    this.message = data.message || '';
+
+                                    // Si completó, parar polling
+                                    if (data.status === 'completed' || data.status === 'failed') {
+                                        clearInterval(this.pollInterval);
+                                        // Recargar página después de 2s para mostrar resultado final
+                                        setTimeout(() => window.location.reload(), 2000);
+                                    }
+                                } catch (e) {
+                                    console.error('Error fetching restore status:', e);
+                                }
+                            }
+                        };
+                    }
+                </script>
+            </div>
+        @endif
+
         <x-ui.page-header eyebrow="RUC" title="Gestor de Backups" subtitle="Backup y restore de la tabla ruc_records. Solo datos: el schema lo controlan las migrations de Laravel." />
 
         <div class="grid gap-6 md:grid-cols-2">
