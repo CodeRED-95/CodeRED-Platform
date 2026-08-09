@@ -27,6 +27,9 @@ class RucBackupOperation extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    /** Cancelado por el operador: ruc_records nunca llego a modificarse. */
+    public const STATUS_CANCELLED = 'cancelled';
+
     /** Ver docstring de cada stage en RestoreRucBackupJob::handle(). */
     public const STAGE_QUEUED = 'queued';
 
@@ -66,6 +69,15 @@ class RucBackupOperation extends Model
         'finished_at',
         'duration_seconds',
         'error_message',
+        // Checkpoints de la restauracion troceada (.rucbackup).
+        'total_batches',
+        'current_batch',
+        'completed_batches',
+        'records_processed',
+        'bytes_processed',
+        'staging_table',
+        'cancel_requested_at',
+        'checkpoint',
     ];
 
     protected $casts = [
@@ -73,6 +85,13 @@ class RucBackupOperation extends Model
         'records_before' => 'integer',
         'records_after' => 'integer',
         'duration_seconds' => 'integer',
+        'total_batches' => 'integer',
+        'current_batch' => 'integer',
+        'completed_batches' => 'integer',
+        'records_processed' => 'integer',
+        'bytes_processed' => 'integer',
+        'checkpoint' => 'array',
+        'cancel_requested_at' => 'datetime',
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
         'created_at' => 'datetime',
@@ -107,7 +126,15 @@ class RucBackupOperation extends Model
 
     public function isTerminal(): bool
     {
-        return in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_FAILED], true);
+        return in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_FAILED, self::STATUS_CANCELLED], true);
+    }
+
+    /** Reanudable: se interrumpio con al menos un lote confirmado. */
+    public function isResumable(): bool
+    {
+        return is_array($this->checkpoint)
+            && isset($this->checkpoint['batch'])
+            && ! in_array($this->status, [self::STATUS_COMPLETED], true);
     }
 
     public static function hasActiveRestore(): bool
@@ -169,6 +196,14 @@ class RucBackupOperation extends Model
             'finished_at' => $this->finished_at?->toIso8601String(),
             'duration_seconds' => $this->duration_seconds,
             'error_message' => $this->error_message,
+            // Progreso por lotes del formato .rucbackup. Son null en las
+            // restauraciones del formato legacy .dump, que no tiene lotes.
+            'total_batches' => $this->total_batches,
+            'current_batch' => $this->current_batch,
+            'completed_batches' => $this->completed_batches,
+            'records_processed' => $this->records_processed,
+            'bytes_processed' => $this->bytes_processed,
+            'resumable' => $this->isResumable(),
         ];
     }
 }
