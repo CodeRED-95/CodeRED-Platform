@@ -12,6 +12,11 @@ RUN apk add --no-cache \
     su-exec \
     unzip \
     zip \
+    # zstd: compresión de cada lote del formato .rucbackup. Estaba
+    # disponible de forma indirecta como dependencia de otro paquete, pero
+    # sin declararlo aquí una actualización de la imagen base podría
+    # dejarlo fuera y romper backup/restore. Ver docs-ruc/BACKUP_FORMAT.md.
+    zstd \
     nodejs \
     npm \
   && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS linux-headers \

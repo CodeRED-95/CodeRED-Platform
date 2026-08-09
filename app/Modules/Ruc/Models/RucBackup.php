@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Ruc\Models;
 
 use App\Models\User;
+use App\Modules\Ruc\Support\RucBackupArchive;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Registro de un backup de la tabla ruc_records.
@@ -29,10 +31,18 @@ class RucBackup extends Model
      * siempre se determina por contenido (pg_restore --list), nunca por la
      * extensión.
      */
-    public const FILE_EXTENSION = 'dump';
+    public const FILE_EXTENSION = 'rucbackup';
+
+    /**
+     * Formato legacy: dump "custom" de pg_dump. Se sigue leyendo y
+     * restaurando para no invalidar los backups ya existentes, pero NO se
+     * generan nuevos: .rucbackup es superior (troceado, reanudable, con
+     * checksum por lote). Ver docs-ruc/BACKUP_FORMAT.md.
+     */
+    public const LEGACY_FILE_EXTENSION = 'dump';
 
     /** @var list<string> extensiones aceptadas al importar un backup manualmente */
-    public const ALLOWED_IMPORT_EXTENSIONS = ['dump', 'gz'];
+    public const ALLOWED_IMPORT_EXTENSIONS = ['rucbackup', 'dump', 'gz'];
 
     public const STATUS_CREATING = 'creating';
 
@@ -85,12 +95,26 @@ class RucBackup extends Model
      */
     public function absolutePath(): string
     {
-        return \Illuminate\Support\Facades\Storage::disk('local')->path($this->storage_path);
+        return Storage::disk('local')->path($this->storage_path);
     }
 
     public function fileExists(): bool
     {
         return file_exists($this->absolutePath());
+    }
+
+    /**
+     * ¿Es un backup del formato nuevo (.rucbackup, troceado y reanudable)?
+     *
+     * Se determina por CONTENIDO (presencia de manifest.json dentro del
+     * contenedor), no por la extensión: un archivo renombrado no debe poder
+     * hacerse pasar por otro formato. Igual criterio que usaba el sistema
+     * legacy con `pg_restore --list`.
+     */
+    public function isChunked(): bool
+    {
+        return $this->fileExists()
+            && RucBackupArchive::isRucBackupFile($this->absolutePath());
     }
 
     public function formattedSize(): string

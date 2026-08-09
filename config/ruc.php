@@ -38,5 +38,35 @@ return [
             'queue' => env('RUC_BACKUP_QUEUE', 'ruc-backups'),
             'timeout' => (int) env('RUC_BACKUP_RESTORE_TIMEOUT', 86400),
         ],
+
+        // ---------------------------------------------------------------
+        // Formato .rucbackup (contenedor ZIP64 + chunks CSV en zstd)
+        // ---------------------------------------------------------------
+        // Ver app/Modules/Ruc/Support/RucBackupArchive.php y
+        // docs-ruc/BACKUP_FORMAT.md.
+        'chunked' => [
+            // Filas por chunk interno. Es el parámetro que define el
+            // compromiso RAM/CPU/IO: NO afecta a la memoria de PHP (todo va
+            // por streaming), sino al tamaño de cada entrada del ZIP, a la
+            // granularidad del checkpoint y al coste de rehacer un chunk
+            // interrumpido. 500k ≈ 20-25 MB comprimidos por chunk y ~37
+            // chunks para 18M filas: suficientemente fino para reanudar sin
+            // perder mucho trabajo, y suficientemente grueso para que el
+            // arranque de psql/zstd por chunk sea despreciable.
+            'batch_size' => (int) env('RUC_BACKUP_BATCH_SIZE', 500000),
+
+            // Nivel de compresión zstd. 3 es el default de zstd y el mejor
+            // equilibrio para CSV de padrón; 19 comprime ~15% más pero es
+            // un orden de magnitud más lento.
+            'zstd_level' => (int) env('RUC_BACKUP_ZSTD_LEVEL', 3),
+
+            // Hilos de zstd (-T). 0 = tantos como núcleos.
+            'zstd_threads' => (int) env('RUC_BACKUP_ZSTD_THREADS', 0),
+
+            // Conserva ruc_records_old tras el swap para poder revertir.
+            // Ponerlo en false borra la tabla anterior inmediatamente: no
+            // recomendado, se pierde la red de seguridad.
+            'keep_old_table' => (bool) env('RUC_BACKUP_KEEP_OLD_TABLE', true),
+        ],
     ],
 ];
