@@ -10,9 +10,6 @@ final class EventType
     public const AGENCY_CREATED = 'agency.created';
     public const AGENCY_UPDATED = 'agency.updated';
     public const AGENCY_DELETED = 'agency.deleted';
-    public const RUC_IMPORT_STARTED = 'ruc.import.started';
-    public const RUC_IMPORT_PROGRESS = 'ruc.import.progress';
-    public const RUC_IMPORT_FINISHED = 'ruc.import.finished';
     public const DNI_IMPORT_STARTED = 'dni.import.started';
     public const DNI_IMPORT_FINISHED = 'dni.import.finished';
     public const BACKUP_STARTED = 'backup.started';
@@ -35,9 +32,6 @@ final class EventType
             self::AGENCY_CREATED,
             self::AGENCY_UPDATED,
             self::AGENCY_DELETED,
-            self::RUC_IMPORT_STARTED,
-            self::RUC_IMPORT_PROGRESS,
-            self::RUC_IMPORT_FINISHED,
             self::DNI_IMPORT_STARTED,
             self::DNI_IMPORT_FINISHED,
             self::BACKUP_STARTED,

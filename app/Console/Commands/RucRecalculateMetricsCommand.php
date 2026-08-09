@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\ApiRequestLog;
-use App\Modules\Ruc\Models\RucImport;
+use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucRecord;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -17,9 +17,9 @@ class RucRecalculateMetricsCommand extends Command
     public function handle(): int
     {
         Cache::forget('dashboard:ruc');
-        $this->table(['Registros', 'Importaciones', 'Consultas hoy'], [[
+        $this->table(['Registros', 'Backups', 'Consultas hoy'], [[
             RucRecord::query()->count(),
-            RucImport::query()->count(),
+            RucBackup::query()->count(),
             ApiRequestLog::query()->where('service', 'ruc')->whereDate('created_at', today())->count(),
         ]]);
 

@@ -33,7 +33,11 @@ return new class extends Migration
             // Inicializar con valor actual (único registro en esta tabla)
             DB::table('ruc_statistics')->insert([
                 'total_records' => DB::table('ruc_records')->count(),
-                'total_imports' => DB::table('ruc_imports')->count(),
+                // ruc_imports se elimina en 2026_08_09_000001_drop_ruc_import_tables.
+                // En un despliegue limpio esa migración corre DESPUÉS de esta, así
+                // que la tabla todavía existe aquí; el guard evita depender de ese
+                // orden si algún día se consolidan las migraciones.
+                'total_imports' => Schema::hasTable('ruc_imports') ? DB::table('ruc_imports')->count() : 0,
                 'last_analyzed_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),

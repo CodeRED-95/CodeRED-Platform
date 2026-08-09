@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * @property string $ruc
  * @property string $razon_social
- * @property int|null $ruc_import_id
  * @property string|null $estado
  * @property string|null $condicion
  * @property string|null $ubigeo
@@ -31,5 +30,5 @@ class RucRecord extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['ruc', 'razon_social', 'ruc_import_id', 'estado', 'condicion', 'ubigeo', 'tipo_via', 'nombre_via', 'codigo_zona', 'tipo_zona', 'numero', 'interior', 'lote', 'departamento_direccion', 'manzana', 'kilometro', 'departamento', 'provincia', 'distrito', 'direccion'];
+    protected $fillable = ['ruc', 'razon_social', 'estado', 'condicion', 'ubigeo', 'tipo_via', 'nombre_via', 'codigo_zona', 'tipo_zona', 'numero', 'interior', 'lote', 'departamento_direccion', 'manzana', 'kilometro', 'departamento', 'provincia', 'distrito', 'direccion'];
 }

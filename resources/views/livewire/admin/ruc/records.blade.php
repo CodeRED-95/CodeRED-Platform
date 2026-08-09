@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <x-ui.page-header title="Padrón RUC" subtitle="Consulta paginada del padrón reducido SUNAT almacenado en PostgreSQL.">
-        <x-slot:actions>@if(auth()->user()->hasPermission('ruc.import-history'))<x-ui.button href="{{ route('admin.ruc.imports') }}" variant="secondary">Importaciones</x-ui.button>@endif</x-slot:actions>
+        <x-slot:actions>@if(auth()->user()->hasPermission('ruc.backup.view'))<x-ui.button href="{{ route('admin.ruc.backups') }}" variant="secondary">Backups</x-ui.button>@endif</x-slot:actions>
     </x-ui.page-header>
     @if($searchError)
         <x-ui.alert tone="warning">{{ $searchError }}</x-ui.alert>

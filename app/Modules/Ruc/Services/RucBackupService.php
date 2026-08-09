@@ -33,7 +33,7 @@ class RucBackupService
      * Cualquier otro nombre de tabla/secuencia en el TOC hace que se
      * rechace el archivo: así un backup subido por un usuario nunca puede
      * tocar otra tabla. Verificado contra `pg_tables`: ninguna otra tabla
-     * del esquema (ruc_backups, ruc_imports, ruc_staging, ...) comparte el
+     * del esquema (ruc_backups, ruc_backup_operations, ...) comparte el
      * prefijo "ruc_records", por lo que el match por prefijo es seguro.
      */
     private const ALLOWED_TOC_PATTERN = '/^ruc_records(_.*)?$/';

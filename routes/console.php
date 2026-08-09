@@ -2,11 +2,6 @@
 
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
-use App\Modules\Ruc\Enums\RucImportStatus;
-use App\Modules\Ruc\Jobs\ProcessRucImportJob;
-use App\Modules\Ruc\Models\RucImport;
-use App\Modules\Ruc\Services\RucImportService;
-use App\Modules\Ruc\Services\RucIncomingFileScanner;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -128,77 +123,6 @@ Artisan::command('agencies:prune-sync-changes {--dry-run} {--days=}', function (
 })->purpose('Elimina cambios incrementales vencidos conservando el watermark de cursores.');
 
 Schedule::command('agencies:prune-sync-changes')->dailyAt('02:30')->withoutOverlapping();
-
-Artisan::command('ruc:scan', function (RucIncomingFileScanner $scanner): int {
-    $diagnostics = $scanner->diagnostics();
-    $this->line('Disk: '.$diagnostics['disk']);
-    $this->line('Directorio configurado: '.$diagnostics['configured_directory']);
-    $this->line('Ruta física: '.$diagnostics['physical_path']);
-    $files = $scanner->scan();
-    $this->table(['Nombre', 'Tamaño', 'Fecha', 'Estado'], collect($files)->map(fn (array $file): array => [$file['name'], $file['size'], date('Y-m-d H:i:s', $file['last_modified']), $file['status']])->all());
-    $this->info(count($files).' archivos TXT encontrados.');
-
-    return Command::SUCCESS;
-})->purpose('Detecta padrones RUC SUNAT colocados en el servidor.');
-
-Artisan::command('ruc:import {import_id}', function (RucImportService $service): int {
-    $service->startRegistered(RucImport::query()->findOrFail((int) $this->argument('import_id')));
-    $this->info('Importación enviada a ruc-imports.');
-
-    return Command::SUCCESS;
-});
-
-Artisan::command('ruc:pause {id}', function (): int {
-    $import = RucImport::query()->findOrFail((int) $this->argument('id'));
-    $import->update(['status' => RucImportStatus::Paused, 'last_message' => 'Pausa solicitada desde CLI.']);
-    $this->info('Pausa solicitada.');
-
-    return Command::SUCCESS;
-});
-
-Artisan::command('ruc:resume {id}', function (): int {
-    $import = RucImport::query()->findOrFail((int) $this->argument('id'));
-    $import->update(['status' => RucImportStatus::Queued, 'failed_at' => null, 'error_message' => null]);
-    ProcessRucImportJob::dispatch($import->id)->onConnection('redis')->onQueue((string) config('ruc.import.queue'));
-    $this->info('Reanudación enviada a ruc-imports.');
-
-    return Command::SUCCESS;
-});
-
-Artisan::command('ruc:cancel {id}', function (): int {
-    $import = RucImport::query()->findOrFail((int) $this->argument('id'));
-    $import->update(['cancel_requested_at' => now(), 'last_message' => 'Cancelación solicitada desde CLI.']);
-    $this->info('Cancelación solicitada.');
-
-    return Command::SUCCESS;
-});
-
-Artisan::command('ruc:status {--id=}', function (): int {
-    $query = RucImport::query()->latest();
-    if ($this->option('id')) {
-        $query->whereKey((int) $this->option('id'));
-    }
-    $this->table(['ID', 'Archivo', 'Estado', 'Total', 'Procesadas', 'Nuevos', 'Existentes', 'Inválidos', 'Heartbeat'], $query->limit(20)->get()->map(fn (RucImport $import): array => [$import->id, $import->original_filename, $import->status->label(), $import->total_rows, $import->processed_rows, $import->inserted_rows, $import->ignored_rows, $import->invalid_rows, $import->last_heartbeat_at?->toDateTimeString() ?? '—'])->all());
-
-    return Command::SUCCESS;
-});
-
-Artisan::command('ruc:cleanup {--dry-run}', function (): int {
-    $query = RucImport::query()->where('finished_at', '<', now()->subDays((int) config('ruc.import.retention_days')));
-    $count = $query->count();
-    if (! $this->option('dry-run')) {
-        $query->delete();
-    }
-    $this->info($count.' historiales RUC '.($this->option('dry-run') ? 'serían eliminados.' : 'eliminados.'));
-
-    return Command::SUCCESS;
-});
-
-Artisan::command('ruc:has-active', function (): int {
-    return RucImport::query()->whereIn('status', [RucImportStatus::Queued, RucImportStatus::Validating, RucImportStatus::Processing, RucImportStatus::Paused])->exists()
-        ? Command::SUCCESS
-        : Command::FAILURE;
-})->purpose('Devuelve éxito cuando existe una importación RUC que impide reiniciar el worker.');
 
 Schedule::command('tokens:expire-pending-requests')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('ruc:cleanup-backup-uploads')->hourly()->withoutOverlapping();

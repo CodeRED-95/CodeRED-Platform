@@ -64,7 +64,7 @@
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('ruc.test')],
                                 ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => auth()->user()->hasPermission('ruc.view')],
-                                ['label' => 'Importaciones RUC', 'route' => 'admin.ruc.imports', 'icon' => '⇪', 'can' => auth()->user()->hasPermission('ruc.import-history')],
+                                ['label' => 'Backups RUC', 'route' => 'admin.ruc.backups', 'icon' => '⛁', 'can' => auth()->user()->hasPermission('ruc.backup.view')],
                             ],
                             'API' => [
                                 ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
@@ -204,7 +204,7 @@
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('ruc.test')],
                                 ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => auth()->user()->hasPermission('ruc.view')],
-                                ['label' => 'Importaciones RUC', 'route' => 'admin.ruc.imports', 'icon' => '⇪', 'can' => auth()->user()->hasPermission('ruc.import-history')],
+                                ['label' => 'Backups RUC', 'route' => 'admin.ruc.backups', 'icon' => '⛁', 'can' => auth()->user()->hasPermission('ruc.backup.view')],
                             ],
                             'API' => [
                                 ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],

@@ -112,14 +112,13 @@
                     @endif
                     @if($canViewRucMetrics)
                         <x-ui.stat-card label="Registros RUC" :value="$rucMetrics['records']" tone="brand" href="{{ route('admin.ruc.records') }}" description="Consultas hoy: {{ $rucMetrics['requests_today'] }}" />
-                        <x-ui.stat-card label="Importaciones RUC" :value="$rucMetrics['imports']" tone="info" href="{{ route('admin.ruc.imports') }}" description="Última actualización: {{ $rucMetrics['last_import'] ? \Illuminate\Support\Carbon::parse($rucMetrics['last_import'])->diffForHumans() : 'Sin importaciones' }}" />
+                        <x-ui.stat-card label="Backups RUC" :value="\App\Modules\Ruc\Models\RucBackup::query()->count()" tone="info" href="{{ route('admin.ruc.backups') }}" description="Última restauración: {{ $rucMetrics['last_restore'] ? \Illuminate\Support\Carbon::parse($rucMetrics['last_restore'])->diffForHumans() : 'Sin restauraciones' }}" />
                     @endif
                     @if($isSuperAdmin)
                         <x-ui.stat-card label="Solicitudes API · 24 h" :value="$platformMetrics['requests_24h']" tone="purple" description="7 días: {{ $platformMetrics['requests_7d'] }}" />
                         <x-ui.stat-card label="Errores API · 24 h" :value="$platformMetrics['errors_24h']" tone="warning" description="Promedio {{ $platformMetrics['average_ms'] }} ms · {{ $platformMetrics['active_tokens'] }} tokens activos" />
                     @endif
                 </div>
-                @if($canViewRucMetrics && $rucMetrics['active_import'])<div class="mt-3"><x-ui.alert tone="info">Importación RUC activa: {{ $rucMetrics['active_import']->progress_percentage }}% · heartbeat {{ $rucMetrics['active_import']->last_heartbeat_at?->diffForHumans() }}</x-ui.alert></div>@endif
             </section>
         @endif
     @else

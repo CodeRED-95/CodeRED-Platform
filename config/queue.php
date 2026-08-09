@@ -11,17 +11,8 @@ return [
             'block_for' => null,
             'after_commit' => false,
         ],
-        'ruc-imports' => [
-            'driver' => 'redis',
-            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
-            'queue' => env('RUC_IMPORT_QUEUE', 'ruc-imports'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 7500),
-            'block_for' => null,
-            'after_commit' => false,
-        ],
-
         // Conexión DEDICADA para RestoreRucBackupJob (nunca comparte
-        // retry_after con "redis"/"ruc-imports"): retry_after es una
+        // retry_after con "redis"): retry_after es una
         // propiedad de la CONEXIÓN, no de la cola, y debe ser mayor que el
         // timeout más largo de cualquier job despachado por ella. Un
         // restore de ruc_records puede tardar hasta 24h (ver

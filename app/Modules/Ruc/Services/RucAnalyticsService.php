@@ -18,9 +18,8 @@ class RucAnalyticsService
     public function analyzeRelatedTables(): void
     {
         // ANALYZE indices and related tables
-        DB::statement('ANALYZE ruc_imports');
-        DB::statement('ANALYZE ruc_import_events');
-        DB::statement('ANALYZE ruc_import_errors');
+        DB::statement('ANALYZE ruc_backups');
+        DB::statement('ANALYZE ruc_backup_operations');
     }
 
     public function analyzeAll(): void
@@ -44,7 +43,7 @@ class RucAnalyticsService
                 'last_vacuum',
                 'last_analyze',
             ])
-            ->whereIn('relname', ['ruc_records', 'ruc_imports', 'ruc_import_events', 'ruc_import_errors'])
+            ->whereIn('relname', ['ruc_records', 'ruc_backups', 'ruc_backup_operations'])
             ->get()
             ->toArray();
     }
@@ -60,7 +59,7 @@ class RucAnalyticsService
                 'idx_tup_read',
                 'idx_tup_fetch',
             ])
-            ->whereIn('relname', ['ruc_records', 'ruc_imports'])
+            ->whereIn('relname', ['ruc_records'])
             ->get()
             ->toArray();
     }

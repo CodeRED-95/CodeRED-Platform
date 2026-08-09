@@ -13,7 +13,7 @@ set_env DB_PASSWORD 'PostgresSegura123!'
 set_env DEV_ADMIN_EMAIL 'admin@codered.lat'
 set_env APP_URL 'https://platform.codered.lat'
 set_env APP_DEBUG 'false'
-set_env RUC_IMPORT_TIMEOUT '7200'
+set_env RUC_BACKUP_MAX_UPLOAD_MB '5000'
 grep -qx 'APP_NAME="CodeRED Platform"' "$ENV_FILE"
 grep -qx 'DEV_ADMIN_NAME="Administrador CodeRED"' "$ENV_FILE"
 [[ "$(get_env DEV_ADMIN_PASSWORD)" == 'ClaveSegura123!' ]]
