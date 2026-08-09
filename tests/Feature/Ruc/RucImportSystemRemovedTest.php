@@ -150,6 +150,31 @@ class RucImportSystemRemovedTest extends TestCase
         $response->assertDontSee('Importaciones', false);
     }
 
+    /**
+     * Regresión: /admin/ruc pagina con cursorPaginate() (evita el COUNT(*)
+     * sobre millones de filas), pero x-ui.pagination llamaba a firstItem() /
+     * total(), que solo existen en LengthAwarePaginator. En cuanto la tabla
+     * tenía más registros que una página, la pantalla devolvía HTTP 500.
+     */
+    public function test_records_page_renders_with_more_rows_than_one_page(): void
+    {
+        // 50 por página: con 60 filas hay paginación real y el componente
+        // de paginación se renderiza (con 0 filas no llega a evaluarse).
+        RucRecord::query()->insert(collect(range(1, 60))->map(fn (int $i): array => [
+            'ruc' => str_pad((string) (20000000000 + $i), 11, '0', STR_PAD_LEFT),
+            'razon_social' => "EMPRESA PAGINADA {$i} S.A.C.",
+            'estado' => 'ACTIVO',
+            'condicion' => 'HABIDO',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ])->all());
+
+        $response = $this->actingAs($this->adminUser())->get(route('admin.ruc.records'));
+
+        $response->assertOk();
+        $response->assertSee('EMPRESA PAGINADA 1 S.A.C.');
+    }
+
     public function test_backups_page_still_works(): void
     {
         RucBackup::create([

@@ -8,6 +8,7 @@ use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucBackupOperation;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -37,13 +38,12 @@ class RestoreConcurrencyTest extends TestCase
         return $user;
     }
 
-
     public function test_restore_rejected_when_other_restore_pending(): void
     {
         // Crear primera operación en estado PENDING con un backup válido
         $existingBackup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         RucBackupOperation::create([
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'backup_id' => $existingBackup->id,
             'operation_type' => RucBackupOperation::TYPE_RESTORE,
             'status' => RucBackupOperation::STATUS_PENDING,
@@ -72,7 +72,7 @@ class RestoreConcurrencyTest extends TestCase
         // Crear primera operación en estado RUNNING con un backup válido
         $existingBackup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         RucBackupOperation::create([
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'backup_id' => $existingBackup->id,
             'operation_type' => RucBackupOperation::TYPE_RESTORE,
             'status' => RucBackupOperation::STATUS_RUNNING,
@@ -101,7 +101,7 @@ class RestoreConcurrencyTest extends TestCase
         // Crear primera operación COMPLETADA con un backup válido
         $existingBackup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         RucBackupOperation::create([
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'backup_id' => $existingBackup->id,
             'operation_type' => RucBackupOperation::TYPE_RESTORE,
             'status' => RucBackupOperation::STATUS_COMPLETED,
@@ -134,7 +134,7 @@ class RestoreConcurrencyTest extends TestCase
         // Crear primera operación FALLIDA con un backup válido
         $existingBackup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         RucBackupOperation::create([
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'backup_id' => $existingBackup->id,
             'operation_type' => RucBackupOperation::TYPE_RESTORE,
             'status' => RucBackupOperation::STATUS_FAILED,
@@ -199,7 +199,7 @@ class RestoreConcurrencyTest extends TestCase
     {
         $backup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         $operation = RucBackupOperation::create([
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'backup_id' => $backup->id,
             'operation_type' => RucBackupOperation::TYPE_RESTORE,
             'status' => RucBackupOperation::STATUS_RUNNING,
@@ -227,7 +227,7 @@ class RestoreConcurrencyTest extends TestCase
         // Crear operación inactiva (cancelled) con un backup válido
         $existingBackup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         RucBackupOperation::create([
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'backup_id' => $existingBackup->id,
             'operation_type' => RucBackupOperation::TYPE_RESTORE,
             'status' => RucBackupOperation::STATUS_FAILED,  // Inactiva

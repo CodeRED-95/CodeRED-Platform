@@ -12,6 +12,8 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class MultipartCompleteTest extends TestCase
@@ -80,7 +82,7 @@ class MultipartCompleteTest extends TestCase
         return [$manifest, $chunks];
     }
 
-    private function uploadAllParts(User $user, RucBackupUpload $upload, array $manifest, array $chunks): \Illuminate\Testing\TestResponse
+    private function uploadAllParts(User $user, RucBackupUpload $upload, array $manifest, array $chunks): TestResponse
     {
         $response = null;
         foreach ($manifest['parts'] as $i => $part) {
@@ -151,7 +153,7 @@ class MultipartCompleteTest extends TestCase
         $user = $this->adminUser();
 
         $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.dump';
-        $process = new \Symfony\Component\Process\Process([
+        $process = new Process([
             'pg_dump',
             '--host='.config('database.connections.pgsql.host'),
             '--port='.config('database.connections.pgsql.port', 5432),

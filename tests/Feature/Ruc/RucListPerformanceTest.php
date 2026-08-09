@@ -23,6 +23,7 @@ class RucListPerformanceTest extends TestCase
     {
         $user = User::factory()->create();
         $user->roles()->attach(Role::query()->where('slug', 'super-admin')->firstOrFail());
+
         return $user;
     }
 

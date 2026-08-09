@@ -10,6 +10,7 @@ use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucBackupOperation;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Exceptions\UrlGenerationException;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -207,7 +208,7 @@ class RucBackupRestoreStatusUiTest extends TestCase
      */
     public function test_status_route_requires_the_operation_parameter(): void
     {
-        $this->expectException(\Illuminate\Routing\Exceptions\UrlGenerationException::class);
+        $this->expectException(UrlGenerationException::class);
 
         route('admin.ruc.backups.operations.status', ['operation' => '']);
     }

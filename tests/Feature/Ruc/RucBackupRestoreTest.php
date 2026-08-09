@@ -11,6 +11,8 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 /**
@@ -119,7 +121,7 @@ class RucBackupRestoreTest extends TestCase
         $this->seedRecords(2, '21');
 
         $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.dump';
-        $process = new \Symfony\Component\Process\Process([
+        $process = new Process([
             'pg_dump',
             '--host='.config('database.connections.pgsql.host'),
             '--port='.config('database.connections.pgsql.port', 5432),
@@ -199,7 +201,7 @@ class RucBackupRestoreTest extends TestCase
         // al copiar datos incompletos.
         $goodSize = filesize($goodBackup->absolutePath());
         $truncatedRelative = 'backups/ruc/truncated_test.dump';
-        $truncatedAbsolute = \Illuminate\Support\Facades\Storage::disk('local')->path($truncatedRelative);
+        $truncatedAbsolute = Storage::disk('local')->path($truncatedRelative);
         file_put_contents($truncatedAbsolute, substr(file_get_contents($goodBackup->absolutePath()), 0, (int) ($goodSize * 0.6)));
 
         $truncatedBackup = RucBackup::create([
@@ -228,7 +230,7 @@ class RucBackupRestoreTest extends TestCase
         $backup = $this->service()->create();
 
         $garbageRelative = 'backups/ruc/garbage_test.dump';
-        $garbageAbsolute = \Illuminate\Support\Facades\Storage::disk('local')->path($garbageRelative);
+        $garbageAbsolute = Storage::disk('local')->path($garbageRelative);
         file_put_contents($garbageAbsolute, 'no es un dump');
         $garbageBackup = RucBackup::create([
             'name' => 'garbage.dump',

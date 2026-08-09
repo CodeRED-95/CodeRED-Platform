@@ -10,6 +10,7 @@ use App\Modules\Ruc\Models\RucBackupOperation;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -169,6 +170,6 @@ class RestoreRucBackupDispatchTest extends TestCase
             ->post(route('admin.ruc.backups.restore', $backup->id));
 
         $operation = RucBackupOperation::firstOrFail();
-        $this->assertTrue(\Illuminate\Support\Str::isUuid($operation->uuid));
+        $this->assertTrue(Str::isUuid($operation->uuid));
     }
 }

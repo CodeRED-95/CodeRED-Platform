@@ -9,6 +9,7 @@ use App\Modules\Ruc\Services\RucBackupService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class RucBackupImportTest extends TestCase
@@ -98,7 +99,7 @@ class RucBackupImportTest extends TestCase
         $user = $this->adminUser();
 
         $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.dump';
-        $process = new \Symfony\Component\Process\Process([
+        $process = new Process([
             'pg_dump',
             '--host='.config('database.connections.pgsql.host'),
             '--port='.config('database.connections.pgsql.port', 5432),

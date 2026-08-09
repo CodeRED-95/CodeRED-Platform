@@ -4,7 +4,6 @@ namespace Tests\Feature\Ruc;
 
 use App\Models\Role;
 use App\Models\User;
-use App\Modules\Ruc\Models\RucBackupUpload;
 use App\Modules\Ruc\Models\RucBackupUploadPart;
 use App\Modules\Ruc\Services\RucBackupMultipartUploadService;
 use Database\Seeders\RolesAndPermissionsSeeder;

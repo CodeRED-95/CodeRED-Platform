@@ -28,6 +28,7 @@ class RucPerformanceBenchmarkTest extends TestCase
     {
         $user = User::factory()->create();
         $user->roles()->attach(Role::query()->where('slug', 'super-admin')->firstOrFail());
+
         return $user;
     }
 
@@ -89,7 +90,7 @@ class RucPerformanceBenchmarkTest extends TestCase
         $plan = $stats['Plan'];
         $this->assertTrue(
             str_contains(json_encode($plan), 'Index'),
-            "RUC search should use an index for fast lookup"
+            'RUC search should use an index for fast lookup'
         );
     }
 
@@ -146,7 +147,7 @@ class RucPerformanceBenchmarkTest extends TestCase
 
             // Page 2 should be roughly as fast as page 1 (no COUNT penalty)
             // Allow 1.5x variance (may be slightly slower due to offset, but not exponential)
-            $this->assertLessThan($time1 * 1.5, $time2, "Cursor pagination should not have exponential slowdown");
+            $this->assertLessThan($time1 * 1.5, $time2, 'Cursor pagination should not have exponential slowdown');
         }
     }
 
@@ -180,7 +181,7 @@ class RucPerformanceBenchmarkTest extends TestCase
         $this->assertIsArray($response['condiciones']);
 
         // Should load in < 50ms (fast)
-        $this->assertLessThan(0.05, $time, "Filter options should load quickly (<50ms)");
+        $this->assertLessThan(0.05, $time, 'Filter options should load quickly (<50ms)');
     }
 
     /**
@@ -201,10 +202,10 @@ class RucPerformanceBenchmarkTest extends TestCase
         // Get index stats
         $indexStats = $this->analyticsService->getIndexStats();
 
-        $this->assertNotEmpty($indexStats, "Index stats should be available");
+        $this->assertNotEmpty($indexStats, 'Index stats should be available');
         // At least one index should have scan_count > 0
         $anyScanned = collect($indexStats)->some(fn ($idx) => $idx->idx_scan > 0);
-        $this->assertTrue($anyScanned, "At least one index should have been scanned");
+        $this->assertTrue($anyScanned, 'At least one index should have been scanned');
     }
 
     /**
