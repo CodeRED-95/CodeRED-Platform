@@ -1,6 +1,6 @@
 <?php
 
-namespace AppServicesEventsExceptions;
+namespace App\Services\Events\Exceptions;
 
 use RuntimeException;
 

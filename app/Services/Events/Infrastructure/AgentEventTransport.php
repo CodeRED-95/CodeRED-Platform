@@ -1,11 +1,11 @@
 <?php
 
-namespace AppServicesEventsInfrastructure;
+namespace App\Services\Events\Infrastructure;
 
-use AppServicesEventsContractsEventTransportContract;
-use AppServicesEventsDTOEventData;
-use AppServicesEventsExceptionsEventDispatchException;
-use IlluminateSupportFacadesHttp;
+use App\Services\Events\Contracts\EventTransportContract;
+use App\Services\Events\DTO\EventData;
+use App\Services\Events\Exceptions\EventDispatchException;
+use Illuminate\Support\Facades\Http;
 use Throwable;
 
 final class AgentEventTransport implements EventTransportContract
