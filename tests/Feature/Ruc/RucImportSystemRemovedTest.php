@@ -119,21 +119,25 @@ class RucImportSystemRemovedTest extends TestCase
      */
     public function test_ruc_records_data_is_not_deleted(): void
     {
+        // Conteo relativo, nunca absoluto: la suite mezcla RefreshDatabase con
+        // DatabaseTruncation y otros tests dejan registros, así que asumir que
+        // la tabla arranca vacía hace fallar este test solo al correr en grupo.
+        $countBefore = RucRecord::query()->count();
+
         RucRecord::query()->create([
             'ruc' => '20123456789',
             'razon_social' => 'EMPRESA DE PRUEBA SAC',
             'estado' => 'ACTIVO',
             'condicion' => 'HABIDO',
         ]);
-        $countBefore = RucRecord::query()->count();
 
-        $this->assertSame(1, $countBefore);
+        $this->assertSame($countBefore + 1, RucRecord::query()->count());
 
         $record = RucRecord::query()->where('ruc', '20123456789')->first();
         $this->assertNotNull($record);
         $this->assertSame('EMPRESA DE PRUEBA SAC', $record->razon_social);
         $this->assertSame('ACTIVO', $record->estado);
-        $this->assertSame($countBefore, RucRecord::query()->count());
+        $this->assertSame('HABIDO', $record->condicion);
     }
 
     // -------------------------------------------------------- funcional ----

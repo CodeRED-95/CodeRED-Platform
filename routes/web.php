@@ -109,7 +109,11 @@ Route::post('/admin/ruc/backups/multipart', [RucBackupMultipartUploadController:
 Route::get('/admin/ruc/backups/multipart/{upload}', [RucBackupMultipartUploadController::class, 'show'])->middleware(['auth'])->name('admin.ruc.backups.multipart.show');
 Route::post('/admin/ruc/backups/multipart/{upload}/parts/{index}', [RucBackupMultipartUploadController::class, 'uploadPart'])->middleware(['auth'])->name('admin.ruc.backups.multipart.upload-part');
 Route::delete('/admin/ruc/backups/multipart/{upload}', [RucBackupMultipartUploadController::class, 'destroy'])->middleware(['auth'])->name('admin.ruc.backups.multipart.destroy');
-Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->name('admin.ruc.show');
+// whereNumber: {record} se resuelve por clave primaria (RucRecord::$id), así
+// que solo puede ser numérico. Sin la restricción esta ruta actúa de comodín y
+// captura cualquier /admin/ruc/<lo-que-sea> — una URL inexistente terminaba en
+// HTTP 500 (model binding fallido) en vez del 404 que corresponde.
+Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->whereNumber('record')->name('admin.ruc.show');
 Route::get('/admin/shalom/entregas', DeliveryRecordsManager::class)->middleware(['auth'])->name('admin.shalom.delivery-records');
 Route::prefix('admin/shalom/api-keys')->middleware(['auth'])->name('admin.shalom.api-keys.')->group(function (): void {
     Route::get('/', [ShalomApiKeyController::class, 'index'])->name('index');

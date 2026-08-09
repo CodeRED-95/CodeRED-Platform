@@ -421,7 +421,12 @@ describe('extension build artifacts', () => {
     expect(content).not.toMatch(/\bimport\s*\(/);
     expect(content).not.toMatch(/\brequire\s*\(/);
 
-    const check = spawnSync(process.execPath, ['--check', new URL('../dist/content.js', import.meta.url).pathname], { encoding: 'utf8' });
+    // fileURLToPath, no .pathname: en Windows .pathname devuelve "/E:/..." y
+    // Node lo resuelve contra la unidad actual, produciendo "E:\E:\..." y un
+    // MODULE_NOT_FOUND. fileURLToPath da la ruta nativa correcta en todos los SO.
+    const { fileURLToPath } = await import('node:url');
+    const contentPath = fileURLToPath(new URL('../dist/content.js', import.meta.url));
+    const check = spawnSync(process.execPath, ['--check', contentPath], { encoding: 'utf8' });
     expect(check.stderr + check.stdout).toBe('');
     expect(check.status).toBe(0);
   });
