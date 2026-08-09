@@ -42,6 +42,18 @@ php artisan ruc:recalculate-metrics                # invalida y muestra métrica
 Toda la gestión de datos vive en `/admin/ruc/backups`. Ver
 [`app/Modules/Ruc/BACKUP_SYSTEM.md`](../app/Modules/Ruc/BACKUP_SYSTEM.md) para el detalle.
 
+Desde la v3.1.0 el formato es **`.rucbackup`**: un solo archivo que por dentro
+contiene el padrón troceado en lotes comprimidos con zstd, con checksum por
+lote y restauración reanudable. Detalle completo en
+[`docs-ruc/BACKUP_FORMAT.md`](../docs-ruc/BACKUP_FORMAT.md).
+
+```bash
+php artisan ruc:backup                       # .rucbackup, lotes de 500 000
+php artisan ruc:restore 12                   # restaura por lotes
+php artisan ruc:restore 12 --resume          # continúa tras una interrupción
+php artisan ruc:restore-manage --status      # estado, cancelar, descartar, rollback
+```
+
 **Crear backup** → procesamiento en segundo plano → progreso → `completed` →
 descargar o restaurar.
 
@@ -77,6 +89,9 @@ RUC_SEARCH_MIN_LENGTH=3
 RUC_SEARCH_MAX_RESULTS=100
 RUC_BACKUP_MAX_UPLOAD_MB=5000
 RUC_BACKUP_QUEUE=ruc-backups
+RUC_BACKUP_BATCH_SIZE=500000
+RUC_BACKUP_ZSTD_LEVEL=3
+RUC_BACKUP_KEEP_OLD_TABLE=true
 ```
 
 Las variables `RUC_IMPORT_*` y `RUC_STAGING_*` fueron eliminadas en la v3.0.0.

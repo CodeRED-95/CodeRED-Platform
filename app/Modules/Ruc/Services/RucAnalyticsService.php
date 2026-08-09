@@ -68,7 +68,8 @@ class RucAnalyticsService
     {
         // Execute EXPLAIN ANALYZE on a query and return results
         // Used for PHASE 5: Performance measurement
-        $result = DB::select('EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ' . $query);
+        $result = DB::select('EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) '.$query);
+
         return json_decode(json_encode($result[0]), true);
     }
 }

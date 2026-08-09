@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Sesión de subida multipart de un backup RUC generado por RUC Tools
@@ -93,6 +94,6 @@ class RucBackupUpload extends Model
 
     public function absoluteTemporaryDirectory(): string
     {
-        return \Illuminate\Support\Facades\Storage::disk('local')->path($this->temporary_directory);
+        return Storage::disk('local')->path($this->temporary_directory);
     }
 }

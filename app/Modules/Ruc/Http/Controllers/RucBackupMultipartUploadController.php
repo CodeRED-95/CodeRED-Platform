@@ -23,9 +23,7 @@ use Illuminate\Support\Facades\Log;
  */
 class RucBackupMultipartUploadController
 {
-    public function __construct(private readonly RucBackupMultipartUploadService $service)
-    {
-    }
+    public function __construct(private readonly RucBackupMultipartUploadService $service) {}
 
     /**
      * Crea la sesión de subida a partir del manifest.json (ya parseado por

@@ -6,6 +6,57 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [3.1.0] - 2026-08-09
+
+### AGREGADO
+- **Formato `.rucbackup`: backup del padrón en un solo archivo, troceado por
+  dentro.** Contenedor ZIP64 con `manifest.json` + `chunks/NNNNNN.csv.zst`.
+  No se generan archivos externos por lote: para el operador sigue habiendo un
+  unico fichero. Se elige ZIP64 porque su directorio central permite abrir el
+  chunk N sin leer los N-1 anteriores, que es lo que hace barata la
+  reanudacion; con `tar.zst` o un gzip unico el coste de reanudar creceria con
+  el avance. Ver `docs-ruc/BACKUP_FORMAT.md`.
+- **Backup por lotes con memoria constante.** Cada lote se genera con
+  `psql \copy ... TO STDOUT | zstd`: ninguna fila pasa por PHP. Medido: 36.5 MB
+  de RAM con 100k, 1M y con cualquier tamano de lote. Se avanza con paginacion
+  por clave (`WHERE id > ultimo`), no con `OFFSET`, para que el coste por lote
+  sea constante.
+- **Restauracion por lotes, reanudable y sin exponer la tabla activa.** Los
+  datos se cargan en `ruc_records_next` mediante `COPY FROM STDIN`; `ruc_records`
+  sigue sirviendo consultas durante toda la carga y solo se sustituye al final
+  con un intercambio de nombres instantaneo. Si un lote falla, no hay swap y la
+  tabla activa queda intacta.
+- **Checkpoints por lote** en `ruc_backup_operations` (`current_batch`,
+  `completed_batches`, `records_processed`, `bytes_processed`, `staging_table`,
+  `checkpoint`) — migracion `2026_08_09_000003_add_chunked_restore_checkpoints`.
+- **`ruc:restore --resume`**: continua desde el ultimo lote confirmado. Nunca
+  salta un lote a ciegas: valida que el staging exista, que el `chunks_sha256`
+  coincida con el del archivo y que el numero de filas cuadre con el checkpoint.
+- **`ruc:restore-manage`**: `--status`, `--cancel`, `--discard-staging`,
+  `--rollback`. La cancelacion se atiende entre lotes, nunca a mitad de un COPY.
+- **Validacion previa al restore**: formato, version, columnas contra el esquema
+  real, numeracion de chunks sin huecos, checksum SHA-256 por chunk y espacio en
+  disco. Un chunk corrupto se rechaza ANTES de crear la tabla de staging.
+- `docs-ruc/BACKUP_FORMAT.md` con estructura, decisiones de diseno y benchmarks.
+- `tests/Feature/Ruc/RucChunkedBackupTest.php` — 19 pruebas: 1 lote, varios
+  lotes, ultimo lote incompleto, checksum incorrecto, chunk faltante, manifest
+  incoherente, version no soportada, columnas distintas, fallo en lote
+  intermedio, resume, resume con backup distinto, resume con staging
+  inconsistente, cancelacion, swap, indices y rollback.
+
+### CAMBIADO
+- `ruc:backup` genera `.rucbackup` en lugar de `.dump`. El flag `--legacy`
+  mantiene el formato antiguo para casos puntuales.
+- `ruc:restore` acepta un ID de backup **o una ruta** a un `.rucbackup`, y
+  detecta el formato por CONTENIDO (presencia de `manifest.json`), no por la
+  extension. Los `.dump` ya existentes se siguen restaurando por el camino
+  legacy sin cambios.
+- `docker/php/Dockerfile` declara `zstd` explicitamente: estaba disponible como
+  dependencia indirecta y una actualizacion de la imagen base podria haberlo
+  dejado fuera.
+- `update.sh` comprueba `zstd` y la extension PHP `zip`, y avisa si encuentra
+  restos de una restauracion troceada (`ruc_records_next` / `ruc_records_old`).
+
 ## [3.0.0] - 2026-08-09
 
 ### ELIMINADO (BREAKING)

@@ -498,6 +498,40 @@ else
     warn "Verifique que docker/php/Dockerfile instale postgresql16-client y reconstruya con: docker compose build app queue scheduler"
 fi
 
+# El formato .rucbackup comprime cada lote con zstd y usa la extensión zip de
+# PHP como contenedor ZIP64. Sin cualquiera de las dos, backup y restore
+# fallan en el primer lote. Ver docs-ruc/BACKUP_FORMAT.md.
+if docker compose exec -T app sh -c 'command -v zstd >/dev/null'; then
+    ok "zstd disponible en el contenedor app ($(docker compose exec -T app zstd --version 2>/dev/null | head -1 | tr -d '\r'))."
+else
+    warn "zstd NO está instalado en el contenedor app: el formato .rucbackup no funcionará."
+    warn "docker/php/Dockerfile ya lo declara; reconstruya con: docker compose build app queue queue-ruc-backups scheduler"
+fi
+
+if docker compose exec -T app php -r 'exit(extension_loaded("zip") ? 0 : 1);'; then
+    ok "Extensión PHP zip (contenedor ZIP64 de .rucbackup) disponible."
+else
+    warn "La extensión PHP zip NO está cargada: no se podrán leer ni escribir archivos .rucbackup."
+    warn "Reconstruya la imagen: docker compose build app queue queue-ruc-backups scheduler"
+fi
+
+# Restos de una restauración troceada interrumpida. Solo se informa: decidir
+# entre reanudar, descartar o revertir es del operador, nunca del deploy.
+RUC_STAGING_ROWS="$(docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -tAc \
+    "SELECT CASE WHEN to_regclass('public.ruc_records_next') IS NULL THEN '' ELSE (SELECT count(*)::text FROM ruc_records_next) END;" 2>/dev/null | tr -d '[:space:]')"
+if [[ -n "$RUC_STAGING_ROWS" ]]; then
+    warn "Existe ruc_records_next con $RUC_STAGING_ROWS filas: hay una restauración troceada sin terminar."
+    warn "  Reanudar:  docker compose exec -T app php artisan ruc:restore <id> --resume"
+    warn "  Descartar: docker compose exec -T app php artisan ruc:restore-manage --discard-staging"
+    warn "  Estado:    docker compose exec -T app php artisan ruc:restore-manage --status"
+fi
+
+if docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -tAc \
+    "SELECT to_regclass('public.ruc_records_old') IS NOT NULL;" 2>/dev/null | grep -q t; then
+    info "ruc_records_old presente: copia de la restauración anterior, disponible para rollback."
+    info "  Revertir: docker compose exec -T app php artisan ruc:restore-manage --rollback"
+fi
+
 # Los backups RUC multipart (packages/ruc-tools, herramienta LOCAL — jamás
 # desplegada aquí) llegan en partes de hasta 90 MiB cada una, en requests
 # HTTP independientes (así se evita el límite de ~100 MB de Cloudflare).

@@ -6,6 +6,7 @@ namespace App\Modules\Ruc\Services;
 
 use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -283,7 +284,7 @@ class RucBackupService
      * update.sh es RucBackupOperation.status=running (persistente); este
      * lock es la exclusión mutua inmediata a nivel de proceso.
      */
-    public function acquireRestoreLock(): \Illuminate\Contracts\Cache\Lock
+    public function acquireRestoreLock(): Lock
     {
         $ttl = max(3600, (int) config('queue.connections.ruc-backups.retry_after', 90000));
         $lock = Cache::lock('ruc-restore-process', $ttl);
