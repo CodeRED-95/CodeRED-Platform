@@ -287,8 +287,23 @@ class RucChunkedBackupTest extends TestCase
             "SELECT indexname FROM pg_indexes WHERE tablename = 'ruc_records' AND schemaname = current_schema()"
         ))->pluck('indexname')->all();
 
-        foreach (['ruc_records_pkey', 'ruc_records_ruc_unique', 'ruc_records_estado_index', 'ruc_records_razon_social_trgm_index'] as $expected) {
+        // Índices vigentes tras 2026_08_09_000004: los filtros usan compuestos
+        // (columna, id); estado/condicion/departamento ya no llevan índice
+        // propio porque su cardinalidad no lo justifica.
+        foreach ([
+            'ruc_records_pkey',
+            'ruc_records_ruc_unique',
+            'ruc_records_razon_social_trgm_index',
+            'ruc_records_provincia_id_index',
+            'ruc_records_distrito_id_index',
+            'ruc_records_ubigeo_id_index',
+        ] as $expected) {
             $this->assertContains($expected, $indexes, "Falta el índice {$expected} tras el swap.");
+        }
+
+        // Y no deben reaparecer los de una sola columna que se retiraron.
+        foreach (['ruc_records_estado_index', 'ruc_records_ubigeo_index'] as $removed) {
+            $this->assertNotContains($removed, $indexes, "El índice {$removed} ya no debe crearse.");
         }
     }
 
