@@ -13,13 +13,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
  * Ejecuta un restore de ruc_records en segundo plano, en la cola/worker
- * DEDICADOS "ruc-backups" (nunca comparte cola con agency-imports/
- * ruc-imports/default): un restore de millones de filas puede tardar
+ * DEDICADOS "ruc-backups" (nunca comparte cola con agency-imports ni
+ * default): un restore de millones de filas puede tardar
  * decenas de minutos u horas y no debe bloquear nada más, ni verse
  * bloqueado por nada más. El controller SOLO crea el RucBackupOperation y
  * despacha este Job — nunca ejecuta pg_dump/psql dentro del request HTTP
