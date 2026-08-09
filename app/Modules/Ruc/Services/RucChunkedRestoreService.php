@@ -301,8 +301,21 @@ class RucChunkedRestoreService
      */
     private function vacuumStaging(): void
     {
-        // VACUUM no puede ejecutarse dentro de una transacción; el statement
-        // va directo por la conexión, fuera de cualquier bloque transaccional.
+        // VACUUM no puede ejecutarse dentro de un bloque transaccional:
+        // PostgreSQL responde "VACUUM cannot run inside a transaction block".
+        // El flujo normal lo llama fuera de toda transacción, pero si alguien
+        // envolviera restore() en una, fallar aquí tiraría una restauración
+        // que ya está completa salvo el swap. Se degrada a ANALYZE, que sí
+        // admite transacción, y se avisa: las estadísticas quedan al día y
+        // solo la búsqueda por razón social irá lenta hasta el siguiente
+        // autovacuum.
+        if (DB::transactionLevel() > 0) {
+            Log::warning('VACUUM omitido: el restore corre dentro de una transacción. La pending list del índice GIN quedará sin vaciar hasta el próximo autovacuum.');
+            DB::statement('ANALYZE '.self::STAGING_TABLE);
+
+            return;
+        }
+
         DB::statement('VACUUM ANALYZE '.self::STAGING_TABLE);
     }
 
