@@ -16,9 +16,10 @@
 /bootstrap/cache
 /public/build
 *.log
-/storage/app/private/ruc-imports/
 /storage/framework/testing/disks/local/backups/
 /storage/framework/testing/disks/local/imports/agencies/previews/*.json
+# Artefactos que generan los tests al escribir en el disco "local" simulado.
+/storage/framework/testing/disks/local/reports/
 .env
 .env.*
 !.env.example
