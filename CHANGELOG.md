@@ -6,6 +6,72 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [3.2.0] - 2026-08-09
+
+### RENDIMIENTO
+
+Optimizacion del listado del padron (/admin/ruc) para 18M+ registros. Todas
+las cifras estan medidas con EXPLAIN (ANALYZE, BUFFERS) sobre **18 000 000 de
+filas reales**; el detalle completo esta en `docs-ruc/LIST_PERFORMANCE.md`.
+
+- **Indices de filtro sustituidos por compuestos `(columna, id)`**
+  (migracion `2026_08_09_000004_optimize_ruc_records_list_indexes`). La
+  consulta del listado es siempre `WHERE <filtro> = ? ORDER BY id LIMIT 51`, y
+  un indice de una sola columna no sirve para esa forma: PostgreSQL tiene que
+  ordenar despues, asi que acaba recorriendo la clave primaria y descartando
+  millones de filas.
+
+  | Consulta | Antes | Despues |
+  |---|---:|---:|
+  | `provincia` + `condicion` | 10 943 ms | **0.31 ms** |
+  | `distrito` + `estado` | 1 131 ms | **2.46 ms** |
+  | `ubigeo` + `departamento` | 792 ms | **8.09 ms** |
+  | `distrito` (solo) | 106 ms | **1.48 ms** |
+  | `provincia` (solo) | 97 ms | **9.83 ms** |
+
+- **Seis indices de una sola columna eliminados** (~681 MB). `estado` (4
+  valores), `condicion` (3) y `departamento` (8) no son lo bastante selectivos
+  para que el planificador los elija — se comprobo `idx_scan = 0` — y sin ellos
+  las consultas siguen en 0.3-4.8 ms. `provincia`, `distrito` y `ubigeo` se
+  sustituyen por su version compuesta. El total de indices pasa de ~2.5 GB a
+  ~3.7 GB: es el precio de convertir un peor caso de 11 s en uno de 10 ms.
+
+- **`VACUUM ANALYZE` tras cada carga masiva**, no solo `ANALYZE`. El indice GIN
+  de `razon_social` acumula entradas en su *pending list* durante una carga
+  masiva y cada busqueda la recorre linealmente hasta que se vacia: 6 996 ms
+  antes del VACUUM, 1 148 ms despues. Se aplica en
+  `RucChunkedRestoreService` sobre la tabla de staging (todavia no atiende
+  consultas) y en `update.sh`.
+
+- **`pg_trgm` evaluado y conservado**: 810-1 226 ms con el indice frente a
+  11 403 ms forzando escaneo secuencial, y 2 ms en el caso habitual de un
+  termino comun. Se justifica.
+
+### AGREGADO
+- El listado muestra el total del padron leyendo `ruc_statistics`, **nunca con
+  `COUNT(*)`** (que cuesta ~8 s sobre 18M y ningun indice evita). El metadato
+  lo actualiza `RucStatisticsService` al terminar cada restauracion.
+- El RUC del listado enlaza al detalle, que es donde se cargan las columnas
+  que la lista no trae: desglose de la direccion (`tipo_via`, `nombre_via`,
+  `numero`, `interior`, `lote`, `manzana`, `kilometro`,
+  `departamento_direccion`, `tipo_zona`, `codigo_zona`).
+- `docs-ruc/LIST_PERFORMANCE.md` con la metodologia, los planes y los numeros.
+
+### CORREGIDO
+- `RucListPerformanceTest` llevaba tiempo fallando por completo con "The
+  response is not a view": comprobaba un componente Livewire de pagina completa
+  mediante una peticion HTTP, y en ese caso la respuesta es el layout, no la
+  vista del componente. Reescrito con `Livewire::test()`; pasa de 6 pruebas
+  rotas a 14 en verde, que ademas verifican lo que antes solo se afirmaba
+  (que no hay `COUNT`, que no hay `DISTINCT`, que el RUC exacto usa igualdad y
+  no `ILIKE`, que el cursor no solapa ni salta registros).
+
+### PENDIENTE CONOCIDO
+- `GET /api/v1/ruc/buscar` tarda **~20 s** con un termino comun (9 766 ms de
+  `COUNT(*)` que introduce `paginate()` + 10 481 ms de `ORDER BY razon_social`).
+  No se ha cambiado porque `total` y `last_page` forman parte del contrato
+  publico documentado y los consume la extension de Chrome.
+
 ## [3.1.0] - 2026-08-09
 
 ### AGREGADO

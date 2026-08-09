@@ -593,21 +593,35 @@ else
     sleep 15
 fi
 
-# Post-deploy ANALYZE (FASE 4 automation): if ruc_records table exists and
-# was recently modified, run ANALYZE to update statistics. This is critical
-# after restores to prevent stale planner statistics from degrading
-# query performance.
+# VACUUM ANALYZE post-deploy sobre ruc_records.
+#
+# ANALYZE por sí solo NO basta: el índice GIN de razon_social acumula
+# entradas en su "pending list" tras cualquier carga masiva, y mientras no
+# se vacía cada búsqueda por razón social la recorre linealmente. Medido
+# sobre 18M filas: la misma búsqueda pasa de 6 996 ms a 1 148 ms tras el
+# VACUUM. Solo VACUUM vacía esa lista. Ver docs-ruc/LIST_PERFORMANCE.md.
+#
+# VACUUM (sin FULL) no bloquea lecturas ni escrituras: la tabla sigue
+# atendiendo consultas mientras se ejecuta. Coste sobre 18M: ~6 s.
 if docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -c "SELECT 1 FROM information_schema.tables WHERE table_name='ruc_records';" | grep -q 1; then
-    info "Running ANALYZE on ruc_records (PHASE 4 automation)..."
-    docker compose exec -T app php -r "
-require 'vendor/autoload.php';
-\$app = require 'bootstrap/app.php';
-\$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-\Illuminate\Support\Facades\DB::statement('ANALYZE ruc_records');
-echo 'ANALYZE completed' . PHP_EOL;
-" 2>/dev/null || warn "ANALYZE failed (non-critical, will happen automatically at next restore)"
+    info "Ejecutando VACUUM ANALYZE sobre ruc_records..."
+    if docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)"         -c "VACUUM ANALYZE ruc_records;" >/dev/null 2>&1; then
+        ok "VACUUM ANALYZE completado (estadísticas y pending list del índice GIN al día)."
+    else
+        warn "VACUUM ANALYZE falló (no crítico: se repetirá en la próxima restauración)."
+    fi
+
+    # La migración que sustituye los índices de filtro por compuestos
+    # (columna, id) tarda ~1m30s sobre 18M filas. Si al terminar el deploy
+    # siguieran presentes los antiguos, es que no se aplicó.
+    LEGACY_IDX="$(docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -tAc         "SELECT count(*) FROM pg_indexes WHERE tablename='ruc_records' AND indexname IN ('ruc_records_estado_index','ruc_records_condicion_index','ruc_records_departamento_index','ruc_records_provincia_index','ruc_records_distrito_index','ruc_records_ubigeo_index');" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "$LEGACY_IDX" =~ ^[0-9]+$ && "$LEGACY_IDX" != "0" ]]; then
+        warn "Siguen presentes $LEGACY_IDX índices de filtro antiguos en ruc_records."
+        warn "El listado /admin/ruc puede tardar segundos con filtros combinados."
+        warn "Aplique: docker compose exec -T app php artisan migrate --force"
+    fi
 else
-    info "ruc_records table not yet present; ANALYZE will run automatically on first restore."
+    info "ruc_records aún no existe; VACUUM ANALYZE se ejecutará tras la primera restauración."
 fi
 
 if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] && docker compose config --services | grep -qx codered-agent; then
