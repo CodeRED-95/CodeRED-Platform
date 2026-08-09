@@ -3,7 +3,17 @@
              (pending/running). Polling GET cada 2-3s a /admin/ruc/backups/operations/{id}/status
              para actualizar stage, progress, message en tiempo real. --}}
         @if($activeRestoreOperation)
-            <div class="space-y-4" x-data="rucRestoreProgress(@js($activeRestoreOperation->uuid))" x-init="startPolling()">
+            @php
+                // La URL se genera SIEMPRE con la operación concreta. Nunca se
+                // llama a route() sin el parámetro {operation}: pasar '' hacía
+                // que Laravel tratara el parámetro como ausente y lanzara
+                // UrlGenerationException al renderizar esta página.
+                // RucBackupOperation::getRouteKeyName() es 'uuid', así que el
+                // model binding resuelve el modelo directamente.
+                $restoreStatusUrl = route('admin.ruc.backups.operations.status', ['operation' => $activeRestoreOperation]);
+                $restoreInitialState = $activeRestoreOperation->toStatusPayload();
+            @endphp
+            <div class="space-y-4" x-data="rucRestoreProgress(@js($restoreStatusUrl), @js($restoreInitialState))" x-init="startPolling()">
                 <x-ui.operation-status
                     title="Restauración en progreso"
                     :status="$activeRestoreOperation->status"
@@ -20,6 +30,11 @@
                                 <div class="h-full rounded-full bg-[color:var(--color-brand)] transition-[width] duration-300" x-bind:style="'width: ' + progress + '%'"></div>
                             </div>
                             <p class="text-xs text-[color:var(--color-text-secondary)]" x-text="message"></p>
+                            {{-- Si el restore falla mientras la página está
+                                 abierta, el error se muestra aquí y el polling
+                                 se detiene (no se recarga para no ocultarlo). --}}
+                            <p x-show="errorMessage" x-cloak x-text="errorMessage"
+                               class="rounded-md bg-[color:var(--color-danger)]/10 p-2 text-xs text-[color:var(--color-danger)]"></p>
                         </div>
                     </x-slot:progress>
 
@@ -36,35 +51,72 @@
                     </x-slot:steps>
                 </x-ui.operation-status>
 
-                {{-- Polling script: GET /admin/ruc/backups/operations/{uuid}/status cada 2s --}}
+                {{-- Polling: GET a la URL ya resuelta en servidor, cada 2s.
+                     Este bloque solo existe cuando hay una operación activa, así
+                     que nunca se arranca polling con un id nulo. --}}
                 <script>
-                    function rucRestoreProgress(operationUuid) {
+                    function rucRestoreProgress(statusUrl, initialState) {
+                        const TERMINAL = ['completed', 'failed'];
+
                         return {
-                            operation: @js($activeRestoreOperation),
-                            progress: {{ $activeRestoreOperation->progress ?? 0 }},
-                            message: "{{ $activeRestoreOperation->message ?? '' }}",
+                            statusUrl,
+                            operation: initialState,
+                            progress: initialState.progress || 0,
+                            message: initialState.message || '',
+                            errorMessage: initialState.error_message || '',
                             pollInterval: null,
 
                             startPolling() {
+                                // Defensa por si la operación terminó entre el
+                                // render y la hidratación de Alpine.
+                                if (TERMINAL.includes(this.operation?.status)) return;
                                 this.pollInterval = setInterval(() => this.fetchStatus(), 2000);
+                            },
+
+                            stopPolling() {
+                                if (this.pollInterval === null) return;
+                                clearInterval(this.pollInterval);
+                                this.pollInterval = null;
+                            },
+
+                            // Alpine llama destroy() al desmontar el componente:
+                            // evita que el intervalo siga vivo tras una
+                            // navegación y dispare fetch sobre una página muerta.
+                            destroy() {
+                                this.stopPolling();
                             },
 
                             async fetchStatus() {
                                 try {
-                                    const res = await fetch(`{{ route('admin.ruc.backups.operations.status', ['operation' => '']) }}${operationUuid}`);
-                                    if (!res.ok) return;
+                                    const res = await fetch(this.statusUrl, { headers: { 'Accept': 'application/json' } });
+
+                                    // 404/410: la operación ya no es consultable.
+                                    // Reintentar cada 2s indefinidamente solo
+                                    // generaría ruido, así que se detiene.
+                                    if (res.status === 404 || res.status === 410) {
+                                        this.stopPolling();
+                                        return;
+                                    }
+                                    if (!res.ok) return; // error transitorio: se reintenta
 
                                     const data = await res.json();
                                     this.operation = data;
                                     this.progress = data.progress || 0;
                                     this.message = data.message || '';
+                                    this.errorMessage = data.error_message || '';
 
-                                    // Si completó, parar polling
-                                    if (data.status === 'completed' || data.status === 'failed') {
-                                        clearInterval(this.pollInterval);
-                                        // Recargar página después de 2s para mostrar resultado final
+                                    if (!TERMINAL.includes(data.status)) return;
+
+                                    this.stopPolling();
+
+                                    if (data.status === 'completed') {
+                                        // Recarga para refrescar conteo de registros y listado.
                                         setTimeout(() => window.location.reload(), 2000);
                                     }
+                                    // En 'failed' NO se recarga: se deja el error
+                                    // visible en pantalla. El panel de "última
+                                    // restauración terminada" lo seguirá mostrando
+                                    // si el operador recarga por su cuenta.
                                 } catch (e) {
                                     console.error('Error fetching restore status:', e);
                                 }
@@ -72,6 +124,40 @@
                         };
                     }
                 </script>
+            </div>
+        @elseif($lastFinishedRestoreOperation)
+            {{-- Resultado de la última restauración terminada. Panel estático:
+                 SIN polling y SIN volver a lanzar nada. Existe para que un
+                 restore fallido siga siendo visible al recargar la página. --}}
+            <div class="space-y-4" data-testid="last-finished-restore">
+                <x-ui.operation-status
+                    :title="$lastFinishedRestoreOperation->status === App\Modules\Ruc\Models\RucBackupOperation::STATUS_FAILED
+                        ? 'Última restauración: falló'
+                        : 'Última restauración: completada'"
+                    :status="$lastFinishedRestoreOperation->status"
+                    :message="$lastFinishedRestoreOperation->message"
+                    :elapsed="$lastFinishedRestoreOperation->duration_seconds"
+                >
+                    @if($lastFinishedRestoreOperation->error_message)
+                        <p class="rounded-md bg-[color:var(--color-danger)]/10 p-3 text-sm text-[color:var(--color-danger)]">
+                            {{ $lastFinishedRestoreOperation->error_message }}
+                        </p>
+                    @endif
+                    <dl class="grid gap-2 text-sm sm:grid-cols-2">
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-[color:var(--color-text-secondary)]">Registros antes</dt>
+                            <dd>{{ $lastFinishedRestoreOperation->records_before !== null ? number_format($lastFinishedRestoreOperation->records_before) : '—' }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-[color:var(--color-text-secondary)]">Registros después</dt>
+                            <dd>{{ $lastFinishedRestoreOperation->records_after !== null ? number_format($lastFinishedRestoreOperation->records_after) : '—' }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-[color:var(--color-text-secondary)]">Finalizó</dt>
+                            <dd>{{ $lastFinishedRestoreOperation->finished_at?->format('d/m/Y H:i') ?? '—' }}</dd>
+                        </div>
+                    </dl>
+                </x-ui.operation-status>
             </div>
         @endif
 

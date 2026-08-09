@@ -48,6 +48,14 @@ class RucBackupController
         // estado "idle".
         $activeRestoreOperation = RucBackupOperation::activeRestore();
 
+        // Si no hay nada activo, se muestra el resultado de la última
+        // restauración terminada (completed/failed) para que un fallo no
+        // desaparezca de la pantalla al recargar. Es informativo: no dispara
+        // polling ni reinicia nada.
+        $lastFinishedRestoreOperation = $activeRestoreOperation === null
+            ? RucBackupOperation::latestFinishedRestore()
+            : null;
+
         // layouts.app (resources/views/layouts/app.blade.php) espera un
         // $slot, igual que lo consume Livewire para las páginas completas
         // de este panel (config/livewire.php: 'layout' => 'layouts.app').
@@ -61,6 +69,7 @@ class RucBackupController
                 'currentRecordCount' => $currentRecordCount,
                 'lastBackup' => $lastBackup,
                 'activeRestoreOperation' => $activeRestoreOperation,
+                'lastFinishedRestoreOperation' => $lastFinishedRestoreOperation,
             ])->render()),
         ]);
     }
@@ -163,21 +172,7 @@ class RucBackupController
     {
         Gate::authorize('ruc.backup.view');
 
-        return response()->json([
-            'uuid' => $operation->uuid,
-            'status' => $operation->status,
-            'stage' => $operation->stage,
-            'progress' => $operation->progress,
-            'message' => $operation->message,
-            'backup_name' => $operation->backup?->name,
-            'safety_backup_id' => $operation->safety_backup_id,
-            'records_before' => $operation->records_before,
-            'records_after' => $operation->records_after,
-            'started_at' => $operation->started_at?->toIso8601String(),
-            'finished_at' => $operation->finished_at?->toIso8601String(),
-            'duration_seconds' => $operation->duration_seconds,
-            'error_message' => $operation->error_message,
-        ]);
+        return response()->json($operation->toStatusPayload());
     }
 
     public function destroy(RucBackup $backup): RedirectResponse

@@ -126,4 +126,49 @@ class RucBackupOperation extends Model
             ->latest('id')
             ->first();
     }
+
+    /**
+     * Última restauración ya terminada (completed/failed). La UI la usa para
+     * mostrar el resultado —incluido error_message— cuando ya no hay ninguna
+     * operación activa: sin esto, un restore fallido desaparecería de la
+     * pantalla al recargar y el operador no vería nunca por qué falló.
+     */
+    public static function latestFinishedRestore(): ?self
+    {
+        return self::query()
+            ->where('operation_type', self::TYPE_RESTORE)
+            ->whereIn('status', [self::STATUS_COMPLETED, self::STATUS_FAILED])
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Forma canónica del estado de una operación.
+     *
+     * Fuente única compartida por el endpoint JSON de polling
+     * (RucBackupController::operationStatus) y por el estado inicial que la
+     * vista embebe en Alpine. Antes cada lado construía su propio objeto, así
+     * que el primer render no tenía `backup_name` y el nombre del backup
+     * aparecía en blanco hasta que llegaba el primer poll.
+     *
+     * @return array<string, mixed>
+     */
+    public function toStatusPayload(): array
+    {
+        return [
+            'uuid' => $this->uuid,
+            'status' => $this->status,
+            'stage' => $this->stage,
+            'progress' => $this->progress ?? 0,
+            'message' => $this->message,
+            'backup_name' => $this->backup?->name,
+            'safety_backup_id' => $this->safety_backup_id,
+            'records_before' => $this->records_before,
+            'records_after' => $this->records_after,
+            'started_at' => $this->started_at?->toIso8601String(),
+            'finished_at' => $this->finished_at?->toIso8601String(),
+            'duration_seconds' => $this->duration_seconds,
+            'error_message' => $this->error_message,
+        ];
+    }
 }
