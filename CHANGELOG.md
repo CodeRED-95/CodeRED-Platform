@@ -6,6 +6,33 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [2.3.1] - 2026-08-09
+
+### CORREGIDO
+- **RUC Backup/Restore — `UrlGenerationException` en `/admin/ruc/backups`**
+  - La vista construia la URL de polling llamando a
+    `route('admin.ruc.backups.operations.status', ['operation' => ''])` y
+    concatenaba el UUID en JavaScript. Laravel descarta los parametros con
+    valor vacio, asi que `{operation}` quedaba sin resolver y la pagina
+    respondia HTTP 500 — pero solo cuando existia una restauracion activa,
+    porque el bloque vive dentro de `@if($activeRestoreOperation)`.
+  - Ahora la URL se genera en servidor con la operacion concreta
+    (route model binding por `uuid`) y se pasa ya resuelta a Alpine.
+  - El polling se detiene en estado terminal, ante 404/410 y al desmontar el
+    componente; ya no se recarga la pagina cuando el restore falla, para no
+    ocultar el error.
+  - El restore fallido/completado sigue visible al recargar mediante un panel
+    estatico (`RucBackupOperation::latestFinishedRestore()`), sin polling.
+  - `RucBackupOperation::toStatusPayload()` unifica la forma del estado entre
+    el endpoint JSON y el render inicial: `backup_name` ya no aparece en
+    blanco hasta el primer poll.
+
+### AGREGADO
+- `tests/Feature/Ruc/RucBackupRestoreStatusUiTest.php` — 10 pruebas de
+  regresion: pagina sin operacion, restore `pending`, `running`, `completed`
+  y `failed`, guard de la ruta sin parametro, paridad del payload, y
+  verificacion de que recargar la pagina no crea ni reinicia operaciones.
+
 ## [2.2.0] - 2026-08-06
 
 ### ✨ AGREGADO
