@@ -5,6 +5,8 @@ namespace App\Livewire\Admin\Ruc;
 use App\Modules\Ruc\Models\RucRecord;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -84,7 +86,26 @@ class Records extends Component
             // Filtros hardcodeados (NO HACER DISTINCT sobre tabla)
             'estados' => $this->getEstados(),
             'condiciones' => $this->getCondiciones(),
+            'totalRecords' => $this->totalRecords(),
         ])->layout('layouts.app', ['pageTitle' => 'Padrón RUC']);
+    }
+
+    /**
+     * Total del padrón leído de `ruc_statistics`, NUNCA con COUNT(*).
+     *
+     * Un COUNT(*) sobre ruc_records tarda ~8 s con 18M filas (medido: escaneo
+     * secuencial paralelo de 3.7 GB) y no hay índice que lo evite. El total se
+     * mantiene como metadato: RucStatisticsService lo actualiza al terminar
+     * cada restauración, que es el único momento en que el padrón cambia.
+     *
+     * Es informativo (cabecera "N registros en el padrón") y no interviene en
+     * la paginación: el listado usa cursor, que por diseño no necesita total.
+     */
+    private function totalRecords(): int
+    {
+        return Cache::remember('ruc:records:count', 3600, static function (): int {
+            return (int) (DB::table('ruc_statistics')->value('total_records') ?? 0);
+        });
     }
 
     /**

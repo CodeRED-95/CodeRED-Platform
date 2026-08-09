@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <x-ui.page-header title="Padrón RUC" subtitle="Consulta paginada del padrón reducido SUNAT almacenado en PostgreSQL.">
+    <x-ui.page-header title="Padrón RUC" subtitle="{{ number_format($totalRecords) }} registros en el padrón · consulta paginada por cursor.">
         <x-slot:actions>@if(auth()->user()->hasPermission('ruc.backup.view'))<x-ui.button href="{{ route('admin.ruc.backups') }}" variant="secondary">Backups</x-ui.button>@endif</x-slot:actions>
     </x-ui.page-header>
     @if($searchError)
@@ -15,7 +15,7 @@
         <x-ui.input wire:model.live.debounce.500ms="ubigeo" label="Ubigeo" maxlength="6" />
     </div></x-ui.card>
     <x-ui.table><thead><tr><th class="px-5 py-4">RUC</th><th class="px-5 py-4">Razón social</th><th class="px-5 py-4">Estado</th><th class="px-5 py-4">Condición</th><th class="px-5 py-4">Ubigeo</th><th class="px-5 py-4">Ubicación</th><th class="px-5 py-4">Dirección</th></tr></thead><tbody class="divide-y divide-white/5">
-        @forelse($records as $record)<tr><td class="px-5 py-4 font-mono">{{ $record->ruc }}</td><td class="px-5 py-4 font-medium">{{ $record->razon_social }}</td><td class="px-5 py-4"><x-ui.badge tone="info">{{ $record->estado ?? '—' }}</x-ui.badge></td><td class="px-5 py-4">{{ $record->condicion ?? '—' }}</td><td class="px-5 py-4 font-mono">{{ $record->ubigeo ?? '—' }}</td><td class="px-5 py-4">{{ implode(' · ', array_filter([$record->departamento, $record->provincia, $record->distrito])) ?: '—' }}</td><td class="max-w-md px-5 py-4">{{ $record->direccion ?? '—' }}</td></tr>
+        @forelse($records as $record)<tr><td class="px-5 py-4 font-mono"><a href="{{ route('admin.ruc.show', $record->id) }}" class="text-[color:var(--color-brand-light)] hover:underline" title="Ver detalle completo">{{ $record->ruc }}</a></td><td class="px-5 py-4 font-medium">{{ $record->razon_social }}</td><td class="px-5 py-4"><x-ui.badge tone="info">{{ $record->estado ?? '—' }}</x-ui.badge></td><td class="px-5 py-4">{{ $record->condicion ?? '—' }}</td><td class="px-5 py-4 font-mono">{{ $record->ubigeo ?? '—' }}</td><td class="px-5 py-4">{{ implode(' · ', array_filter([$record->departamento, $record->provincia, $record->distrito])) ?: '—' }}</td><td class="max-w-md px-5 py-4">{{ $record->direccion ?? '—' }}</td></tr>
         @empty<tr><td colspan="7" class="px-5 py-12"><x-ui.empty-state title="No hay registros RUC" description="Ajusta los filtros o restaura un backup del padrón." /></td></tr>@endforelse
     </tbody></x-ui.table>
     <x-ui.pagination :paginator="$records" />

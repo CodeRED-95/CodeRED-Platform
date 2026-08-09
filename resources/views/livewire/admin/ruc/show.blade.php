@@ -9,4 +9,33 @@
             </div>
         @endforeach
     </dl></x-ui.card>
+
+    {{-- Columnas que el LISTADO no trae a propósito: solo se cargan aquí.
+         El listado selecciona 10 columnas de las 22 para no arrastrar el
+         desglose de dirección en cada una de las 50 filas de cada página. --}}
+    <x-ui.card>
+        <h3 class="text-base font-semibold mb-1">Desglose de la dirección</h3>
+        <p class="text-sm text-[color:var(--color-text-secondary)] mb-4">
+            Campos del padrón que no aparecen en el listado; se consultan solo al abrir el detalle.
+        </p>
+        <dl class="grid gap-4 md:grid-cols-3">
+            @foreach([
+                'tipo_via' => 'Tipo de vía',
+                'nombre_via' => 'Nombre de vía',
+                'numero' => 'Número',
+                'interior' => 'Interior',
+                'lote' => 'Lote',
+                'manzana' => 'Manzana',
+                'kilometro' => 'Kilómetro',
+                'departamento_direccion' => 'Departamento (dirección)',
+                'tipo_zona' => 'Tipo de zona',
+                'codigo_zona' => 'Código de zona',
+            ] as $field => $label)
+                <div class="rounded-[var(--radius-control)] bg-white/5 p-4">
+                    <dt class="text-xs text-[color:var(--color-text-muted)]">{{ $label }}</dt>
+                    <dd class="mt-1">{{ $record->{$field} ?: '—' }}</dd>
+                </div>
+            @endforeach
+        </dl>
+    </x-ui.card>
 </div>
