@@ -1,4 +1,5 @@
 import './options.css';
+import { getTokenRequestUrl } from '../models/configuration';
 
 type StateResponse = {
   configuration?: { tokenMasked?: string | null };
@@ -97,7 +98,11 @@ async function deleteToken(): Promise<void> {
 }
 
 async function requestToken(): Promise<void> {
-  await chrome.tabs.create({ url: 'https://platform.codered.host/solicitar-token?source=shalom-extension&installation_name=Buscador%20Shalom%20Control' });
+  // El dominio se deriva de models/configuration.ts (única fuente de verdad).
+  const url = new URL(getTokenRequestUrl());
+  url.searchParams.set('source', 'shalom-extension');
+  url.searchParams.set('installation_name', 'Buscador Shalom Control');
+  await chrome.tabs.create({ url: url.toString() });
 }
 
 function renderState(state: StateResponse): void {

@@ -184,7 +184,7 @@ INFO Shalom sync received {
 
 ## Notas
 
-- **URL del servidor:** `https://platform.codered.host` (configurar en extensión)
+- **URL del servidor:** `https://platform.codered.lat` (configurar en extensión)
 - **Endpoint:** `/api/v1/shalom/sync`
 - **Método:** POST
 - **Content-Type:** `application/json`

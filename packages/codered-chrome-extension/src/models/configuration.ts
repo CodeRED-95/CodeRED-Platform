@@ -12,7 +12,9 @@ export interface SyncMetadata {
   message: string | null;
 }
 
-const DEFAULT_API_BASE_URL = 'https://platform.codered.host/api/v1';
+// Dominio productivo: codered.lat (migrado desde codered.host).
+// Se puede sobrescribir en build time con VITE_CODERED_API_BASE_URL.
+const DEFAULT_API_BASE_URL = 'https://platform.codered.lat/api/v1';
 
 export function getPlatformApiBaseUrl(): string {
   return (import.meta.env.VITE_CODERED_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');

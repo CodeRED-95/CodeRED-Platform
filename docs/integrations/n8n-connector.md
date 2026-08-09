@@ -10,10 +10,10 @@ Payload de Pair Instance hacia el agente:
 {
   "pair_code": "CRD-...",
   "instance_name": "n8n Production",
-  "instance_url": "https://n8n.codered.host/",
+  "instance_url": "https://n8n.codered.lat/",
   "environment": "production",
   "version": "2.31.4",
-  "platform_url": "https://platform.codered.host/"
+  "platform_url": "https://platform.codered.lat/"
 }
 ```
 

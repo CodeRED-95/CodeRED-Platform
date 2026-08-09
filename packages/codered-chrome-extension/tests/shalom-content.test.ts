@@ -6,7 +6,7 @@ import { isRuntimeRequest } from '../src/background/messages';
 import { createShalomContentController, findSearchInsertionPoint, insertSearchContainer, positionResultsPanel } from '../src/content/content';
 import { detectActiveChannel } from '../src/content/shalom-page-adapter';
 import { findActiveDestinationSelect, selectAgencyInDestination } from '../src/content/agency-selector';
-import { hostnameMatchesAllowedDomain, isSupportedShalomHost } from '../src/content/shalom-host';
+import { hostnameMatchesAllowedDomain, isSupportedShalomHost, isSupportedShalomLocation, isSupportedShalomPath } from '../src/content/shalom-host';
 
 const terrestrialAgency = adaptAgency({
   external_id: 1001,
@@ -32,39 +32,101 @@ const duplicateCodeAgency = adaptAgency({
 });
 
 describe('supported Shalom hosts', () => {
-  it('accepts shalomcontrol root, known subdomains, future subdomains, multi-level subdomains, and shalom.pe', () => {
-    expect(isSupportedShalomHost('shalomcontrol.com')).toBe(true);
+  it('accepts any subdomain of shalomcontrol.com, including future and multi-level ones', () => {
+    expect(isSupportedShalomHost('app.shalomcontrol.com')).toBe(true);
     expect(isSupportedShalomHost('sysprovincia2.shalomcontrol.com')).toBe(true);
     expect(isSupportedShalomHost('syslima.shalomcontrol.com')).toBe(true);
+    expect(isSupportedShalomHost('cualquier-subdominio.shalomcontrol.com')).toBe(true);
     expect(isSupportedShalomHost('nuevo.servicio.shalomcontrol.com.')).toBe(true);
-    expect(isSupportedShalomHost('shalom.pe')).toBe(true);
-    expect(isSupportedShalomHost('ventas.shalom.pe')).toBe(true);
+  });
+
+  it('rejects the bare domain and any host outside shalomcontrol.com', () => {
+    expect(isSupportedShalomHost('shalomcontrol.com')).toBe(false);
+    expect(isSupportedShalomHost('shalom.pe')).toBe(false);
+    expect(isSupportedShalomHost('ventas.shalom.pe')).toBe(false);
   });
 
   it('accepts exact allowed domains and subdomains without first-label matching', () => {
     expect(hostnameMatchesAllowedDomain('shalom.pe', 'shalom.pe')).toBe(true);
     expect(hostnameMatchesAllowedDomain('control.shalom.pe', 'shalom.pe')).toBe(true);
     expect(hostnameMatchesAllowedDomain('www.shalom.pe', 'www.shalom.pe')).toBe(true);
-    expect(hostnameMatchesAllowedDomain('platform.codered.host', 'codered.host')).toBe(true);
+    expect(hostnameMatchesAllowedDomain('platform.codered.lat', 'codered.lat')).toBe(true);
   });
 
   it('rejects lookalike malicious domains and platform injection', () => {
     expect(isSupportedShalomHost('shalomcontrol.com.evil.example')).toBe(false);
     expect(isSupportedShalomHost('fake-shalomcontrol.com')).toBe(false);
+    expect(isSupportedShalomHost('evil-shalomcontrol.com')).toBe(false);
     expect(isSupportedShalomHost('shalomcontrol.example')).toBe(false);
-    expect(isSupportedShalomHost('platform.codered.host')).toBe(false);
+    expect(isSupportedShalomHost('platform.codered.lat')).toBe(false);
+  });
+});
+
+describe('supported Shalom paths', () => {
+  it('accepts the two authorized routes with an optional trailing slash', () => {
+    expect(isSupportedShalomPath('/listaordenservicio')).toBe(true);
+    expect(isSupportedShalomPath('/listaordenservicio/')).toBe(true);
+    expect(isSupportedShalomPath('/ordenservicio/listar')).toBe(true);
+    expect(isSupportedShalomPath('/ordenservicio/listar/')).toBe(true);
+  });
+
+  it('rejects nested, partial and lookalike routes', () => {
+    expect(isSupportedShalomPath('/listaordenservicio/otra')).toBe(false);
+    expect(isSupportedShalomPath('/ordenservicio')).toBe(false);
+    expect(isSupportedShalomPath('/ordenservicio/')).toBe(false);
+    expect(isSupportedShalomPath('/ordenservicio/listar/otra')).toBe(false);
+    expect(isSupportedShalomPath('/listaordenservicio2')).toBe(false);
+    expect(isSupportedShalomPath('/otra/listaordenservicio')).toBe(false);
+    expect(isSupportedShalomPath('/')).toBe(false);
+    expect(isSupportedShalomPath('')).toBe(false);
+  });
+
+  it('ignores query string and fragment when they are present', () => {
+    expect(isSupportedShalomPath('/listaordenservicio?page=2')).toBe(true);
+    expect(isSupportedShalomPath('/ordenservicio/listar/#top')).toBe(true);
+  });
+
+  it('combines host and path in a single gate', () => {
+    expect(isSupportedShalomLocation('app.shalomcontrol.com', '/listaordenservicio')).toBe(true);
+    expect(isSupportedShalomLocation('cualquier-subdominio.shalomcontrol.com', '/ordenservicio/listar')).toBe(true);
+    // Host valido pero ruta no autorizada
+    expect(isSupportedShalomLocation('app.shalomcontrol.com', '/ordenservicio/listar/otra')).toBe(false);
+    expect(isSupportedShalomLocation('app.shalomcontrol.com', '/inicio')).toBe(false);
+    // Ruta autorizada pero host no permitido
+    expect(isSupportedShalomLocation('shalomcontrol.com', '/listaordenservicio')).toBe(false);
+    expect(isSupportedShalomLocation('ventas.shalom.pe', '/listaordenservicio')).toBe(false);
   });
 });
 
 describe('manifest injection scope', () => {
   it('injects only on Shalom hosts while keeping CodeRED Platform as host permission', () => {
+    expect(manifest.host_permissions).toContain('https://platform.codered.lat/*');
+    // Compatibilidad legacy: se mantiene mientras dure la transicion desde
+    // codered.host, para no romper instalaciones ya publicadas en la Web Store
+    // que sigan apuntando al dominio anterior. Eliminar cuando codered.lat
+    // este validado al 100% y se publique una nueva version de la extension.
     expect(manifest.host_permissions).toContain('https://platform.codered.host/*');
+    // La inyeccion queda restringida a las dos rutas autorizadas de cualquier
+    // subdominio de shalomcontrol.com. Las variantes con '?*' cubren las URLs
+    // con query string, ya que Chrome compara el patron de ruta contra
+    // pathname + query.
     expect(manifest.content_scripts[0].matches).toEqual([
-      'https://shalom.pe/*',
-      'https://*.shalom.pe/*',
-      'https://shalomcontrol.com/*',
-      'https://*.shalomcontrol.com/*',
+      'https://*.shalomcontrol.com/listaordenservicio',
+      'https://*.shalomcontrol.com/listaordenservicio/',
+      'https://*.shalomcontrol.com/listaordenservicio?*',
+      'https://*.shalomcontrol.com/listaordenservicio/?*',
+      'https://*.shalomcontrol.com/ordenservicio/listar',
+      'https://*.shalomcontrol.com/ordenservicio/listar/',
+      'https://*.shalomcontrol.com/ordenservicio/listar?*',
+      'https://*.shalomcontrol.com/ordenservicio/listar/?*',
     ]);
+    // Ninguna ruta comodin sobre shalomcontrol.com ni shalom.pe.
+    expect(manifest.content_scripts[0].matches).not.toContain('https://*.shalomcontrol.com/*');
+    expect(manifest.content_scripts[0].matches).not.toContain('https://shalomcontrol.com/*');
+    expect(manifest.content_scripts[0].matches.some((m) => m.includes('shalom.pe'))).toBe(false);
+    expect(manifest.host_permissions.some((h) => h.includes('shalom.pe'))).toBe(false);
+    expect(manifest.host_permissions).not.toContain('https://*.shalomcontrol.com/*');
+    expect(manifest.content_scripts[0].matches).not.toContain('https://platform.codered.lat/*');
     expect(manifest.content_scripts[0].matches).not.toContain('https://platform.codered.host/*');
     expect(manifest.content_scripts[0].run_at).toBe('document_idle');
   });
@@ -73,7 +135,7 @@ describe('manifest injection scope', () => {
 describe('Shalom Control DOM integration', () => {
   beforeEach(() => {
     vi.useRealTimers();
-    const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div><main></main></body></html>', { url: 'https://sysprovincia2.shalomcontrol.com/' });
+    const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div><main></main></body></html>', { url: 'https://sysprovincia2.shalomcontrol.com/listaordenservicio' });
     globalThis.window = dom.window as unknown as Window & typeof globalThis;
     globalThis.document = dom.window.document;
     globalThis.MutationObserver = dom.window.MutationObserver;
@@ -237,13 +299,42 @@ describe('Shalom Control DOM integration', () => {
   });
 
   it('does not inject on CodeRED Platform', async () => {
-    const dom = new JSDOM('<!doctype html><html><body><header></header></body></html>', { url: 'https://platform.codered.host/' });
+    const dom = new JSDOM('<!doctype html><html><body><header></header></body></html>', { url: 'https://platform.codered.lat/' });
     globalThis.window = dom.window as unknown as Window & typeof globalThis;
     globalThis.document = dom.window.document;
     globalThis.HTMLElement = dom.window.HTMLElement;
     const controller = createShalomContentController({ requestCatalog: async () => [] });
     expect(await controller.mount()).toMatchObject({ success: false, reason: 'unsupported-page' });
     expect(document.getElementById('mi-buscador-contenedor')).toBeNull();
+  });
+
+  it('does not inject on a Shalom host outside the two authorized routes', async () => {
+    const unsupportedPaths = ['/', '/inicio', '/ordenservicio', '/listaordenservicio/otra', '/ordenservicio/listar/otra'];
+    for (const path of unsupportedPaths) {
+      const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div></body></html>', { url: `https://app.shalomcontrol.com${path}` });
+      globalThis.window = dom.window as unknown as Window & typeof globalThis;
+      globalThis.document = dom.window.document;
+      globalThis.HTMLElement = dom.window.HTMLElement;
+      const requestCatalog = vi.fn(async () => [terrestrialAgency]);
+      const controller = createShalomContentController({ requestCatalog });
+      expect(await controller.mount()).toMatchObject({ success: false, reason: 'unsupported-page' });
+      expect(document.getElementById('mi-buscador-contenedor')).toBeNull();
+      // Ni siquiera se solicita el catalogo fuera de las rutas autorizadas.
+      expect(requestCatalog).not.toHaveBeenCalled();
+    }
+  });
+
+  it('injects on both authorized routes, with and without trailing slash', async () => {
+    const supportedPaths = ['/listaordenservicio', '/listaordenservicio/', '/ordenservicio/listar', '/ordenservicio/listar/'];
+    for (const path of supportedPaths) {
+      const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div></body></html>', { url: `https://app.shalomcontrol.com${path}` });
+      globalThis.window = dom.window as unknown as Window & typeof globalThis;
+      globalThis.document = dom.window.document;
+      globalThis.HTMLElement = dom.window.HTMLElement;
+      const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+      expect(await controller.mount()).toMatchObject({ success: true });
+      expect(document.getElementById('mi-buscador-contenedor')).not.toBeNull();
+    }
   });
 
   it('does not duplicate channel listeners across repeated mounts', async () => {
@@ -308,7 +399,7 @@ describe('message contract', () => {
     expect(isRuntimeRequest({ type: 'CATALOG_SYNC' })).toBe(true);
     expect(isRuntimeRequest({ type: 'CATALOG_STATUS' })).toBe(true);
     expect(isRuntimeRequest({ type: 'CONFIG_GET' })).toBe(true);
-    expect(isRuntimeRequest({ type: 'CONFIG_SAVE', apiBaseUrl: 'https://platform.codered.host/api/v1', token: 'crd_test' })).toBe(true);
+    expect(isRuntimeRequest({ type: 'CONFIG_SAVE', apiBaseUrl: 'https://platform.codered.lat/api/v1', token: 'crd_test' })).toBe(true);
     expect(isRuntimeRequest({ type: 'CATALOG_GET', token: 'crd_secret' })).toBe(false);
   });
 });
@@ -348,7 +439,7 @@ describe('extension build artifacts', () => {
 describe('restored injected search experience', () => {
   beforeEach(() => {
     vi.useRealTimers();
-    const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"><div class="mdl-layout-spacer"></div></div></body></html>', { url: 'https://sysprovincia2.shalomcontrol.com/' });
+    const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"><div class="mdl-layout-spacer"></div></div></body></html>', { url: 'https://sysprovincia2.shalomcontrol.com/listaordenservicio' });
     globalThis.window = dom.window as unknown as Window & typeof globalThis;
     globalThis.document = dom.window.document;
     globalThis.MutationObserver = dom.window.MutationObserver;

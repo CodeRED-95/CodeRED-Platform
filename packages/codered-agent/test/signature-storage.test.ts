@@ -119,7 +119,7 @@ test('agent pairing adds persisted instance_uuid before calling Platform', async
   await pairing.pair({
     pair_code: 'CRD-TEST',
     instance_name: 'n8n Production',
-    instance_url: 'https://n8n.codered.host/',
+    instance_url: 'https://n8n.codered.lat/',
     environment: 'production',
     version: '2.31.4',
   });
@@ -127,7 +127,7 @@ test('agent pairing adds persisted instance_uuid before calling Platform', async
   assert.equal(client.payloads[0]?.instance_uuid, identity.instance_uuid);
   assert.equal(client.payloads[0]?.pair_code, 'CRD-TEST');
   assert.equal(client.payloads[0]?.instance_name, 'n8n Production');
-  assert.equal(client.payloads[0]?.instance_url, 'https://n8n.codered.host/');
+  assert.equal(client.payloads[0]?.instance_url, 'https://n8n.codered.lat/');
   assert.equal(client.payloads[0]?.environment, 'production');
   assert.equal(client.payloads[0]?.agent_version, '1.0.0');
 });

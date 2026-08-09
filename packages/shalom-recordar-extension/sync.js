@@ -1,7 +1,8 @@
 // Sincronización automática con CodeRED Platform (diaria a las 9:00 AM Perú = UTC-5)
 
 const SYNC_ALARM_NAME = 'shalom-daily-sync';
-const API_ENDPOINT = 'https://platform.codered.host/api/v1/shalom/sync';
+// Dominio productivo: codered.lat (migrado desde codered.host).
+const API_ENDPOINT = 'https://platform.codered.lat/api/v1/shalom/sync';
 const SYNC_INTERVAL_MINUTES = 1440; // 24 horas
 
 function getNextSyncTime() {

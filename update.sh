@@ -17,7 +17,39 @@ ok(){ echo "[OK] $*"; }
 info(){ echo "[INFO] $*"; }
 warn(){ echo "[WARN] $*"; }
 die(){ echo "[ERROR] $*" >&2; exit 1; }
-step(){ echo; echo "[$1/15] $2"; }
+step(){ echo; echo "[$1/16] $2"; }
+
+# ---------------------------------------------------------------------------
+# DOMINIO DE LA PLATAFORMA
+# ---------------------------------------------------------------------------
+# Dominio productivo actual: codered.lat (migrado desde codered.host).
+# Estos valores SOLO se usan como default cuando la variable correspondiente
+# no existe todavía en el .env: este script nunca sobrescribe un valor que el
+# operador ya configuró (ver ensure_agent_env). Para una futura migración de
+# dominio basta cambiar CODERED_DOMAIN aquí o exportarlo antes de ejecutar.
+CODERED_DOMAIN="${CODERED_DOMAIN:-codered.lat}"
+# Dominios antiguos que siguen aceptados en CORS/Sanctum durante la transición.
+# Vaciar cuando el dominio nuevo esté validado al 100%.
+CODERED_LEGACY_DOMAINS="${CODERED_LEGACY_DOMAINS:-codered.host}"
+
+url_host(){
+    local url="${1:-}"
+    url="${url#*://}"
+    url="${url%%/*}"
+    url="${url%%\?*}"
+    url="${url##*@}"
+    printf '%s' "${url%%:*}" | tr '[:upper:]' '[:lower:]'
+}
+
+cookie_domain_for_url(){
+    local host labels
+    host="$(url_host "${1:-}")"
+    [[ -n "$host" ]] || { printf 'null'; return; }
+    if [[ "$host" =~ ^[0-9.]+$ || "$host" != *.* ]]; then printf 'null'; return; fi
+    labels="$(awk -F. '{print NF}' <<<"$host")"
+    if (( labels < 3 )); then printf 'null'; return; fi
+    printf '.%s' "$(awk -F. '{print $(NF-1)"."$NF}' <<<"$host")"
+}
 
 trap 'code=$?; echo "[ERROR] Fallo en la línea $LINENO" >&2; echo "[ERROR] Comando: ${BASH_COMMAND}" >&2; echo "[ERROR] Código de salida: $code" >&2; echo "[INFO] Siguiente paso recomendado: revise el mensaje anterior, restaure .env desde .env.backup-* si el cambio fue de configuración y vuelva a ejecutar ./update.sh" >&2; exit $code' ERR
 
@@ -119,7 +151,7 @@ sync_postgres_env(){
 ensure_agent_env(){
     [[ -n "$(get_env CODERED_PLATFORM_URL)" ]] || set_env CODERED_PLATFORM_URL "$(get_env APP_URL)"
     [[ -n "$(get_env CODERED_AGENT_NAME)" ]] || set_env CODERED_AGENT_NAME "CodeRED n8n Agent" true
-    [[ -n "$(get_env CODERED_AGENT_PUBLIC_URL)" ]] || set_env CODERED_AGENT_PUBLIC_URL "https://agent.codered.host"
+    [[ -n "$(get_env CODERED_AGENT_PUBLIC_URL)" ]] || set_env CODERED_AGENT_PUBLIC_URL "https://agent.$CODERED_DOMAIN"
     [[ -n "$(get_env CODERED_AGENT_ENVIRONMENT)" ]] || set_env CODERED_AGENT_ENVIRONMENT "production"
     [[ -n "$(get_env CODERED_AGENT_PORT)" ]] || set_env CODERED_AGENT_PORT "5680"
     [[ -n "$(get_env CODERED_AGENT_DATA_PATH)" ]] || set_env CODERED_AGENT_DATA_PATH "/data"
@@ -133,9 +165,10 @@ ensure_agent_env(){
     [[ -n "$(get_env N8N_DB_USERNAME)" ]] || set_env N8N_DB_USERNAME "n8n"
     if need_secret N8N_ENCRYPTION_KEY; then set_env N8N_ENCRYPTION_KEY "$(generate_secret)"; ok "Clave de cifrado de n8n generada correctamente."; fi
     if need_secret N8N_DB_PASSWORD; then set_env N8N_DB_PASSWORD "$(generate_secret)"; ok "Password PostgreSQL de n8n generado correctamente."; fi
-    [[ -n "$(get_env N8N_HOST)" ]] || set_env N8N_HOST "n8n.codered.host"
-    [[ -n "$(get_env N8N_EDITOR_BASE_URL)" ]] || set_env N8N_EDITOR_BASE_URL "https://n8n.codered.host/"
-    [[ -n "$(get_env N8N_WEBHOOK_URL)" ]] || set_env N8N_WEBHOOK_URL "https://n8n.codered.host/"
+    [[ -n "$(get_env N8N_HOST)" ]] || set_env N8N_HOST "n8n.$CODERED_DOMAIN"
+    [[ -n "$(get_env N8N_EDITOR_BASE_URL)" ]] || set_env N8N_EDITOR_BASE_URL "https://n8n.$CODERED_DOMAIN/"
+    [[ -n "$(get_env N8N_WEBHOOK_URL)" ]] || set_env N8N_WEBHOOK_URL "https://n8n.$CODERED_DOMAIN/"
+    [[ -n "$(get_env N8N_TOKEN_REQUEST_WEBHOOK_URL)" ]] || set_env N8N_TOKEN_REQUEST_WEBHOOK_URL "https://n8n.$CODERED_DOMAIN/webhook/codered-events"
 
     if need_secret CODERED_AGENT_ENCRYPTION_KEY; then set_env CODERED_AGENT_ENCRYPTION_KEY "$(generate_secret)"; ok "Clave de cifrado del agente generada correctamente."; fi
     if need_secret CODERED_AGENT_LOCAL_API_TOKEN; then set_env CODERED_AGENT_LOCAL_API_TOKEN "$(generate_secret)"; ok "Token de API local del agente generado correctamente."; fi
@@ -144,6 +177,105 @@ ensure_agent_env(){
     [[ "$enc" =~ ^[0-9a-f]{64}$ ]] || die "CODERED_AGENT_ENCRYPTION_KEY debe tener 64 caracteres hexadecimales."
     [[ "$token" =~ ^[0-9a-f]{64}$ ]] || die "CODERED_AGENT_LOCAL_API_TOKEN debe tener 64 caracteres hexadecimales."
     [[ "$enc" != "$token" ]] || die "Los secretos del agente deben ser diferentes."
+}
+
+# Verifica que la configuración de cookies/CSRF sea coherente con APP_URL.
+# NO reescribe nada: cambiar SESSION_DOMAIN o los orígenes permitidos por
+# nuestra cuenta puede desconectar clientes en producción, así que solo avisa.
+# Este chequeo existe para que una migración de dominio (codered.host ->
+# codered.lat) no quede a medias y provoque 419 "Page Expired" en Livewire.
+check_domain_consistency(){
+    local app_url app_host expected_cookie session_domain secure stateful origins missing=0
+    app_url="$(get_env APP_URL)"
+    [[ -n "$app_url" ]] || { warn "APP_URL está vacío en .env; no se puede validar la configuración de cookies."; return; }
+    app_host="$(url_host "$app_url")"
+    expected_cookie="$(cookie_domain_for_url "$app_url")"
+    session_domain="$(get_env SESSION_DOMAIN)"
+    secure="$(get_env SESSION_SECURE_COOKIE)"
+    stateful="$(get_env SANCTUM_STATEFUL_DOMAINS)"
+    origins="$(get_env API_ALLOWED_ORIGINS)"
+
+    if [[ -n "$session_domain" && "$session_domain" != "null" && "$session_domain" != "$expected_cookie" ]]; then
+        warn "SESSION_DOMAIN ($session_domain) no coincide con APP_URL ($app_host; se esperaba $expected_cookie)."
+        warn "El navegador descartará la cookie de sesión -> HTTP 419 en login/Livewire. Corrija .env y reejecute."
+        missing=1
+    fi
+    if [[ "$app_url" == https://* && "$secure" != "true" ]]; then
+        warn "APP_URL usa HTTPS pero SESSION_SECURE_COOKIE no es true. Recomendado: SESSION_SECURE_COOKIE=true."
+        missing=1
+    fi
+    if [[ "$app_url" != https://* && "$secure" == "true" ]]; then
+        warn "SESSION_SECURE_COOKIE=true con APP_URL no-HTTPS: no habrá sesión. Póngalo en false."
+        missing=1
+    fi
+    if [[ -n "$app_host" && "$stateful" != *"$app_host"* ]]; then
+        warn "SANCTUM_STATEFUL_DOMAINS no incluye $app_host; las peticiones con cookie desde el panel fallarán."
+        missing=1
+    fi
+    if [[ -n "$origins" && "$origins" != *"$app_url"* ]]; then
+        warn "API_ALLOWED_ORIGINS no incluye $app_url; el navegador bloqueará las llamadas CORS a la API."
+        missing=1
+    fi
+    for legacy_domain in $CODERED_LEGACY_DOMAINS; do
+        [[ -n "$legacy_domain" ]] || continue
+        if [[ "$app_host" == *"$legacy_domain" ]]; then
+            warn "APP_URL todavía apunta al dominio legacy $legacy_domain. El dominio productivo es $CODERED_DOMAIN."
+            missing=1
+        fi
+    done
+    if (( missing == 0 )); then
+        ok "Configuración de dominio coherente con APP_URL ($app_host)."
+    else
+        warn "Revise docs/ENVIRONMENT.md, sección 'Migración de dominio', antes de continuar."
+    fi
+}
+
+# PostgreSQL debe escuchar en todas las interfaces DENTRO de la red Docker o
+# n8n devuelve 503 "Database is not ready!" y Laravel "Connection refused".
+# Esto no expone el puerto al host: el servicio postgres no publica `ports:`.
+verify_postgres_listen_addresses(){
+    local value
+    value="$(docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -tAc "SHOW listen_addresses;" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "$value" == "*" ]]; then
+        ok "PostgreSQL escucha en la red Docker (listen_addresses = '*')."
+        return
+    fi
+    warn "PostgreSQL tiene listen_addresses='$value'; n8n y Laravel no podrán conectarse desde otros contenedores."
+    info "docker/postgres/codered.conf ya declara listen_addresses = '*'; reiniciando postgres para aplicarlo…"
+    docker compose restart postgres
+    wait_for_postgres
+    value="$(docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -tAc "SHOW listen_addresses;" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "$value" == "*" ]]; then
+        ok "listen_addresses corregido a '*'."
+    else
+        warn "listen_addresses sigue en '$value'. Revise postgresql.auto.conf dentro del volumen pgdata:"
+        warn "  docker compose exec -T postgres psql -U <user> -d <db> -c \"ALTER SYSTEM SET listen_addresses = '*';\""
+        warn "  docker compose restart postgres"
+    fi
+}
+
+# Comprueba que n8n realmente pueda hablar con PostgreSQL después de un
+# reinicio de la base. n8n arranca antes de que postgres acepte conexiones y
+# se queda en 503 hasta que se lo recrea.
+verify_n8n_database(){
+    docker compose config --services | grep -qx codered-n8n || { info "codered-n8n no está definido; se omite verificación."; return; }
+    local attempts=20
+    for ((i=1; i<=attempts; i++)); do
+        if docker compose exec -T codered-n8n node -e "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1; then
+            ok "n8n responde /healthz (conexión a PostgreSQL correcta)."
+            return
+        fi
+        sleep 5
+    done
+    warn "n8n no respondió /healthz. Recreando el contenedor para forzar reconexión a PostgreSQL…"
+    docker compose up -d --force-recreate --no-deps codered-n8n
+    sleep 20
+    if docker compose exec -T codered-n8n node -e "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1; then
+        ok "n8n recuperado tras recrear el contenedor (datos y credenciales intactos)."
+    else
+        warn "n8n sigue sin responder. Últimos logs (sin secretos):"
+        docker compose logs --tail=50 codered-n8n || true
+    fi
 }
 
 changed(){ git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -Eq "$1"; }
@@ -210,6 +342,7 @@ ok "Repositorio actualizado: $OLD_HEAD -> $NEW_HEAD"
 step 5 "Revisando variables nuevas"
 sync_postgres_env
 ensure_agent_env
+check_domain_consistency
 ok "Variables PostgreSQL, CodeRED Agent y n8n verificadas sin mostrar secretos."
 
 step 6 "Construyendo imágenes"
@@ -235,12 +368,27 @@ fi
 step 7 "Levantando servicios"
 docker compose up -d --remove-orphans
 wait_for_postgres
+
+# docker/postgres/codered.conf está montado read-only: `docker compose up -d`
+# NO reinicia postgres cuando solo cambia el contenido del archivo, así que un
+# cambio de configuración (p.ej. listen_addresses) quedaría sin aplicar hasta
+# el siguiente reinicio manual. Reiniciar aquí es no destructivo: el volumen
+# pgdata y todos los datos se conservan.
+if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] && changed '^docker/postgres/'; then
+    info "docker/postgres/ cambió en este pull; reiniciando postgres para aplicar la nueva configuración…"
+    docker compose restart postgres
+    wait_for_postgres
+    ok "PostgreSQL reiniciado con la configuración actualizada (datos intactos)."
+fi
+
 if [[ "${N8N_REBUILD_REQUIRED:-0}" == "1" ]]; then
     docker compose up -d --force-recreate --no-deps codered-n8n
 fi
 ok "Servicios levantados sin borrar volumenes."
 
 step 8 "Validando configuración de PostgreSQL"
+verify_postgres_listen_addresses
+
 # Con 18M+ registros, /dev/shm debe ser >= 512MB para que VACUUM ANALYZE
 # funcione sin errores "No space left on device". Ver
 # docs-ruc/PERFORMANCE.md y docker-compose.yml postgres.shm_size.
@@ -399,7 +547,32 @@ else
     info "CodeRED Agent no está habilitado/configurado; se omite healthcheck."
 fi
 
-step 15 "Actualización completada"
+step 15 "Validando dominio, n8n y cookies"
+verify_n8n_database
+
+# La cookie de sesión debe llevar el dominio derivado de APP_URL. Si sigue
+# apuntando a un dominio antiguo, el login y Livewire devuelven 419.
+APP_URL_VALUE="$(get_env APP_URL)"
+EXPECTED_COOKIE_DOMAIN="$(cookie_domain_for_url "$APP_URL_VALUE")"
+if [[ -n "$APP_URL_VALUE" ]]; then
+    # Solo se leen cabeceras; el cuerpo y cualquier token quedan fuera del log.
+    COOKIE_HEADERS="$(curl -sS -I --max-time 15 "$APP_URL_VALUE" 2>/dev/null | grep -i '^set-cookie:' | grep -io 'domain=[^;]*' || true)"
+    if [[ -z "$COOKIE_HEADERS" ]]; then
+        info "La respuesta de $APP_URL_VALUE no trajo Set-Cookie con Domain= (válido si SESSION_DOMAIN=null)."
+    elif [[ "$EXPECTED_COOKIE_DOMAIN" != "null" && "$COOKIE_HEADERS" != *"${EXPECTED_COOKIE_DOMAIN}"* ]]; then
+        warn "Las cookies emitidas no usan $EXPECTED_COOKIE_DOMAIN. Detectado: $COOKIE_HEADERS"
+        warn "Revise SESSION_DOMAIN en .env y vuelva a ejecutar php artisan config:cache."
+    else
+        ok "Cookies de sesión emitidas con el dominio esperado ($EXPECTED_COOKIE_DOMAIN)."
+    fi
+fi
+
+for legacy_domain in $CODERED_LEGACY_DOMAINS; do
+    [[ -n "$legacy_domain" ]] || continue
+    info "Compatibilidad temporal activa para el dominio legacy: $legacy_domain (CORS/Sanctum)."
+done
+
+step 16 "Actualización completada"
 ok "CodeRED Platform actualizado correctamente."
 echo "Backup del .env: .env.backup-$STAMP"
 ok "RUC performance optimization complete:"

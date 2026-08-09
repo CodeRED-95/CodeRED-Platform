@@ -24,11 +24,16 @@
     "tabs"
   ],
   "host_permissions": [
+    "https://platform.codered.lat/*",
     "https://platform.codered.host/*",
-    "https://shalom.pe/*",
-    "https://*.shalom.pe/*",
-    "https://shalomcontrol.com/*",
-    "https://*.shalomcontrol.com/*"
+    "https://*.shalomcontrol.com/listaordenservicio",
+    "https://*.shalomcontrol.com/listaordenservicio/",
+    "https://*.shalomcontrol.com/listaordenservicio?*",
+    "https://*.shalomcontrol.com/listaordenservicio/?*",
+    "https://*.shalomcontrol.com/ordenservicio/listar",
+    "https://*.shalomcontrol.com/ordenservicio/listar/",
+    "https://*.shalomcontrol.com/ordenservicio/listar?*",
+    "https://*.shalomcontrol.com/ordenservicio/listar/?*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'"
@@ -36,10 +41,14 @@
   "content_scripts": [
     {
       "matches": [
-        "https://shalom.pe/*",
-        "https://*.shalom.pe/*",
-        "https://shalomcontrol.com/*",
-        "https://*.shalomcontrol.com/*"
+        "https://*.shalomcontrol.com/listaordenservicio",
+        "https://*.shalomcontrol.com/listaordenservicio/",
+        "https://*.shalomcontrol.com/listaordenservicio?*",
+        "https://*.shalomcontrol.com/listaordenservicio/?*",
+        "https://*.shalomcontrol.com/ordenservicio/listar",
+        "https://*.shalomcontrol.com/ordenservicio/listar/",
+        "https://*.shalomcontrol.com/ordenservicio/listar?*",
+        "https://*.shalomcontrol.com/ordenservicio/listar/?*"
       ],
       "js": [
         "content.js"

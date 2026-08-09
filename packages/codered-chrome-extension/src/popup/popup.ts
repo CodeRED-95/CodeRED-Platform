@@ -1,7 +1,10 @@
 import './popup.css';
 import { EXTENSION_VERSION } from '../shared/version';
+import { getTokenRequestUrl } from '../models/configuration';
 
-const TOKEN_REQUEST_URL = 'https://platform.codered.host/solicitar-token';
+// Derivado de getPlatformApiBaseUrl() para que el dominio viva en un solo
+// sitio (models/configuration.ts) y no haya que tocar el popup al migrarlo.
+const TOKEN_REQUEST_URL = getTokenRequestUrl();
 
 type StateResponse = {
   success?: boolean;

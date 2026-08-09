@@ -31,7 +31,7 @@ Payload local:
 {
   "pairCode": "CRD-XXXXXX",
   "instanceName": "n8n Production",
-  "publicUrl": "https://n8n.codered.host",
+  "publicUrl": "https://n8n.codered.lat",
   "environment": "production"
 }
 ```

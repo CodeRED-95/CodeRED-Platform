@@ -32,6 +32,42 @@ die(){ echo "[ERROR] $*" >&2; exit 1; }
 
 trap 'code=$?; echo "[ERROR] Fallo en la línea $LINENO" >&2; echo "[ERROR] Comando: ${BASH_COMMAND}" >&2; echo "[ERROR] Código de salida: $code" >&2; echo "[INFO] Revise el mensaje anterior. Si se modificó .env, restaure el backup .env.backup-* y reintente." >&2; exit $code' ERR
 
+# ---------------------------------------------------------------------------
+# DOMINIO DE LA PLATAFORMA
+# ---------------------------------------------------------------------------
+# Dominio productivo actual: codered.lat (migrado desde codered.host).
+# Para una futura migración de dominio basta cambiar CODERED_DOMAIN aquí (o
+# exportarlo antes de ejecutar el script); todos los defaults se derivan de él.
+# CODERED_LEGACY_DOMAINS se mantiene aceptado en CORS/Sanctum para no cortar
+# clientes ya desplegados (extensión Chrome, integraciones n8n) durante la
+# transición. Vaciarlo cuando el dominio nuevo esté validado al 100%.
+CODERED_DOMAIN="${CODERED_DOMAIN:-codered.lat}"
+CODERED_LEGACY_DOMAINS="${CODERED_LEGACY_DOMAINS:-codered.host}"
+
+# Extrae el host (sin esquema, sin puerto, sin path) de una URL.
+url_host(){
+    local url="${1:-}"
+    url="${url#*://}"
+    url="${url%%/*}"
+    url="${url%%\?*}"
+    url="${url##*@}"
+    printf '%s' "${url%%:*}" | tr '[:upper:]' '[:lower:]'
+}
+
+# Dominio de cookie derivado de una URL: ".ejemplo.com" para
+# https://sub.ejemplo.com, y "null" para localhost, IPs o dominios sin
+# subdominio (donde un Domain= explícito solo rompería la cookie).
+cookie_domain_for_url(){
+    local host labels
+    host="$(url_host "${1:-}")"
+    [[ -n "$host" ]] || { printf 'null'; return; }
+    # IPv4 literal o host sin punto (localhost) -> sin atributo Domain
+    if [[ "$host" =~ ^[0-9.]+$ || "$host" != *.* ]]; then printf 'null'; return; fi
+    labels="$(awk -F. '{print NF}' <<<"$host")"
+    if (( labels < 3 )); then printf 'null'; return; fi
+    printf '.%s' "$(awk -F. '{print $(NF-1)"."$NF}' <<<"$host")"
+}
+
 confirm() {
     local q="$1" d="${2:-n}" a
     while true; do
@@ -130,7 +166,7 @@ configure_agent(){
         return
     fi
     read_value "Nombre del agente" "$(get_env CODERED_AGENT_NAME || true)" false; AGENT_NAME="${REPLY:-CodeRED n8n Agent}"
-    read_value "URL pública del agente" "$(get_env CODERED_AGENT_PUBLIC_URL || true)" false; AGENT_URL="${REPLY:-https://agent.codered.host}"
+    read_value "URL pública del agente" "$(get_env CODERED_AGENT_PUBLIC_URL || true)" false; AGENT_URL="${REPLY:-https://agent.$CODERED_DOMAIN}"
     read_value "Entorno" "$(get_env CODERED_AGENT_ENVIRONMENT || true)" false; AGENT_ENV="${REPLY:-production}"
     read_value "Puerto" "$(get_env CODERED_AGENT_PORT || true)" false; AGENT_PORT="${REPLY:-5680}"
     read_value "Data path" "$(get_env CODERED_AGENT_DATA_PATH || true)" false; AGENT_DATA="${REPLY:-/data}"
@@ -315,12 +351,12 @@ configure_n8n_env() {
     set_env N8N_DB_DATABASE n8n
     set_env N8N_DB_USERNAME n8n
     set_env N8N_DB_PASSWORD "$password"
-    [[ -n "$(get_env N8N_HOST)" ]] || set_env N8N_HOST "n8n.codered.host"
-    [[ -n "$(get_env N8N_EDITOR_BASE_URL)" ]] || set_env N8N_EDITOR_BASE_URL "https://n8n.codered.host/"
-    [[ -n "$(get_env N8N_WEBHOOK_URL)" ]] || set_env N8N_WEBHOOK_URL "https://n8n.codered.host/"
+    [[ -n "$(get_env N8N_HOST)" ]] || set_env N8N_HOST "n8n.$CODERED_DOMAIN"
+    [[ -n "$(get_env N8N_EDITOR_BASE_URL)" ]] || set_env N8N_EDITOR_BASE_URL "https://n8n.$CODERED_DOMAIN/"
+    [[ -n "$(get_env N8N_WEBHOOK_URL)" ]] || set_env N8N_WEBHOOK_URL "https://n8n.$CODERED_DOMAIN/"
     [[ -n "$(get_env N8N_VERSION)" ]] || set_env N8N_VERSION "2.31.4"
     [[ -n "$(get_env CODERED_AGENT_LOCAL_URL)" ]] || set_env CODERED_AGENT_LOCAL_URL "http://codered-agent:5680"
-    [[ -n "$(get_env N8N_TOKEN_REQUEST_WEBHOOK_URL)" ]] || set_env N8N_TOKEN_REQUEST_WEBHOOK_URL "https://n8n.codered.host/webhook/codered-events"
+    [[ -n "$(get_env N8N_TOKEN_REQUEST_WEBHOOK_URL)" ]] || set_env N8N_TOKEN_REQUEST_WEBHOOK_URL "https://n8n.$CODERED_DOMAIN/webhook/codered-events"
     if [[ -z "$(get_env N8N_ENCRYPTION_KEY)" ]]; then set_env N8N_ENCRYPTION_KEY "$(generate_secret)"; ok "Clave de cifrado de n8n generada correctamente."; fi
     if [[ -z "$(get_env N8N_TOKEN_REQUEST_WEBHOOK_SECRET)" ]]; then set_env N8N_TOKEN_REQUEST_WEBHOOK_SECRET "$(generate_secret)"; ok "Secreto de webhook n8n generado correctamente."; fi
     validate_n8n_compose_config
@@ -497,22 +533,47 @@ else
 fi
 
 echo; echo "1) Producción"; echo "2) Desarrollo"; read -r -p "Modo [1]: " mode; mode="${mode:-1}"
-if [[ "$mode" == "2" ]]; then APP_ENV="local"; APP_DEBUG="true"; LOG_LEVEL="debug"; DEFAULT_URL="http://192.168.18.124:8090"; else APP_ENV="production"; APP_DEBUG="false"; LOG_LEVEL="info"; DEFAULT_URL="https://platform.codered.host"; fi
+if [[ "$mode" == "2" ]]; then APP_ENV="local"; APP_DEBUG="true"; LOG_LEVEL="debug"; DEFAULT_URL="http://192.168.18.124:8090"; else APP_ENV="production"; APP_DEBUG="false"; LOG_LEVEL="info"; DEFAULT_URL="https://platform.$CODERED_DOMAIN"; fi
 
 read_value "URL principal" "$DEFAULT_URL" true; APP_URL="${REPLY%/}"
 read_value "Nombre de la base de datos" "$(get_env DB_DATABASE)" true; DB_DATABASE="$REPLY"
 read_value "Usuario de la base de datos" "$(get_env DB_USERNAME)" true; DB_USERNAME="$REPLY"
 read_password "Contraseña de PostgreSQL"; DB_PASSWORD="$REPLY"
 read_value "Nombre del administrador" "Admin" true; ADMIN_NAME="$REPLY"
-read_value "Correo del administrador" "admin@codered.host" true; ADMIN_EMAIL="$REPLY"
+read_value "Correo del administrador" "admin@$CODERED_DOMAIN" true; ADMIN_EMAIL="$REPLY"
 read_password "Contraseña del administrador"; ADMIN_PASSWORD="$REPLY"
 
 set_env APP_NAME "CodeRED Platform" true; set_env VITE_APP_NAME "CodeRED Platform" true; set_env APP_ENV "$APP_ENV"; set_env APP_DEBUG "$APP_DEBUG"; set_env APP_URL "$APP_URL"; set_env CODERED_PLATFORM_URL "$APP_URL"; set_env LOG_LEVEL "$LOG_LEVEL"
 set_env DB_CONNECTION pgsql; set_env DB_HOST postgres; set_env DB_PORT 5432; set_env DB_DATABASE "$DB_DATABASE"; set_env DB_USERNAME "$DB_USERNAME"; set_env DB_PASSWORD "$DB_PASSWORD"; sync_postgres_env; set_env DEV_ADMIN_NAME "$ADMIN_NAME" true; set_env DEV_ADMIN_EMAIL "$ADMIN_EMAIL"; set_env DEV_ADMIN_PASSWORD "$ADMIN_PASSWORD"
 set_env QUEUE_CONNECTION "redis"; set_env REDIS_QUEUE_RETRY_AFTER "172900"; set_env RUC_ENABLED "true"; set_env RUC_IMPORT_DISK "local"; set_env RUC_IMPORT_INCOMING_DIRECTORY "private/ruc/incoming"; set_env RUC_IMPORT_WORKING_DIRECTORY "private/ruc/working"; set_env RUC_IMPORT_ARCHIVE_DIRECTORY "private/ruc/archive"; set_env RUC_IMPORT_ERRORS_DIRECTORY "private/ruc/errors"; set_env RUC_IMPORT_QUEUE "ruc-imports"; set_env RUC_IMPORT_CHUNK_SIZE "10000"; set_env RUC_IMPORT_COPY_BATCH_SIZE "100000"; set_env RUC_IMPORT_PROGRESS_INTERVAL "10000"; set_env RUC_IMPORT_CHECKPOINT_INTERVAL "50000"; set_env RUC_IMPORT_TIMEOUT "86400"; set_env RUC_IMPORT_LOCK_SECONDS "172800"; set_env RUC_IMPORT_ENCODING "ISO-8859-1"; set_env RUC_IMPORT_DELIMITER "|"; set_env RUC_IMPORT_MAX_SIZE_MB "30000"; set_env RUC_IMPORT_RESUME_ENABLED "true"; set_env RUC_IMPORT_ARCHIVE_FILES "true"; set_env RUC_IMPORT_STRATEGY "insert_ignore"
-if [[ "$APP_URL" == https://*.codered.host ]]; then set_env SESSION_DOMAIN ".codered.host"; else set_env SESSION_DOMAIN "null"; fi
-set_env SANCTUM_STATEFUL_DOMAINS "platform.codered.host,localhost:8090,127.0.0.1:8090,192.168.18.124:8090,chrome-extension://jpfcfljmbaijaajjdhblinjgblnfpign"
-set_env API_ALLOWED_ORIGINS "https://platform.codered.host,http://192.168.18.124:8090,http://localhost:8090,chrome-extension://jpfcfljmbaijaajjdhblinjgblnfpign"
+# Sesión / CSRF / CORS. Todo se deriva del APP_URL real en vez de hardcodear un
+# dominio, para que una migración de dominio no requiera tocar este script.
+# SESSION_DOMAIN solo se fija sobre HTTPS: con http:// la cookie con Domain=
+# y Secure no viajaría y provocaría 419 "Page Expired" en Livewire/POST.
+APP_HOST="$(url_host "$APP_URL")"
+if [[ "$APP_URL" == https://* ]]; then
+    set_env SESSION_DOMAIN "$(cookie_domain_for_url "$APP_URL")"
+    set_env SESSION_SECURE_COOKIE "true"
+else
+    set_env SESSION_DOMAIN "null"
+    set_env SESSION_SECURE_COOKIE "false"
+fi
+
+# Orígenes permitidos: host real de APP_URL primero, luego los dominios legacy
+# aún soportados durante la transición, luego los orígenes de desarrollo y la
+# extensión Chrome.
+STATEFUL_DOMAINS="$APP_HOST"
+ALLOWED_ORIGINS="$APP_URL"
+for legacy_domain in $CODERED_LEGACY_DOMAINS; do
+    [[ -n "$legacy_domain" ]] || continue
+    [[ "$APP_HOST" == *".$legacy_domain" || "$APP_HOST" == "$legacy_domain" ]] && continue
+    STATEFUL_DOMAINS="$STATEFUL_DOMAINS,platform.$legacy_domain"
+    ALLOWED_ORIGINS="$ALLOWED_ORIGINS,https://platform.$legacy_domain"
+done
+STATEFUL_DOMAINS="$STATEFUL_DOMAINS,localhost:8090,127.0.0.1:8090,192.168.18.124:8090,chrome-extension://jpfcfljmbaijaajjdhblinjgblnfpign"
+ALLOWED_ORIGINS="$ALLOWED_ORIGINS,http://192.168.18.124:8090,http://localhost:8090,chrome-extension://jpfcfljmbaijaajjdhblinjgblnfpign"
+set_env SANCTUM_STATEFUL_DOMAINS "$STATEFUL_DOMAINS"
+set_env API_ALLOWED_ORIGINS "$ALLOWED_ORIGINS"
 
 if confirm "¿Activar PeruDevs para consultas DNI?" n; then read_value "URL PeruDevs" "https://api.perudevs.com/api/v1/dni/complete" true; set_env DNI_PERUDEVS_BASE_URL "${REPLY%/}"; read_password "Token/API key PeruDevs"; set_env DNI_PERUDEVS_API_KEY "$REPLY"; set_env DNI_PERUDEVS_ENABLED "true"; else set_env DNI_PERUDEVS_ENABLED "false"; set_env DNI_PERUDEVS_API_KEY ""; fi
 

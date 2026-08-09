@@ -25,7 +25,7 @@ Datos mostrados:
 
 Acciones disponibles:
 
-- `Solicitar token`: abre `https://platform.codered.host/solicitar-token`.
+- `Solicitar token`: abre `https://platform.codered.lat/solicitar-token`.
 - `Configurar token`: ejecuta `chrome.runtime.openOptionsPage()`.
 - `Probar conexión`: disponible solo con token y llama a `API_TEST_CONNECTION`.
 - `Solicitar otro token`: enlace discreto disponible solo con token.
@@ -135,7 +135,9 @@ La extension inyecta el buscador solamente en:
 - `https://shalomcontrol.com/*`
 - `https://*.shalomcontrol.com/*`
 
-`https://platform.codered.host/*` permanece en `host_permissions` para que el service worker sincronice con CodeRED Platform, pero no esta en `content_scripts.matches` y no recibe el buscador.
+`https://platform.codered.lat/*` permanece en `host_permissions` para que el service worker sincronice con CodeRED Platform, pero no esta en `content_scripts.matches` y no recibe el buscador.
+
+`https://platform.codered.host/*` sigue declarado en `host_permissions` **solo por compatibilidad temporal** con la migracion de dominio `codered.host` -> `codered.lat`: las instalaciones ya publicadas en la Chrome Web Store pueden tener guardado el dominio anterior y perderian la sincronizacion sin este permiso. Eliminelo cuando `codered.lat` este validado al 100% y se publique una nueva version de la extension. El dominio por defecto vive en un unico sitio, `src/models/configuration.ts` (`DEFAULT_API_BASE_URL`), sobrescribible en build time con `VITE_CODERED_API_BASE_URL`.
 
 ## Integracion con Shalom Control
 

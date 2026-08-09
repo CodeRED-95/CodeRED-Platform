@@ -19,7 +19,7 @@ class N8nIntegrationPairingTest extends TestCase
         $payload = [
             'instance_uuid' => $instanceUuid,
             'instance_name' => 'n8n Production',
-            'instance_url' => 'https://n8n.codered.host',
+            'instance_url' => 'https://n8n.codered.lat',
             'environment' => 'production',
             'version' => '2.31.4',
             'connector_version' => 'codered-agent/1.0.0',
@@ -48,7 +48,7 @@ class N8nIntegrationPairingTest extends TestCase
         $this->postJson('/api/v1/integrations/n8n/pair', [
             'pair_code' => $pairing->pair_code,
             'instance_name' => 'n8n Production',
-            'instance_url' => 'https://n8n.codered.host',
+            'instance_url' => 'https://n8n.codered.lat',
             'environment' => 'production',
             'connector_version' => 'codered-agent/1.0.0',
             'protocol_version' => '1.0',

@@ -40,5 +40,5 @@ curl --compressed -i \
   -H "Accept: application/json" \
   -H "Authorization: Bearer TOKEN" \
   -H 'If-None-Match: "ETAG"' \
-  https://platform.codered.host/api/v1/catalog/metadata
+  https://platform.codered.lat/api/v1/catalog/metadata
 ```

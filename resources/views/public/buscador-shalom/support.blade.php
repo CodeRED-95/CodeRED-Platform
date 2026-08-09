@@ -84,7 +84,7 @@
             </p>
             <ul>
                 <li><strong>Correo de Soporte:</strong> <a href="mailto:{{ $supportEmail }}">{{ $supportEmail }}</a></li>
-                <li><strong>Sitio Principal:</strong> <a href="https://platform.codered.host" target="_blank" rel="noopener noreferrer">platform.codered.host</a></li>
+                <li><strong>Sitio Principal:</strong> <a href="{{ config('app.url') }}" target="_blank" rel="noopener noreferrer">{{ parse_url((string) config('app.url'), PHP_URL_HOST) }}</a></li>
                 <li><strong>Política de Privacidad:</strong> <a href="{{ route('public.buscador-shalom.privacy') }}">Leer aquí</a></li>
             </ul>
         </section>
@@ -111,7 +111,7 @@
         <footer class="mt-8 text-center">
             <a href="{{ route('public.buscador-shalom.privacy') }}" class="text-blue-400 hover:underline">Ir a Política de Privacidad</a>
             |
-            <a href="https://platform.codered.host" class="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">
+            <a href="{{ config('app.url') }}" class="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">
                 Volver a CodeRED Platform
             </a>
         </footer>

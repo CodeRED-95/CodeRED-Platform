@@ -144,7 +144,7 @@
         <footer class="mt-8 text-center">
             <a href="{{ route('public.buscador-shalom.support') }}" class="text-blue-400 hover:underline">Ir a Soporte</a>
             |
-            <a href="https://platform.codered.host" class="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">
+            <a href="{{ config('app.url') }}" class="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">
                 Volver a {{ $legalName }}
             </a>
         </footer>

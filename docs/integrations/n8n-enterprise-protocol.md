@@ -40,7 +40,7 @@ POST /api/v1/integrations/pair
 {
   "pair_code": "CRD-72FK91",
   "instance_name": "n8n Production",
-  "instance_url": "https://n8n.codered.host",
+  "instance_url": "https://n8n.codered.lat",
   "version": "2.31.4",
   "hostname": "codered",
   "environment": "production"

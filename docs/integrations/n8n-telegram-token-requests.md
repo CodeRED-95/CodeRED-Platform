@@ -80,7 +80,7 @@ Payload enviado:
     "delivery_method": "whatsapp",
     "masked_contact": "+51 ******999",
     "status": "pending",
-    "admin_url": "https://platform.codered.host/admin/security/token-requests?request=123"
+    "admin_url": "https://platform.codered.lat/admin/security/token-requests?request=123"
   }
 }
 ```

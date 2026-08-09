@@ -34,9 +34,9 @@ El Dockerfile compila `packages/n8n-nodes-codered` con `npm ci`, `npm run build`
 
 ```env
 N8N_VERSION=2.31.4
-N8N_HOST=n8n.codered.host
-N8N_EDITOR_BASE_URL=https://n8n.codered.host/
-N8N_WEBHOOK_URL=https://n8n.codered.host/
+N8N_HOST=n8n.codered.lat
+N8N_EDITOR_BASE_URL=https://n8n.codered.lat/
+N8N_WEBHOOK_URL=https://n8n.codered.lat/
 N8N_ENCRYPTION_KEY=
 N8N_DB_DATABASE=n8n
 N8N_DB_USERNAME=n8n
@@ -51,9 +51,9 @@ Genere `N8N_ENCRYPTION_KEY`, `N8N_DB_PASSWORD`, `CODERED_AGENT_ENCRYPTION_KEY` y
 
 Registros esperados:
 
-- `platform.codered.host` hacia el túnel o proxy de `codered-nginx`.
-- `n8n.codered.host` hacia el túnel o proxy de `codered-n8n` en `127.0.0.1:5678`.
-- `agent.codered.host` hacia el túnel o proxy de `codered-agent` en `127.0.0.1:5680`.
+- `platform.codered.lat` hacia el túnel o proxy de `codered-nginx`.
+- `n8n.codered.lat` hacia el túnel o proxy de `codered-n8n` en `127.0.0.1:5678`.
+- `agent.codered.lat` hacia el túnel o proxy de `codered-agent` en `127.0.0.1:5680`.
 
 No publique n8n en `0.0.0.0`; Compose liga el puerto solo a loopback para que Cloudflare Tunnel o el proxy local sean el punto de entrada.
 

@@ -3,7 +3,7 @@
 Genere Pair Code en CodeRED Platform y ejecute `Pair Instance` desde n8n. Esa única acción invoca el ConnectionManager del agente: Pair, Challenge, Discovery, primer Heartbeat y scheduler automático.
 
 ```bash
-curl -H "Authorization: Bearer $CODERED_AGENT_LOCAL_API_TOKEN" -H "Content-Type: application/json" -d '{"pairCode":"CRD-XXXXXX","instanceName":"n8n Production","publicUrl":"https://n8n.codered.host","environment":"production"}' http://127.0.0.1:5680/api/v1/pair
+curl -H "Authorization: Bearer $CODERED_AGENT_LOCAL_API_TOKEN" -H "Content-Type: application/json" -d '{"pairCode":"CRD-XXXXXX","instanceName":"n8n Production","publicUrl":"https://n8n.codered.lat","environment":"production"}' http://127.0.0.1:5680/api/v1/pair
 ```
 
 La respuesta nunca contiene `shared_secret`; devuelve estado, challenge/discovery/heartbeat y métricas saneadas.

@@ -7,7 +7,7 @@ import { searchAgencies } from '../search/agency-search';
 import { buildMapsUrl } from '../utils/format';
 import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agency-selector';
 import { bindChannelButtons, detectActiveShalomChannel, type ShalomChannel } from './shalom-page-adapter';
-import { hostnameMatchesAllowedDomain, isSupportedShalomHost } from './shalom-host';
+import { hostnameMatchesAllowedDomain, isSupportedShalomHost, isSupportedShalomPath } from './shalom-host';
 
 const CONTAINER_ID = 'mi-buscador-contenedor';
 const SEARCH_INPUT_ID = 'codered-search-input';
@@ -15,7 +15,7 @@ const RESULTS_PANEL_CLASS = 'codered-results-panel';
 const RESULTS_GRID_CLASS = 'codered-results-grid';
 const CHANNEL_BADGE_CLASS = 'codered-channel-badge';
 const MESSAGE_CLASS = 'codered-search-message';
-const DEFAULT_ALLOWED_DOMAINS = ['shalom.pe', 'shalomcontrol.com'];
+const DEFAULT_ALLOWED_DOMAINS = ['shalomcontrol.com'];
 const CATALOG_STORAGE_KEYS = new Set(['agencies', 'agencyCache', 'catalog', 'catalogVersion', 'syncMetadata', 'codered_agency_catalog', 'codered_catalog_version', 'codered_sync_metadata', 'codered_last_sync_at', 'codered_last_sync_status']);
 
 export interface ContentControllerDependencies {
@@ -47,6 +47,12 @@ export function createShalomContentController(dependencies: ContentControllerDep
     console.log('[CodeRED Shalom] Content script iniciado');
     console.log(`[CodeRED Shalom] URL actual: ${window.location.href}`);
     if (!hasRequiredContentGlobals()) return;
+    // Puerta de runtime: fuera de las rutas autorizadas no se carga el
+    // catálogo, no se inyecta la interfaz, no se arranca el MutationObserver y
+    // no se escuchan cambios de storage. El manifest ya restringe la
+    // inyección, pero esta comprobación es la que garantiza que no se ejecute
+    // nada en rutas parecidas ni tras una navegación SPA.
+    if (!isSupportedShalomPage()) return;
     activeChannel = detectActiveShalomChannel(document);
     await cargarDatos(activeChannel);
     const result = injectSearchIfPossible();
@@ -69,13 +75,18 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   function isSupportedShalomPage(): boolean {
     const hostname = window.location.hostname.toLowerCase();
+    const pathname = window.location.pathname;
     const allowedDomains = (dependencies.allowedDomains ?? DEFAULT_ALLOWED_DOMAINS).map((domain) => domain.trim().toLowerCase()).filter(Boolean);
     if (!isSupportedShalomHost(hostname)) {
       console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'unsupported-page', hostname });
       return false;
     }
+    if (!isSupportedShalomPath(pathname)) {
+      console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'unsupported-path', pathname });
+      return false;
+    }
     if (allowedDomains.length === 0 || allowedDomains.some((domain) => hostnameMatchesAllowedDomain(hostname, domain))) {
-      console.log('[CodeRED Shalom] Dominio compatible');
+      console.log('[CodeRED Shalom] Página compatible');
       return true;
     }
     console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'domain-not-allowed', hostname, allowedDomains });
@@ -201,6 +212,8 @@ export function createShalomContentController(dependencies: ContentControllerDep
   }
 
   function mount(): Promise<InjectionResult> {
+    // No se descarga el catálogo fuera de las rutas autorizadas.
+    if (!isSupportedShalomPage()) return Promise.resolve({ success: false, reason: 'unsupported-page' });
     return cargarDatos(activeChannel).then(() => injectSearchIfPossible());
   }
 

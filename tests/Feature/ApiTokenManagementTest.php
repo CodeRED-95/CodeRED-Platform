@@ -189,7 +189,7 @@ class ApiTokenManagementTest extends TestCase
             ->assertSee("basePath: '/api/v1'", false)
             ->assertSee('autocomplete="off"', false)
             ->assertDontSee('http://192.168.18.124:8090', false)
-            ->assertDontSee('http://platform.codered.host', false);
+            ->assertDontSee('http://platform.codered.lat', false);
 
         $script = file_get_contents(resource_path('js/api-docs.js'));
         $this->assertIsString($script);
@@ -221,14 +221,14 @@ class ApiTokenManagementTest extends TestCase
         $response = $this->actingAs($super)->withServerVariables([
             'REMOTE_ADDR' => '10.0.0.10',
             'HTTP_X_FORWARDED_PROTO' => 'https',
-            'HTTP_X_FORWARDED_HOST' => 'platform.codered.host',
+            'HTTP_X_FORWARDED_HOST' => 'platform.codered.lat',
             'HTTP_X_FORWARDED_PORT' => '443',
         ])->get('/docs/api');
 
         $response->assertOk()
             ->assertSee('/docs/api/openapi.yaml', false)
             ->assertSee("basePath: '/api/v1'", false)
-            ->assertDontSee('http://platform.codered.host', false)
+            ->assertDontSee('http://platform.codered.lat', false)
             ->assertDontSee('192.168.18.124', false);
 
         $this->assertStringContainsString('url: /api/v1', (string) file_get_contents(base_path('docs/openapi.yaml')));

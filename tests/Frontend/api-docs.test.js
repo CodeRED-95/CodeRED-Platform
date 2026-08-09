@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { ApiDocsValidationError, apiErrorMessage, buildApiHeaders, buildApiPath, buildRequestUrl, createApiDocsAuthStore, endpointAccess, executeApiRequest, extractTokenProfile, generateCurl, generateFetch, normalizeAbilities, normalizeBearerToken, parseResponseBody, tokenHasAbility } from "../../resources/js/api-docs.js";
 
-globalThis.window = { location: { origin: "https://platform.codered.host" } };
+globalThis.window = { location: { origin: "https://platform.codered.lat" } };
 
 test("buildApiPath applies the API prefix exactly once", () => {
   assert.equal(buildApiPath("/health"), "/api/v1/health");
@@ -21,11 +21,11 @@ test("buildRequestUrl encodes path and sends only non-empty parameters", () => {
     { name: "disabled", in: "query" },
   ], { code: "SHA 000610", search: "Lima norte", empty: "", disabled: false });
 
-  assert.equal(url.toString(), "https://platform.codered.host/api/v1/agencies/SHA%20000610?search=Lima+norte");
+  assert.equal(url.toString(), "https://platform.codered.lat/api/v1/agencies/SHA%20000610?search=Lima+norte");
 });
 
 test("generated examples never expose the in-memory token", () => {
-  const url = "https://platform.codered.host/api/v1/agencies?per_page=10";
+  const url = "https://platform.codered.lat/api/v1/agencies?per_page=10";
   const curl = generateCurl(url, true);
   const fetchExample = generateFetch(url, true);
 

@@ -8,7 +8,7 @@ CodeRED Platform publica la versión `2.2.0` desde una fuente única de configur
 
 ```bash
 php artisan app:version
-curl https://platform.codered.host/api/v1/version
+curl https://platform.codered.lat/api/v1/version
 ```
 
 ### Sistema de versionado automático
@@ -195,7 +195,7 @@ GET /admin/ruc/imports/{id}/errors/download
 
 ```bash
 # Usando curl
-curl -X POST http://platform.codered.host/admin/ruc/imports \
+curl -X POST http://platform.codered.lat/admin/ruc/imports \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@registros.csv" \
   -F "merge_strategy=insert_update" \
@@ -229,7 +229,7 @@ docker compose exec -T app php artisan ruc:cancel-import 123
 
 ```env
 CODERED_AGENT_NAME="CodeRED n8n Agent"
-CODERED_AGENT_PUBLIC_URL=https://agent.codered.host
+CODERED_AGENT_PUBLIC_URL=https://agent.codered.lat
 CODERED_AGENT_ENVIRONMENT=production
 CODERED_AGENT_PORT=5680
 CODERED_AGENT_DATA_PATH=/data
@@ -274,9 +274,9 @@ N8N_DB_DATABASE=n8n
 N8N_DB_USERNAME=n8n
 N8N_DB_PASSWORD=
 N8N_ENCRYPTION_KEY=
-N8N_HOST=n8n.codered.host
-N8N_EDITOR_BASE_URL=https://n8n.codered.host/
-N8N_WEBHOOK_URL=https://n8n.codered.host/
+N8N_HOST=n8n.codered.lat
+N8N_EDITOR_BASE_URL=https://n8n.codered.lat/
+N8N_WEBHOOK_URL=https://n8n.codered.lat/
 ```
 ## Webhook de nuevas solicitudes de token
 
@@ -286,7 +286,7 @@ Variables requeridas:
 
 ```env
 N8N_TOKEN_REQUEST_NOTIFICATIONS=true
-N8N_TOKEN_REQUEST_WEBHOOK_URL=https://n8n.codered.host/webhook/codered-token-request
+N8N_TOKEN_REQUEST_WEBHOOK_URL=https://n8n.codered.lat/webhook/codered-token-request
 N8N_TOKEN_REQUEST_WEBHOOK_SECRET=VALOR_GENERADO
 N8N_TOKEN_REQUEST_WEBHOOK_TIMEOUT=10
 ```
@@ -320,7 +320,7 @@ docker exec codered-n8n sh -lc 'ls -lah /home/node/.n8n/custom/n8n-nodes-codered
 
 La extensión `packages/codered-chrome-extension` usa versionado propio y publica `2.3.0`. El popup fue reconstruido como un panel oscuro compacto de una sola columna y 360 px: muestra estado del token, token enmascarado, última sincronización, agencias disponibles, estado de conexión y sincronización automática. Solo permite solicitar token, configurar token y probar conexión; la búsqueda de agencias permanece únicamente dentro de Shalom Control.
 
-El botón **Solicitar token** abre `https://platform.codered.host/solicitar-token` sin enviar secretos. El botón **Configurar token** abre Options para guardar, probar, sincronizar o eliminar el token. El token se enmascara siempre y la clave canónica de storage es `codered_api_token`.
+El botón **Solicitar token** abre `https://platform.codered.lat/solicitar-token` sin enviar secretos. El botón **Configurar token** abre Options para guardar, probar, sincronizar o eliminar el token. El token se enmascara siempre y la clave canónica de storage es `codered_api_token`.
 
 Para validar el build de la extensión:
 
@@ -337,8 +337,8 @@ La carga manual se realiza desde `chrome://extensions` seleccionando únicamente
 
 Para cumplir con los requisitos de la Chrome Web Store, se han creado dos páginas públicas:
 
-- **Política de Privacidad:** `https://platform.codered.host/privacy/buscador-shalom`
-- **Soporte:** `https://platform.codered.host/support/buscador-shalom`
+- **Política de Privacidad:** `https://platform.codered.lat/privacy/buscador-shalom`
+- **Soporte:** `https://platform.codered.lat/support/buscador-shalom`
 
 Estas páginas no requieren autenticación y están diseñadas para ser responsive y consistentes con el branding de CodeRED Platform.
 
@@ -347,7 +347,7 @@ Estas páginas no requieren autenticación y están diseñadas para ser responsi
 Las siguientes variables de entorno se utilizan para configurar el contenido de las páginas legales:
 
 ```env
-CODERED_SUPPORT_EMAIL=support@codered.host
+CODERED_SUPPORT_EMAIL=support@codered.lat
 CODERED_LEGAL_NAME="CodeRED Platform"
 CODERED_LEGAL_COUNTRY="Perú"
 CODERED_PRIVACY_UPDATED_AT=2026-08-02

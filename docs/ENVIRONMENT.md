@@ -103,17 +103,17 @@ Todas las variables listadas provienen de `.env.example`.
 | `N8N_SHARED_SECRET` | Secreto HMAC opcional de la integración n8n + Telegram. No es el `shared_secret` de pairing del Agent. | vacío o secreto seguro si se usa la integración | vacío | No | Si no coincide, fallan webhooks HMAC legacy. | `N8N_INTEGRATION_ENABLED` |
 | `N8N_WEBHOOK_URL` | Webhook de n8n para notificaciones de solicitudes de tokens. | URL HTTPS real si se usa | vacío | No | Platform no podrá notificar a n8n en esa integración auxiliar. | `N8N_INTEGRATION_ENABLED` |
 | `N8N_VERSION` | Version de n8n usada por el servicio `codered-n8n`. | `2.31.4` | `2.31.4` | Si para n8n | Platform mostrara version incorrecta si no coincide. | `docker/n8n/Dockerfile` |
-| `N8N_HOST` | Host publico de n8n. | `n8n.codered.host` | `n8n.codered.host` | Si para n8n | URLs incorrectas en editor/webhooks. | Cloudflare |
-| `N8N_EDITOR_BASE_URL` | URL publica del editor n8n. | `https://n8n.codered.host/` | `https://n8n.codered.host/` | Si para n8n | Links generados incorrectos. | `N8N_HOST` |
+| `N8N_HOST` | Host publico de n8n. | `n8n.codered.lat` | `n8n.codered.lat` | Si para n8n | URLs incorrectas en editor/webhooks. | Cloudflare |
+| `N8N_EDITOR_BASE_URL` | URL publica del editor n8n. | `https://n8n.codered.lat/` | `https://n8n.codered.lat/` | Si para n8n | Links generados incorrectos. | `N8N_HOST` |
 | `N8N_DB_DATABASE` | Base PostgreSQL de n8n dentro de `codered-postgres`. | `n8n` | `n8n` | Si para n8n | n8n no inicia. | `N8N_DB_USERNAME` |
 | `N8N_DB_USERNAME` | Usuario PostgreSQL de n8n. | `n8n` | `n8n` | Si para n8n | n8n no inicia. | `N8N_DB_PASSWORD` |
 | `N8N_DB_PASSWORD` | Password PostgreSQL de n8n. | secreto persistente | vacio en ejemplo | Si para n8n | n8n no conecta a PostgreSQL. | `codered-postgres` |
 | `N8N_ENCRYPTION_KEY` | Clave persistente de cifrado de credenciales n8n. | secreto persistente | vacio en ejemplo | Si para n8n | Cambiarla puede inutilizar credenciales. | `codered_n8n_data` |
 | `DB_TYPE` / `DB_POSTGRESDB_*` | Configuración PostgreSQL del contenedor n8n. | Coincidir con la base n8n real | `postgresdb` | Sí si se usa n8n Docker | n8n no iniciará o usará otra base. | Docker n8n |
 | `TELEGRAM_TOKEN_REQUESTS_ENABLED` | Controla solicitudes de tokens por Telegram/n8n. | `true` si se usa el flujo | `true` | No | Desactiva solicitudes desde Telegram. | `N8N_INTEGRATION_ENABLED` |
-| `CODERED_PLATFORM_URL` | URL de Platform usada por codered-agent. En Compose se sobreescribe con `APP_URL`. | URL pública de Platform | `https://platform.codered.host` | Sí para Agent | Pairing/heartbeat apuntarán a otra Platform. | `APP_URL` |
+| `CODERED_PLATFORM_URL` | URL de Platform usada por codered-agent. En Compose se sobreescribe con `APP_URL`. | URL pública de Platform | `https://platform.codered.lat` | Sí para Agent | Pairing/heartbeat apuntarán a otra Platform. | `APP_URL` |
 | `CODERED_AGENT_NAME` | Nombre visible del Agent. | `"CodeRED n8n Agent"` | `"CodeRED n8n Agent"` | No | Cambia metadatos enviados a Platform. | Discovery |
-| `CODERED_AGENT_PUBLIC_URL` | URL pública del Agent para capabilities/challenge. | HTTPS público alcanzable por Platform | `https://agent.codered.host` | Sí para Agent | Challenge/capabilities no serán alcanzables desde Platform. | Discovery |
+| `CODERED_AGENT_PUBLIC_URL` | URL pública del Agent para capabilities/challenge. | HTTPS público alcanzable por Platform | `https://agent.codered.lat` | Sí para Agent | Challenge/capabilities no serán alcanzables desde Platform. | Discovery |
 | `CODERED_AGENT_ENVIRONMENT` | Entorno reportado por el Agent. | `production`, `staging` o `development` | `production` | Sí para Agent | Platform mostrará entorno incorrecto. | Discovery/heartbeat |
 | `CODERED_AGENT_PORT` | Puerto HTTP local del Agent. | `5680` | `5680` | Sí para Agent | Cambia el puerto escuchado. | Docker/healthcheck |
 | `CODERED_AGENT_DATA_PATH` | Ruta persistente de identidad e integración cifradas. | `/data` con volumen persistente | `/data` | Sí para Agent | Reinicios podrían perder pairing si no persiste. | `codered-agent-data` |
@@ -236,6 +236,81 @@ La cola debe escuchar `ruc-imports` antes de `default`. Los padrones se almacena
 | Variable | Descripción | Ejemplo | Obligatoria | Riesgo si falta |
 |---|---|---|---|---|
 | `N8N_TOKEN_REQUEST_NOTIFICATIONS` | Activa el envío de `token_request.created` hacia n8n. | `true` | No | No se envían avisos a Telegram. |
-| `N8N_TOKEN_REQUEST_WEBHOOK_URL` | URL del webhook n8n `codered-token-request`. | `https://n8n.codered.host/webhook/codered-token-request` | Si se activa | El job omite la notificación si está vacía. |
+| `N8N_TOKEN_REQUEST_WEBHOOK_URL` | URL del webhook n8n `codered-token-request`. | `https://n8n.codered.lat/webhook/codered-token-request` | Si se activa | El job omite la notificación si está vacía. |
 | `N8N_TOKEN_REQUEST_WEBHOOK_SECRET` | Secreto HMAC SHA-256 usado para firmar el payload. Generar con `openssl rand -hex 32`. | vacío | Si se activa | n8n debe rechazar mensajes no firmados o con secreto distinto. |
 | `N8N_TOKEN_REQUEST_WEBHOOK_TIMEOUT` | Timeout HTTP del webhook en segundos. | `10` | No | Timeouts muy altos bloquean workers más tiempo. |
+
+## Migración de dominio (codered.host -> codered.lat)
+
+El dominio productivo de CodeRED Platform es **`codered.lat`**. `codered.host` es el
+dominio anterior y se mantiene aceptado de forma temporal para no cortar clientes
+ya desplegados durante la transición.
+
+### Variables que definen el dominio
+
+| Variable | Valor productivo | Notas |
+|---|---|---|
+| `APP_URL` | `https://platform.codered.lat` | Fuente de verdad. `docker-compose.yml` deriva de aquí `CODERED_PLATFORM_URL` y `CODERED_API_BASE_URL`. |
+| `SESSION_DOMAIN` | `.codered.lat` | **No admite dos dominios.** Debe coincidir con el host de `APP_URL`. |
+| `SESSION_SECURE_COOKIE` | `true` en producción | `false` en local sobre `http://`, o no habrá sesión. |
+| `SANCTUM_STATEFUL_DOMAINS` | `platform.codered.lat,platform.codered.host,...` | Admite varios; el nuevo dominio va primero. |
+| `API_ALLOWED_ORIGINS` | `https://platform.codered.lat,https://platform.codered.host,...` | Admite varios (CORS). |
+| `N8N_HOST` | `n8n.codered.lat` | |
+| `N8N_EDITOR_BASE_URL` | `https://n8n.codered.lat/` | |
+| `N8N_WEBHOOK_URL` | `https://n8n.codered.lat/` | Cambia las URLs de webhook que n8n muestra y publica. |
+| `N8N_TOKEN_REQUEST_WEBHOOK_URL` | `https://n8n.codered.lat/webhook/codered-events` | |
+| `CODERED_PLATFORM_URL` | `https://platform.codered.lat` | |
+| `CODERED_AGENT_PUBLIC_URL` | `https://agent.codered.lat` | No regenera la identidad ni el pairing del Agent. |
+| `CODERED_SUPPORT_EMAIL` | `support@codered.lat` | |
+
+### Cookies, CSRF y Livewire
+
+`SESSION_DOMAIN` controla el atributo `Domain=` de la cookie de sesión y **solo
+puede tener un valor**. Si se navega por `platform.codered.lat` con
+`SESSION_DOMAIN=.codered.host`, el navegador descarta la cookie y todo POST
+(login, Livewire) responde **HTTP 419 "Page Expired"**.
+
+Verificación tras el despliegue (solo cabeceras, sin exponer cuerpos ni tokens):
+
+```bash
+curl -sS -I https://platform.codered.lat | grep -i '^set-cookie:'
+```
+
+No debe aparecer `domain=.codered.host`. Debe aparecer `domain=.codered.lat`
+(o ninguna cookie con `Domain=` si `SESSION_DOMAIN=null`).
+
+Como Platform vive detrás de Cloudflare Tunnel + nginx, `TrustProxies` debe
+seguir aceptando `X-Forwarded-Proto`/`X-Forwarded-Host`; de lo contrario Laravel
+generará URLs `http://` y la cookie `Secure` no viajará.
+
+### Cómo se derivan los defaults
+
+`Install_CodeRED-Platform.sh` y `update.sh` comparten dos variables al inicio:
+
+- `CODERED_DOMAIN` (por defecto `codered.lat`): base de todos los defaults.
+- `CODERED_LEGACY_DOMAINS` (por defecto `codered.host`): dominios que se siguen
+  aceptando en CORS/Sanctum durante la transición.
+
+`SESSION_DOMAIN` **no está hardcodeado**: se deriva del host real de `APP_URL`
+mediante `cookie_domain_for_url()`, de modo que una futura migración de dominio
+no requiera editar los scripts. Para migrar de nuevo basta con exportar
+`CODERED_DOMAIN=nuevo.dominio` antes de ejecutarlos.
+
+`update.sh` nunca sobrescribe una variable que ya exista en el `.env`: los
+defaults solo se aplican a variables ausentes. Además ejecuta
+`check_domain_consistency()`, que **avisa sin modificar nada** si `SESSION_DOMAIN`,
+`SESSION_SECURE_COOKIE`, `SANCTUM_STATEFUL_DOMAINS` o `API_ALLOWED_ORIGINS`
+dejaron de ser coherentes con `APP_URL`.
+
+### Cuándo retirar la compatibilidad con codered.host
+
+Cuando `codered.lat` esté validado al 100%:
+
+1. Quitar `platform.codered.host` de `SANCTUM_STATEFUL_DOMAINS` y de
+   `API_ALLOWED_ORIGINS` en el `.env` de producción.
+2. Vaciar `CODERED_LEGACY_DOMAINS` en `Install_CodeRED-Platform.sh` y `update.sh`.
+3. Quitar `https://platform.codered.host/*` de `host_permissions` en
+   `packages/codered-chrome-extension/manifest.json` y
+   `packages/shalom-recordar-extension/manifest.json`, reconstruir la extensión
+   (`npm run build:extension`) y publicar la nueva versión.
+4. Retirar las rutas `codered.host` del Cloudflare Tunnel.

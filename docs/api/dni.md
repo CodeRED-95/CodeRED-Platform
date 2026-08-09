@@ -10,7 +10,7 @@
 
 ```bash
 curl --request GET \
-  --url 'https://platform.codered.host/api/v1/dni/12345678' \
+  --url 'https://platform.codered.lat/api/v1/dni/12345678' \
   --header 'Accept: application/json' \
   --header 'Authorization: Bearer TOKEN_DNI'
 ```
@@ -18,7 +18,7 @@ curl --request GET \
 ### JavaScript
 
 ```javascript
-const response = await fetch('https://platform.codered.host/api/v1/dni/12345678', {
+const response = await fetch('https://platform.codered.lat/api/v1/dni/12345678', {
   headers: { Accept: 'application/json', Authorization: 'Bearer TOKEN_DNI' },
 });
 const data = await response.json();
@@ -29,7 +29,7 @@ const data = await response.json();
 ```php
 $response = Http::withToken('TOKEN_DNI')
     ->acceptJson()
-    ->get('https://platform.codered.host/api/v1/dni/12345678');
+    ->get('https://platform.codered.lat/api/v1/dni/12345678');
 $data = $response->json();
 ```
 
@@ -38,7 +38,7 @@ $data = $response->json();
 ```python
 import requests
 response = requests.get(
-    "https://platform.codered.host/api/v1/dni/12345678",
+    "https://platform.codered.lat/api/v1/dni/12345678",
     headers={"Accept": "application/json", "Authorization": "Bearer TOKEN_DNI"},
     timeout=15,
 )

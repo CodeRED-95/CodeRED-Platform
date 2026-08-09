@@ -346,7 +346,7 @@ camino.
 
 ### 413 Request Entity Too Large / Cloudflare al importar un backup grande
 
-Si `platform.codered.host` está detrás de Cloudflare (proxied, nube
+Si `platform.codered.lat` está detrás de Cloudflare (proxied, nube
 naranja), Cloudflare corta requests grandes (~100 MB en free/pro) **antes**
 de que lleguen a nginx — subir un `.dump` de cientos de MB en un solo
 request siempre dará 413, sin importar qué tan generoso sea
@@ -376,7 +376,7 @@ un 419:
    regenera el token).
 3. Revisa `SESSION_DOMAIN` (`.env`) — debe quedar vacío/`null` en local
    (`http://localhost:8090`) y coincidir con el dominio real en producción
-   (`https://platform.codered.host`). No hardcodear ninguno de los dos: la
+   (`https://platform.codered.lat`). No hardcodear ninguno de los dos: la
    config ya usa `env('SESSION_DOMAIN')`.
 4. `RucBackupCsrfTest` reproduce el flujo real (`GET` → extraer token →
    `POST` en la misma sesión) y falla si vuelve a aparecer un 419.

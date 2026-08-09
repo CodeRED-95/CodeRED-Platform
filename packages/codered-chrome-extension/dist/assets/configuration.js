@@ -1,0 +1,1 @@
+const e="https://platform.codered.lat/api/v1";function n(){return e.replace(/\/+$/,"")}function r(){const t="/solicitar-token";return t.startsWith("/")?t:"/"+t}function o(){const t=new URL(n());return new URL(r(),t.origin).toString()}export{n as a,o as g};

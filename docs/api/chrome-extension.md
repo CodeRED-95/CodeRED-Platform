@@ -13,8 +13,8 @@ Respuesta:
   "success": true,
   "data": {
     "platform_name": "CodeRED Platform",
-    "api_base_url": "https://platform.codered.host/api/v1",
-    "token_request_url": "https://platform.codered.host/solicitar-token",
+    "api_base_url": "https://platform.codered.lat/api/v1",
+    "token_request_url": "https://platform.codered.lat/solicitar-token",
     "agency_catalog_version": "1",
     "sync_interval_hours": 24,
     "required_scopes": ["agencias:consultar", "agencies:read", "agencies:map"],

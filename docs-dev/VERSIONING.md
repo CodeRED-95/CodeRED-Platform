@@ -217,7 +217,7 @@ R: Varios métodos:
 php artisan app:version
 
 # En web
-curl https://platform.codered.host/api/v1/version
+curl https://platform.codered.lat/api/v1/version
 
 # En composer.json
 grep version composer.json
