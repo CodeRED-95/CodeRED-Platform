@@ -577,7 +577,7 @@
 
             @if($backups->hasPages())
                 <div class="border-t border-[color:var(--color-border)] p-4">
-                    {{ $backups->links() }}
+                    <x-ui.pagination :paginator="$backups" />
                 </div>
             @endif
         </x-ui.card>

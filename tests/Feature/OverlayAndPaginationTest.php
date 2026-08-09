@@ -67,7 +67,10 @@ class OverlayAndPaginationTest extends TestCase
 
     public function test_all_paginated_admin_views_use_the_shared_component(): void
     {
-        foreach (['livewire/admin/ruc/records.blade.php', 'livewire/admin/ruc/imports.blade.php', 'livewire/admin/agencies/backups.blade.php'] as $view) {
+        // livewire/admin/ruc/imports.blade.php se eliminó junto al sistema de
+        // importación RUC (v3.0.0); la pantalla RUC paginada es ahora la de
+        // backups, que vive fuera de livewire/.
+        foreach (['livewire/admin/ruc/records.blade.php', 'ruc/admin/backups/index.blade.php', 'livewire/admin/agencies/backups.blade.php'] as $view) {
             $contents = file_get_contents(resource_path('views/'.$view));
             $this->assertStringContainsString('x-ui.pagination', $contents);
             $this->assertStringNotContainsString('->links()', $contents);
