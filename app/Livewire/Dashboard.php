@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImport;
-use App\Modules\Ruc\Models\RucRecord;
 use App\Policies\UserPolicy;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;

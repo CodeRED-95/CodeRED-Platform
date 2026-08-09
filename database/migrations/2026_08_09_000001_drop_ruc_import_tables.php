@@ -47,7 +47,7 @@ return new class extends Migration
                 // dropForeign() con array deja que el driver lo resuelva.
                 try {
                     $table->dropForeign(['ruc_import_id']);
-                } catch (\Throwable) {
+                } catch (Throwable) {
                     // La FK ya no existía (base parcialmente migrada): continuar.
                 }
             });
