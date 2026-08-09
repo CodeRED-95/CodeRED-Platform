@@ -1,7 +1,15 @@
 # ADR 0039: importar el padrón RUC mediante streaming, COPY y checkpoints
 
-- Estado: aceptado
+- Estado: **superado** (v3.0.0, 2026-08-09)
 - Fecha: 2026-07-21
+- Superado por: eliminación del sistema de importación RUC. El padrón se
+  administra ahora exclusivamente mediante backup/restore de `ruc_records`.
+  Ver [docs/RUC_MODULE.md](../RUC_MODULE.md).
+
+> **Nota histórica.** Este ADR se conserva como registro de la decisión original
+> y de su contexto. Nada de lo que describe sigue existiendo en el código: las
+> tablas `ruc_imports`, `ruc_staging`, `ruc_import_*`, la cola `ruc-imports` y
+> las clases de importación se eliminaron en la v3.0.0.
 
 ## Contexto
 

@@ -79,10 +79,10 @@ CodeRED-Platform/
 | Entender la arquitectura | `docs/ARCHITECTURE.md` |
 | Configurar variables de entorno | `docs/ENVIRONMENT.md` |
 | Usar APIs de DNI/RUC | `docs/api/dni.md` o `docs/api/ruc.md` |
-| Desplegar cambios | `docs/guides/deployment.md` o `DEPLOYMENT_RUC_V3.md` |
+| Desplegar cambios | `docs/guides/deployment.md` |
 | Hacer troubleshooting | `docs/guides/troubleshooting.md` |
-| Usar RUC v3.0 | `docs-ruc/QUICK_START.md` |
-| Implementar RUC v3.0 | `docs-ruc/IMPLEMENTATION.md` |
+| Administrar el padrón RUC | `docs/RUC_MODULE.md` |
+| Backup/restore RUC | `app/Modules/Ruc/BACKUP_SYSTEM.md` |
 | Entender seguridad | `docs/SECURITY.md` o `docs-security/` |
 | Contribuir código | `docs-dev/CONTRIBUTING.md` |
 
@@ -91,7 +91,7 @@ CodeRED-Platform/
 |-----|------------------|-----------|
 | **Administrador** | `docs/INSTALL.md`, `docs/guides/deployment.md`, `docs/guides/monitoring.md` | `docs/ENVIRONMENT.md` |
 | **Desarrollador** | `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT.md` | `docs/api/`, `docs-dev/` |
-| **DevOps** | `docs/DOCKER.md`, `docs/guides/deployment.md` | `docs/guides/`, `DEPLOYMENT_RUC_V3.md` |
+| **DevOps** | `docs/DOCKER.md`, `docs/guides/deployment.md` | `docs/guides/` |
 | **Integrador n8n** | `docs/agent/`, `docs/integrations/n8n-workflows.md` | `docs/integrations/` |
 | **Security/Audit** | `docs/SECURITY.md`, `docs-security/` | `docs/changelog/SECURITY.md` |
 

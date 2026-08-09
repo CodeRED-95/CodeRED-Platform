@@ -545,7 +545,7 @@ read_password "Contraseña del administrador"; ADMIN_PASSWORD="$REPLY"
 
 set_env APP_NAME "CodeRED Platform" true; set_env VITE_APP_NAME "CodeRED Platform" true; set_env APP_ENV "$APP_ENV"; set_env APP_DEBUG "$APP_DEBUG"; set_env APP_URL "$APP_URL"; set_env CODERED_PLATFORM_URL "$APP_URL"; set_env LOG_LEVEL "$LOG_LEVEL"
 set_env DB_CONNECTION pgsql; set_env DB_HOST postgres; set_env DB_PORT 5432; set_env DB_DATABASE "$DB_DATABASE"; set_env DB_USERNAME "$DB_USERNAME"; set_env DB_PASSWORD "$DB_PASSWORD"; sync_postgres_env; set_env DEV_ADMIN_NAME "$ADMIN_NAME" true; set_env DEV_ADMIN_EMAIL "$ADMIN_EMAIL"; set_env DEV_ADMIN_PASSWORD "$ADMIN_PASSWORD"
-set_env QUEUE_CONNECTION "redis"; set_env REDIS_QUEUE_RETRY_AFTER "172900"; set_env RUC_ENABLED "true"; set_env RUC_IMPORT_DISK "local"; set_env RUC_IMPORT_INCOMING_DIRECTORY "private/ruc/incoming"; set_env RUC_IMPORT_WORKING_DIRECTORY "private/ruc/working"; set_env RUC_IMPORT_ARCHIVE_DIRECTORY "private/ruc/archive"; set_env RUC_IMPORT_ERRORS_DIRECTORY "private/ruc/errors"; set_env RUC_IMPORT_QUEUE "ruc-imports"; set_env RUC_IMPORT_CHUNK_SIZE "10000"; set_env RUC_IMPORT_COPY_BATCH_SIZE "100000"; set_env RUC_IMPORT_PROGRESS_INTERVAL "10000"; set_env RUC_IMPORT_CHECKPOINT_INTERVAL "50000"; set_env RUC_IMPORT_TIMEOUT "86400"; set_env RUC_IMPORT_LOCK_SECONDS "172800"; set_env RUC_IMPORT_ENCODING "ISO-8859-1"; set_env RUC_IMPORT_DELIMITER "|"; set_env RUC_IMPORT_MAX_SIZE_MB "30000"; set_env RUC_IMPORT_RESUME_ENABLED "true"; set_env RUC_IMPORT_ARCHIVE_FILES "true"; set_env RUC_IMPORT_STRATEGY "insert_ignore"
+set_env QUEUE_CONNECTION "redis"; set_env REDIS_QUEUE_RETRY_AFTER "172900"; set_env RUC_ENABLED "true"
 # Sesión / CSRF / CORS. Todo se deriva del APP_URL real en vez de hardcodear un
 # dominio, para que una migración de dominio no requiera tocar este script.
 # SESSION_DOMAIN solo se fija sobre HTTPS: con http:// la cookie con Domain=
@@ -605,7 +605,6 @@ configure_n8n_postgres "$(get_env N8N_DB_PASSWORD)"
 info "Esperando Laravel..."
 for _ in {1..40}; do if docker compose exec -T app php artisan about >/dev/null 2>&1; then break; fi; sleep 3; done
 docker compose exec -T app php artisan about >/dev/null 2>&1 || die "Laravel no respondió a tiempo."
-docker compose exec -T app mkdir -p storage/app/private/ruc/incoming storage/app/private/ruc/working storage/app/private/ruc/archive storage/app/private/ruc/errors
 if [[ -z "$(get_env APP_KEY)" ]]; then docker compose exec -T app php artisan key:generate --force; fi
 docker compose exec -T app php artisan migrate --force
 if ! docker compose exec -T app php artisan db:seed --force; then

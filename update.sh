@@ -430,6 +430,46 @@ step 10 "Ejecutando migraciones"
 docker compose exec -T app php artisan migrate --force
 ok "Todas las migraciones completadas (incluyendo Shalom y RUC Backup)"
 
+# El sistema de IMPORTACIÓN RUC fue retirado (v3.0.0): el padrón se
+# administra solo con backup/restore. Se verifica que la migración
+# 2026_08_09_000001_drop_ruc_import_tables se aplicó y que ruc_records
+# sigue intacta. Solo informa: NUNCA borra tablas ni datos por su cuenta.
+verify_ruc_import_removal(){
+    local pg_user pg_db leftovers records
+    pg_user="$(get_env POSTGRES_USER)"; pg_db="$(get_env POSTGRES_DB)"
+    [[ -n "$pg_user" && -n "$pg_db" ]] || { info "Sin credenciales PostgreSQL en .env; se omite verificación RUC."; return; }
+
+    leftovers="$(docker compose exec -T postgres psql -U "$pg_user" -d "$pg_db" -tAc \
+        "SELECT string_agg(table_name, ', ') FROM information_schema.tables
+         WHERE table_schema='public'
+           AND table_name IN ('ruc_imports','ruc_import_errors','ruc_import_events','ruc_import_duplicates','ruc_staging');" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -n "$leftovers" ]]; then
+        warn "Todavía existen tablas de importación RUC: $leftovers"
+        warn "La migración de limpieza no se aplicó. Ejecute: docker compose exec -T app php artisan migrate --force"
+    else
+        ok "Tablas de importación RUC retiradas correctamente."
+    fi
+
+    # ruc_records NUNCA debe desaparecer ni vaciarse por este deploy.
+    records="$(docker compose exec -T postgres psql -U "$pg_user" -d "$pg_db" -tAc \
+        "SELECT to_regclass('public.ruc_records') IS NOT NULL;" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "$records" == "t" ]]; then
+        ok "ruc_records presente (el padrón NO se toca en esta actualización)."
+    else
+        warn "No se encontró la tabla ruc_records. Revise el estado de las migraciones antes de continuar."
+    fi
+
+    # Jobs viejos que hayan quedado encolados en la cola "ruc-imports": ya
+    # nadie la consume. Solo se informa; borrarlos es decisión del operador.
+    local pending
+    pending="$(docker compose exec -T redis redis-cli LLEN queues:ruc-imports 2>/dev/null | tr -d '[:space:]')"
+    if [[ "$pending" =~ ^[0-9]+$ && "$pending" != "0" ]]; then
+        warn "Quedan $pending jobs en la cola Redis 'ruc-imports', que ya no tiene worker."
+        warn "Son inertes. Para descartarlos manualmente: docker compose exec -T redis redis-cli DEL queues:ruc-imports"
+    fi
+}
+verify_ruc_import_removal
+
 step 11 "Creando directorios requeridos"
 # La ruta real depende del disco "local" configurado en
 # config/filesystems.php (cambió de storage/app a storage/app/private entre
@@ -492,7 +532,7 @@ docker compose exec -T app php artisan view:cache
 docker compose exec -T app php artisan queue:restart
 
 # Limpiar caches de estadísticas RUC que se actualizarán en el siguiente
-# import/restore. Ver RucStatisticsService y PERFORMANCE.md.
+# restore. Ver RucStatisticsService y PERFORMANCE.md.
 docker compose exec -T app php artisan cache:clear
 docker compose exec -T app php -r "
 require 'vendor/autoload.php';
@@ -501,7 +541,7 @@ require 'vendor/autoload.php';
 \$app->make('cache')->forget('dashboard:ruc');
 " 2>/dev/null || true
 
-ok "Cachés limpiados; estadísticas RUC se recalcularán en el siguiente import/restore."
+ok "Cachés limpiados; estadísticas RUC se recalcularán en el siguiente restore."
 
 step 13 "Verificando salud"
 docker compose ps
@@ -521,7 +561,7 @@ fi
 
 # Post-deploy ANALYZE (FASE 4 automation): if ruc_records table exists and
 # was recently modified, run ANALYZE to update statistics. This is critical
-# after imports/restores to prevent stale planner statistics from degrading
+# after restores to prevent stale planner statistics from degrading
 # query performance.
 if docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -c "SELECT 1 FROM information_schema.tables WHERE table_name='ruc_records';" | grep -q 1; then
     info "Running ANALYZE on ruc_records (PHASE 4 automation)..."
@@ -531,9 +571,9 @@ require 'vendor/autoload.php';
 \$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 \Illuminate\Support\Facades\DB::statement('ANALYZE ruc_records');
 echo 'ANALYZE completed' . PHP_EOL;
-" 2>/dev/null || warn "ANALYZE failed (non-critical, will happen automatically at next import/restore)"
+" 2>/dev/null || warn "ANALYZE failed (non-critical, will happen automatically at next restore)"
 else
-    info "ruc_records table not yet present; ANALYZE will run automatically on first import."
+    info "ruc_records table not yet present; ANALYZE will run automatically on first restore."
 fi
 
 if [[ -n "$(get_env CODERED_AGENT_ENCRYPTION_KEY)" && -n "$(get_env CODERED_AGENT_LOCAL_API_TOKEN)" ]] && docker compose config --services | grep -qx codered-agent; then
@@ -579,5 +619,5 @@ ok "RUC performance optimization complete:"
 echo "  ✓ PHASE 1: Cursor pagination, hardcoded filters, column selection"
 echo "  ✓ PHASE 2: PostgreSQL tuning (shared_buffers=1GB, work_mem=32MB, etc.)"
 echo "  ✓ PHASE 3: /dev/shm increased to 512MB for VACUUM ANALYZE"
-echo "  ✓ PHASE 4: ANALYZE automated post-import/restore"
+echo "  ✓ PHASE 4: ANALYZE automated post-restore"
 echo "  ✓ PHASE 5: Performance tests and benchmarks integrated"

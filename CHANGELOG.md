@@ -6,6 +6,65 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [3.0.0] - 2026-08-09
+
+### ELIMINADO (BREAKING)
+
+Se retira por completo el **sistema de importación RUC**. La administración del
+padrón pasa a hacerse exclusivamente mediante **backup y restore** de
+`ruc_records`, que queda como fuente permanente.
+
+**Los datos NO se tocan:** `ruc_records`, `ruc_backups`, `ruc_backup_operations`
+y los backups en disco se conservan intactos. La migración de limpieza no
+ejecuta `TRUNCATE` ni `DELETE` sobre el padrón.
+
+- **Interfaz** — se elimina la pantalla de importaciones RUC, sus componentes
+  Livewire (`Imports`, `ImportManager`, `ImportMonitor`) y el enlace del menú,
+  reemplazado por "Backups RUC". El dashboard deja de mostrar métricas de
+  importación.
+- **Rutas** — `admin.ruc.imports` y `admin.ruc.imports.errors`.
+- **Comandos** — `ruc:scan`, `ruc:import`, `ruc:pause`, `ruc:resume`,
+  `ruc:cancel`, `ruc:status`, `ruc:cleanup`, `ruc:has-active`,
+  `ruc:import-status`, `ruc:cleanup-imports`.
+- **Jobs** — `PrepareRucImportJob`, `ProcessRucImportJob`, `ProcessRucImportJobV3`.
+- **Clases** — 4 modelos, 3 enums, 1 policy, 1 evento, 5 objetos de datos,
+  14 servicios y 2 helpers de soporte exclusivos de importación.
+- **Tablas** (migración `2026_08_09_000001_drop_ruc_import_tables`) —
+  `ruc_imports`, `ruc_import_errors`, `ruc_import_events`,
+  `ruc_import_duplicates`, `ruc_staging`. También la columna huérfana
+  `ruc_records.ruc_import_id` (su clave foránea impedía el DROP; en PostgreSQL
+  `DROP COLUMN` es metadata-only y no reescribe la tabla) y
+  `ruc_statistics.total_imports`.
+- **Cola** — conexión `ruc-imports` en `config/queue.php` y su cola en el worker
+  general. `ruc-backups` y su worker dedicado se mantienen sin cambios.
+- **Configuración** — bloque `ruc.import` completo y todas las variables
+  `RUC_IMPORT_*` de `.env.example`, del instalador y de la documentación.
+- **Permisos** — `ruc.import`, `ruc.import-history`, `ruc.delete-import-file`,
+  `ruc.cancel-import`, `ruc.view-errors` salen del seeder. Las filas ya
+  existentes en base de datos NO se borran.
+- **Eventos de integración** — `ruc.import.started`, `ruc.import.progress` y
+  `ruc.import.finished` salen del catálogo `EventType`. Ningún productor los
+  emitía, pero cualquier workflow n8n suscrito debe actualizarse.
+- **Documentación** — se eliminan `DEPLOYMENT_RUC_V3.md` y los cuatro
+  `RUC_IMPORT_V3_*.md`. El ADR 0039 se conserva marcado como **superado**.
+
+### CORREGIDO
+- **`RestoreRucBackupJob` fallaba siempre al terminar.** `DB::statement('ANALYZE
+  ruc_records')` se usaba sin importar el facade `Illuminate\Support\Facades\DB`,
+  así que PHP resolvía `App\Modules\Ruc\Jobs\DB` y lanzaba un `Error` fatal
+  **después** de restaurar los datos correctamente, dejando la operación marcada
+  como `failed` pese a que el padrón sí se había restaurado. Bug preexistente,
+  no introducido por esta limpieza.
+- `RucStatisticsService` contaba `ruc_imports`, lo que habría roto todo restore
+  al soltar la tabla.
+
+### AGREGADO
+- Enlace directo a **Backups RUC** en la navegación lateral (antes la pantalla
+  de backups no era alcanzable desde el menú).
+- `tests/Feature/Ruc/RucImportSystemRemovedTest.php` — 14 pruebas que fijan la
+  eliminación (rutas, tablas, clases, configuración) y verifican que
+  `ruc_records`, sus columnas y sus datos siguen intactos.
+
 ## [2.3.1] - 2026-08-09
 
 ### CORREGIDO

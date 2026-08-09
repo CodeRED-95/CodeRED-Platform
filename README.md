@@ -17,7 +17,7 @@ Las versiones se actualizan automáticamente basadas en el tipo de commit:
 
 ```bash
 # Nueva característica → minor bump (2.2.0 → 2.3.0)
-git commit -m "feat: agregar importación RUC v3.0"
+git commit -m "feat: agregar endpoint de búsqueda RUC"
 
 # Bug fix → patch bump (2.2.0 → 2.2.1)
 git commit -m "fix: corregir error de validación"
@@ -37,32 +37,33 @@ El comando `php artisan app:bump-version {major|minor|patch}` actualiza automát
 Variables opcionales:
 
 ```env
-APP_VERSION=2.2.0
+APP_VERSION=3.0.0
 API_VERSION=v1
 ```
 
-## ✨ Novedades en esta versión (2.2.0+)
+## ✨ Novedades en esta versión (3.0.0)
 
-### RUC Import System v3.0 (NUEVO)
-- Arquitectura completamente rediseñada con streaming de bajo consumo de memoria
-- Importación de archivos ilimitados (testeado hasta 10GB+)
-- Event sourcing completo para auditoría
-- Progreso en tiempo real mediante broadcasting
-- Rollback automático y checkpoints transaccionales
-- 10x más rápido que v2.0 (1K → 10K registros/segundo)
-- 4x menos memoria (512MB → 128MB pico)
+### Módulo RUC simplificado (BREAKING)
+El sistema de **importación de padrones TXT fue eliminado**. La administración de
+datos RUC se realiza ahora exclusivamente mediante **backup y restore** de
+`ruc_records`, que pasa a ser la fuente permanente del padrón.
 
-**Próximos pasos si actualizas a v3.0:**
-1. Ejecutar `./update.sh` (maneja todas las migraciones automáticamente)
-2. Registrar permisos: ver sección "Permisos requeridos (RUC v3.0)"
-3. Registrar rutas: ver [DEPLOYMENT_RUC_V3.md](DEPLOYMENT_RUC_V3.md)
-4. Leer [RUC_IMPORT_V3_QUICK_START.md](RUC_IMPORT_V3_QUICK_START.md) para empezar
+Se retiraron: rutas `/admin/ruc/importaciones*`, comandos `ruc:scan`,
+`ruc:import`, `ruc:pause`, `ruc:resume`, `ruc:cancel`, `ruc:status`,
+`ruc:cleanup`, `ruc:has-active`, la cola `ruc-imports`, las variables
+`RUC_IMPORT_*`, los permisos de importación y las tablas `ruc_imports`,
+`ruc_import_events`, `ruc_import_errors`, `ruc_import_duplicates` y `ruc_staging`.
+
+**Los datos de `ruc_records` y los backups existentes no se tocan.**
+
+Al actualizar basta con `./update.sh`: aplica la migración de limpieza y verifica
+que el padrón siga intacto. Ver [docs/RUC_MODULE.md](docs/RUC_MODULE.md).
 
 ## Capacidades principales
 
 - Gestión administrativa y pública de agencias Shalom.
 - APIs versionadas para agencias, DNI y RUC con Sanctum, abilities, rate limiting y documentación OpenAPI.
-- **RUC Import System v3.0**: Importación masiva de registros con streaming de bajo consumo de memoria, event sourcing, rollback automático y progreso en tiempo real mediante broadcasting.
+- **Padrón RUC** consultable por panel y API, administrado mediante backup/restore con progreso en segundo plano.
 - Solicitudes de tokens API con aprobación administrativa y auditoría.
 - Integración n8n mediante Pairing, Discovery, Heartbeat, Challenge Response y Capability Registry.
 - CodeRED Agent como daemon persistente para mantener estado, firmar solicitudes y desacoplar n8n de secretos compartidos.
@@ -135,95 +136,42 @@ docker compose up -d --build
 
 n8n expone solo `127.0.0.1:5678`, usa el volumen `codered_n8n_data` y se comunica con el Agent mediante `http://codered-agent:5680`.
 
-## Sistema de Importación RUC v3.0
+## Administración del padrón RUC: backup y restore
 
-CodeRED Platform v2.2.0+ incluye una arquitectura completamente rediseñada para importación masiva de registros RUC con soporte para archivos ilimitados, progreso en tiempo real y recuperación ante fallos.
+`ruc_records` es la fuente permanente del padrón. No se reconstruye desde
+archivos TXT: se respalda y se restaura.
 
-### Características principales
+Todo ocurre en `/admin/ruc/backups`:
 
-- **Streaming con O(1) memoria constante**: Procesa archivos de cualquier tamaño leyendo línea por línea sin cargar en memoria.
-- **Event sourcing completo**: Auditoría completa de todas las operaciones registradas en `ruc_import_events`.
-- **Detección automática de duplicados**: Tracking de duplicados dentro del archivo y alertas de registros duplicados existentes.
-- **Progreso en tiempo real**: Broadcasting mediante canales privados con ETA dinámico y actualización <1s.
-- **Rollback automático**: Reversión segura de toda la importación con registro de eventos si falla cualquier paso.
-- **Checkpoints transaccionales**: Recuperación ante interrupciones sin pérdida de datos ni duplicados.
-- **Validación granular**: Validaciones específicas por línea (RUC, razón social, UBIGEO, etc.) con reportes detallados.
-- **Estrategias de merge configurable**: Insert, Insert-Update o Replace con soporte para ON CONFLICT en PostgreSQL.
-- **Pausa/Reanudación**: Control administrativo para pausar y reanudar importaciones en progreso.
-- **Cancelación segura**: Abortar importaciones manteniendo integridad transaccional.
+| Acción | Ruta |
+|---|---|
+| Listado e historial | `GET /admin/ruc/backups` |
+| Crear backup | `POST /admin/ruc/backups` |
+| Subir un backup existente | `POST /admin/ruc/backups/import` |
+| Descargar | `GET /admin/ruc/backups/{backup}/download` |
+| Restaurar | `POST /admin/ruc/backups/{backup}/restore` |
+| Estado de la operación | `GET /admin/ruc/backups/operations/{operation}/status` |
+| Eliminar | `DELETE /admin/ruc/backups/{backup}` |
 
-### Endpoints API
-
-```bash
-# Crear importación
-POST /admin/ruc/imports
-  Parámetros: file, merge_strategy, skip_duplicates, skip_unknown_ubigeo
-
-# Listar importaciones
-GET /admin/ruc/imports
-
-# Detalle de importación
-GET /admin/ruc/imports/{id}
-
-# Obtener progreso
-GET /admin/ruc/imports/{id}/progress
-
-# Controlar importación
-POST /admin/ruc/imports/{id}/pause
-POST /admin/ruc/imports/{id}/resume
-POST /admin/ruc/imports/{id}/cancel
-POST /admin/ruc/imports/{id}/rollback
-
-# Descargar errores
-GET /admin/ruc/imports/{id}/errors/download
-```
-
-### Componentes Livewire
-
-- **ImportManager**: Upload de archivos, selección de estrategia, validación en cliente.
-- **ImportMonitor**: Progreso en tiempo real, barra animada, ETA dinámico, botones de control.
-
-### Documentación RUC v3.0
-
-- [Implementación completa](RUC_IMPORT_V3_IMPLEMENTATION.md) — Guía exhaustiva de 2,500+ palabras
-- [Inicio rápido](RUC_IMPORT_V3_QUICK_START.md) — Configuración en 60 segundos
-- [Changelog](RUC_IMPORT_V3_CHANGELOG.md) — Cambios y benchmarks
-- [Despliegue](DEPLOYMENT_RUC_V3.md) — Guía de actualización con 12 pasos
-- [Checklist](RUC_IMPORT_V3_CHECKLIST.md) — Validación de despliegue
-
-### Ejemplo: Importar archivo RUC
+Backup y restore se ejecutan en la cola dedicada `ruc-backups` (worker
+`codered-queue-ruc-backups`), nunca dentro del request HTTP. El progreso se
+persiste en `ruc_backup_operations`, así que la UI lo retoma aunque se recargue
+la página. El restore crea y valida un *safety backup* antes de tocar
+`ruc_records`, y no se permite iniciar una segunda restauración mientras haya
+una `pending`/`running`.
 
 ```bash
-# Usando curl
-curl -X POST http://platform.codered.lat/admin/ruc/imports \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -F "file=@registros.csv" \
-  -F "merge_strategy=insert_update" \
-  -F "skip_duplicates=true"
+# Desde CLI
+docker compose exec -T app php artisan ruc:backup
+docker compose exec -T app php artisan ruc:list-backups
+docker compose exec -T app php artisan ruc:restore {backup}
 
-# Resultado
-{
-  "id": 123,
-  "status": "processing",
-  "total_lines": 50000,
-  "progress_url": "/admin/ruc/imports/123/progress",
-  "created_at": "2026-08-06T20:39:00Z"
-}
+# Seguir una restauración en curso
+docker compose logs -f codered-queue-ruc-backups
 ```
 
-### Monitoreo de importaciones
-
-```bash
-# Ver progreso en tiempo real
-docker compose exec -T app php artisan tinker
->>> RucImport::find(123)->with('events', 'duplicates', 'errors')->get()
-
-# Ver logs de importación
-docker compose logs -f codered-queue | grep -i "ruc"
-
-# Cancelar importación (si es necesario)
-docker compose exec -T app php artisan ruc:cancel-import 123
-```
+Detalle completo en [docs/RUC_MODULE.md](docs/RUC_MODULE.md) y
+[app/Modules/Ruc/BACKUP_SYSTEM.md](app/Modules/Ruc/BACKUP_SYSTEM.md).
 
 ## Variables de CodeRED Agent
 
@@ -378,29 +326,21 @@ El actualizador crea backup de `.env`, aplica `git pull --ff-only`, agrega varia
 
 El menú incluye operaciones de plataforma y un submenú de CodeRED Agent para ver estado, logs, reiniciar, reconstruir, probar healthcheck, consultar `/api/v1/status`, generar Pair Codes y rotar el token local. La rotación de la clave de cifrado se bloquea hasta disponer de una utilidad de migración segura de `integration.enc`.
 
-## Permisos requeridos (RUC v3.0)
+## Permisos del módulo RUC
 
-Para usar el nuevo sistema de importación RUC v3.0, registre estos permisos en su tabla de permisos:
+Se registran automáticamente con `php artisan db:seed --class=PermissionsSeeder`:
 
-```php
-// app/Providers/AuthServiceProvider.php
-use App\Modules\Ruc\Models\RucImport;
-use App\Modules\Ruc\Policies\RucImportPolicy;
+| Permiso | Alcance |
+|---|---|
+| `ruc.view` | Ver el padrón en el panel |
+| `ruc.test` | Probar la API RUC desde el panel |
+| `ruc.backup.view` | Ver backups y estado de operaciones |
+| `ruc.backup.create` | Crear o subir backups |
+| `ruc.backup.download` | Descargar backups |
+| `ruc.backup.restore` | Restaurar un backup |
+| `ruc.backup.delete` | Eliminar backups |
 
-public function boot()
-{
-    Gate::policy(RucImport::class, RucImportPolicy::class);
-    
-    // Permisos (registrar en BD también)
-    // 'ruc.import.create'      - Crear nuevas importaciones
-    // 'ruc.import.view'        - Ver importaciones
-    // 'ruc.import.pause'       - Pausar importaciones
-    // 'ruc.import.resume'      - Reanudar importaciones
-    // 'ruc.import.cancel'      - Cancelar importaciones
-    // 'ruc.import.rollback'    - Revertir importaciones
-    // 'ruc.import.viewErrors'  - Ver errores de importación
-}
-```
+Los permisos de importación se retiraron en la v3.0.0.
 
 ## Seguridad
 
@@ -442,16 +382,10 @@ public function boot()
 - [API RUC](docs/api/ruc.md)
 - [API Agencias](docs/api/agencies.md)
 
-### 📦 RUC Import System v3.0
-- [Implementación exhaustiva](docs-ruc/IMPLEMENTATION.md)
-- [Quick Start (60 segundos)](docs-ruc/QUICK_START.md)
-- [Arquitectura técnica](docs-ruc/ARCHITECTURE.md)
-- [Endpoints API](docs-ruc/API.md)
-- [Guía de despliegue](docs-ruc/DEPLOYMENT.md)
-- [Checklist de validación](docs-ruc/CHECKLIST.md)
-- [Troubleshooting](docs-ruc/TROUBLESHOOTING.md)
+### 📦 Módulo RUC
+- [Módulo RUC (padrón, backup y restore)](docs/RUC_MODULE.md)
+- [Sistema de backup/restore](app/Modules/Ruc/BACKUP_SYSTEM.md)
 - [Benchmarks y performance](docs-ruc/PERFORMANCE.md)
-- [Auditoría v2.0](docs-ruc/AUDIT.md)
 
 ### 🛡️ Seguridad
 - [Tokens API](docs-security/TOKENS.md)
@@ -491,7 +425,7 @@ git pull origin main
 ./update.sh
 ```
 
-El script `update.sh` automatiza todos los pasos: backup de `.env`, construcción selectiva de imágenes, levantamiento de servicios, migraciones, cachés y verificación de salud. Vea [DEPLOYMENT_RUC_V3.md](DEPLOYMENT_RUC_V3.md) para detalles completos.
+El script `update.sh` automatiza todos los pasos: backup de `.env`, construcción selectiva de imágenes, levantamiento de servicios, migraciones, cachés y verificación de salud.
 
 ## Actualización manual (solo si necesitas control granular)
 

@@ -1,59 +1,114 @@
 # Módulo RUC
 
-CodeRED Platform integra la consulta y la importación periódica del padrón reducido SUNAT. El TXT puede superar 18 millones de líneas y se procesa fuera de HTTP y Livewire.
+CodeRED Platform expone el padrón reducido SUNAT como base de consulta interna
+y vía API. **Desde la v3.0.0 el módulo no importa archivos TXT**: el padrón se
+administra exclusivamente mediante **backup y restore** de `ruc_records`.
 
-## Arquitectura masiva
-
-- `ruc_records` es la fuente interna y `ruc` tiene índice único.
-- El operador coloca el TXT en `storage/app/private/ruc/incoming`.
-- `RucIncomingFileScanner` detecta solo TXT mediante el disco Laravel configurado, sin leer su contenido.
-- El worker de `ruc-imports` lee en streaming, normaliza ISO-8859-1/Windows-1252 y construye la dirección desde todos los campos posteriores al UBIGEO.
-- El catálogo `ubigeos` se carga una vez por job; no existe una consulta SQL por contribuyente.
-- Cada lote entra en `ruc_staging` mediante PostgreSQL COPY.
-- Los checkpoints guardan línea y byte offset en la misma transacción que staging.
-- El merge usa `ON CONFLICT (ruc) DO NOTHING`; nunca consulta ni actualiza RUC uno por uno.
-- Al completar, el TXT puede moverse al directorio privado de archivo.
-
-## Directorios
-
-```dotenv
-RUC_IMPORT_DISK=local
-RUC_IMPORT_INCOMING_DIRECTORY=private/ruc/incoming
-RUC_IMPORT_WORKING_DIRECTORY=private/ruc/working
-RUC_IMPORT_ARCHIVE_DIRECTORY=private/ruc/archive
-RUC_IMPORT_ERRORS_DIRECTORY=private/ruc/errors
-RUC_IMPORT_QUEUE=ruc-imports
-RUC_IMPORT_SYNC_HASH_MAX_MB=100
+```text
+RUC
+├── Registros
+│   ├── listado
+│   ├── búsqueda
+│   └── API
+└── Backups
+    ├── crear
+    ├── descargar
+    ├── restaurar
+    ├── progreso
+    ├── historial
+    └── eliminar
 ```
 
-Con el disco `local` de Laravel 12, la ruta física resuelta dentro del contenedor es `/var/www/html/storage/app/private/ruc/incoming`; en el host normalmente es `~/CodeRED-Platform/storage/app/private/ruc/incoming`. El resolver evita crear accidentalmente `storage/app/private/private`.
+## `ruc_records`: fuente permanente
 
-## Operación
+`ruc_records` es la fuente de verdad del padrón y **no se recrea desde archivos**.
+Sus datos solo cambian mediante una restauración de backup.
+
+- `ruc` tiene índice único.
+- Índices de búsqueda sobre `ruc`, `razon_social`, `estado`, `condicion` y `ubigeo`.
+- El catálogo `ubigeos` resuelve departamento/provincia/distrito.
+- `ruc_statistics` mantiene el conteo total para que ni el dashboard ni el panel
+  ejecuten `COUNT(*)` sobre 18M+ filas en cada carga.
+
+Mantenimiento del padrón sobre datos ya existentes:
 
 ```bash
-cp padron_reducido_ruc.txt storage/app/private/ruc/incoming/
-php artisan ruc:scan
-php artisan ruc:register-file private/ruc/incoming/padron_reducido_ruc.txt
-php artisan ruc:import ID
-php artisan ruc:status --id=ID
-php artisan ruc:pause ID
-php artisan ruc:resume ID
-php artisan ruc:cancel ID
-php artisan ruc:cleanup --dry-run
+php artisan ruc:rebuild-addresses --only-missing   # reconstruye dirección/geografía
+php artisan ruc:recalculate-metrics                # invalida y muestra métricas
 ```
 
-La misma operación está disponible en `/admin/ruc/importaciones`. El panel muestra TXT disponibles, progreso, nuevos, existentes, inválidos, direcciones construidas, ubigeos resueltos/desconocidos, velocidad, ETA y heartbeat. Los archivos de varios GB nunca se suben mediante Livewire.
+## Administración: backup y restore
 
-## Formato SUNAT y geografía
+Toda la gestión de datos vive en `/admin/ruc/backups`. Ver
+[`app/Modules/Ruc/BACKUP_SYSTEM.md`](../app/Modules/Ruc/BACKUP_SYSTEM.md) para el detalle.
 
-Los índices 0–4 son RUC, razón social, estado, condición y UBIGEO. Todos los valores desde el índice 5 forman la dirección; se omiten vacíos, `-`, `--`, `NULL` y `N/A`. El separador final `|` es válido.
+**Crear backup** → procesamiento en segundo plano → progreso → `completed` →
+descargar o restaurar.
 
-La tabla `ubigeos` se sincroniza desde Alanube con `php artisan ubigeos:sync` y dispone del snapshot offline `database/data/ubigeos_alanube.json`. El job precarga código, departamento, provincia y distrito una sola vez.
+**Restaurar** → se crea una `RucBackupOperation` → `RestoreRucBackupJob` corre en
+la cola dedicada `ruc-backups` → progreso persistido en base de datos →
+`completed` / `failed`.
 
-## Seguridad y recuperación
+El restore crea siempre un *safety backup* previo y lo valida antes de tocar
+`ruc_records`. Nunca se ejecuta `pg_dump`/`psql` dentro del request HTTP: un
+restore de millones de filas puede tardar horas y Cloudflare cortaría la
+conexión (era la causa del error 524).
 
-Solo Super Administrador recibe permisos `ruc.*`. El archivo permanece en almacenamiento privado. El checksum impide reanudar un archivo modificado. Una caída conserva staging y el último checkpoint confirmado; `ruc:resume` continúa desde el byte offset. Update.sh consulta `ruc:has-active` y no recrea `codered-queue` durante una importación activa.
+La UI consulta `GET /admin/ruc/backups/operations/{operation}/status` cada 2 s
+mientras hay una operación `pending`/`running`, y deja de consultar en cuanto la
+operación alcanza un estado terminal. Sin operación activa no hay polling.
 
-## Validación y registro manual
+### Cola dedicada
 
-En `/admin/ruc/importaciones`, **Validar** lee como máximo 64 KB (20 líneas), detecta encoding y delimitador, verifica cabecera y muestra una estimación sin importar datos. **Registrar** vuelve a validar, rechaza rutas fuera de `incoming` y duplicados por SHA-256. Hasta `RUC_IMPORT_SYNC_HASH_MAX_MB` el hash se calcula por streaming en la petición; archivos mayores quedan en estado **Preparando** y `PrepareRucImportJob` calcula la huella en la cola `ruc-imports`.
+`ruc-backups` es una conexión de cola **separada** con `retry_after` de 90000 s,
+porque `retry_after` es propiedad de la conexión y debe superar el timeout más
+largo del job (24 h). Compartir conexión provocaría que Laravel re-entregara un
+restore todavía en curso y dos procesos `psql` tocaran `ruc_records` a la vez.
+
+## Configuración
+
+```dotenv
+RUC_ENABLED=true
+RUC_CACHE_ENABLED=true
+RUC_CACHE_TTL=3600
+RUC_RATE_LIMIT_PER_MINUTE=60
+RUC_SEARCH_RATE_LIMIT_PER_MINUTE=20
+RUC_SEARCH_MIN_LENGTH=3
+RUC_SEARCH_MAX_RESULTS=100
+RUC_BACKUP_MAX_UPLOAD_MB=5000
+RUC_BACKUP_QUEUE=ruc-backups
+```
+
+Las variables `RUC_IMPORT_*` y `RUC_STAGING_*` fueron eliminadas en la v3.0.0.
+
+## API pública
+
+| Endpoint | Ability | Descripción |
+|---|---|---|
+| `GET /api/v1/ruc/{ruc}` | `ruc:consultar` | Consulta un RUC exacto |
+| `GET /api/v1/ruc/buscar` | `ruc:buscar` | Búsqueda por razón social |
+
+Ver [`docs/api/ruc.md`](api/ruc.md).
+
+## Permisos
+
+| Permiso | Alcance |
+|---|---|
+| `ruc.view` | Ver el padrón en el panel |
+| `ruc.test` | Probar la API RUC desde el panel |
+| `ruc.backup.view` | Ver backups y el estado de operaciones |
+| `ruc.backup.create` | Crear e importar archivos de backup |
+| `ruc.backup.download` | Descargar backups |
+| `ruc.backup.restore` | Restaurar un backup |
+| `ruc.backup.delete` | Eliminar backups |
+
+Los permisos de importación (`ruc.import`, `ruc.import-history`,
+`ruc.delete-import-file`, `ruc.cancel-import`, `ruc.view-errors`) se retiraron
+del seeder en la v3.0.0.
+
+## Historia
+
+El sistema de importación de padrones TXT (streaming, `ruc_staging`, event
+sourcing en `ruc_import_events`, rollback) existió hasta la v2.3.1 y se eliminó
+en la v3.0.0. La decisión original está documentada —como registro histórico
+superado— en [`docs/adr/0039-ruc-import-background-processing.md`](adr/0039-ruc-import-background-processing.md).

@@ -200,7 +200,11 @@ Laravel confía en los encabezados `X-Forwarded-For`, `X-Forwarded-Host`, `X-For
 
 La base de datos prevalece sobre `.env`. Nunca se versiona una API key real.
 
-## RUC e importación del padrón
+## RUC (padrón, backup y restore)
+
+El sistema de importación de padrones TXT se eliminó en la v3.0.0. `ruc_records`
+es la fuente permanente y solo cambia mediante restauración de un backup.
+Las variables `RUC_IMPORT_*` y `RUC_STAGING_*` ya no existen.
 
 | Variable | Uso |
 |---|---|
@@ -208,20 +212,18 @@ La base de datos prevalece sobre `.env`. Nunca se versiona una API key real.
 | `RUC_CACHE_ENABLED` / `RUC_CACHE_TTL` | Controlan la caché Redis de consulta exacta. |
 | `RUC_RATE_LIMIT_PER_MINUTE` | Límite independiente para `ruc:consultar`. |
 | `RUC_SEARCH_RATE_LIMIT_PER_MINUTE` | Límite independiente para `ruc:buscar`. |
-| `RUC_IMPORT_DISK` / `RUC_IMPORT_DIRECTORY` | Almacenamiento privado del TXT. |
-| `RUC_IMPORT_MAX_SIZE_MB` | Tamaño máximo aceptado. |
-| `RUC_IMPORT_SYNC_HASH_MAX_MB` | Umbral para calcular SHA-256 en HTTP; archivos mayores se preparan en cola (100 MB por defecto). |
-| `RUC_IMPORT_ENCODING` / `RUC_IMPORT_DELIMITER` | Contrato de lectura del padrón. |
-| `RUC_IMPORT_CHUNK_SIZE` | Tamaño de cada escritura idempotente. |
-| `RUC_IMPORT_QUEUE` / `RUC_IMPORT_TIMEOUT` | Cola y tiempo máximo del worker. |
-| `RUC_IMPORT_LOCK_SECONDS` | Exclusión distribuida entre importaciones. |
+| `RUC_SEARCH_MIN_LENGTH` / `RUC_SEARCH_MAX_RESULTS` | Protección de búsquedas parciales. |
+| `RUC_BACKUP_MAX_UPLOAD_MB` | Tamaño máximo de un backup subido. Debe ser <= `upload_max_filesize`/`post_max_size` (docker/php/php.ini) y `client_max_body_size` (docker/nginx/default.conf). |
+| `RUC_BACKUP_QUEUE` | Cola dedicada del restore; por defecto `ruc-backups`. |
+| `RUC_BACKUP_QUEUE_RETRY_AFTER` | Debe superar el timeout máximo de `RestoreRucBackupJob` (24 h). Bajarlo provoca doble entrega del restore. |
+| `RUC_BACKUP_MULTIPART_*` | Límites de la subida multipart de backups grandes. |
 | `UBIGEO_SOURCE` | Fuente manual del catálogo; actualmente `alanube`. |
 | `UBIGEO_ALANUBE_URL` | Página pública que contiene la tabla estructurada. |
 | `UBIGEO_DOWNLOAD_TIMEOUT` / `UBIGEO_DOWNLOAD_RETRIES` | Límites del cliente HTTP de sincronización. |
 | `UBIGEO_SYNC_ENABLED` | Habilita la sincronización manual; no provoca descargas al arrancar. |
-| `RUC_SEARCH_MIN_LENGTH` / `RUC_SEARCH_MAX_RESULTS` | Protección de búsquedas parciales. |
 
-La cola debe escuchar `ruc-imports` antes de `default`. Los padrones se almacenan fuera de `public/` y nunca deben versionarse.
+El worker `codered-queue-ruc-backups` escucha la cola `ruc-backups`. Los backups
+se almacenan fuera de `public/` y nunca deben versionarse.
 
 ## Solicitudes públicas de tokens
 
