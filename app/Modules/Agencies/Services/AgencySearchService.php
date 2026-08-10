@@ -5,6 +5,7 @@ namespace App\Modules\Agencies\Services;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class AgencySearchService
 {
@@ -93,7 +94,7 @@ class AgencySearchService
             return '';
         }
 
-        $value = mb_strtolower($value);
+        $value = Str::ascii(mb_strtolower($value));
         $value = str_replace(['-', '_', '/'], ' ', $value);
         $value = preg_replace('/\s+/u', ' ', $value) ?: '';
 

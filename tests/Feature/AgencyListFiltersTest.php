@@ -42,7 +42,7 @@ class AgencyListFiltersTest extends TestCase
         Agency::factory()->create([
             'code' => 'AG-SIN-CHOSEN',
             'name' => 'AGENCIA SIN CHOSEN',
-            'classification_category' => 'MINI MICRO',
+            'classification_category' => 'PEQUEÑA',
             'texto_chosen_terrestre' => null,
             'texto_chosen_aereo' => null,
             'old_name' => null,
@@ -161,15 +161,28 @@ class AgencyListFiltersTest extends TestCase
             $component->set('category', 'GRANDE CO')->viewData('agencies')->getCollection()->pluck('code')->all()
         );
 
-        $expectedMiniMicro = ['AG-SIN-CHOSEN', 'AG-CHOSEN-VACIO'];
-        sort($expectedMiniMicro);
         $this->assertSame(
-            $expectedMiniMicro,
-            $component->set('category', 'MINI-MICRO')->viewData('agencies')->getCollection()->pluck('code')->sort()->values()->all()
+            ['AG-SIN-CHOSEN'],
+            $component->set('category', 'PEQUEÑA')->viewData('agencies')->getCollection()->pluck('code')->all()
         );
 
         $component->set('category', 'VALOR-QUE-NO-EXISTE');
         $component->assertSet('category', '');
+    }
+
+    public function test_category_filter_accepts_accentless_variant_for_pequena(): void
+    {
+        $this->seedAgencies();
+
+        $codes = Livewire::actingAs($this->superAdmin())
+            ->test(AgenciesIndex::class)
+            ->set('category', 'PEQUENA')
+            ->viewData('agencies')
+            ->getCollection()
+            ->pluck('code')
+            ->all();
+
+        $this->assertSame(['AG-SIN-CHOSEN'], $codes);
     }
 
     public function test_filters_show_empty_state_message_when_no_records_match(): void

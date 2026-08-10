@@ -448,7 +448,7 @@ class Index extends Component
 
         $labels = [
             'micro' => 'MICRO',
-            'pequeña' => 'PEQUEÑA',
+            'pequena' => 'PEQUEÑA',
             'mediana' => 'MEDIANA',
             'grande co' => 'GRANDE CO',
             'mini micro' => 'MINI-MICRO',
