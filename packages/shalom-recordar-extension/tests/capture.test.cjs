@@ -177,6 +177,42 @@ test('Clave por input guarda Clave', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'swal-input1', value: '3535' });
+    runTimers();
+    closeClaveModal();
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '3535');
+});
+
+test('Clave conserva ceros iniciales y el primer dígito completo', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'swal-input1', value: '0123' });
+    runTimers();
+    closeClaveModal();
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '0123');
+});
+
+test('Clave progresiva por input termina en un solo registro final', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'swal-input1', value: '3' });
+    emit('input', { id: 'swal-input1', value: '35' });
+    emit('input', { id: 'swal-input1', value: '353' });
+    emit('input', { id: 'swal-input1', value: '3535' });
+    runTimers();
     closeClaveModal();
 
     assert.equal(messages.length, 1);
@@ -309,6 +345,7 @@ test('Clave con valor de 8 dígitos nunca se reclasifica como DNI', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'swal-input1', value: '00456879' });
+    runTimers();
     closeClaveModal();
 
     assert.equal(messages.length, 1);

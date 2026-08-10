@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.11 - 2026-08-10
+
+### Fixed
+
+- `Clave` deja de perder el primer dígito al capturarse desde el valor real actualizado del input con debounce corto.
+- `Clave` conserva valores como `3535` y `0123` completos, sin reconstrucción parcial.
+
 ## 2.7.10 - 2026-08-10
 
 ### Fixed

