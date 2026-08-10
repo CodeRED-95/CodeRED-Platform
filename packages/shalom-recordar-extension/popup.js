@@ -9,8 +9,6 @@ const avatarBtn = el('btnAvatar');
 const accountMenu = el('accountMenu');
 
 /** Última sesión conocida; evita releer storage en cada interacción del menú. */
-let currentState = null;
-
 function setStatus(message, tone = 'muted') {
     statusEl.textContent = message ?? '';
     statusEl.style.color = tone === 'error' ? '#fca5a5' : tone === 'success' ? '#86efac' : tone === 'warn' ? '#fbbf24' : '#9ca3af';
@@ -103,14 +101,12 @@ function showLoading() {
 }
 
 function showLoggedOut(message, tone = 'muted') {
-    currentState = null;
     showView('login');
     tagline.textContent = 'Inicia sesión con tu cuenta de CodeRED Platform. No se guarda tu contraseña.';
     setStatus(message ?? 'Inicia sesión para sincronizar tu extensión.', tone);
 }
 
 function showLoggedIn(state) {
-    currentState = state;
     showView('session');
 
     const name = state.user?.name || 'Usuario autenticado';

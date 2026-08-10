@@ -1,0 +1,22 @@
+{
+  "name": "shalom-recordar-extension",
+  "version": "2.7.3",
+  "private": true,
+  "type": "module",
+  "description": "Extensión Shalom Recordar para CodeRED Platform.",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "node scripts/typecheck.mjs",
+    "test": "node tests/capture.test.cjs && node tests/session.test.cjs",
+    "build": "node scripts/sync-version.mjs && node scripts/build-extension.mjs",
+    "validate:extension": "node scripts/validate-extension-build.mjs",
+    "build:extension": "npm run build && npm run validate:extension",
+    "package": "npm run build:extension && node scripts/package-extension.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^16.3.0"
+  }
+}
