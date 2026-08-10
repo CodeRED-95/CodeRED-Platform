@@ -56,6 +56,31 @@ export function isNeutralShalomSearchPath(pathname: string | null | undefined): 
   return normalizePathname(pathname) === '/listaordenservicio';
 }
 
+export interface ShalomPageCapabilities {
+  search: boolean;
+  neutralChannel: boolean;
+  agencySelection: boolean;
+  channelDetection: boolean;
+}
+
+export function getShalomPageCapabilities(pathname: string | null | undefined): ShalomPageCapabilities {
+  if (isNeutralShalomSearchPath(pathname)) {
+    return {
+      search: true,
+      neutralChannel: true,
+      agencySelection: false,
+      channelDetection: false,
+    };
+  }
+
+  return {
+    search: true,
+    neutralChannel: false,
+    agencySelection: true,
+    channelDetection: true,
+  };
+}
+
 export function hostnameMatchesAllowedDomain(hostname: string, allowedDomain: string): boolean {
   return isHostnameOrSubdomain(hostname, allowedDomain);
 }

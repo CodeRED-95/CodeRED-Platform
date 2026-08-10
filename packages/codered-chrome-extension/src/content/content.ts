@@ -7,7 +7,13 @@ import { searchAgencies } from '../search/agency-search';
 import { buildMapsUrl } from '../utils/format';
 import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agency-selector';
 import { bindChannelButtons, detectActiveShalomChannelState, type ShalomChannel } from './shalom-page-adapter';
-import { hostnameMatchesAllowedDomain, isNeutralShalomSearchPath, isSupportedShalomHost, isSupportedShalomPath } from './shalom-host';
+import {
+  getShalomPageCapabilities,
+  hostnameMatchesAllowedDomain,
+  isNeutralShalomSearchPath,
+  isSupportedShalomHost,
+  isSupportedShalomPath,
+} from './shalom-host';
 
 const CONTAINER_ID = 'mi-buscador-contenedor';
 const SEARCH_INPUT_ID = 'codered-search-input';
@@ -306,13 +312,20 @@ export function createShalomContentController(dependencies: ContentControllerDep
     const container = document.getElementById(CONTAINER_ID);
     const input = container?.querySelector<HTMLInputElement>(`#${SEARCH_INPUT_ID}`);
     const message = container?.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
-    const neutralPath = isNeutralShalomSearchPath(window.location.pathname);
-    const requestedChannel = activeChannel ?? (neutralPath ? 'AUTO' : null);
+    const capabilities = getShalomPageCapabilities(window.location.pathname);
+    if (!capabilities.agencySelection) {
+      if (message) message.textContent = 'Esta página de Shalom solo permite consultar agencias.';
+      return;
+    }
+    const requestedChannel = activeChannel ?? (capabilities.neutralChannel ? 'AUTO' : null);
     if (!requestedChannel) {
       if (message) message.textContent = 'No fue posible determinar el canal activo de Shalom todavía.';
       return;
     }
-
+    if (capabilities.neutralChannel) {
+      if (message) message.textContent = 'Canal no identificado. Buscando en todas las agencias.';
+      return;
+    }
     const selected = selectAgencyInDestination(document, agency, requestedChannel);
     if (selected.success) {
       if (input) input.value = '';

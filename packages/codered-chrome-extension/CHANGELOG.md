@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.3.4 - 2026-08-10
+## 2.3.5 - 2026-08-10
 
 - Trata `https://*.shalomcontrol.com/listaordenservicio` como una ruta neutral cuando el canal no puede determinarse con evidencia suficiente.
 - El buscador deja de bloquearse en espera de canal en esa ruta y busca en todas las agencias públicas disponibles.

@@ -6,7 +6,7 @@ import { isRuntimeRequest } from '../src/background/messages';
 import { createShalomContentController, findSearchInsertionPoint, insertSearchContainer, positionResultsPanel } from '../src/content/content';
 import { detectActiveChannel, detectActiveShalomChannelState } from '../src/content/shalom-page-adapter';
 import { findActiveDestinationSelect, selectAgencyInDestination } from '../src/content/agency-selector';
-import { hostnameMatchesAllowedDomain, isNeutralShalomSearchPath, isSupportedShalomHost, isSupportedShalomLocation, isSupportedShalomPath } from '../src/content/shalom-host';
+import { getShalomPageCapabilities, hostnameMatchesAllowedDomain, isNeutralShalomSearchPath, isSupportedShalomHost, isSupportedShalomLocation, isSupportedShalomPath } from '../src/content/shalom-host';
 import { searchAgencies } from '../src/search/agency-search';
 
 const terrestrialAgency = adaptAgency({
@@ -102,6 +102,15 @@ describe('supported Shalom paths', () => {
     expect(isNeutralShalomSearchPath('/listaordenservicio')).toBe(true);
     expect(isNeutralShalomSearchPath('/listaordenservicio/')).toBe(true);
     expect(isNeutralShalomSearchPath('/ordenservicio/listar')).toBe(false);
+  });
+
+  it('marks listaordenservicio as consultation-only without destination selection', () => {
+    expect(getShalomPageCapabilities('/listaordenservicio')).toMatchObject({
+      search: true,
+      neutralChannel: true,
+      agencySelection: false,
+      channelDetection: false,
+    });
   });
 });
 
@@ -293,6 +302,25 @@ describe('Shalom Control DOM integration', () => {
 
     warnSpy.mockRestore();
     infoSpy.mockRestore();
+  });
+
+  it('does not try to select a destination on listaordenservicio', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    document.body.innerHTML = '<div class="mdl-layout__header-row"><button type="button" title="Terrestre"></button><button type="button" title="Aéreo"></button></div><main></main>';
+
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+
+    document.querySelector<HTMLButtonElement>('.codered-agency-card')?.click();
+
+    expect(warnSpy.mock.calls.some(([message]) => String(message).includes('No se pudo seleccionar agencia'))).toBe(false);
+    expect(warnSpy.mock.calls.some(([message]) => String(message).includes('No se encontró el selector de destino activo de Shalom'))).toBe(false);
+    expect(document.body.textContent).toContain('Esta página de Shalom solo permite consultar agencias.');
+    warnSpy.mockRestore();
   });
 
   it('injects when the header appears after the observer starts', async () => {
@@ -596,6 +624,14 @@ describe('restored injected search experience', () => {
   });
 
   it('selects terrestrial and air chosen independently and does not select when clicking map', async () => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://sysprovincia2.shalomcontrol.com/ordenservicio/listar' });
+    globalThis.window = dom.window as unknown as Window & typeof globalThis;
+    globalThis.document = dom.window.document;
+    globalThis.MutationObserver = dom.window.MutationObserver;
+    globalThis.HTMLElement = dom.window.HTMLElement;
+    globalThis.HTMLSelectElement = dom.window.HTMLSelectElement;
+    globalThis.Event = dom.window.Event;
+    document.body.innerHTML = '<div class="mdl-layout__header-row"><div class="mdl-layout-spacer"></div></div>';
     document.body.insertAdjacentHTML('afterbegin', '<button id="truck" title="Terrestre" class="active">Camión</button><button id="plane" title="Aéreo">Avión</button>');
     document.body.insertAdjacentHTML('beforeend', '<section class="panel terrestre"><select id="t_osProDestino"><option value="">Seleccione</option><option value="t">1001 - CHICLAYO HUB - TERRESTRE</option></select><div id="t_osProDestino_chosen" data-visible="true"><a class="chosen-single"><span>Seleccione</span></a></div></section><section class="panel aereo" style="display:none"><select id="a_osProDestino"><option value="">Seleccione</option><option value="a">1001 - CHICLAYO HUB - AEREO</option></select><div id="a_osProDestino_chosen"><a class="chosen-single"><span>Seleccione</span></a></div></section>');
     const selectT = document.querySelector<HTMLSelectElement>('#t_osProDestino')!;

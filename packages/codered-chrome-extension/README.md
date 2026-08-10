@@ -4,13 +4,13 @@ Extension Chrome Manifest V3 para inyectar un buscador de agencias dentro de Sha
 
 La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local` y sigue funcionando sin conexión con la ultima cache valida.
 
-## Version 2.3.3
+## Version 2.3.5
 
 La version visible de la extension se define desde `package.json`. El build sincroniza automaticamente `src/shared/version.ts`, `manifest.json`, el popup y las pruebas con la misma version.
 
 ### Popup compacto
 
-El popup v2.3.3 fue reconstruido desde cero como una sola columna de 360 px, tema oscuro CodeRED y altura dependiente del contenido. No contiene buscador de agencias, listado, tarjetas de resultados, paneles informativos extensos, datos tecnicos ni scroll interno.
+El popup v2.3.5 fue reconstruido desde cero como una sola columna de 360 px, tema oscuro CodeRED y altura dependiente del contenido. No contiene buscador de agencias, listado, tarjetas de resultados, paneles informativos extensos, datos tecnicos ni scroll interno.
 
 Datos mostrados:
 
