@@ -4,6 +4,32 @@ declare(strict_types=1);
 
 require __DIR__.'/../vendor/autoload.php';
 
+/*
+|--------------------------------------------------------------------------
+| Protección: nunca ejecutar pruebas con la configuración cacheada
+|--------------------------------------------------------------------------
+|
+| Con `bootstrap/cache/config.php` presente, Laravel carga esa copia y NO
+| vuelve a evaluar los archivos de config, así que las variables <env> de
+| phpunit.xml (entre ellas DB_DATABASE=codered_testing) se ignoran por
+| completo: los tests acaban apuntando a la base de DESARROLLO y el primer
+| RefreshDatabase la borra entera.
+|
+| Ya ocurrió: una `php artisan config:cache` seguida de la suite vació la base
+| de desarrollo. Se aborta antes de tocar nada.
+|
+*/
+$cachedConfig = __DIR__.'/../bootstrap/cache/config.php';
+
+if (is_file($cachedConfig)) {
+    fwrite(STDERR, PHP_EOL.'  ✖ La configuración está cacheada (bootstrap/cache/config.php).'.PHP_EOL
+        .'    Con la caché activa las variables de phpunit.xml se ignoran y los tests'.PHP_EOL
+        .'    escribirían sobre la base de datos de desarrollo.'.PHP_EOL.PHP_EOL
+        .'    Ejecuta antes:  php artisan config:clear'.PHP_EOL.PHP_EOL);
+
+    exit(1);
+}
+
 $environment = Dotenv\Dotenv::parse(
     is_file(__DIR__.'/../.env') ? file_get_contents(__DIR__.'/../.env') : ''
 );

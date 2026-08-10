@@ -456,6 +456,23 @@ See `.env.example` and `docs/ENVIRONMENT.md` for complete list.
 | RUC import stalled | Queue worker running? `docker compose logs queue`; check job exception |
 | PostgreSQL not healthy | Wait 30s; check `docker compose logs postgres` |
 | Rate limiting on OTP | Check `otp.max_attempts` in `config/token-requests.php` (default 5) |
+| Tests refuse to run: "La configuración está cacheada" | Intentional guard. Run `php artisan config:clear` first — see below |
+
+### ⚠️ Never run tests with the config cached
+
+`php artisan config:cache` writes `bootstrap/cache/config.php`, and from then on Laravel
+loads that copy **without re-evaluating the config files**. The `<env>` entries in
+`phpunit.xml` — including `DB_DATABASE=codered_testing` — are silently ignored, so the
+suite points at the **development** database and the first `RefreshDatabase` wipes it.
+
+This already destroyed development data once. Two guards now make it impossible:
+
+- `tests/bootstrap.php` aborts if `bootstrap/cache/config.php` exists.
+- `Tests\TestCase::setUp()` compares the *resolved* database against the one phpunit
+  requires and aborts on mismatch.
+
+`update.sh` still caches config for production — that is correct. Just never run the
+suite in that state; clear it first with `php artisan config:clear`.
 
 ---
 
