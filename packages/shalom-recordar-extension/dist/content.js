@@ -1,18 +1,12 @@
 (() => {
-// Buffer para la Clave
-let claveBuffer = { 'swal-input1': '', 'swal-input2': '', 'swal-input3': '', 'swal-input4': '' };
-
 const CONTENT_STATE_KEY = '__shalomRecordarContentState__';
-const DUPLICATE_WINDOW_MS = 1000;
+const DOCUMENT_SELECTOR = 'input, textarea, [contenteditable="true"]';
+const DOC_LISTENER_KEY = '__shalomRecordarDocumentKeydownListener__';
 
 function getContentState() {
     const globalState = globalThis[CONTENT_STATE_KEY] || {};
     globalThis[CONTENT_STATE_KEY] = globalState;
     return globalState;
-}
-
-function getInputSource(target) {
-    return String(target?.id || target?.name || target?.placeholder || target?.getAttribute?.('aria-label') || target?.tagName || 'sin_nombre').trim();
 }
 
 function normalizeDigits(rawValue) {
@@ -41,32 +35,39 @@ function classifyDocumentValue(rawValue) {
     return null;
 }
 
-function captureFingerprint(type, value, source) {
-    return [type, value, source].join('|');
+function getInputSource(target) {
+    return String(target?.id || target?.name || target?.placeholder || target?.getAttribute?.('aria-label') || target?.tagName || 'sin_nombre').trim();
 }
 
-function shouldSkipDuplicateCapture(type, value, source) {
-    const state = getContentState();
-    const now = Date.now();
-    const key = captureFingerprint(type, value, source);
-    const duplicate = state.lastCapture?.key === key && (now - state.lastCapture.at) <= DUPLICATE_WINDOW_MS;
-
-    if (!duplicate) {
-        state.lastCapture = { key, at: now };
-    }
-
-    return duplicate;
+function getFieldValue(target) {
+    if (!target) return '';
+    if (typeof target.value === 'string') return target.value;
+    if (typeof target.textContent === 'string') return target.textContent;
+    return '';
 }
 
-function queueCapture(classified, source) {
-    const state = getContentState();
-    if (state.initialized === true && shouldSkipDuplicateCapture(classified.field, classified.value, source)) {
-        return;
+function isCaptureTarget(target) {
+    if (!target || target.nodeType !== 1) {
+        return typeof target?.value === 'string' || typeof target?.textContent === 'string';
     }
 
+    if (target.matches?.(DOCUMENT_SELECTOR)) {
+        return true;
+    }
+
+    return typeof target.closest === 'function' && Boolean(target.closest(DOCUMENT_SELECTOR));
+}
+
+function shouldIgnoreKeydown(event) {
+    return event.defaultPrevented || event.isComposing || event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
+}
+
+function queueCapture(classified, source, eventTimeStamp) {
+    const captureId = [source, classified.field, classified.value, String(eventTimeStamp ?? Date.now())].join('|');
     chrome.runtime.sendMessage({
         action: 'saveData',
         data: {
+            captureId,
             field: classified.field,
             value: classified.value,
             source,
@@ -75,86 +76,63 @@ function queueCapture(classified, source) {
     });
 }
 
-function captureDocumentValue(rawValue, source) {
-    const classified = classifyDocumentValue(rawValue);
+function captureOnEnter(event) {
+    if (shouldIgnoreKeydown(event)) {
+        return;
+    }
+
+    const target = event.target;
+    if (!isCaptureTarget(target)) {
+        return;
+    }
+
+    const classified = classifyDocumentValue(getFieldValue(target));
     if (!classified) {
         return;
     }
 
-    queueCapture(classified, source);
+    queueCapture(classified, getInputSource(target), event.timeStamp);
 }
 
-function handleFieldEvent(event) {
-    const target = event.target;
-    if (!target || !('value' in target)) {
-        return;
-    }
-
-    if (['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'].includes(target.id)) {
-        claveBuffer[target.id] = target.value;
-        return;
-    }
-
-    const source = getInputSource(target);
-    const value = normalizeDigits(target.value);
-
-    if (event.type === 'keyup' && event.key && event.key !== 'Enter' && value.length < 8) {
-        return;
-    }
-
-    if (value === '') {
-        return;
-    }
-
-    captureDocumentValue(value, source);
-}
-
-function ensureListeners() {
+function ensureDocumentListener() {
     const state = getContentState();
-    if (state.initialized === true) {
+    if (state.documentListenerAttached) {
         return;
     }
 
-    state.initialized = true;
-
-    for (const type of ['input', 'change', 'blur', 'keyup']) {
-        document.addEventListener(type, handleFieldEvent, true);
+    state.documentListenerAttached = true;
+    if (globalThis[DOC_LISTENER_KEY]) {
+        return;
     }
+
+    globalThis[DOC_LISTENER_KEY] = captureOnEnter;
+    document.addEventListener('keydown', captureOnEnter, true);
 }
 
-// 1. Capturar pulsaciones para llenar el buffer de la clave
-ensureListeners();
-
-// 2. Observador para detectar el cierre del modal de validación (ÉXITO)
-const targetNode = document.getElementById('modalValidarCodigo');
-if (targetNode) {
+function ensureMutationObserver() {
     const state = getContentState();
-    if (!state.claveObserverAttached) {
-        state.claveObserverAttached = true;
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.attributeName === 'style') {
-                    const style = targetNode.getAttribute('style');
-                    // Si el modal pasa a display: none, enviamos la clave completa
-                    if (style && style.includes('display: none')) {
-                        const claveCompleta = `${claveBuffer['swal-input1']}${claveBuffer['swal-input2']}${claveBuffer['swal-input3']}${claveBuffer['swal-input4']}`;
-
-                        if (claveCompleta !== '') {
-                            if (!shouldSkipDuplicateCapture('Clave', claveCompleta, 'modalValidarCodigo')) {
-                                chrome.runtime.sendMessage({
-                                    action: 'saveData',
-                                    data: { field: 'Clave', value: claveCompleta, source: 'modalValidarCodigo', timestamp: new Date().toISOString() }
-                                });
-                            }
-                            // Limpiar buffer tras enviar
-                            claveBuffer = { 'swal-input1': '', 'swal-input2': '', 'swal-input3': '', 'swal-input4': '' };
-                        }
-                    }
-                }
-            });
-        });
-        observer.observe(targetNode, { attributes: true });
-        state.claveObserver = observer;
+    if (state.captureObserverAttached || typeof MutationObserver === 'undefined') {
+        return;
     }
+
+    const root = document.documentElement || document.body;
+    if (!root) {
+        return;
+    }
+
+    state.captureObserverAttached = true;
+    const observer = new MutationObserver(() => {
+        ensureDocumentListener();
+    });
+
+    observer.observe(root, {
+        childList: true,
+        subtree: true,
+    });
+
+    state.captureObserver = observer;
 }
+
+ensureDocumentListener();
+ensureMutationObserver();
 })();

@@ -9,6 +9,7 @@ Extensión Chrome para capturar y sincronizar datos de Shalom Recordar con CodeR
   - `DNI` = 8 dígitos
   - `CE` = 9 dígitos
   - `RUC` = 11 dígitos
+- Registra DNI, CE o RUC únicamente cuando el usuario presiona `Enter` después de ingresar el documento.
 - Ignora valores inválidos o de longitud no permitida.
 - Guarda historial local compacto.
 - Sincroniza los datos con CodeRED Platform mediante login de usuario.
@@ -97,7 +98,7 @@ Al iniciar sesión:
 
 ## Captura de datos
 
-Solo se guardan registros cuando el valor contiene exactamente:
+Solo se guardan registros cuando el usuario escribe el documento y presiona `Enter`. El valor debe contener exactamente:
 
 - 8 dígitos: `DNI`
 - 9 dígitos: `CE`

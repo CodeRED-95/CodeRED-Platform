@@ -1,22 +1,23 @@
 importScripts("crypto.js", "db.js", "sync.js");
 
 const MAX_PENDING_QUEUE = 500; // tope de eventos en espera mientras la extensión está bloqueada
-let recentCapture = { key: '', at: 0 };
+const recentCaptureIds = [];
 
-function captureKey(data) {
-  return [data?.field ?? '', data?.value ?? '', data?.source ?? ''].join('|');
-}
-
-function isDuplicateCapture(data) {
-  const now = Date.now();
-  const key = captureKey(data);
-  const duplicate = recentCapture.key === key && (now - recentCapture.at) < 1000;
-
-  if (!duplicate) {
-    recentCapture = { key, at: now };
+function rememberCaptureId(captureId) {
+  if (typeof captureId !== "string" || captureId.length === 0) {
+    return false;
   }
 
-  return duplicate;
+  if (recentCaptureIds.includes(captureId)) {
+    return true;
+  }
+
+  recentCaptureIds.push(captureId);
+  while (recentCaptureIds.length > MAX_PENDING_QUEUE) {
+    recentCaptureIds.shift();
+  }
+
+  return false;
 }
 
 async function getSessionKey() {
@@ -36,7 +37,7 @@ async function queuePending(data) {
 }
 
 async function handleSaveData(data) {
-  if (!data || isDuplicateCapture(data)) {
+  if (!data || rememberCaptureId(data.captureId)) {
     return;
   }
 

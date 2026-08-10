@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.7.5 - 2026-08-10
+
+### Changed
+
+- La captura ahora solo guarda DNI, CE o RUC cuando el usuario presiona `Enter` después de escribir el documento.
+- Se elimina la ruta de captura automática por `input`, `change`, `blur`, `keyup` y lectura reactiva del DOM.
+- El `MutationObserver` queda solo para detectar campos nuevos y asociar el listener delegado, sin guardar datos por sí mismo.
+
+### Fixed
+
+- Se evitan duplicados técnicos provocados por múltiples eventos del DOM durante una sola acción del usuario.
+- Se conservan los ceros iniciales y la clasificación estricta de `DNI`, `CE` y `RUC` como cadenas.
+
 ## 2.7.4 - 2026-08-10
 
 ### Added
@@ -36,4 +49,3 @@
 ### Fixed
 
 - La extensión conservaba el tipo semántico al sincronizar y mejoraba el popup compacto.
-

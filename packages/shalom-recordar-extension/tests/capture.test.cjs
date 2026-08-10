@@ -1,8 +1,9 @@
 /**
- * Pruebas rápidas de captura semántica en content.js.
+ * Pruebas rápidas de captura por Enter en content.js.
  *
- * No usa navegador real ni red. Solo verifica que la extensión clasifica
- * DNI/CE/RUC y que evita duplicados triviales por eventos repetidos.
+ * Verifica que la extensión solo guarda documentos cuando el usuario
+ * presiona Enter y que no se generan duplicados técnicos por listeners o
+ * reinicializaciones del content script.
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -10,10 +11,12 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const EXTENSION_DIR = path.resolve(__dirname, '..');
+const SOURCE = fs.readFileSync(path.join(EXTENSION_DIR, 'content.js'), 'utf8');
 
 let listeners = {};
-const messages = [];
 const registrations = [];
+const messages = [];
+let fakeNow = 1_000_000;
 
 function createDateClass() {
     return class extends Date {
@@ -27,112 +30,198 @@ function createDateClass() {
     };
 }
 
-let fakeNow = 1_000_000;
+function registerListener(type, handler) {
+    listeners[type] ||= [];
+    listeners[type].push(handler);
+    registrations.push(type);
+}
 
-const sandbox = {
-    chrome: {
-        runtime: {
-            sendMessage(message) {
-                messages.push(message);
-            },
-        },
-    },
-    document: {
-        addEventListener(type, handler) {
-            listeners[type] = handler;
-            registrations.push(type);
-        },
-        getElementById() {
-            return null;
-        },
-    },
-    MutationObserver: class {
-        observe() {}
-        disconnect() {}
-    },
-    Date: createDateClass(),
-    console,
-};
+function emitKeydown(target, overrides = {}) {
+    const elementTarget = {
+        nodeType: 1,
+        matches: () => true,
+        closest: () => null,
+        ...target,
+    };
+    const event = {
+        key: 'Enter',
+        target: elementTarget,
+        defaultPrevented: false,
+        isComposing: false,
+        shiftKey: false,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        timeStamp: fakeNow,
+        preventDefault() {},
+        ...overrides,
+    };
 
-sandbox.globalThis = sandbox;
-vm.createContext(sandbox);
-vm.runInContext(fs.readFileSync(path.join(EXTENSION_DIR, 'content.js'), 'utf8'), sandbox);
+    for (const handler of listeners.keydown || []) {
+        handler(event);
+    }
+}
 
-function emit(type, target) {
-    listeners[type]?.({ target });
+function emit(type, target, overrides = {}) {
+    const event = { target, ...overrides };
+    for (const handler of listeners[type] || []) {
+        handler(event);
+    }
 }
 
 function reset() {
+    listeners = {};
+    registrations.length = 0;
     messages.length = 0;
     fakeNow = 1_000_000;
 }
 
-function loadContentScriptAgain() {
-    vm.runInContext(fs.readFileSync(path.join(EXTENSION_DIR, 'content.js'), 'utf8'), sandbox);
+function loadContentScript(sandbox) {
+    vm.runInContext(SOURCE, sandbox);
+}
+
+function createSandbox() {
+    return {
+        chrome: {
+            runtime: {
+                sendMessage(message) {
+                    messages.push(message);
+                },
+            },
+        },
+        document: {
+            addEventListener(type, handler) {
+                registerListener(type, handler);
+            },
+            documentElement: { nodeType: 1 },
+            body: { nodeType: 1 },
+            getElementById() {
+                return null;
+            },
+        },
+        MutationObserver: class {
+            observe() {}
+            disconnect() {}
+        },
+        Date: createDateClass(),
+        console,
+        Node: { ELEMENT_NODE: 1 },
+    };
 }
 
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
-test('clasifica 8 dígitos como DNI', () => {
+test('no guarda al escribir sin Enter', () => {
     reset();
-    emit('input', { id: 'inputnombre', name: 'inputnombre', placeholder: 'inputnombre', value: ' 71218478 ' });
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { nodeType: 1, value: '71218478' });
+    emit('change', { nodeType: 1, value: '71218478' });
+    emit('blur', { nodeType: 1, value: '71218478' });
+
+    assert.equal(messages.length, 0);
+});
+
+test('guarda DNI una sola vez al presionar Enter', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ id: 'inputnombre', name: 'inputnombre', placeholder: 'inputnombre', value: ' 00456879 ' });
+
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'DNI');
-    assert.equal(messages[0].data.value, '71218478');
+    assert.equal(messages[0].data.value, '00456879');
 });
 
-test('clasifica 9 dígitos como CE', () => {
+test('guarda CE y RUC una sola vez al presionar Enter', () => {
     reset();
-    emit('input', { id: 'campo', name: 'campo', placeholder: 'campo', value: '712184798' });
-    assert.equal(messages.length, 1);
-    assert.equal(messages[0].data.field, 'CE');
-});
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
 
-test('clasifica 11 dígitos como RUC', () => {
-    reset();
-    emit('change', { id: 'campo', name: 'campo', placeholder: 'campo', value: '20123456789' });
-    assert.equal(messages.length, 1);
-    assert.equal(messages[0].data.field, 'RUC');
+    emitKeydown({ value: '004568798' });
+    emitKeydown({ value: '20004568791' });
+
+    assert.equal(messages.length, 2);
+    assert.deepEqual(messages.map((message) => message.data.field), ['CE', 'RUC']);
 });
 
 test('ignora longitudes inválidas y caracteres no numéricos', () => {
     reset();
-    emit('input', { value: '1234567' });
-    emit('input', { value: '1234567890' });
-    emit('input', { value: 'ABC12345678' });
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ value: '0045687' });
+    emitKeydown({ value: '1234567890' });
+    emitKeydown({ value: 'ABC00456879' });
+
     assert.equal(messages.length, 0);
 });
 
-test('deduplica eventos consecutivos del mismo valor', () => {
+test('preserva ceros iniciales y no convierte a número', () => {
     reset();
-    emit('input', { value: '71218478' });
-    fakeNow += 200;
-    emit('change', { value: '71218478' });
-    fakeNow += 1600;
-    emit('blur', { value: '71218478' });
-    assert.equal(messages.length, 2);
-    assert.equal(messages[0].data.field, 'DNI');
-    assert.equal(messages[1].data.field, 'DNI');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ value: '00456879' });
+
+    assert.equal(messages[0].data.value, '00456879');
 });
 
-test('no registra listeners duplicados al inicializar otra vez el content script', () => {
+test('una pulsación Enter no genera duplicados aunque se cargue otra vez el script', () => {
     reset();
-    registrations.length = 0;
-    loadContentScriptAgain();
-    const afterFirstReload = registrations.length;
-    loadContentScriptAgain();
-    assert.equal(registrations.length, afterFirstReload, 'la segunda carga no debe registrar más listeners');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+    const before = registrations.filter((type) => type === 'keydown').length;
+
+    loadContentScript(sandbox);
+    const after = registrations.filter((type) => type === 'keydown').length;
+
+    emitKeydown({ value: '71218478' });
+
+    assert.equal(after, before, 'la segunda carga no debe registrar un listener adicional');
+    assert.equal(messages.length, 1);
 });
 
-test('permite repetir la misma captura después de la ventana corta', () => {
+test('el mismo documento puede guardarse de nuevo en un Enter posterior legítimo', () => {
     reset();
-    emit('input', { value: '20123456789' });
-    fakeNow += 1200;
-    emit('input', { value: '20123456789' });
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ value: '20123456789' });
+    fakeNow += 300_000;
+    emitKeydown({ value: '20123456789' });
+
     assert.equal(messages.length, 2);
-    assert.equal(messages[0].data.field, 'RUC');
-    assert.equal(messages[1].data.field, 'RUC');
+    assert.equal(messages[0].data.value, '20123456789');
+    assert.equal(messages[1].data.value, '20123456789');
+});
+
+test('MutationObserver solo asegura listeners y no guarda datos por sí mismo', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    assert.ok(registrations.includes('keydown'));
+    assert.equal(messages.length, 0);
 });
 
 if (require.main === module) {
