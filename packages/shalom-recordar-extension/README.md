@@ -109,6 +109,10 @@ Tipos capturados:
   - 11 dígitos: `RUC`
 - `#inputnroguia`:
   - `OS`
+  - origen: `#inputnroguia`
+  - solo números
+  - máximo 8 dígitos
+  - captura automática del valor final mediante debounce
 - `Clave`: se recupera desde el flujo original del modal `#modalValidarCodigo` y los inputs `swal-input1..4`
 
 Valores con letras, espacios internos, longitudes distintas o caracteres inválidos se ignoran.

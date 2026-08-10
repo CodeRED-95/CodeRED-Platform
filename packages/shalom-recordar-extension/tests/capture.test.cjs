@@ -13,6 +13,8 @@ let listeners = {};
 const registrations = [];
 const messages = [];
 const mutationObservers = [];
+const timers = new Map();
+let timerSeq = 0;
 
 function registerListener(type, handler) {
     listeners[type] ||= [];
@@ -39,6 +41,8 @@ function reset() {
     registrations.length = 0;
     messages.length = 0;
     mutationObservers.length = 0;
+    timers.clear();
+    timerSeq = 0;
 }
 
 function loadContentScript(sandbox) {
@@ -90,6 +94,14 @@ function createSandbox() {
                 return 1_000_000;
             }
         },
+        setTimeout(handler, delay) {
+            const id = ++timerSeq;
+            timers.set(id, { handler, delay });
+            return id;
+        },
+        clearTimeout(id) {
+            timers.delete(id);
+        },
         console,
         Node: { ELEMENT_NODE: 1 },
     };
@@ -101,6 +113,14 @@ function closeClaveModal() {
             observer.target.style = 'display: none;';
             observer.callback([{ attributeName: 'style', target: observer.target }]);
         }
+    }
+}
+
+function runTimers() {
+    const pending = [...timers.entries()];
+    timers.clear();
+    for (const [, timer] of pending) {
+        timer.handler();
     }
 }
 
@@ -172,6 +192,7 @@ test('OS por input guarda OS', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'inputnroguia', value: '7121847' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'OS');
@@ -215,6 +236,56 @@ test('OS sin cambio relevante no guarda', () => {
     assert.equal(messages.length, 0);
 });
 
+test('OS progresiva por input termina en un solo registro final', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnroguia', value: '8' });
+    emit('input', { id: 'inputnroguia', value: '89' });
+    emit('input', { id: 'inputnroguia', value: '899' });
+    emit('input', { id: 'inputnroguia', value: '8990' });
+    emit('input', { id: 'inputnroguia', value: '89906' });
+    emit('input', { id: 'inputnroguia', value: '899061' });
+    emit('input', { id: 'inputnroguia', value: '8990618' });
+    emit('input', { id: 'inputnroguia', value: '89906189' });
+    runTimers();
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'OS');
+    assert.equal(messages[0].data.value, '89906189');
+});
+
+test('OS de más de 8 dígitos se ignora', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnroguia', value: '899061890' });
+    runTimers();
+
+    assert.equal(messages.length, 0);
+});
+
+test('debounce + blur en OS no duplica', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnroguia', value: '89906189' });
+    emit('blur', { nodeType: 1, id: 'inputnroguia', value: '89906189' });
+    runTimers();
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.value, '89906189');
+});
+
 test('inputnroguia nunca se clasifica como DNI', () => {
     reset();
     const sandbox = createSandbox();
@@ -223,6 +294,7 @@ test('inputnroguia nunca se clasifica como DNI', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'inputnroguia', value: '71218478' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'OS');

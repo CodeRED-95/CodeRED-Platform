@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.10 - 2026-08-10
+
+### Fixed
+
+- Se corrige la captura progresiva de `OS` en `#inputnroguia` usando debounce por campo.
+- `OS` vuelve a guardar solo el valor final, sin registrar estados intermedios como `8`, `89` o `89906`.
+
 ## 2.7.9 - 2026-08-10
 
 ### Fixed
