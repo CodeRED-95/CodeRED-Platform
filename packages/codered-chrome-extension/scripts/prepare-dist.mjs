@@ -3,7 +3,10 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 const dist = join(root, 'dist');
+const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const manifest = JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8'));
+
+manifest.version = packageJson.version;
 
 await writeFile(join(dist, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 await mkdir(join(dist, 'icons'), { recursive: true });

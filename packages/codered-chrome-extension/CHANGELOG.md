@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.3 - 2026-08-10
+
+- Corrige el empaquetado para que el ZIP tome siempre la version real desde `package.json`.
+- Sincroniza automaticamente `manifest.json` y `src/shared/version.ts` antes del build.
+- Actualiza la documentacion y las pruebas para validar la version unica de verdad.
+
 ## 2.3.2 - 2026-08-10
 
 - Trata la seleccion imposible de una agencia como una condicion esperada cuando Shalom Control no la expone temporalmente.

@@ -1,13 +1,23 @@
-import { createWriteStream } from 'node:fs';
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, rm, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 
-await mkdir('release', { recursive: true });
-const zipPath = 'release/buscador-shalom-control-1.0.0.zip';
+const root = process.cwd();
+const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const releaseDir = join(root, 'release');
+const zipName = `codered-chrome-extension-${packageJson.version}.zip`;
+const zipPath = join(releaseDir, zipName);
+
+await mkdir(releaseDir, { recursive: true });
 await rm(zipPath, { force: true });
-const result = spawnSync('zip', ['-r', `../${zipPath}`, '.'], { cwd: 'dist', stdio: 'inherit' });
+
+const result = spawnSync('zip', ['-r', zipPath, '.'], {
+  cwd: join(root, 'dist'),
+  stdio: 'inherit',
+});
+
 if (result.status !== 0) {
-  const fallback = createWriteStream(zipPath);
-  fallback.end('zip command unavailable; run npm run build and zip dist contents manually.');
-  process.exitCode = 1;
+  process.exit(result.status ?? 1);
 }
+
+console.log(`Paquete generado: release/${zipName}`);

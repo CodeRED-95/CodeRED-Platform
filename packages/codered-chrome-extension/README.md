@@ -4,13 +4,13 @@ Extension Chrome Manifest V3 para inyectar un buscador de agencias dentro de Sha
 
 La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local` y sigue funcionando sin conexión con la ultima cache valida.
 
-## Version 2.3.0
+## Version 2.3.3
 
-La version visible de la extension se define en `src/shared/version.ts`. `manifest.json`, `package.json`, `package-lock.json`, el popup y las pruebas deben permanecer alineados en `2.3.0`.
+La version visible de la extension se define desde `package.json`. El build sincroniza automaticamente `src/shared/version.ts`, `manifest.json`, el popup y las pruebas con la misma version.
 
 ### Popup compacto
 
-El popup v2.3.0 fue reconstruido desde cero como una sola columna de 360 px, tema oscuro CodeRED y altura dependiente del contenido. No contiene buscador de agencias, listado, tarjetas de resultados, paneles informativos extensos, datos tecnicos ni scroll interno.
+El popup v2.3.3 fue reconstruido desde cero como una sola columna de 360 px, tema oscuro CodeRED y altura dependiente del contenido. No contiene buscador de agencias, listado, tarjetas de resultados, paneles informativos extensos, datos tecnicos ni scroll interno.
 
 Datos mostrados:
 
@@ -95,7 +95,7 @@ Usar `npm run build:extension` para compilar y validar `dist`. El validador revi
 npm run package
 ```
 
-El ZIP queda en `packages/codered-chrome-extension/release/buscador-shalom-control-2.3.0.zip`.
+El ZIP queda en `packages/codered-chrome-extension/release/codered-chrome-extension-<version>.zip` y se genera con la version real leida desde `package.json`.
 
 ## Cache y sincronizacion
 
@@ -167,4 +167,4 @@ El buscador se muestra aunque `chrome.storage.local` no tenga agencias. En ese e
 
 ## Dependencias de pruebas
 
-La version 2.3.0 fija `chai` en `5.2.1` mediante `overrides` para evitar la resolucion defectuosa `chai@5.3.3 -> pathval@^2.1.0`, ya que `pathval` solo publica hasta `2.0.1`. Vitest permanece en la linea 3.2.x y sigue siendo el runner de pruebas compatible con Vite 6.
+La version 2.3.3 fija `chai` en `5.2.1` mediante `overrides` para evitar la resolucion defectuosa `chai@5.3.3 -> pathval@^2.1.0`, ya que `pathval` solo publica hasta `2.0.1`. Vitest permanece en la linea 3.2.x y sigue siendo el runner de pruebas compatible con Vite 6.

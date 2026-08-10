@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 
 const root = process.cwd();
 const dist = join(root, 'dist');
+const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const errors = [];
 
 async function exists(relativePath) {
@@ -39,6 +40,7 @@ function checkNodeSyntax(relativePath) {
 
 if (await exists('manifest.json')) {
   const manifest = JSON.parse(await readDist('manifest.json'));
+  if (manifest.version !== packageJson.version) errors.push(`La versión del manifest (${manifest.version}) no coincide con package.json (${packageJson.version})`);
 
   const critical = ['content.js', 'background.js', 'popup.html', 'options.html'];
   for (const file of critical) await exists(file);
