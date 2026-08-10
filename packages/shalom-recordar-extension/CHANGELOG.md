@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.12 - 2026-08-10
+
+### Fixed
+
+- `Clave` deja de fragmentarse en capturas parciales al escribir dígito por dígito.
+- Se aumenta el debounce de `Clave` para guardar solo el valor final completo del input.
+
 ## 2.7.11 - 2026-08-10
 
 ### Fixed

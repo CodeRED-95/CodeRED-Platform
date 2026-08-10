@@ -6,7 +6,7 @@ const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'
 const CLAVE_MODAL_ID = 'modalValidarCodigo';
 const DEDUPE_WINDOW_MS = 1500;
 const OS_DEBOUNCE_MS = 650;
-const CLAVE_DEBOUNCE_MS = 180;
+const CLAVE_DEBOUNCE_MS = 650;
 
 function getContentState() {
     const globalState = globalThis[CONTENT_STATE_KEY] || {};
