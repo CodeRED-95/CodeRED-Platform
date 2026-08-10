@@ -3,112 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <style>
+        :root {
+            --brand: #2563eb;
+            --border: rgba(255,255,255,.1);
+            --surface: rgba(255,255,255,.04);
+            --muted: #9ca3af;
+        }
         body {
-            width: 360px;
+            width: 340px;
             margin: 0;
-            padding: 16px;
+            padding: 12px;
             font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-size: 13px;
             background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
             color: #e5e7eb;
         }
-        h3 { margin: 0; font-size: 18px; }
-        .muted { color: #9ca3af; font-size: 12px; }
+        h3 { margin: 0; font-size: 15px; }
+        .muted { color: var(--muted); font-size: 11px; }
         .card {
-            background: rgba(255,255,255,.04);
+            background: var(--surface);
             border: 1px solid rgba(255,255,255,.08);
-            border-radius: 14px;
-            padding: 14px;
-            margin-top: 12px;
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 10px;
         }
-        input, button {
+        label.muted { display: block; margin-bottom: 2px; }
+        input {
             width: 100%;
             box-sizing: border-box;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,.1);
-            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            padding: 7px 10px;
+            margin-top: 6px;
             font: inherit;
-        }
-        input {
-            margin-top: 8px;
             background: rgba(15,23,42,.9);
             color: #fff;
         }
+        /* Botones compactos: menos alto y menos padding que la versión previa. */
         button {
-            margin-top: 10px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            padding: 7px 10px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
-            background: #2563eb;
-            color: white;
-            font-weight: 700;
+            background: var(--brand);
+            color: #fff;
         }
+        button.block { width: 100%; margin-top: 8px; }
         button.secondary { background: rgba(255,255,255,.08); }
-        button.danger { background: #b91c1c; }
         button:disabled { opacity: .6; cursor: not-allowed; }
-        .row { display: flex; gap: 8px; }
-        .row > * { flex: 1; }
-        #status { font-size: 12px; min-height: 16px; margin-top: 8px; }
+        .row { display: flex; gap: 6px; margin-top: 8px; }
+        .row > button { flex: 1; margin: 0; }
+        #status { font-size: 11px; min-height: 14px; margin-top: 8px; }
         .hidden { display: none; }
         .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 12px;
-            border: 1px solid rgba(255,255,255,.08);
-            background: rgba(255,255,255,.05);
+            display: inline-flex; align-items: center; gap: 6px;
+            border-radius: 999px; padding: 3px 9px; font-size: 11px;
+            border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.05);
         }
-        .dot { width: 8px; height: 8px; border-radius: 999px; background: #22c55e; display: inline-block; }
-        .dot.offline { background: #9ca3af; }
+        .dot { width: 7px; height: 7px; border-radius: 999px; background: #22c55e; display: inline-block; }
         .dot.warn { background: #f59e0b; }
 
-        /* Cabecera con avatar de cuenta */
         .header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .avatar-wrap { position: relative; }
         .avatar {
-            width: 34px; height: 34px; min-width: 34px;
-            margin: 0; padding: 0;
-            border-radius: 999px;
-            background: #2563eb;
-            color: #fff;
-            font-weight: 700;
-            font-size: 14px;
+            width: 30px; height: 30px; min-width: 30px;
+            padding: 0; border-radius: 999px; background: var(--brand);
+            color: #fff; font-weight: 700; font-size: 13px;
             display: flex; align-items: center; justify-content: center;
             border: 1px solid rgba(255,255,255,.14);
         }
         .avatar:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
         .menu {
-            position: absolute;
-            top: 42px;
-            right: 0;
-            z-index: 20;
-            width: 232px;
-            padding: 8px;
-            border-radius: 12px;
-            background: #0b1220;
+            position: absolute; top: 38px; right: 0; z-index: 20;
+            width: 220px; padding: 6px;
+            border-radius: 10px; background: #0b1220;
             border: 1px solid rgba(255,255,255,.12);
             box-shadow: 0 12px 28px rgba(0,0,0,.45);
         }
         .menu-head { padding: 6px 8px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
-        .menu-name { font-weight: 700; font-size: 13px; word-break: break-word; }
-        .menu-mail { color: #9ca3af; font-size: 11px; word-break: break-all; }
-        .menu-state { margin-top: 6px; font-size: 11px; color: #86efac; display: flex; align-items: center; gap: 6px; }
+        .menu-name { font-weight: 700; font-size: 12px; word-break: break-word; }
+        .menu-mail { color: var(--muted); font-size: 10px; word-break: break-all; }
+        .menu-state { margin-top: 5px; font-size: 10px; color: #86efac; display: flex; align-items: center; gap: 6px; }
         .menu button {
-            width: 100%;
-            margin: 4px 0 0;
-            padding: 8px 10px;
-            text-align: left;
-            background: transparent;
-            border: 1px solid transparent;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 13px;
-            color: #e5e7eb;
+            width: 100%; margin: 3px 0 0; padding: 7px 9px; text-align: left;
+            background: transparent; border-radius: 7px; font-weight: 600; font-size: 12px; color: #e5e7eb;
         }
-        .menu button:hover { background: rgba(255,255,255,.07); }
+        .menu button:hover, .menu button:focus-visible { background: rgba(255,255,255,.07); outline: none; }
         .menu button.danger-item { color: #fca5a5; }
         .menu button.danger-item:hover { background: rgba(185,28,28,.18); }
-        .stat { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-top: 6px; }
+
+        .stat { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-top: 5px; }
         .stat span:last-child { color: #e5e7eb; font-weight: 600; }
+
+        /* Lista de los últimos registros: altura acotada con scroll interno. */
+        .records { margin-top: 10px; }
+        .records-head { display: flex; align-items: center; justify-content: space-between; }
+        .records-list {
+            margin-top: 6px; max-height: 168px; overflow-y: auto;
+            border: 1px solid rgba(255,255,255,.07); border-radius: 8px;
+            background: rgba(15,23,42,.5);
+        }
+        .records-list::-webkit-scrollbar { width: 8px; }
+        .records-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 8px; }
+        .rec {
+            display: grid; grid-template-columns: 1fr auto; gap: 2px 8px;
+            padding: 6px 9px; border-bottom: 1px solid rgba(255,255,255,.05);
+        }
+        .rec:last-child { border-bottom: 0; }
+        .rec-field { font-weight: 600; font-size: 12px; color: #fff; word-break: break-word; }
+        .rec-time { color: var(--muted); font-size: 10px; white-space: nowrap; }
+        .rec-value {
+            grid-column: 1 / -1; color: #cbd5e1; font-size: 11px;
+            word-break: break-word; font-family: ui-monospace, monospace;
+        }
+        .records-empty { padding: 14px; text-align: center; color: var(--muted); font-size: 12px; }
     </style>
 </head>
 <body>
@@ -128,10 +140,10 @@
             </div>
         </div>
     </div>
-    <p id="tagline" class="muted">Inicia sesión con tu cuenta de CodeRED Platform. No se guarda tu contraseña.</p>
+    <p id="tagline" class="muted" style="margin:6px 0 0;">Inicia sesión con tu cuenta de CodeRED Platform. No se guarda tu contraseña.</p>
 
-    <!-- Estado inicial mientras se valida la sesión guardada: evita que el
-         formulario de login parpadee para quien ya tiene sesión. -->
+    <!-- Estado inicial mientras se valida la sesión guardada: evita el parpadeo
+         del formulario de login para quien ya tiene sesión. -->
     <div id="loadingView" class="card">
         <p class="muted" style="margin:0;">Cargando sesión...</p>
     </div>
@@ -139,27 +151,35 @@
     <div id="loginView" class="card hidden">
         <label class="muted" for="email">Correo electrónico</label>
         <input id="email" type="email" autocomplete="username" placeholder="usuario@codered.lat">
-        <label class="muted" for="password">Contraseña</label>
+        <label class="muted" for="password" style="margin-top:8px;">Contraseña</label>
         <input id="password" type="password" autocomplete="current-password" placeholder="••••••••••••">
-        <button id="btnLogin">Iniciar sesión</button>
-        <a href="https://platform.codered.lat/register" target="_blank" rel="noreferrer" class="muted" style="display:block;margin-top:10px;">Crear cuenta en CodeRED Platform</a>
+        <button id="btnLogin" class="block">Iniciar sesión</button>
+        <a href="https://platform.codered.lat/register" target="_blank" rel="noreferrer" class="muted" style="display:block;margin-top:8px;">Crear cuenta en CodeRED Platform</a>
     </div>
 
     <div id="sessionView" class="card hidden">
-        <p id="userName" style="margin:0 0 4px;font-weight:700;"></p>
+        <p id="userName" style="margin:0 0 2px;font-weight:700;font-size:13px;"></p>
         <p id="userEmail" class="muted" style="margin:0;"></p>
-        <div id="userPill" class="pill" style="margin-top:10px;"><span id="connDot" class="dot"></span><span id="connText">Conectado</span></div>
+        <div id="userPill" class="pill" style="margin-top:8px;"><span id="connDot" class="dot"></span><span id="connText">Conectado</span></div>
 
-        <div style="margin-top:12px;">
+        <div style="margin-top:8px;">
             <div class="stat"><span class="muted">Última sincronización</span><span id="lastSync">—</span></div>
-            <div class="stat"><span class="muted">Registros</span><span id="recordCount">—</span></div>
+            <div class="stat"><span class="muted">Registros locales</span><span id="recordCount">—</span></div>
         </div>
 
         <div class="row">
-            <button id="btnSync">Sincronizar ahora</button>
+            <button id="btnSync">Sincronizar</button>
             <button id="btnRefresh" class="secondary">Refrescar</button>
+            <button id="btnExport" class="secondary">Exportar</button>
         </div>
-        <button id="btnExport" class="secondary">Exportar</button>
+
+        <div class="records">
+            <div class="records-head">
+                <span class="muted">Últimos registros</span>
+                <span id="recordsMeta" class="muted"></span>
+            </div>
+            <div id="recordsList" class="records-list" role="list" aria-label="Últimos registros guardados"></div>
+        </div>
     </div>
 
     <p id="status"></p>

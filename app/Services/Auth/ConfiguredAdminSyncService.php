@@ -51,7 +51,7 @@ class ConfiguredAdminSyncService
             $user->forceFill([
                 'name' => $name,
                 'email' => $email,
-                'password' => $password,
+                'password' => Hash::make($password),
                 'status' => 'active',
                 'is_active' => true,
                 'deleted_at' => null,

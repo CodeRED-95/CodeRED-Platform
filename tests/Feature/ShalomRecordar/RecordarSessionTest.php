@@ -160,6 +160,27 @@ class RecordarSessionTest extends TestCase
             ->assertUnauthorized();
     }
 
+    /** Un timestamp con milisegundos (como el de JS) devuelve 422 con el campo señalado. */
+    public function test_sync_rejects_a_timestamp_with_milliseconds_reporting_the_field(): void
+    {
+        ['token' => $token] = $this->login();
+
+        $this->postJson('/api/v1/shalom-recordar/sync', [
+            'installation_uuid' => self::UUID,
+            'extension_version' => '2.6.0',
+            'batch_id' => 'batch-ms',
+            'cursor' => now()->format('Y-m-d\\TH:i:s\\Z'),
+            'records' => [[
+                'field' => 'dni',
+                'value' => '12345678',
+                'timestamp' => '2026-08-10T12:15:55.080Z', // con milisegundos
+                'record_id' => 'local-0',
+            ]],
+        ], $this->authed($token))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['records.0.timestamp']);
+    }
+
     /** La sincronización usa el token de la sesión restaurada, sin reintroducirlo. */
     public function test_sync_works_with_the_restored_session_token(): void
     {

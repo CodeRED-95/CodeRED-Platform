@@ -47,40 +47,52 @@
                     x-on:scroll.passive="remember"
                 >
                     @php
+                        $menuUser = auth()->user();
+                        $isViewerOnly = $menuUser->hasPermission('agencies.view')
+                            && $menuUser->hasPermission('agencies.map')
+                            && $menuUser->hasPermission('shalom-recordar.view-own')
+                            && ! $menuUser->hasPermission('dashboard.view')
+                            && ! $menuUser->hasPermission('users.view')
+                            && ! $menuUser->hasPermission('agencies.backup.view')
+                            && ! $menuUser->hasPermission('settings.api-documentation.update')
+                            && ! $menuUser->hasPermission('settings.agency-backups.update')
+                            && ! $menuUser->hasPermission('settings.ubigeos.update')
+                            && ! $menuUser->hasPermission('integrations.n8n.manage')
+                            && ! $menuUser->isSuperAdmin();
                         $navGroups = [
-                            'General' => [
-                                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => auth()->user()->hasPermission('dashboard.view')],
+                            'General' => $isViewerOnly ? [] : [
+                                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => $menuUser->hasPermission('dashboard.view')],
                             ],
                             'Agencias' => [
                                 ['label' => 'Listado', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                                 ['label' => 'Mapa de agencias', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
-                                ['label' => 'Sincronizar Shalom', 'route' => 'admin.agencies.import.shalom', 'icon' => '⇪', 'can' => Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
-                                ['label' => 'Copias de seguridad', 'route' => 'admin.agencies.backups.index', 'icon' => '▣', 'can' => auth()->user()->hasPermission('agencies.backup.view')],
+                                ['label' => 'Sincronizar Shalom', 'route' => 'admin.agencies.import.shalom', 'icon' => '⇪', 'can' => ! $isViewerOnly && Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
+                                ['label' => 'Copias de seguridad', 'route' => 'admin.agencies.backups.index', 'icon' => '▣', 'can' => ! $isViewerOnly && $menuUser->hasPermission('agencies.backup.view')],
                             ],
                             'Identidad' => [
-                                ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('api-tools.dni.test')],
-                                ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.dni.view')],
+                                ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tools.dni.test')],
+                                ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('settings.dni.view')],
                             ],
                             'Empresas y RUC' => [
-                                ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('ruc.test')],
-                                ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => auth()->user()->hasPermission('ruc.view')],
-                                ['label' => 'Backups RUC', 'route' => 'admin.ruc.backups', 'icon' => '⛁', 'can' => auth()->user()->hasPermission('ruc.backup.view')],
+                                ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.test')],
+                                ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.view')],
+                                ['label' => 'Backups RUC', 'route' => 'admin.ruc.backups', 'icon' => '⛁', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.backup.view')],
                             ],
                             'API' => [
-                                ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
-                                ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-token-requests.view')],
-                                ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => auth()->user()->hasPermission('shalom-recordar.view')],
+                                ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tokens.view-any')],
+                                ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-token-requests.view')],
+                                ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => $menuUser->hasPermission('shalom-recordar.view')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
-                            'Administración' => [
+                            'Administración' => $isViewerOnly ? [] : [
                                 ['label' => 'Usuarios', 'route' => 'admin.users.index', 'icon' => '◔', 'can' => Gate::allows('viewAny', \App\Models\User::class)],
-                                ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => auth()->user()->isSuperAdmin()],
+                                ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => $menuUser->isSuperAdmin()],
                             ],
-                            'Configuración' => [
-                                ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
-                                ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
-                                ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => auth()->user()->hasPermission('settings.ubigeos.update')],
-                                ['label' => 'n8n', 'route' => 'admin.integrations.n8n', 'icon' => '↗', 'can' => auth()->user()->hasPermission('integrations.n8n.manage')],
+                            'Configuración' => $isViewerOnly ? [] : [
+                                ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => $menuUser->hasPermission('settings.api-documentation.update')],
+                                ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => $menuUser->hasPermission('settings.agency-backups.update')],
+                                ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => $menuUser->hasPermission('settings.ubigeos.update')],
+                                ['label' => 'n8n', 'route' => 'admin.integrations.n8n', 'icon' => '↗', 'can' => $menuUser->hasPermission('integrations.n8n.manage')],
                             ],
                         ];
                     @endphp
@@ -153,7 +165,54 @@
 
                         <div class="flex items-center gap-2">
                             @auth
-                                <a href="{{ route('profile.show') }}" aria-label="Abrir mi perfil" class="focus-ring rounded-full"><x-ui.avatar :name="auth()->user()->name" size="sm" /></a>
+                                @php
+                                    $menuUser = auth()->user();
+                                @endphp
+                                <div class="relative" x-data="{ open: false }" x-on:keydown.escape.window="open = false">
+                                    <button type="button"
+                                            class="focus-ring flex items-center gap-2 rounded-full"
+                                            x-on:click="open = !open"
+                                            :aria-expanded="open ? 'true' : 'false'"
+                                            aria-haspopup="menu"
+                                            aria-label="Menú de usuario">
+                                        <x-ui.avatar :name="$menuUser->name" size="sm" class="shrink-0" />
+                                    </button>
+
+                                    <div x-cloak
+                                         x-show="open"
+                                         x-transition.origin.top.right
+                                         x-on:click.outside="open = false"
+                                         class="layer-popover absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-[var(--radius-card)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)] shadow-2xl"
+                                         role="menu"
+                                         aria-label="Cuenta">
+                                        <div class="border-b border-white/5 px-4 py-3">
+                                            <p class="truncate text-sm font-semibold text-white">{{ $menuUser->name }}</p>
+                                            <p class="truncate text-xs text-[color:var(--color-text-secondary)]">{{ $menuUser->email }}</p>
+                                            <span class="mt-2 inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-[11px] font-medium text-[color:var(--color-text-secondary)]">{{ $menuUser->primaryRoleLabel() }}</span>
+                                        </div>
+                                        <div class="p-1.5" role="none">
+                                            <a href="{{ route('profile.show') }}" role="menuitem"
+                                               class="focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[color:var(--color-text-primary)] transition hover:bg-white/5">
+                                                <span aria-hidden="true">👤</span> Perfil
+                                            </a>
+                                            @if ($menuUser->hasPermission('shalom-recordar.view-own') && ! $menuUser->hasPermission('shalom-recordar.view'))
+                                                <a href="{{ route('admin.shalom-recordar.users.show', $menuUser) }}" role="menuitem"
+                                                   class="focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[color:var(--color-text-primary)] transition hover:bg-white/5">
+                                                    <span aria-hidden="true">🔄</span> Mis sincronizaciones
+                                                </a>
+                                            @endif
+                                        </div>
+                                        <div class="border-t border-white/5 p-1.5" role="none">
+                                            <form method="post" action="{{ route('logout') }}">
+                                                @csrf
+                                                <button type="submit" role="menuitem"
+                                                        class="focus-ring flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--color-danger)] transition hover:bg-[color:var(--color-danger)]/10">
+                                                    <span aria-hidden="true">⇥</span> Cerrar sesión
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
                             @endauth
                         </div>
                     </div>
@@ -190,38 +249,38 @@
                     @php
                         $navGroups = [
                             'General' => [
-                                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => auth()->user()->hasPermission('dashboard.view')],
+                                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => '⌂', 'can' => $menuUser->hasPermission('dashboard.view')],
                             ],
                             'Agencias' => [
                                 ['label' => 'Listado', 'route' => 'admin.agencies.index', 'icon' => '◎', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
                                 ['label' => 'Mapa de agencias', 'route' => 'admin.agencies.map', 'icon' => '⌖', 'can' => Gate::allows('viewAny', \App\Modules\Agencies\Models\Agency::class)],
-                                ['label' => 'Sincronizar Shalom', 'route' => 'admin.agencies.import.shalom', 'icon' => '⇪', 'can' => Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
-                                ['label' => 'Copias de seguridad', 'route' => 'admin.agencies.backups.index', 'icon' => '▣', 'can' => auth()->user()->hasPermission('agencies.backup.view')],
+                                ['label' => 'Sincronizar Shalom', 'route' => 'admin.agencies.import.shalom', 'icon' => '⇪', 'can' => ! $isViewerOnly && Gate::allows('import', \App\Modules\Agencies\Models\Agency::class)],
+                                ['label' => 'Copias de seguridad', 'route' => 'admin.agencies.backups.index', 'icon' => '▣', 'can' => ! $isViewerOnly && $menuUser->hasPermission('agencies.backup.view')],
                             ],
                             'Identidad' => [
-                                ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('api-tools.dni.test')],
-                                ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.dni.view')],
+                                ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tools.dni.test')],
+                                ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('settings.dni.view')],
                             ],
                             'Empresas y RUC' => [
-                                ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => auth()->user()->hasPermission('ruc.test')],
-                                ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => auth()->user()->hasPermission('ruc.view')],
-                                ['label' => 'Backups RUC', 'route' => 'admin.ruc.backups', 'icon' => '⛁', 'can' => auth()->user()->hasPermission('ruc.backup.view')],
+                                ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.test')],
+                                ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.view')],
+                                ['label' => 'Backups RUC', 'route' => 'admin.ruc.backups', 'icon' => '⛁', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.backup.view')],
                             ],
                             'API' => [
-                                ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
-                                ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-token-requests.view')],
-                                ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => auth()->user()->hasPermission('shalom-recordar.view')],
+                                ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tokens.view-any')],
+                                ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-token-requests.view')],
+                                ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => $menuUser->hasPermission('shalom-recordar.view')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
                             'Administración' => [
                                 ['label' => 'Usuarios', 'route' => 'admin.users.index', 'icon' => '◔', 'can' => Gate::allows('viewAny', \App\Models\User::class)],
-                                ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => auth()->user()->isSuperAdmin()],
+                                ['label' => 'Design System', 'route' => 'admin.design-system', 'icon' => '✦', 'can' => $menuUser->isSuperAdmin()],
                             ],
                             'Configuración' => [
-                                ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.api-documentation.update')],
-                                ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => auth()->user()->hasPermission('settings.agency-backups.update')],
-                                ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => auth()->user()->hasPermission('settings.ubigeos.update')],
-                                ['label' => 'n8n', 'route' => 'admin.integrations.n8n', 'icon' => '↗', 'can' => auth()->user()->hasPermission('integrations.n8n.manage')],
+                                ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => $menuUser->hasPermission('settings.api-documentation.update')],
+                                ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => $menuUser->hasPermission('settings.agency-backups.update')],
+                                ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => $menuUser->hasPermission('settings.ubigeos.update')],
+                                ['label' => 'n8n', 'route' => 'admin.integrations.n8n', 'icon' => '↗', 'can' => $menuUser->hasPermission('integrations.n8n.manage')],
                             ],
                         ];
                     @endphp

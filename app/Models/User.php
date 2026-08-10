@@ -89,6 +89,19 @@ class User extends Authenticatable
             ->exists();
     }
 
+    /**
+     * Etiqueta legible del rol principal, para mostrar en el menú de usuario.
+     * Prioriza super-admin; si no, el primer rol asignado.
+     */
+    public function primaryRoleLabel(): string
+    {
+        if ($this->hasRole('super-admin')) {
+            return 'Super Administrador';
+        }
+
+        return $this->roles()->orderBy('id')->value('name') ?? 'Sin rol';
+    }
+
     public function hasAnyRole(array $roles): bool
     {
         return $this->roles()

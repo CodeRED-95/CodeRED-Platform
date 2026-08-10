@@ -28,6 +28,51 @@ function formatDate(value) {
     return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
 }
 
+function escapeHtml(text) {
+    return String(text ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+/** Pinta los últimos registros locales; más reciente primero, con scroll interno. */
+async function renderRecentRecords() {
+    const list = el('recordsList');
+    const meta = el('recordsMeta');
+    if (!list) return;
+
+    let records = [];
+    try {
+        const stored = await chrome.storage.local.get(['pendingQueue']);
+        const queue = Array.isArray(stored.pendingQueue) ? stored.pendingQueue : [];
+        records = queue
+            .map((record) => ({
+                field: String(record?.field ?? '').trim() || 'sin_nombre',
+                value: typeof record?.value === 'string' ? record.value : '',
+                timestamp: String(record?.timestamp ?? ''),
+            }))
+            .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))
+            .slice(0, 20);
+        meta.dataset.total = String(queue.length);
+    } catch {
+        records = [];
+        meta.dataset.total = '0';
+    }
+
+    if (records.length === 0) {
+        list.innerHTML = '<div class="records-empty">No hay registros todavía.</div>';
+        meta.textContent = '';
+        return;
+    }
+
+    meta.textContent = `${records.length}/${meta.dataset.total || records.length}`;
+    list.innerHTML = records.map((record) => {
+        const when = formatDate(record.timestamp) || 'Sin fecha';
+        return `<div class="rec" role="listitem">`
+            + `<span class="rec-field">${escapeHtml(record.field)}</span>`
+            + `<span class="rec-time">${escapeHtml(when)}</span>`
+            + `<span class="rec-value">${escapeHtml(record.value)}</span>`
+            + `</div>`;
+    }).join('');
+}
+
 function closeMenu() {
     accountMenu.classList.add('hidden');
     avatarBtn.setAttribute('aria-expanded', 'false');
@@ -88,8 +133,13 @@ function showLoggedIn(state) {
     const lastSync = formatDate(state.server?.last_synced_at) || formatDate(state.meta?.lastSyncAt);
     el('lastSync').textContent = lastSync ?? 'Aún no hay sincronizaciones';
 
-    const records = state.server?.records_count;
-    el('recordCount').textContent = typeof records === 'number' ? String(records) : '—';
+    // "Registros locales": lo que hay en el navegador pendiente/guardado. El
+    // conteo del servidor se muestra aparte solo si difiere sería confuso, así
+    // que aquí prima lo local, que es lo que lista el popup debajo.
+    renderRecentRecords().then(() => {
+        const total = Number(el('recordsMeta').dataset.total ?? '0');
+        el('recordCount').textContent = String(Number.isFinite(total) ? total : 0);
+    });
 }
 
 async function refreshState({ silent = false } = {}) {

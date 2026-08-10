@@ -6,6 +6,21 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.4.1] - 2026-08-10
+
+### CORREGIDO
+
+- El menú de usuario del panel ya muestra un dropdown funcional con perfil, rol,
+  sincronizaciones propias cuando aplica y cierre de sesión real.
+- El layout respeta mejor el alcance del rol `viewer`, ocultando accesos
+  administrativos que no corresponden.
+- La extensión Shalom Recordar ahora presenta un popup más compacto y lista
+  los últimos 20 registros locales sin agrandar la ventana.
+- La sincronización de Shalom Recordar valida de forma más clara los fallos 422
+  y el cliente interpreta mejor los distintos códigos HTTP.
+- El super administrador sincronizado desde `.env` vuelve a hashar la
+  contraseña también en actualizaciones.
+
 ## [4.4.0] - 2026-08-10
 
 ### CORREGIDO

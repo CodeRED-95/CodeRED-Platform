@@ -203,6 +203,22 @@ test('logout sin red también limpia la sesión local', async () => {
     assert.equal('syncToken' in storage, false);
 });
 
+test('getRecentRecords devuelve como máximo 20 registros, más recientes primero', async () => {
+    const api = loadSync();
+    reset();
+    storage.pendingQueue = Array.from({ length: 25 }, (_, index) => ({
+        field: `campo-${index + 1}`,
+        value: `valor-${index + 1}`,
+        timestamp: `2026-08-10T10:${String(index).padStart(2, '0')}:00Z`,
+    }));
+
+    const records = await api.getRecentRecords(20);
+
+    assert.equal(records.length, 20);
+    assert.equal(records[0].field, 'campo-25');
+    assert.equal(records.at(-1).field, 'campo-6');
+});
+
 test('sincronizar sin sesión no llama al servidor', async () => {
     const api = loadSync();
     reset();
@@ -229,6 +245,84 @@ test('sincronizar usa el token restaurado sin pedirlo de nuevo', async () => {
     // Se compara por longitud: el array vive en el contexto del vm y tiene otro
     // prototipo, así que deepEqual estricto lo daría por distinto.
     assert.equal(storage.pendingQueue.length, 0, 'la cola se vacía tras sincronizar');
+});
+
+test('normalizeRecord: recorta límites y descarta lo irrecuperable', () => {
+    const api = loadSync();
+    reset();
+
+    const ok = api.normalizeRecord({ field: 'dni', value: '  12345678  ', timestamp: '2026-08-10T12:15:55.080Z' }, 0);
+    assert.equal(ok.value, '12345678');
+    assert.match(ok.timestamp, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/, 'sin milisegundos');
+    assert.equal(ok.record_id, 'local-0');
+
+    assert.equal(api.normalizeRecord({ field: 'dni', value: '   ' }, 1), null, 'valor vacío se descarta');
+    assert.equal(api.normalizeRecord({ field: '', value: 'v' }, 2), null, 'campo vacío se descarta');
+
+    const largo = api.normalizeRecord({ field: 'c'.repeat(150), value: 'x'.repeat(2500) }, 3);
+    assert.equal(largo.field.length, 100, 'field recortado a 100');
+    assert.equal(largo.value.length, 2000, 'value recortado a 2000');
+});
+
+test('syncNow: un registro inválido no bloquea el lote', async () => {
+    const api = loadSync();
+    reset();
+    storage.syncToken = 'tok';
+    storage.pendingQueue = [
+        { field: 'dni', value: '12345678', timestamp: new Date().toISOString() },
+        { field: 'vacio', value: '   ' }, // se descarta
+        { field: 'clave', value: '4444', timestamp: new Date().toISOString() },
+    ];
+    fetchHandler = () => jsonResponse(200, { data: { created: 2 } });
+
+    const result = await api.syncNow();
+
+    assert.equal(result.ok, true);
+    assert.equal(result.synced, 2, 'se envían solo los 2 válidos');
+    const body = JSON.parse(fetchCalls.at(-1).options.body);
+    assert.equal(body.records.length, 2);
+    assert.equal(storage.pendingQueue.length, 0, 'la cola se vacía tras aceptar');
+});
+
+test('describeFailure: 422 lista los campos inválidos de forma legible', () => {
+    const api = loadSync();
+    reset();
+    const msg = api.describeFailure({ status: 422, json: { errors: { 'records.0.timestamp': ['x'], 'records.2.value': ['y'] } } });
+    assert.match(msg, /fecha \(registro 1\)/);
+    assert.match(msg, /valor \(registro 3\)/);
+});
+
+test('describeFailure: cada código tiene su mensaje', () => {
+    const api = loadSync();
+    reset();
+    assert.match(api.describeFailure({ status: 401 }), /sesión/i);
+    assert.match(api.describeFailure({ status: 403 }), /permiso/i);
+    assert.match(api.describeFailure({ status: 429 }), /espera|momento/i);
+    assert.match(api.describeFailure({ status: 503 }), /más tarde|interno/i);
+    assert.match(api.describeFailure({ status: 0 }), /conexión/i);
+});
+
+test('getRecentRecords: máximo 20 y más reciente primero', async () => {
+    const api = loadSync();
+    reset();
+    storage.pendingQueue = Array.from({ length: 25 }, (_, i) => ({
+        field: `f${i}`,
+        value: `v${i}`,
+        timestamp: `2026-08-10T12:00:${String(i).padStart(2, '0')}Z`,
+    }));
+
+    const recientes = await api.getRecentRecords(20);
+
+    assert.equal(recientes.length, 20, 'tope de 20');
+    assert.equal(recientes[0].field, 'f24', 'el más reciente primero');
+    assert.equal(recientes[19].field, 'f5');
+});
+
+test('getRecentRecords: sin datos devuelve lista vacía', async () => {
+    const api = loadSync();
+    reset();
+    const recientes = await api.getRecentRecords(20);
+    assert.equal(recientes.length, 0);
 });
 
 (async () => {

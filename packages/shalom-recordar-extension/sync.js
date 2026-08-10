@@ -155,6 +155,96 @@ function authHeaders(token, extra = {}) {
     return { Accept: 'application/json', Authorization: `Bearer ${token}`, ...extra };
 }
 
+/*
+ * Límites que valida el servidor (SyncShalomRecordarRequest). Se replican aquí
+ * para adaptar el registro ANTES de enviarlo: la validación es por lote, así que
+ * un solo registro fuera de rango devolvía 422 para todo el envío y la cola no
+ * volvía a vaciarse nunca.
+ */
+const FIELD_MAX = 100;
+const VALUE_MAX = 2000;
+const RECORDS_MAX = 500;
+
+/**
+ * Adapta un registro local al contrato del servidor.
+ *
+ * Devuelve null si es irrecuperable (sin campo o sin valor), para descartarlo
+ * en vez de bloquear el lote entero.
+ */
+function normalizeRecord(record, index) {
+    const field = safeText(record?.field).slice(0, FIELD_MAX);
+    const rawValue = typeof record?.value === 'string' ? record.value : '';
+    const value = rawValue.trim().slice(0, VALUE_MAX);
+
+    if (field === '' || value === '') {
+        return null;
+    }
+
+    return {
+        field,
+        value,
+        timestamp: isoSeconds(safeText(record?.timestamp) || undefined),
+        record_id: safeText(record?.record_id) || `local-${index}`,
+        cursor: isoSeconds(safeText(record?.cursor) || undefined),
+    };
+}
+
+/**
+ * Traduce una respuesta de error a un mensaje accionable.
+ *
+ * Para 422 se derivan los campos concretos que fallaron; el resto de códigos
+ * tienen mensaje propio para que el usuario sepa si debe reintentar, esperar o
+ * volver a iniciar sesión.
+ */
+function describeFailure(response) {
+    const status = response?.status ?? 0;
+
+    if (status === 0) {
+        return 'Sin conexión con CodeRED Platform. Revisa tu red e inténtalo de nuevo.';
+    }
+
+    if (status === 401) {
+        return 'Tu sesión expiró o fue revocada. Inicia sesión nuevamente.';
+    }
+
+    if (status === 403) {
+        return 'Tu cuenta no tiene permiso para sincronizar. Contacta al administrador.';
+    }
+
+    if (status === 429) {
+        return 'Demasiadas peticiones seguidas. Espera un momento y vuelve a intentarlo.';
+    }
+
+    if (status >= 500) {
+        return 'CodeRED Platform tuvo un problema interno. Inténtalo más tarde.';
+    }
+
+    if (status === 422) {
+        const errors = response?.json?.errors;
+
+        if (errors && typeof errors === 'object') {
+            // records.3.value -> "valor (registro 4)", legible para el usuario.
+            const labels = { field: 'campo', value: 'valor', timestamp: 'fecha', record_id: 'identificador', cursor: 'cursor' };
+            const detalles = Object.keys(errors).slice(0, 3).map((key) => {
+                const match = key.match(/^records\.(\d+)\.(\w+)$/);
+                if (match) {
+                    return `${labels[match[2]] ?? match[2]} (registro ${Number(match[1]) + 1})`;
+                }
+                return labels[key] ?? key;
+            });
+
+            if (detalles.length > 0) {
+                const extra = Object.keys(errors).length > detalles.length ? ' y otros' : '';
+                return `El servidor rechazó estos datos: ${detalles.join(', ')}${extra}.`;
+            }
+        }
+
+        return response?.message || 'El servidor rechazó los datos enviados.';
+    }
+
+    return response?.message || 'No se pudo completar la operación.';
+}
+
 async function login({ email, password }) {
     const syncContext = await getSyncContext();
     const response = await requestJson(LOGIN_ENDPOINT, {
@@ -277,7 +367,7 @@ async function getSessionState() {
             authenticated: false,
             user: null,
             reason: 'session-revoked',
-            error: { reason: status.reason, message: 'Tu sesión expiró o fue revocada. Inicia sesión nuevamente.', status: status.status },
+            error: { reason: status.reason, message: describeFailure(status), status: status.status },
         };
     }
 
@@ -287,8 +377,31 @@ async function getSessionState() {
         authenticated: true,
         degraded: true,
         server: null,
-        error: { reason: status.reason, message: status.message, status: status.status },
+        error: { reason: status.reason, message: describeFailure(status), status: status.status },
     };
+}
+
+/**
+ * Últimos registros guardados localmente, más reciente primero.
+ *
+ * El historial vive en `pendingQueue` (chrome.storage.local): la base cifrada
+ * de IndexedDB solo se llena si el popup llegó a desbloquear una clave de
+ * sesión, cosa que este flujo no hace. Se lee la cola, que es la fuente real.
+ *
+ * @param {number} limit
+ */
+async function getRecentRecords(limit = 20) {
+    const stored = await chrome.storage.local.get(['pendingQueue']);
+    const queue = Array.isArray(stored.pendingQueue) ? stored.pendingQueue : [];
+
+    return queue
+        .map((record) => ({
+            field: safeText(record?.field) || 'sin_nombre',
+            value: typeof record?.value === 'string' ? record.value : '',
+            timestamp: safeText(record?.timestamp),
+        }))
+        .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))
+        .slice(0, limit);
 }
 
 async function syncNow() {
@@ -307,20 +420,22 @@ async function syncNow() {
         return { ok: true, status: 204, synced: 0, message: 'No hay registros nuevos para sincronizar.' };
     }
 
+    // Se sanean y descartan los irrecuperables antes de enviar: así un registro
+    // corrupto no bloquea el lote entero con un 422.
+    const normalized = pending.map((record, index) => normalizeRecord(record, index)).filter(Boolean).slice(0, RECORDS_MAX);
+
+    if (normalized.length === 0) {
+        // Todo era basura (sin campo/valor): se limpia para no reintentar en bucle.
+        await chrome.storage.local.set({ pendingQueue: [] });
+        return { ok: true, status: 204, synced: 0, message: 'No había registros válidos para sincronizar.' };
+    }
+
     const payload = {
         installation_uuid: syncContext.installation_uuid,
         extension_version: syncContext.extension_version,
         batch_id: `batch-${Date.now()}`,
         cursor: isoSeconds(),
-        records: pending.map((record, index) => ({
-            field: safeText(record.field),
-            value: safeText(record.value),
-            // Se normaliza siempre: los registros guardados por content.js
-            // llevan milisegundos y el servidor los rechaza.
-            timestamp: isoSeconds(safeText(record.timestamp) || undefined),
-            record_id: safeText(record.record_id) || `local-${index}`,
-            cursor: isoSeconds(safeText(record.cursor) || undefined),
-        })),
+        records: normalized,
     };
 
     const response = await requestJson(SYNC_ENDPOINT, {
@@ -332,23 +447,26 @@ async function syncNow() {
     if (!response.ok) {
         if (isSessionRejected(response.status)) {
             await chrome.storage.local.remove(SESSION_STORAGE_KEYS);
-            return { ...response, reason: 'session-revoked', message: 'Tu sesión expiró o fue revocada. Inicia sesión nuevamente.' };
+            return { ...response, reason: 'session-revoked', message: describeFailure(response) };
         }
 
-        return response;
+        // Se conserva la cola: el fallo puede ser temporal (red, 429, 5xx).
+        return { ...response, message: describeFailure(response) };
     }
 
+    // La cola solo se vacía tras un envío aceptado. Los registros que se
+    // descartaron por inválidos se pierden a propósito: no eran recuperables.
     await chrome.storage.local.set({ pendingQueue: [] });
     await setStored({
         [META_STORAGE_KEY]: {
             ...(syncContext.meta ?? {}),
             lastSyncAt: new Date().toISOString(),
-            lastSyncCount: pending.length,
+            lastSyncCount: normalized.length,
             lastSyncResult: response.json?.data ?? null,
         },
     });
 
-    return { ok: true, status: response.status, synced: pending.length, data: response.json?.data ?? null };
+    return { ok: true, status: response.status, synced: normalized.length, data: response.json?.data ?? null };
 }
 
 /**
@@ -384,6 +502,9 @@ globalThis.ShalomRecordarSync = {
     getSessionState,
     syncNow,
     buildExportPayload,
+    getRecentRecords,
+    describeFailure,
+    normalizeRecord,
     getRequestErrorMessage,
     statusReason,
     fingerprintError,
