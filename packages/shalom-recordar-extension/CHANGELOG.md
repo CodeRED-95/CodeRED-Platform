@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.16 - 2026-08-10
+
+### Fixed
+
+- `Clave` vuelve a confirmarse desde el buffer del modal al cerrarse, evitando que se guarden dígitos sueltos.
+- Se preserva la reconstrucción completa de claves como `3535` y `0123`.
+
 ## 2.7.15 - 2026-08-10
 
 ### Changed
