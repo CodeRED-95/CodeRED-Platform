@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.2 - 2026-08-10
+
+- Trata la seleccion imposible de una agencia como una condicion esperada cuando Shalom Control no la expone temporalmente.
+- Sustituye el warning por un mensaje visual discreto y un `console.info` deduplicado para no ensuciar `chrome://extensions`.
+- Mantiene los errores tecnicos reales en `console.warn` con contexto estructurado y sin `[object Object]`.
+
 ## 2.3.1 - 2026-08-10
 
 - Corrige la deteccion del canal activo en Shalom Control para no forzar TERRESTRE mientras el DOM sigue cargando.

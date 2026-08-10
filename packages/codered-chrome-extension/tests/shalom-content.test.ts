@@ -407,6 +407,41 @@ describe('Shalom Control DOM integration', () => {
     expect(selectAgencyInDestination(document, duplicateCodeAgency, 'AEREO')).toMatchObject({ success: false, reason: 'missing-channel-text' });
     expect(select.value).toBe('old');
   });
+
+  it('does not treat an unavailable agency as an error and returns an option-not-found result', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    document.body.innerHTML = '<select id="x_osProDestino"><option value="">Seleccione</option><option value="t">1001 - CHICLAYO HUB - TERRESTRE</option></select>';
+    const unavailableAgency = adaptAgency({
+      external_id: 2003,
+      code: 'ARE03',
+      name: 'AREQUIPA SUR',
+      department: 'AREQUIPA',
+      province: 'AREQUIPA',
+      district: 'SACHACA',
+      texto_chosen_terrestre: '2003 - AREQUIPA SUR - TERRESTRE',
+      status: 'active',
+    });
+
+    expect(selectAgencyInDestination(document, unavailableAgency, 'TERRESTRE')).toMatchObject({ success: false, reason: 'option-not-found' });
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    infoSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it('keeps technical failures as warnings with structured context', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    document.body.innerHTML = '<select id="a_osProDestino"><option value="">Seleccione</option><option value="t">1001 - CHICLAYO HUB - TERRESTRE</option></select><select id="b_osProDestino"><option value="">Seleccione</option><option value="u">1001 - CHICLAYO HUB - TERRESTRE</option></select>';
+
+    const result = selectAgencyInDestination(document, terrestrialAgency, 'TERRESTRE');
+    expect(result).toMatchObject({ success: false, reason: 'multiple-active-selects' });
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('[object Object]'));
+    expect(errorSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
 });
 
 describe('message contract', () => {

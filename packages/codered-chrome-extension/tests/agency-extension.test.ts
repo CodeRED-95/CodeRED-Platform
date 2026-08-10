@@ -172,14 +172,14 @@ function memoryStorage(seed?: { agencies?: ReturnType<typeof adaptAgency>[]; cat
 
 
 describe('extension version and simple popup', () => {
-  it('keeps manifest, package, and shared source on version 2.3.1', async () => {
+  it('keeps manifest, package, and shared source on version 2.3.2', async () => {
     const { readFileSync } = await import('node:fs');
     const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
     const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-    expect(EXTENSION_VERSION).toBe('2.3.1');
-    expect(manifest.version).toBe('2.3.1');
-    expect(packageJson.version).toBe('2.3.1');
+    expect(EXTENSION_VERSION).toBe('2.3.2');
+    expect(manifest.version).toBe('2.3.2');
+    expect(packageJson.version).toBe('2.3.2');
   });
 
   it('renders one compact dark column without agency search UI or legacy cards', async () => {
@@ -252,7 +252,7 @@ describe('extension version and simple popup', () => {
     expect(readme).toContain('Configurar token');
     expect(readme).toContain('Probar conexión');
     expect(readme).toContain('sin conexión');
-    expect(changelog).toContain('2.3.1');
+    expect(changelog).toContain('2.3.2');
     expect(changelog).toContain('popup compacto');
   });
 

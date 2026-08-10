@@ -311,15 +311,19 @@ export function createShalomContentController(dependencies: ContentControllerDep
       if (container) closeResults(container);
       return;
     }
+    if (selected.reason === 'option-not-found') {
+      infoOnce('select-agency-unavailable', '[CodeRED Shalom] La agencia seleccionada no está disponible actualmente en Shalom Control', {
+        channel: activeChannel,
+        agency: safeAgencyContext(agency),
+      });
+      if (message) message.textContent = 'La agencia seleccionada no está disponible actualmente en Shalom Control.';
+      return;
+    }
+
     warnOnce('select-agency', '[CodeRED Shalom] No se pudo seleccionar agencia', {
       reason: selected.reason,
       channel: activeChannel,
-      agency: {
-        id: agency.id,
-        externalId: agency.externalId,
-        code: agency.code,
-        name: agency.name,
-      },
+      agency: safeAgencyContext(agency),
       detail: selected.message,
     });
     if (message) message.textContent = selected.message;
@@ -399,6 +403,12 @@ export function createShalomContentController(dependencies: ContentControllerDep
     console.warn(message, context);
   }
 
+  function infoOnce(key: string, message: string, context: Record<string, unknown>): void {
+    if (emittedLogs.has(key)) return;
+    emittedLogs.add(key);
+    console.info(message, context);
+  }
+
   async function requestCatalog(): Promise<Agency[]> {
     if (dependencies.requestCatalog) return dependencies.requestCatalog();
     if (typeof chrome === 'undefined' || typeof chrome.runtime?.sendMessage !== 'function') {
@@ -410,6 +420,15 @@ export function createShalomContentController(dependencies: ContentControllerDep
   }
 
   return { cargarDatos, createSearchContainer, bindSearchEvents, findInjectionTarget, injectSearchIfPossible, initializeContentScript, isSupportedShalomPage, mount, startInjectionObserver, stopInjectionObserver };
+}
+
+function safeAgencyContext(agency: Agency): Record<string, unknown> {
+  return {
+    id: agency.id,
+    externalId: agency.externalId,
+    code: agency.code,
+    name: agency.name,
+  };
 }
 
 function cardMarkup(agency: Agency): string {
