@@ -148,17 +148,21 @@ class Backups extends Component
             return;
         }
 
+        $actorId = auth()->id();
+
         $restore = AgencyBackupRestore::query()->create($attributes + [
             'uuid' => (string) Str::uuid(),
             'mode' => $this->restoreMode,
             'status' => 'pending',
             'stage' => 'En cola',
-            'created_by' => auth()->id(),
+            'created_by' => $actorId,
         ]);
 
         $this->activeRestoreId = $restore->id;
 
-        RestoreAgencyBackupJob::dispatch($restore->id)
+        // El actor viaja explícito en el job: el worker no tiene sesión y lo
+        // necesita para sustituir FKs de usuario que no existan en el destino.
+        RestoreAgencyBackupJob::dispatch($restore->id, $actorId)
             ->onConnection('redis')
             ->onQueue('agency-imports')
             ->afterCommit();

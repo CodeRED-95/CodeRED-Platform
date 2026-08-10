@@ -6,6 +6,30 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.5.3] - 2026-08-10
+
+### CORREGIDO
+
+- **La restauración de agencias seguía fallando con `SQLSTATE[23503]
+  agencies_created_by_foreign Key (created_by)=(3)` pese al saneo de FKs de
+  4.5.2.** La causa real era operativa: la restauración corre en el **worker de
+  cola** (`RestoreAgencyBackupJob`, cola `agency-imports`), un proceso
+  `queue:work` de larga vida que **carga el código en memoria al arrancar y no
+  lo recarga**. El worker llevaba horas ejecutando la versión anterior del
+  servicio, así que el saneo nunca corría en la ruta real. Se recargaron los
+  workers (`queue:restart` + reinicio de contenedor, que ya hace `update.sh`).
+- **El actor viaja ahora explícito de extremo a extremo.** El worker no tiene
+  sesión (`auth()->id()` es null en la cola), así que el Livewire pasa
+  `restored_by_user_id` al construir el job, el job lo entrega al servicio y este
+  lo usa como sustituto preferente de `created_by`/`updated_by` cuando el id del
+  backup no existe en el destino (validándolo siempre contra `users`). No se
+  crea ningún usuario artificial.
+- Validado con una **restauración real controlada a través de la cola**: un
+  backup con `created_by=3` (inexistente) se restaura sin violación de FK y la
+  agencia queda con el `created_by` del administrador que la ejecutó.
+
+---
+
 ## [4.5.2] - 2026-08-10
 
 ### CORREGIDO

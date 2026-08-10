@@ -98,8 +98,13 @@ class AgencyRestoreService
 
     /**
      * Ejecuta la restauración completa. La invoca RestoreAgencyBackupJob.
+     *
+     * @param  int|null  $restoredByUserId  usuario autenticado que lanzó la
+     *                                      restauración (el worker no tiene sesión). Es la sustitución
+     *                                      preferida para created_by/updated_by cuando el id del backup no
+     *                                      existe en el destino. Si es null, se usa $restore->created_by.
      */
-    public function restore(AgencyBackupRestore $restore): AgencyBackupRestore
+    public function restore(AgencyBackupRestore $restore, ?int $restoredByUserId = null): AgencyBackupRestore
     {
         $restore->forceFill([
             'status' => AgencyRestoreStatus::Processing,
@@ -134,7 +139,7 @@ class AgencyRestoreService
             // Contexto para sanear claves foráneas: el backup puede venir de otra
             // instalación, donde los ids de usuario/ubigeo del archivo no existen.
             // Sin esto la inserción viola agencies_created_by_foreign (y similares).
-            $fkContext = $this->buildForeignKeyContext($restore, $agencies);
+            $fkContext = $this->buildForeignKeyContext($restore, $agencies, $restoredByUserId);
 
             $idMap = [];
             $created = 0;
@@ -259,7 +264,7 @@ class AgencyRestoreService
      *     backup_code_by_id: array<int, string>
      * }
      */
-    private function buildForeignKeyContext(AgencyBackupRestore $restore, array $agencies): array
+    private function buildForeignKeyContext(AgencyBackupRestore $restore, array $agencies, ?int $restoredByUserId = null): array
     {
         $validUserIds = array_fill_keys(
             DB::table('users')->pluck('id')->map(fn ($id): int => (int) $id)->all(),
@@ -275,9 +280,12 @@ class AgencyRestoreService
         }
 
         // Usuario que ejecuta la restauración: primera opción para reemplazar un
-        // created_by/updated_by histórico que ya no existe. Debe existir él mismo.
-        $fallbackUserId = $restore->created_by !== null && isset($validUserIds[(int) $restore->created_by])
-            ? (int) $restore->created_by
+        // created_by/updated_by histórico que ya no existe. Se prefiere el actor
+        // pasado explícitamente por el job; si no, el created_by del registro. En
+        // ambos casos debe existir de verdad en la tabla users.
+        $candidateActor = $restoredByUserId ?? $restore->created_by;
+        $fallbackUserId = $candidateActor !== null && isset($validUserIds[(int) $candidateActor])
+            ? (int) $candidateActor
             : null;
 
         // Mapa id-del-archivo => code, para resolver moved_to_agency_id por un

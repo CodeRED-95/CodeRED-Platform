@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyRestoreStatus;
 use App\Modules\Agencies\Enums\AgencyStatus;
+use App\Modules\Agencies\Jobs\RestoreAgencyBackupJob;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyBackup;
 use App\Modules\Agencies\Models\AgencyBackupRestore;
@@ -220,6 +221,38 @@ class AgencyRestoreForeignKeysTest extends TestCase
         // Los datos textuales del traslado no se pierden.
         $this->assertSame('Nueva dirección 123', $moved->moved_to_address);
         $this->assertSame('Nos mudamos.', $moved->move_notice);
+    }
+
+    public function test_restore_executed_through_the_queue_job_sanitizes_fks(): void
+    {
+        $admin = $this->superAdmin();
+        $this->makeAgency(['code' => 'AG-JOB-008']);
+
+        $backup = app(AgencyBackupService::class)->create();
+        // Reproduce exactamente el error del usuario: created_by=3 inexistente.
+        $this->mutateBackupAgencies($backup, function (array $agency): array {
+            $agency['created_by'] = 3;
+            $agency['updated_by'] = 3;
+
+            return $agency;
+        });
+
+        Agency::withoutEvents(fn () => Agency::withTrashed()->forceDelete());
+
+        $restore = $this->restoreFrom($backup, $admin->id);
+
+        // Se ejecuta el JOB real, no el servicio directamente, pasando el actor
+        // explícito como lo hace el Livewire. No debe lanzar violación de FK.
+        (new RestoreAgencyBackupJob($restore->id, $admin->id))
+            ->handle(app(AgencyRestoreService::class));
+
+        $restore->refresh();
+        $this->assertSame(AgencyRestoreStatus::Completed, $restore->status);
+        $this->assertNull($restore->error_message);
+
+        $agency = Agency::query()->where('code', 'AG-JOB-008')->firstOrFail();
+        $this->assertSame($admin->id, $agency->created_by);
+        $this->assertSame($admin->id, $agency->updated_by);
     }
 
     public function test_full_restore_from_foreign_installation_loses_no_functional_data(): void

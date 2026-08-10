@@ -29,7 +29,14 @@ class RestoreAgencyBackupJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public function __construct(public int $restoreId) {}
+    /**
+     * @param  int  $restoreId  registro de restauración a procesar
+     * @param  int|null  $restoredByUserId  usuario autenticado que lanzó la
+     *                                      restauración. Se pasa explícitamente porque en el worker no hay
+     *                                      sesión: es el sustituto de created_by/updated_by cuando el id del
+     *                                      backup no existe en el destino.
+     */
+    public function __construct(public int $restoreId, public ?int $restoredByUserId = null) {}
 
     /** @return array<int, object> */
     public function middleware(): array
@@ -46,7 +53,7 @@ class RestoreAgencyBackupJob implements ShouldQueue
             return;
         }
 
-        $service->restore($restore);
+        $service->restore($restore, $this->restoredByUserId);
     }
 
     public function failed(Throwable $exception): void
