@@ -43,13 +43,12 @@
             <x-ui.dropdown-select id="agencies-department-filter" wire:model.live="department" label="Departamento" :value="$department" :options="['' => 'Todos'] + $departments->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-province-filter" wire:model.live="province" label="Provincia" :value="$province" :options="['' => 'Todas'] + $provinces->mapWithKeys(fn ($item) => [$item => $item])->all()" />
             <x-ui.dropdown-select id="agencies-district-filter" wire:model.live="district" label="Distrito" :value="$district" :options="['' => 'Todos'] + $districts->mapWithKeys(fn ($item) => [$item => $item])->all()" />
-            <x-ui.input wire:model.live.debounce.400ms="classification_category" label="Clasificación" placeholder="Buscar por clasificación" />
             <x-ui.dropdown-select id="agencies-category-filter" wire:model.live="category" label="Categoría" :value="$category" :options="$categories" />
             <x-ui.dropdown-select id="agencies-operations-filter" wire:model.live="operationsCenter" label="Centro de Operaciones" :value="$operationsCenter" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
             <x-ui.dropdown-select id="agencies-moved-filter" wire:model.live="moved" label="Trasladadas" :value="$moved" :options="['' => 'Todas', '1' => 'Sí', '0' => 'No']" />
-            <x-ui.dropdown-select id="agencies-chosen-terrestre-filter" wire:model.live="has_chosen_terrestre" label="Chosen Terrestre" :value="$has_chosen_terrestre" :options="['' => 'Todos', '1' => 'Sí']" />
-            <x-ui.dropdown-select id="agencies-chosen-aereo-filter" wire:model.live="has_chosen_aereo" label="Chosen Aéreo" :value="$has_chosen_aereo" :options="['' => 'Todos', '1' => 'Sí']" />
-            <x-ui.dropdown-select id="agencies-changed-name-filter" wire:model.live="has_changed_name" label="Cambió de nombre" :value="$has_changed_name" :options="['' => 'Todos', '1' => 'Sí']" />
+            <x-ui.dropdown-select id="agencies-chosen-terrestre-filter" wire:model.live="has_chosen_terrestre" label="Chosen Terrestre" :value="$has_chosen_terrestre" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
+            <x-ui.dropdown-select id="agencies-chosen-aereo-filter" wire:model.live="has_chosen_aereo" label="Chosen Aéreo" :value="$has_chosen_aereo" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
+            <x-ui.dropdown-select id="agencies-changed-name-filter" wire:model.live="has_changed_name" label="Cambió de nombre" :value="$has_changed_name" :options="['' => 'Todos', '1' => 'Sí', '0' => 'No']" />
             <x-ui.dropdown-select id="agencies-coordinates-filter" wire:model.live="withoutCoordinates" label="Coordenadas" :value="$withoutCoordinates" :options="['' => 'Todas', '1' => 'Sin coordenadas']" />
             <x-ui.dropdown-select id="agencies-deleted-filter" wire:model.live="withTrashed" label="Eliminadas" :value="$withTrashed" :options="['' => 'Activas', 'only' => 'Papelera', 'with' => 'Todas']" />
             <x-ui.dropdown-select id="agencies-per-page" wire:model.live="perPage" label="Por página" :value="$perPage" :options="[15 => '15', 30 => '30', 50 => '50', 100 => '100']" />
@@ -232,7 +231,7 @@
                         >
                             <div class="flex justify-center gap-3">
                                 @can('create', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Crear agencia</x-ui.button>@endcan
-                                @can('import', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Importar</x-ui.button>@endcan
+                                @can('import', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.import.shalom') }}" variant="secondary">Sincronizar Shalom</x-ui.button>@endcan
                             </div>
                         </x-ui.empty-state>
                     </td>

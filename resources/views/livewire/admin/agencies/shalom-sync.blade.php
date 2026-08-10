@@ -15,7 +15,7 @@
 
             <div class="flex flex-wrap gap-3">
                 <x-ui.button type="submit" variant="primary" loading-target="sync" loading-label="Enviando a la cola…">Iniciar análisis</x-ui.button>
-                <x-ui.button href="{{ route('admin.agencies.import') }}" variant="secondary">Volver a importaciones</x-ui.button>
+                <x-ui.button href="{{ route('admin.agencies.index') }}" variant="secondary">Volver a agencias</x-ui.button>
             </div>
         </form>
     </x-ui.card>

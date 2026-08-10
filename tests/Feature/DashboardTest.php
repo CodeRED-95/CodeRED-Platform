@@ -6,11 +6,9 @@ use App\Livewire\Dashboard;
 use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\User;
-use App\Modules\Agencies\Enums\AgencyImportStatus;
-use App\Modules\Agencies\Enums\AgencyImportStrategy;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
-use App\Modules\Agencies\Models\AgencyImport;
+use App\Modules\Agencies\Models\AgencyImportRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -108,7 +106,11 @@ class DashboardTest extends TestCase
             ->assertViewHas('userMetrics', fn (array $metrics): bool => $metrics['new'] >= 2);
     }
 
-    public function test_dashboard_shows_real_activity_and_complete_last_import(): void
+    /**
+     * El importador manual fue retirado: el panel resume ahora la última
+     * ejecución de la sincronización Shalom, que sigue en uso.
+     */
+    public function test_dashboard_shows_real_activity_and_last_shalom_sync_run(): void
     {
         $actor = $this->superAdmin();
         $agency = Agency::factory()->create(['name' => 'Agencia Auditada']);
@@ -119,21 +121,20 @@ class DashboardTest extends TestCase
             'auditable_id' => $agency->id,
             'created_at' => now(),
         ]);
-        AgencyImport::query()->create([
-            'user_id' => $actor->id,
-            'original_filename' => 'agencias.json',
-            'stored_filename' => 'imports/agencias.json',
-            'file_type' => 'json',
-            'status' => AgencyImportStatus::CompletedWithErrors,
-            'strategy' => AgencyImportStrategy::UpdateExisting,
-            'total_rows' => 20,
-            'valid_rows' => 19,
-            'imported_rows' => 10,
-            'updated_rows' => 4,
-            'skipped_rows' => 5,
-            'failed_rows' => 1,
+        AgencyImportRun::query()->create([
+            'type' => 'shalom_sync',
+            'status' => 'failed',
+            'stage' => 'Finalizada',
+            'chosen_original_name' => 'chosen-shalom.json',
+            'created_by' => $actor->id,
+            'total_received' => 20,
+            'total_processed' => 20,
+            'new_count' => 10,
+            'updated_count' => 4,
+            'unchanged_count' => 5,
+            'error_count' => 1,
             'started_at' => now()->subMinute(),
-            'completed_at' => now(),
+            'finished_at' => now(),
         ]);
 
         Livewire::actingAs($actor)
@@ -141,13 +142,14 @@ class DashboardTest extends TestCase
             ->assertViewHas('recentActivity', fn ($activity): bool => $activity->count() >= 1 && $activity->first()->relationLoaded('actor'))
             ->assertSee($actor->name)
             ->assertSee('actualizó la agencia “Agencia Auditada”')
-            ->assertSee('agencias.json')
-            ->assertSee('Procesados')
-            ->assertSee('Importados')
-            ->assertSee('Actualizados')
-            ->assertSee('Ignorados')
+            ->assertSee('chosen-shalom.json')
+            ->assertSee('Última sincronización Shalom')
+            ->assertSee('Procesadas')
+            ->assertSee('Nuevas')
+            ->assertSee('Actualizadas')
+            ->assertSee('Sin cambios')
             ->assertSee('Errores')
-            ->assertSee('Completada con errores');
+            ->assertSee('Fallida');
     }
 
     public function test_user_without_dashboard_permission_cannot_access_dashboard(): void
@@ -159,11 +161,11 @@ class DashboardTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_dashboard_handles_zero_agencies_and_missing_imports_without_invalid_percentages(): void
+    public function test_dashboard_handles_zero_agencies_and_missing_syncs_without_invalid_percentages(): void
     {
         $actor = $this->superAdmin();
         Agency::withoutEvents(fn () => Agency::withTrashed()->forceDelete());
-        AgencyImport::query()->delete();
+        AgencyImportRun::query()->delete();
 
         Livewire::actingAs($actor)
             ->test(Dashboard::class)
@@ -171,9 +173,9 @@ class DashboardTest extends TestCase
             ->assertViewHas('statusDistribution', fn (array $distribution): bool => collect($distribution)->every(
                 fn (array $status): bool => $status['count'] === 0 && $status['percentage'] === 0.0,
             ))
-            ->assertViewHas('lastImport', null)
+            ->assertViewHas('lastSyncRun', null)
             ->assertSee('No se registraron agencias durante este periodo.')
-            ->assertSee('No existen importaciones.')
+            ->assertSee('No existen sincronizaciones.')
             ->assertSee('0.0%');
     }
 
@@ -201,35 +203,30 @@ class DashboardTest extends TestCase
             ->assertSee('Máximo 6');
     }
 
-    public function test_import_count_respects_selected_period(): void
+    public function test_sync_run_count_respects_selected_period(): void
     {
         $actor = $this->superAdmin();
-        $createImport = function (int $daysAgo) use ($actor): void {
-            $import = AgencyImport::query()->create([
-                'user_id' => $actor->id,
-                'original_filename' => 'agencias-'.$daysAgo.'.json',
-                'stored_filename' => 'imports/agencias-'.$daysAgo.'.json',
-                'file_type' => 'json',
-                'status' => AgencyImportStatus::Completed,
-                'strategy' => AgencyImportStrategy::UpdateExisting,
-                'total_rows' => 1,
-                'valid_rows' => 1,
-                'imported_rows' => 1,
-                'updated_rows' => 0,
-                'skipped_rows' => 0,
-                'failed_rows' => 0,
+        $createRun = function (int $daysAgo) use ($actor): void {
+            $run = AgencyImportRun::query()->create([
+                'type' => 'shalom_sync',
+                'status' => 'completed',
+                'stage' => 'Finalizada',
+                'chosen_original_name' => 'chosen-'.$daysAgo.'.json',
+                'created_by' => $actor->id,
+                'total_received' => 1,
+                'total_processed' => 1,
             ]);
-            $import->forceFill(['created_at' => now()->subDays($daysAgo)])->saveQuietly();
+            $run->forceFill(['created_at' => now()->subDays($daysAgo)])->saveQuietly();
         };
 
-        $createImport(20);
-        $createImport(2);
+        $createRun(20);
+        $createRun(2);
 
         Livewire::actingAs($actor)
             ->test(Dashboard::class)
             ->set('period', 7)
-            ->assertViewHas('importsInPeriod', 1)
+            ->assertViewHas('syncRunsInPeriod', 1)
             ->set('period', 30)
-            ->assertViewHas('importsInPeriod', 2);
+            ->assertViewHas('syncRunsInPeriod', 2);
     }
 }

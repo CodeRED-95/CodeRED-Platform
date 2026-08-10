@@ -39,14 +39,14 @@ class RoleMatrixTest extends TestCase
 
         $this->actingAs($user)->get(route('admin.agencies.index'))
             ->assertOk()->assertSee('Agencias')->assertSee('Mapa de agencias')
-            ->assertDontSee('Dashboard')->assertDontSee('Nueva agencia')->assertDontSee('Importar')
+            ->assertDontSee('Dashboard')->assertDontSee('Nueva agencia')->assertDontSee('Sincronizar Shalom')
             ->assertDontSee('Usuarios')->assertDontSee('Design System');
         $this->get(route('admin.agencies.map'))->assertOk();
         $this->get(route('admin.agencies.show', $agency))->assertOk()->assertDontSee('Editar');
         $this->get(route('dashboard'))->assertForbidden();
         $this->get(route('admin.agencies.create'))->assertForbidden();
         $this->get(route('admin.agencies.edit', $agency))->assertForbidden();
-        $this->get(route('admin.agencies.import'))->assertForbidden();
+        $this->get(route('admin.agencies.import.shalom'))->assertForbidden();
         $this->get(route('admin.users.index'))->assertForbidden();
         $this->get(route('admin.design-system'))->assertForbidden();
     }
@@ -57,11 +57,11 @@ class RoleMatrixTest extends TestCase
         $agency = Agency::factory()->create();
 
         $this->actingAs($user)->get(route('dashboard'))->assertOk();
-        $this->get(route('admin.agencies.index'))->assertOk()->assertSee('Nueva agencia')->assertDontSee('Importar');
+        $this->get(route('admin.agencies.index'))->assertOk()->assertSee('Nueva agencia')->assertDontSee('Sincronizar Shalom');
         $this->get(route('admin.agencies.map'))->assertOk();
         $this->get(route('admin.agencies.create'))->assertOk();
         $this->get(route('admin.agencies.edit', $agency))->assertOk();
-        $this->get(route('admin.agencies.import'))->assertForbidden();
+        $this->get(route('admin.agencies.import.shalom'))->assertForbidden();
         $this->get(route('admin.users.index'))->assertForbidden();
         $this->get(route('admin.design-system'))->assertForbidden();
         $this->assertFalse($user->can('delete', $agency));
@@ -73,8 +73,8 @@ class RoleMatrixTest extends TestCase
         $user = $this->userFor('super-admin');
 
         $this->actingAs($user)->get(route('dashboard'))->assertOk();
-        $this->get(route('admin.agencies.index'))->assertOk()->assertSee('Importar');
-        $this->get(route('admin.agencies.import'))->assertOk();
+        $this->get(route('admin.agencies.index'))->assertOk()->assertSee('Sincronizar Shalom');
+        $this->get(route('admin.agencies.import.shalom'))->assertOk();
         $this->get(route('admin.users.index'))->assertOk();
         $this->get(route('admin.design-system'))->assertOk();
 

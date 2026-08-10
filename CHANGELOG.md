@@ -6,6 +6,76 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.0.0] - 2026-08-10
+
+### CAMBIOS INCOMPATIBLES
+
+El **importador manual de agencias fue retirado**. La gestión del padrón de
+agencias se hace ahora con **copias de seguridad y restauración**, igual que ya
+ocurría con el padrón RUC desde 3.0.0.
+
+- Rutas eliminadas: `GET /admin/agencies/import` y
+  `POST /admin/agencies/import/preview`. La primera devuelve ahora 404.
+- Tablas eliminadas: `agency_imports` y `agency_import_failures`
+  (migración `2026_08_10_000003_drop_agency_import_tables`).
+- Clases eliminadas: `ImportAgenciesAction`, `AgencyImportPreviewService`,
+  `AgencyImportPreviewController`, `PreviewAgencyImportRequest`,
+  `AgencyImportNormalizer`, `AgencyImportPayloadReader`, `AgencyImportRowData`,
+  los modelos `AgencyImport` y `AgencyImportFailure`, los enums
+  `AgencyImportStatus` y `AgencyImportStrategy` y el componente Livewire
+  `Admin\Agencies\Import`.
+- El panel muestra ahora **“Última sincronización Shalom”** donde antes
+  mostraba la última importación manual.
+
+**La sincronización Shalom NO se toca.** `agency_import_runs`,
+`agency_import_items`, `SyncShalomAgenciesJob`, `ConfirmAgencyImportRunAction`,
+`ChosenFileParser`, las rutas `/admin/agencies/import/shalom` y
+`/admin/agencies/import/run/*` y el permiso `agencies.import` siguen igual: los
+usa la sincronización, no el importador retirado.
+
+### AÑADIDO
+
+Sistema de **Backup y Restauración de agencias**.
+
+- **El respaldo captura la fila completa.** Antes descartaba `created_by`,
+  `updated_by` y `zone`, así que no permitía una restauración fiel. Ahora vuelca
+  todas las columnas de `agencies` (leídas del esquema, de modo que una columna
+  nueva entra sola) más `agency_name_histories`. Formato `schema_version: 2`;
+  la restauración sigue aceptando archivos v1.
+- **Restauración desde archivo subido** (`.json`, hasta 200 MB) o desde una
+  copia ya registrada, con dos modos:
+  - *Combinar* (por defecto): crea y actualiza, no elimina nada.
+  - *Réplica exacta*: además envía a la papelera lo que no esté en la copia.
+    **Nunca borra de forma definitiva**, así que siempre es reversible.
+- **Se ejecuta en cola** (`RestoreAgencyBackupJob`) con progreso por etapas en
+  la propia pantalla. Ninguna petición HTTP espera al proceso, de modo que una
+  copia grande no puede agotar el tiempo de Cloudflare.
+- **Copia de seguridad automática antes de escribir nada**, enlazada desde la
+  restauración para poder deshacerla.
+- **Emparejamiento por `code`, no por id**: al restaurar sobre una base donde
+  las agencias se recrearon, los ids no coinciden pero el código sí. Los ids del
+  archivo se traducen con un mapa que después resuelve `moved_to_agency_id` y el
+  historial de nombres, de modo que una agencia trasladada conserva su destino.
+- **El feed incremental sigue coherente**: la restauración escribe por consulta
+  directa para no disparar la regeneración de `slug`, `map_url` y `place`, pero
+  alimenta `agency_sync_changes` explícitamente al terminar.
+- Nueva tabla `agency_backup_restores` y permiso `agencies.backup.restore`.
+
+### CORREGIDO
+
+- **Filtros de tres estados en el listado.** *Chosen Terrestre*, *Chosen Aéreo*
+  y *Cambió de nombre* solo ofrecían “Todos” y “Sí”; ahora ofrecen también
+  “No”. La comprobación anterior usaba `empty()`, con lo que un `'0'` se
+  descartaba como si no hubiera filtro y “No” nunca habría funcionado. Además
+  “Sí” exige valor no vacío y “No” acepta tanto `NULL` como cadena vacía.
+- **Se retiró la búsqueda por Clasificación** del listado y de sus filtros.
+- **Un segmento no numérico ya no provoca un error 500.**
+  `/admin/agencies/import` caía en la ruta `/admin/agencies/{agency}` y llegaba
+  a PostgreSQL como id, que rechazaba el texto. Las rutas de detalle, edición y
+  traslado se restringen ahora con `whereNumber`.
+
+---
+
 ## [3.5.0] - 2026-08-10
 
 ### CAMBIADO

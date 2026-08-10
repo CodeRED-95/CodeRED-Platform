@@ -14,11 +14,12 @@
         'restored' => 'restauró',
         'roles_updated' => 'actualizó los roles de',
     ];
-    $importStatusLabels = [
+    $syncStatusLabels = [
         'pending' => ['Pendiente', 'neutral'],
         'processing' => ['Procesando', 'info'],
+        'ready_for_review' => ['Lista para revisar', 'warning'],
+        'confirmed' => ['Confirmada', 'success'],
         'completed' => ['Completada', 'success'],
-        'completed_with_errors' => ['Completada con errores', 'warning'],
         'failed' => ['Fallida', 'danger'],
         'cancelled' => ['Cancelada', 'neutral'],
     ];
@@ -27,8 +28,8 @@
         $canViewAgencies ? ['label' => 'Inactivas', 'value' => $agencyMetrics['inactive'], 'detail' => 'Estado actual', 'tone' => 'text-slate-300'] : null,
         $canViewAgencies ? ['label' => 'Cierre temporal', 'value' => $agencyMetrics['temporarily_closed'], 'detail' => 'Estado actual', 'tone' => 'text-amber-300'] : null,
         $canViewAgencies ? ['label' => 'Trasladadas', 'value' => $agencyMetrics['moved'], 'detail' => 'Estado actual', 'tone' => 'text-violet-300'] : null,
-        $canViewAgencies ? ['label' => 'Importaciones', 'value' => $importsInPeriod, 'detail' => $period.' días', 'tone' => 'text-sky-300'] : null,
-        $canViewAgencies ? ['label' => 'Errores última importación', 'value' => $lastImport?->failed_rows ?? 0, 'detail' => $lastImport ? 'Último proceso' : 'Sin importaciones', 'tone' => ($lastImport?->failed_rows ?? 0) > 0 ? 'text-rose-300' : 'text-emerald-300'] : null,
+        $canViewAgencies ? ['label' => 'Sincronizaciones', 'value' => $syncRunsInPeriod, 'detail' => $period.' días', 'tone' => 'text-sky-300'] : null,
+        $canViewAgencies ? ['label' => 'Errores última sincronización', 'value' => $lastSyncRun?->error_count ?? 0, 'detail' => $lastSyncRun ? 'Última ejecución' : 'Sin sincronizaciones', 'tone' => ($lastSyncRun?->error_count ?? 0) > 0 ? 'text-rose-300' : 'text-emerald-300'] : null,
     ])->filter()->values();
 @endphp
 
@@ -280,43 +281,43 @@
                 @endif
             </x-ui.card>
 
-            <x-ui.card padding="p-5" aria-labelledby="last-import-title">
+            <x-ui.card padding="p-5" aria-labelledby="last-sync-title">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 id="last-import-title" class="font-display text-lg font-semibold text-white">Última importación</h2>
+                        <h2 id="last-sync-title" class="font-display text-lg font-semibold text-white">Última sincronización Shalom</h2>
                         <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Resultado del proceso más reciente.</p>
                     </div>
-                    @if ($lastImport)
+                    @if ($lastSyncRun)
                         @php
-                            $importPresentation = $importStatusLabels[$lastImport->status?->value ?? (string) $lastImport->status] ?? ['Desconocida', 'neutral'];
+                            $syncPresentation = $syncStatusLabels[(string) $lastSyncRun->status] ?? ['Desconocida', 'neutral'];
                         @endphp
-                        <x-ui.badge :tone="$importPresentation[1]">{{ $importPresentation[0] }}</x-ui.badge>
+                        <x-ui.badge :tone="$syncPresentation[1]">{{ $syncPresentation[0] }}</x-ui.badge>
                     @endif
                 </div>
 
-                @if ($lastImport)
+                @if ($lastSyncRun)
                     <div class="mt-4 rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
-                        <p class="truncate text-sm font-medium text-white" title="{{ $lastImport->original_filename }}">{{ $lastImport->original_filename }}</p>
-                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">{{ $lastImport->completed_at?->format('d/m/Y H:i') ?? $lastImport->created_at?->format('d/m/Y H:i') ?? 'Fecha no disponible' }}</p>
+                        <p class="truncate text-sm font-medium text-white" title="{{ $lastSyncRun->chosen_original_name }}">{{ $lastSyncRun->chosen_original_name ?? 'Sincronización Shalom' }}</p>
+                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">{{ $lastSyncRun->finished_at?->format('d/m/Y H:i') ?? $lastSyncRun->created_at?->format('d/m/Y H:i') ?? 'Fecha no disponible' }}</p>
                     </div>
                     <dl class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
                         @foreach ([
-                            ['Procesados', $lastImport->total_rows, 'text-white'],
-                            ['Importados', $lastImport->imported_rows, 'text-emerald-300'],
-                            ['Actualizados', $lastImport->updated_rows, 'text-sky-300'],
-                            ['Ignorados', $lastImport->skipped_rows, 'text-amber-200'],
-                            ['Errores', $lastImport->failed_rows, $lastImport->failed_rows > 0 ? 'text-rose-300' : 'text-emerald-300'],
+                            ['Procesadas', $lastSyncRun->total_processed, 'text-white'],
+                            ['Nuevas', $lastSyncRun->new_count, 'text-emerald-300'],
+                            ['Actualizadas', $lastSyncRun->updated_count, 'text-sky-300'],
+                            ['Sin cambios', $lastSyncRun->unchanged_count, 'text-amber-200'],
+                            ['Errores', $lastSyncRun->error_count, $lastSyncRun->error_count > 0 ? 'text-rose-300' : 'text-emerald-300'],
                         ] as [$label, $value, $tone])
                             <div class="rounded-lg bg-white/[0.025] px-3 py-2">
                                 <dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">{{ $label }}</dt>
-                                <dd class="mt-0.5 text-lg font-semibold tabular-nums {{ $tone }}">{{ number_format($value) }}</dd>
+                                <dd class="mt-0.5 text-lg font-semibold tabular-nums {{ $tone }}">{{ number_format((int) $value) }}</dd>
                             </div>
                         @endforeach
                     </dl>
                 @else
                     <div class="mt-4 rounded-[var(--radius-control)] border border-dashed border-[color:var(--color-border-subtle)] px-4 py-10 text-center">
-                        <p class="text-sm font-medium text-white">No existen importaciones.</p>
-                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">El primer proceso aparecerá aquí.</p>
+                        <p class="text-sm font-medium text-white">No existen sincronizaciones.</p>
+                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">La primera ejecución aparecerá aquí.</p>
                     </div>
                 @endif
             </x-ui.card>

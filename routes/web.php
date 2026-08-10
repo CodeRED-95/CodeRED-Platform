@@ -8,7 +8,6 @@ use App\Livewire\Account\ChangePassword;
 use App\Livewire\Account\Profile;
 use App\Livewire\Admin\Agencies\Backups as AgencyBackups;
 use App\Livewire\Admin\Agencies\Form as AgencyForm;
-use App\Livewire\Admin\Agencies\Import as AgencyImport;
 use App\Livewire\Admin\Agencies\Index as AgenciesIndex;
 use App\Livewire\Admin\Agencies\Map as AgenciesMap;
 use App\Livewire\Admin\Agencies\ShalomSync;
@@ -35,7 +34,6 @@ use App\Livewire\PublicAgencies\Index as PublicAgenciesIndex;
 use App\Livewire\PublicAgencies\Show as PublicAgencyShow;
 use App\Modules\Agencies\Http\Controllers\AgencyBackupDownloadController;
 use App\Modules\Agencies\Http\Controllers\AgencyExportController;
-use App\Modules\Agencies\Http\Controllers\AgencyImportPreviewController;
 use App\Modules\Agencies\Http\Controllers\AgencyImportRunDownloadController;
 use App\Modules\Agencies\Http\Controllers\AgencyMoveController;
 use App\Modules\Ruc\Http\Controllers\RucBackupController;
@@ -62,13 +60,15 @@ Route::get('/admin/agencies/export', AgencyExportController::class)->middleware(
 Route::get('/admin/agencies/backups', AgencyBackups::class)->middleware(['auth'])->name('admin.agencies.backups.index');
 Route::get('/admin/agencies/backups/{backup}/download', AgencyBackupDownloadController::class)->middleware(['auth'])->name('admin.agencies.backups.download');
 Route::get('/admin/agencies/map', AgenciesMap::class)->middleware(['auth'])->name('admin.agencies.map');
-Route::get('/admin/agencies/import', AgencyImport::class)->middleware(['auth'])->name('admin.agencies.import');
 Route::get('/admin/agencies/import/shalom', ShalomSync::class)->middleware(['auth'])->name('admin.agencies.import.shalom');
 Route::get('/admin/agencies/import/run/{importRun}', ShalomSyncRun::class)->middleware(['auth'])->name('admin.agencies.import.run');
 Route::get('/admin/agencies/import/run/{importRun}/download/{file}', AgencyImportRunDownloadController::class)->middleware(['auth'])->whereIn('file', ['processed', 'report'])->name('admin.agencies.import.run.download');
 Route::get('/admin/agencies/create', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.create');
-Route::get('/admin/agencies/{agency}/edit', AgencyForm::class)->middleware(['auth'])->name('admin.agencies.edit');
-Route::get('/admin/agencies/{agency}', AgencyShow::class)->middleware(['auth'])->name('admin.agencies.show');
+Route::get('/admin/agencies/{agency}/edit', AgencyForm::class)->middleware(['auth'])->whereNumber('agency')->name('admin.agencies.edit');
+// whereNumber evita que un segmento no numérico (por ejemplo la ruta
+// /admin/agencies/import ya retirada) llegue a la base de datos y provoque un
+// error 500 en lugar de un 404 limpio.
+Route::get('/admin/agencies/{agency}', AgencyShow::class)->middleware(['auth'])->whereNumber('agency')->name('admin.agencies.show');
 Route::get('/admin/users', UsersIndex::class)->middleware(['auth'])->name('admin.users.index');
 Route::get('/admin/users/create', UsersForm::class)->middleware(['auth'])->name('admin.users.create');
 Route::get('/admin/users/{user}/edit', UsersForm::class)->middleware(['auth'])->name('admin.users.edit');
@@ -135,5 +135,4 @@ Route::get('/agencies', PublicAgenciesIndex::class)->name('public.agencies.index
 Route::get('/agencies/{code}', PublicAgencyShow::class)->name('public.agencies.show');
 Route::get('/profile', Profile::class)->middleware(['auth'])->name('profile.show');
 Route::get('/account/change-password', ChangePassword::class)->middleware(['auth'])->name('account.change-password');
-Route::post('/admin/agencies/import/preview', AgencyImportPreviewController::class)->middleware(['auth'])->name('admin.agencies.import.preview');
-Route::post('/admin/agencies/{agency}/move', AgencyMoveController::class)->middleware(['auth'])->name('admin.agencies.move');
+Route::post('/admin/agencies/{agency}/move', AgencyMoveController::class)->middleware(['auth'])->whereNumber('agency')->name('admin.agencies.move');

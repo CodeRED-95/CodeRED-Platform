@@ -3,11 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Resources\Api\V1\AgencyResource as PrivateAgencyResource;
-use App\Modules\Agencies\Actions\ImportAgenciesAction;
-use App\Modules\Agencies\Enums\AgencyImportStatus;
-use App\Modules\Agencies\Enums\AgencyImportStrategy;
 use App\Modules\Agencies\Models\Agency;
-use App\Modules\Agencies\Models\AgencyImport;
 use App\Modules\Agencies\Models\AgencyImportItem;
 use App\Modules\Agencies\Models\AgencyImportRun;
 use App\Modules\Agencies\Resources\AgencyResource;
@@ -59,34 +55,6 @@ class AgencyLocationFieldsTest extends TestCase
 
         $agency->update(['name' => 'VIÑANIS ÑANDÚ']);
         $this->assertSame('ÁNCASH / HUARAZ / SAN MIGUEL DE ACO / VIÑANIS ÑANDÚ', $agency->fresh()->place);
-    }
-
-    public function test_json_import_maps_district_ignores_zone_and_generates_place(): void
-    {
-        $import = AgencyImport::query()->create([
-            'original_filename' => 'agencies.json',
-            'stored_filename' => 'tests/agencies.json',
-            'file_type' => 'json',
-            'status' => AgencyImportStatus::Processing,
-            'strategy' => AgencyImportStrategy::IgnoreExisting,
-            'total_rows' => 1,
-        ]);
-
-        app(ImportAgenciesAction::class)->execute($import, [[
-            'id' => 991,
-            'name' => 'VIÑANIS',
-            'category' => 'PEQUEÑA',
-            'department' => 'TACNA',
-            'province' => 'TACNA',
-            'district' => 'CORONEL GREGORIO ALBARRACIN LANCHIPA',
-            'zone' => 'DATO OBSOLETO',
-            'address' => 'Av. Principal',
-        ]]);
-
-        $agency = Agency::query()->where('external_id', 991)->firstOrFail();
-        $this->assertSame('CORONEL GREGORIO ALBARRACIN LANCHIPA', $agency->district);
-        $this->assertNull($agency->getAttribute('zone'));
-        $this->assertSame('TACNA / TACNA / CORONEL GREGORIO ALBARRACIN LANCHIPA / VIÑANIS', $agency->place);
     }
 
     public function test_shalom_normalizer_prioritizes_district_and_omits_zone_and_received_place(): void

@@ -23,6 +23,9 @@ class AgencyPagesTest extends TestCase
             ['slug' => 'agencies.create', 'name' => 'Crear agencias'],
             ['slug' => 'agencies.update', 'name' => 'Editar agencias'],
             ['slug' => 'agencies.import', 'name' => 'Importar agencias'],
+            ['slug' => 'agencies.backup.view', 'name' => 'Ver copias de agencias'],
+            ['slug' => 'agencies.backup.create', 'name' => 'Crear copias de agencias'],
+            ['slug' => 'agencies.backup.restore', 'name' => 'Restaurar copias de agencias'],
             ['slug' => 'agencies.view_history', 'name' => 'Ver historial'],
         ])->map(function (array $permission): Permission {
             return Permission::query()->create([
@@ -210,11 +213,30 @@ class AgencyPagesTest extends TestCase
             ->assertSee('data-codered-map', false);
     }
 
-    public function test_import_page_loads_for_authorized_user(): void
+    /**
+     * El importador manual fue retirado en 4.0.0: su ruta ya no existe y la
+     * gestión del padrón se hace desde copias de seguridad.
+     */
+    public function test_removed_import_page_is_gone(): void
     {
         $this->actingAs($this->actingAsAgencyManager())
             ->get('/admin/agencies/import')
+            ->assertNotFound();
+    }
+
+    public function test_backup_and_restore_page_loads_for_authorized_user(): void
+    {
+        $this->actingAs($this->actingAsAgencyManager())
+            ->get('/admin/agencies/backups')
             ->assertOk()
-            ->assertSee('Importar agencias');
+            ->assertSee('Copias de seguridad de agencias')
+            ->assertSee('Restaurar desde archivo');
+    }
+
+    public function test_shalom_sync_page_still_loads(): void
+    {
+        $this->actingAs($this->actingAsAgencyManager())
+            ->get('/admin/agencies/import/shalom')
+            ->assertOk();
     }
 }

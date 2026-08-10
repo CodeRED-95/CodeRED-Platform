@@ -9,7 +9,7 @@ use App\Models\DniRecord;
 use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
-use App\Modules\Agencies\Models\AgencyImport;
+use App\Modules\Agencies\Models\AgencyImportRun;
 use App\Policies\UserPolicy;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -47,7 +47,7 @@ class Dashboard extends Component
         $canViewRucMetrics = $isSuperAdmin || $user->hasPermission('ruc.view');
         $agencyMetrics = $canViewAgencies ? $this->agencyMetrics() : [];
         $agencyTrend = $canViewAgencies ? $this->agencyTrend() : [];
-        $lastImport = $canViewAgencies ? AgencyImport::query()->latest()->first() : null;
+        $lastSyncRun = $canViewAgencies ? AgencyImportRun::query()->latest('id')->first() : null;
 
         return view('livewire.dashboard', [
             'canViewAgencies' => $canViewAgencies,
@@ -61,8 +61,8 @@ class Dashboard extends Component
             'recentActivity' => $canViewActivity
                 ? $this->recentActivity($canViewUserActivity, $canViewAgencyHistory)
                 : new Collection,
-            'lastImport' => $lastImport,
-            'importsInPeriod' => $canViewAgencies ? $this->importsInPeriod() : 0,
+            'lastSyncRun' => $lastSyncRun,
+            'syncRunsInPeriod' => $canViewAgencies ? $this->syncRunsInPeriod() : 0,
             'platformMetrics' => $isSuperAdmin ? $this->platformMetrics() : [],
             'dniMetrics' => $canViewDniMetrics ? $this->dniMetrics() : [],
             'rucMetrics' => $canViewRucMetrics ? $this->rucMetrics() : [],
@@ -178,9 +178,13 @@ class Dashboard extends Component
             ->all();
     }
 
-    private function importsInPeriod(): int
+    /**
+     * Ejecuciones de la sincronización Shalom en el periodo. Sustituye al
+     * contador de importaciones manuales, retirado junto con ese sistema.
+     */
+    private function syncRunsInPeriod(): int
     {
-        return AgencyImport::query()
+        return AgencyImportRun::query()
             ->where('created_at', '>=', now()->startOfDay()->subDays($this->period - 1))
             ->count();
     }

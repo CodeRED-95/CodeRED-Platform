@@ -51,9 +51,6 @@ class Index extends Component
     public string $category = '';
 
     #[Url]
-    public string $classification_category = '';
-
-    #[Url]
     public string $has_chosen_terrestre = '';
 
     #[Url]
@@ -321,7 +318,6 @@ class Index extends Component
             'without_coordinates' => $this->withoutCoordinates, 'without_phone' => $this->withoutPhone,
             'under_review' => $this->underReview, 'trash' => $this->withTrashed,
             'old_name' => $this->old_name,
-            'classification_category' => $this->classification_category,
             'has_chosen_terrestre' => $this->has_chosen_terrestre,
             'has_chosen_aereo' => $this->has_chosen_aereo,
             'has_changed_name' => $this->has_changed_name,

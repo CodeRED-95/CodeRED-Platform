@@ -27,6 +27,7 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'agencies.backup.create', 'name' => 'Crear copias de agencias'],
                 ['slug' => 'agencies.backup.download', 'name' => 'Descargar copias de agencias'],
                 ['slug' => 'agencies.backup.delete', 'name' => 'Eliminar copias de agencias'],
+                ['slug' => 'agencies.backup.restore', 'name' => 'Restaurar copias de agencias'],
                 ['slug' => 'agencies.view_history', 'name' => 'Ver historial de agencias'],
                 ['slug' => 'agencies.manage_status', 'name' => 'Gestionar estado de agencias'],
                 ['slug' => 'users.view', 'name' => 'Ver usuarios'],

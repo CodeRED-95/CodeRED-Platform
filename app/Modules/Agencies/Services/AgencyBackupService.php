@@ -7,13 +7,36 @@ use App\Modules\Agencies\Enums\AgencyBackupStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyBackup;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Throwable;
 
 class AgencyBackupService
 {
+    /**
+     * v1 descartaba created_by, updated_by y zone, así que no permitía una
+     * restauración fiel. v2 vuelca todas las columnas y añade el historial de
+     * nombres. La restauración acepta ambos formatos.
+     */
+    public const SCHEMA_VERSION = 2;
+
     public function __construct(private AuditLogger $audit, private AgencyBackupSettingsService $settings) {}
+
+    /**
+     * Columnas reales de la tabla, leídas del esquema para que el respaldo no
+     * se quede corto cuando se añada una columna nueva.
+     *
+     * @return array<int, string>
+     */
+    public function agencyColumns(): array
+    {
+        $columns = Schema::getColumnListing('agencies');
+        sort($columns);
+
+        return $columns;
+    }
 
     public function create(?int $actorId = null, ?string $disk = null, ?string $output = null, bool $cleanup = true): AgencyBackup
     {
@@ -38,21 +61,37 @@ class AgencyBackupService
             }
 
             $count = Agency::withTrashed()->count();
+            $historyCount = DB::table('agency_name_histories')->count();
             $metadata = [
                 'application' => 'CodeRED Platform', 'format' => 'codered-platform', 'module' => 'agencies',
-                'type' => 'agency-backup', 'schema_version' => 1,
+                'type' => 'agency-backup', 'schema_version' => self::SCHEMA_VERSION,
+                'application_version' => (string) config('version.current'),
                 'created_at' => $now->toIso8601String(), 'exported_at' => $now->toIso8601String(), 'timezone' => 'America/Lima',
                 'database_driver' => config('database.default'), 'record_count' => $count,
+                'counts' => ['agencies' => $count, 'agency_name_histories' => $historyCount],
+                // Se deja constancia de las columnas volcadas para que una
+                // restauración sepa exactamente qué traía el archivo aunque el
+                // esquema haya cambiado desde entonces.
+                'columns' => ['agencies' => $this->agencyColumns()],
             ];
             $this->write($handle, '{"metadata":'.json_encode($metadata, $this->jsonFlags()).',"data":{"agencies":[');
+
+            // Se vuelcan TODAS las columnas, incluidas las que antes se
+            // descartaban (created_by, updated_by, zone). Sin ellas una
+            // restauración no puede dejar la agencia exactamente como estaba.
             $first = true;
             foreach (Agency::withTrashed()->orderBy('id')->lazyById(500) as $agency) {
-                $attributes = $agency->getAttributes();
-                unset($attributes['created_by'], $attributes['updated_by']);
-                unset($attributes['zone']);
-                $this->write($handle, ($first ? '' : ',').json_encode($attributes, $this->jsonFlags()));
+                $this->write($handle, ($first ? '' : ',').json_encode($agency->getAttributes(), $this->jsonFlags()));
                 $first = false;
             }
+
+            $this->write($handle, '],"agency_name_histories":[');
+            $first = true;
+            foreach (DB::table('agency_name_histories')->orderBy('id')->lazyById(500) as $history) {
+                $this->write($handle, ($first ? '' : ',').json_encode((array) $history, $this->jsonFlags()));
+                $first = false;
+            }
+
             $this->write($handle, ']}}');
             fclose($handle);
 

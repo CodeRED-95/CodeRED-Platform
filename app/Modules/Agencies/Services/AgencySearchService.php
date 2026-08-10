@@ -38,7 +38,7 @@ class AgencySearchService
         $query->search($filters['search'] ?? null);
         $query->byLocation($filters['department'] ?? null, $filters['province'] ?? null, $filters['district'] ?? null);
 
-        foreach (['status', 'source', 'size', 'category', 'classification_category', 'old_name'] as $field) {
+        foreach (['status', 'source', 'size', 'category', 'old_name'] as $field) {
             if (! empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
             }
@@ -68,18 +68,42 @@ class AgencySearchService
             $query->where('status', AgencyStatus::UnderReview->value);
         }
 
-        if (! empty($filters['has_chosen_terrestre'])) {
-            $query->whereNotNull('texto_chosen_terrestre');
-        }
-
-        if (! empty($filters['has_chosen_aereo'])) {
-            $query->whereNotNull('texto_chosen_aereo');
-        }
-
-        if (! empty($filters['has_changed_name'])) {
-            $query->whereNotNull('old_name');
-        }
+        // Filtros de tres estados: '' no filtra, '1' exige valor y '0' exige
+        // ausencia. Se comprueba también la cadena vacía porque estas columnas
+        // son de texto y un '' guardado no significa "tiene chosen".
+        $this->applyPresenceFilter($query, $filters, 'has_chosen_terrestre', 'texto_chosen_terrestre');
+        $this->applyPresenceFilter($query, $filters, 'has_chosen_aereo', 'texto_chosen_aereo');
+        $this->applyPresenceFilter($query, $filters, 'has_changed_name', 'old_name');
 
         return $query;
+    }
+
+    /**
+     * @param  Builder<Agency>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyPresenceFilter(Builder $query, array $filters, string $filterKey, string $column): void
+    {
+        $value = $filters[$filterKey] ?? null;
+
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        // filter_var acepta '1'/'0', 'true'/'false', 'si'/'no' vía la vista y
+        // devuelve null para basura, en cuyo caso no se filtra.
+        $wanted = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        if ($wanted === null) {
+            return;
+        }
+
+        if ($wanted) {
+            $query->whereNotNull($column)->where($column, '!=', '');
+
+            return;
+        }
+
+        $query->where(fn (Builder $inner) => $inner->whereNull($column)->orWhere($column, '=', ''));
     }
 }
