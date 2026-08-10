@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.7.8 - 2026-08-10
+
+### Changed
+
+- La captura vuelve a depender de los cambios reales de los inputs relevantes en lugar de exigir `Enter`.
+- `#inputnombre` recupera la clasificación automática de `DNI`, `CE` y `RUC`.
+- `#inputnroguia` queda fijado como `OS` aunque el valor pudiera parecer un documento.
+- `Clave` vuelve a capturarse desde su selector original de `swal-input1..4` sin reclasificarse por longitud.
+
+### Fixed
+
+- Se restaura la captura automática por inputs para Shalom Control.
+- Se evita que `Clave` y `OS` se pierdan por depender de `Enter`.
+- Se mantiene la protección contra duplicados técnicos en una ventana corta.
+
 ## 2.7.7 - 2026-08-10
 
 ### Changed

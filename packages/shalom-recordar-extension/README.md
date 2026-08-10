@@ -9,8 +9,8 @@ Extensión Chrome para capturar y sincronizar datos de Shalom Recordar con CodeR
   - `DNI` = 8 dígitos
   - `CE` = 9 dígitos
   - `RUC` = 11 dígitos
-- Captura también `Clave` y `OS` cuando el usuario presiona `Enter` sobre el campo correspondiente.
-- Registra todo únicamente cuando el usuario presiona `Enter`.
+- Captura también `Clave` y `OS` cuando cambia el input correspondiente.
+- Registra los cambios reales de los inputs relevantes sin depender de `Enter`.
 - Ignora valores inválidos o de longitud no permitida.
 - Guarda historial local compacto.
 - Sincroniza los datos con CodeRED Platform mediante login de usuario.
@@ -99,7 +99,7 @@ Al iniciar sesión:
 
 ## Captura de datos
 
-La captura ocurre únicamente cuando el usuario presiona `Enter`.
+La captura ocurre automáticamente cuando cambian los inputs relevantes.
 
 Tipos capturados:
 
@@ -112,6 +112,7 @@ Tipos capturados:
 - `Clave`: valor del campo correspondiente
 
 Valores con letras, espacios internos, longitudes distintas o caracteres inválidos se ignoran.
+La protección contra duplicados técnicos evita guardar varias veces el mismo valor por una sola interacción rápida del DOM.
 
 ## Historial local
 

