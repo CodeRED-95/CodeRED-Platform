@@ -183,4 +183,21 @@ class AgencyListFiltersTest extends TestCase
             ->assertSee('Limpiar filtros')
             ->assertDontSee('No hay agencias registradas');
     }
+
+    public function test_status_filter_can_show_inactive_agencies(): void
+    {
+        $active = Agency::factory()->create(['code' => 'AG-ACTIVA', 'status' => 'active']);
+        $inactive = Agency::factory()->create(['code' => 'AG-INACTIVA', 'status' => 'inactive']);
+
+        $codes = Livewire::actingAs($this->superAdmin())
+            ->test(AgenciesIndex::class)
+            ->set('status', 'inactive')
+            ->viewData('agencies')
+            ->getCollection()
+            ->pluck('code')
+            ->all();
+
+        $this->assertSame(['AG-INACTIVA'], $codes);
+        $this->assertNotContains($active->code, $codes);
+    }
 }

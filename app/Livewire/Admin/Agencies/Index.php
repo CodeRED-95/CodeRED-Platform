@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Actions\BulkActivateAgenciesAction;
+use App\Modules\Agencies\Actions\BulkDeactivateAgenciesAction;
 use App\Modules\Agencies\Actions\BulkDeleteAgenciesAction;
 use App\Modules\Agencies\Actions\BulkForceDeleteAgenciesAction;
 use App\Modules\Agencies\Actions\BulkRestoreAgenciesAction;
@@ -203,7 +204,7 @@ class Index extends Component
 
     public function prepareBulkAction(string $action): void
     {
-        abort_unless(in_array($action, ['activate', 'delete', 'restore', 'force-delete'], true), 404);
+        abort_unless(in_array($action, ['activate', 'deactivate', 'delete', 'restore', 'force-delete'], true), 404);
         $trashAction = in_array($action, ['restore', 'force-delete'], true);
         abort_unless($trashAction === ($this->withTrashed === 'only'), 404);
         if ($this->selectedIds(true) === []) {
@@ -225,6 +226,19 @@ class Index extends Component
         $result = $action->execute($this->selectedIds(true));
         $this->clearSelection();
         $this->dispatch('toast', type: 'success', message: 'Se activaron '.$result['activated'].' agencias. Se ignoraron '.$result['ignored'].' porque no estaban en revisión o ya no existen.');
+    }
+
+    public function deactivateSelected(BulkDeactivateAgenciesAction $action): void
+    {
+        if ($this->pendingBulkAction !== 'deactivate') {
+            $this->dispatch('toast', type: 'danger', message: 'Confirma la desactivación antes de continuar.');
+
+            return;
+        }
+
+        $result = $action->execute($this->selectedIds(true));
+        $this->clearSelection();
+        $this->dispatch('toast', type: 'success', message: 'Se desactivaron '.$result['deactivated'].' agencias. Se ignoraron '.$result['ignored'].' porque ya estaban inactivas o no existen.');
     }
 
     public function deleteSelected(BulkDeleteAgenciesAction $action): void

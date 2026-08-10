@@ -106,6 +106,16 @@
                             >
                                 <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('activate')" variant="primary" loading-target="activateSelected">Activar seleccionadas</x-ui.button></x-slot:trigger>
                             </x-ui.confirm-dialog>
+                            <x-ui.confirm-dialog
+                                id="bulk-deactivate-agencies"
+                                title="Desactivar agencias seleccionadas"
+                                :message="'Se desactivarán '.$bulkSummary['selected'].' agencias. Las que ya estén inactivas se ignorarán sin error.'"
+                                confirm-label="Desactivar agencias"
+                                confirm-action="deactivateSelected"
+                                tone="warning"
+                            >
+                                <x-slot:trigger><x-ui.button type="button" wire:click="prepareBulkAction('deactivate')" variant="warning" loading-target="deactivateSelected">Desactivar seleccionadas</x-ui.button></x-slot:trigger>
+                            </x-ui.confirm-dialog>
                         @endif
                         @if ($canBulkDelete)
                             <x-ui.confirm-dialog

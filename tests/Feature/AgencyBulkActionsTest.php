@@ -8,6 +8,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Actions\BulkActivateAgenciesAction;
+use App\Modules\Agencies\Actions\BulkDeactivateAgenciesAction;
 use App\Modules\Agencies\Actions\BulkForceDeleteAgenciesAction;
 use App\Modules\Agencies\Actions\BulkRestoreAgenciesAction;
 use App\Modules\Agencies\Enums\AgencyStatus;
@@ -68,6 +69,29 @@ class AgencyBulkActionsTest extends TestCase
         $this->assertSame(AgencyStatus::Inactive, $inactive->fresh()->status);
         $this->assertDatabaseHas('agency_change_logs', ['agency_id' => $review->id, 'user_id' => $actor->id, 'action' => 'updated']);
         $this->assertDatabaseHas('agency_sync_changes', ['agency_internal_id' => $review->id, 'operation' => 'upsert']);
+    }
+
+    public function test_bulk_deactivation_sets_selected_agencies_to_inactive_without_trashed_changes(): void
+    {
+        $actor = $this->actor(['agencies.view', 'agencies.manage_status']);
+        $active = Agency::factory()->create(['status' => AgencyStatus::Active]);
+        $review = Agency::factory()->create(['status' => AgencyStatus::UnderReview]);
+        $inactive = Agency::factory()->create(['status' => AgencyStatus::Inactive]);
+
+        Livewire::actingAs($actor)->test(Index::class)
+            ->set('selectedAgencyIds', [$active->id, $review->id, $inactive->id, 999999, $active->id])
+            ->assertSee('Desactivar seleccionadas')
+            ->call('prepareBulkAction', 'deactivate')
+            ->call('deactivateSelected')
+            ->assertSet('selectedAgencyIds', [])
+            ->assertDispatched('toast');
+
+        $this->assertSame(AgencyStatus::Inactive, $active->fresh()->status);
+        $this->assertSame(AgencyStatus::Inactive, $review->fresh()->status);
+        $this->assertSame(AgencyStatus::Inactive, $inactive->fresh()->status);
+        $this->assertNotSoftDeleted($active);
+        $this->assertNotSoftDeleted($review);
+        $this->assertNotSoftDeleted($inactive);
     }
 
     public function test_bulk_actions_require_confirmation(): void
@@ -140,7 +164,7 @@ class AgencyBulkActionsTest extends TestCase
     {
         $ids = range(1, 101);
         Livewire::actingAs($this->actor(['agencies.view', 'agencies.manage_status']))->test(Index::class)
-            ->set('selectedAgencyIds', $ids)->call('prepareBulkAction', 'activate')
+            ->set('selectedAgencyIds', $ids)->call('prepareBulkAction', 'deactivate')
             ->assertHasErrors(['selectedAgencyIds']);
     }
 
