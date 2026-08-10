@@ -34,4 +34,9 @@ packages/codered-agent/*.enc
 n8n-data/
 codered-agent-data/
 /storage/app/private/backups/ruc
+# PHPUnit
 .phpunit.result.cache
+*.phpunit.result.cache
+*.result.cache
+# Cache genérico
+*.cache
