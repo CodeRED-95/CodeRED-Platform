@@ -152,6 +152,12 @@ class ApiTokenManagementTest extends TestCase
             'Origin' => 'chrome-extension://extension-id',
             'Access-Control-Request-Method' => 'GET',
         ])->options('/api/v1/agencies')->assertHeader('Access-Control-Allow-Origin', 'chrome-extension://extension-id');
+
+        $this->actingAs($super)->withHeaders([
+            'Origin' => 'chrome-extension://extension-id',
+            'Access-Control-Request-Method' => 'POST',
+        ])->options('/api/v1/shalom-recordar/sync')
+            ->assertHeader('Access-Control-Allow-Origin', 'chrome-extension://extension-id');
     }
 
     public function test_token_copy_control_uses_safe_frontend_component_and_fallback(): void
