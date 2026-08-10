@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
 use Database\Seeders\DatabaseSeeder;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -49,5 +50,26 @@ class SeederTest extends TestCase
         $this->assertFalse($admin->hasRole('admin'));
         $this->assertCount(3, Role::query()->get());
         $this->assertGreaterThan(0, Agency::query()->count());
+    }
+
+    public function test_sync_configured_admin_command_creates_and_updates_admin(): void
+    {
+        User::query()->create([
+            'name' => 'Nombre Antiguo',
+            'email' => 'admin@codered.local',
+            'password' => Hash::make('OldPassword123!'),
+            'status' => 'suspended',
+            'is_active' => false,
+        ]);
+
+        $this->artisan('app:sync-configured-admin')->assertSuccessful();
+
+        $admin = User::query()->where('email', 'admin@codered.local')->firstOrFail();
+
+        $this->assertSame('Administrador Dev', $admin->name);
+        $this->assertTrue(Hash::check('ChangeMe123!', $admin->password));
+        $this->assertTrue($admin->is_active);
+        $this->assertSame('active', $admin->status);
+        $this->assertTrue($admin->hasRole('super-admin'));
     }
 }

@@ -613,6 +613,10 @@ if ! docker compose exec -T app php artisan db:seed --force; then
     echo "[INFO] La instalación puede reanudarse después de corregir el seeder." >&2
     exit 1
 fi
+if ! docker compose exec -T app php artisan app:sync-configured-admin; then
+    echo "[ERROR] Falló la sincronización del administrador configurado." >&2
+    exit 1
+fi
 docker compose exec -T app php artisan optimize:clear
 docker compose exec -T app php artisan storage:link >/dev/null 2>&1 || true
 

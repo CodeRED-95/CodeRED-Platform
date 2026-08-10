@@ -636,6 +636,7 @@ else
 fi
 
 step 12 "Limpiando cachés"
+docker compose exec -T app php artisan app:sync-configured-admin
 docker compose exec -T app php artisan optimize:clear
 docker compose exec -T app php artisan config:cache
 docker compose exec -T app php artisan route:cache
