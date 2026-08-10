@@ -43,7 +43,6 @@ Este proyecto es una plataforma Laravel modular para administración y consulta 
 - Actualizar ADR cuando exista una decisión arquitectónica nueva o cambie una existente.
 - Mantener la API documentada si cambian rutas, respuestas o permisos.
 - Mantener `ENVIRONMENT.md` si aparece o cambia una variable de entorno.
-- Mantener `IMPORTER.md` si cambia el origen o transformación del Gist.
 - Mantener `INSTALL.md` si cambia el flujo de arranque, build o validación.
 - Mantener `AUTHORIZATION.md` si cambia el flujo de Gates, Policies o helpers de autorización.
 - Mantener `DESIGN_SYSTEM.md` si cambian tokens, branding o componentes Blade compartidos.

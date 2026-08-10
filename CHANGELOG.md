@@ -6,6 +6,36 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.1] - 2026-08-10
+
+### DOCUMENTACIÓN
+
+Auditoría de la documentación contrastada con el código, `docker-compose.yml`,
+scripts y versiones reales.
+
+- **`README.md` reescrito** como punto de entrada conciso: qué es, arquitectura,
+  requisitos, instalación, actualización, Docker, estructura del repo, módulos,
+  packages/extensiones (con versiones reales: chrome 2.3.5, shalom-recordar
+  2.7.16, ruc-tools 2.3.0), desarrollo e índice de documentación. Se retiró el
+  bloque "Novedades 3.0.0" (pertenece al CHANGELOG) y el detalle operativo largo
+  ahora enlaza a `docs/`.
+- **`docs/DOCUMENTATION_STRUCTURE.md` reescrito** para reflejar el árbol real de
+  `docs/`. El anterior describía carpetas inexistentes (`docs-security/`,
+  `docs/guides/`, `docs/changelog/`).
+- **Enlaces corregidos**: se eliminaron todos los enlaces rotos del README
+  (apuntaban a `docs-security/`, `docs/guides/`, `docs-dev/CONTRIBUTING.md`,
+  `docs-ruc/QUICK_START.md`, etc.) y los tres de `TOKEN_REQUESTS_README.md`.
+  Verificación: 0 enlaces markdown internos rotos en todo el repositorio.
+- **Documentos obsoletos retirados**: `docs/IMPORTER.md` (importador de agencias
+  por GitHub Gist, eliminado en 4.0.0), `docs/agencias-estructura.md` (stub
+  superado por `docs/AGENCIES.md`) e `IMPLEMENTATION_REPORT.md` (informe puntual
+  ya superado). Se actualizó `AGENTS.md`, que aún referenciaba `IMPORTER.md`.
+- Se **conservó** deliberadamente la sección "Migración de dominio
+  (codered.host → codered.lat)" de `docs/ENVIRONMENT.md`: no es obsoleta, es la
+  guía vigente para retirar el dominio heredado (`CODERED_LEGACY_DOMAINS`).
+
+---
+
 ## [4.6.0] - 2026-08-10
 
 ### CAMBIADO

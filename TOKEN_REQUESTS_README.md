@@ -445,8 +445,8 @@ Incluye:
 
 ## 🔗 ENLACES RELACIONADOS
 
-- [API Documentation](/docs/api/token-requests)
-- [Security Policy](/docs/security)
+- [API de tokens](/docs/api/tokens.md)
+- [Seguridad](/docs/SECURITY.md)
 - [Changelog](/CHANGELOG.md)
-- [Architecture](/docs/architecture)
+- [Arquitectura](/docs/ARCHITECTURE.md)
 
