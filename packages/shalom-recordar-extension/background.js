@@ -4,13 +4,13 @@ const MAX_PENDING_QUEUE = 500; // tope de eventos en espera mientras la extensi√
 let recentCapture = { key: '', at: 0 };
 
 function captureKey(data) {
-  return [data?.field ?? '', data?.value ?? '', data?.timestamp ?? ''].join('|');
+  return [data?.field ?? '', data?.value ?? '', data?.source ?? ''].join('|');
 }
 
 function isDuplicateCapture(data) {
   const now = Date.now();
   const key = captureKey(data);
-  const duplicate = recentCapture.key === key && (now - recentCapture.at) < 1500;
+  const duplicate = recentCapture.key === key && (now - recentCapture.at) < 1000;
 
   if (!duplicate) {
     recentCapture = { key, at: now };

@@ -13,6 +13,7 @@ const EXTENSION_DIR = path.resolve(__dirname, '..');
 
 let listeners = {};
 const messages = [];
+const registrations = [];
 
 function createDateClass() {
     return class extends Date {
@@ -39,6 +40,7 @@ const sandbox = {
     document: {
         addEventListener(type, handler) {
             listeners[type] = handler;
+            registrations.push(type);
         },
         getElementById() {
             return null;
@@ -63,6 +65,10 @@ function emit(type, target) {
 function reset() {
     messages.length = 0;
     fakeNow = 1_000_000;
+}
+
+function loadContentScriptAgain() {
+    vm.runInContext(fs.readFileSync(path.join(EXTENSION_DIR, 'content.js'), 'utf8'), sandbox);
 }
 
 const tests = [];
@@ -110,6 +116,25 @@ test('deduplica eventos consecutivos del mismo valor', () => {
     assert.equal(messages[1].data.field, 'DNI');
 });
 
+test('no registra listeners duplicados al inicializar otra vez el content script', () => {
+    reset();
+    registrations.length = 0;
+    loadContentScriptAgain();
+    const afterFirstReload = registrations.length;
+    loadContentScriptAgain();
+    assert.equal(registrations.length, afterFirstReload, 'la segunda carga no debe registrar más listeners');
+});
+
+test('permite repetir la misma captura después de la ventana corta', () => {
+    reset();
+    emit('input', { value: '20123456789' });
+    fakeNow += 1200;
+    emit('input', { value: '20123456789' });
+    assert.equal(messages.length, 2);
+    assert.equal(messages[0].data.field, 'RUC');
+    assert.equal(messages[1].data.field, 'RUC');
+});
+
 if (require.main === module) {
     for (const [name, fn] of tests) {
         try {
@@ -121,4 +146,3 @@ if (require.main === module) {
         }
     }
 }
-
