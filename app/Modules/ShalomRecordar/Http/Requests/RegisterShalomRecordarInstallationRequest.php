@@ -10,7 +10,7 @@ class RegisterShalomRecordarInstallationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->tokenCan('shalom-recordar:bootstrap') ?? false;
     }
 
     public function rules(): array

@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('platform_version', 40)->nullable();
             $table->string('last_sync_cursor', 120)->nullable();
             $table->string('last_sync_hash', 64)->nullable();
+            $table->foreignId('sync_token_id')->nullable()->constrained('personal_access_tokens')->nullOnDelete();
             $table->timestampTz('last_synced_at')->nullable();
             $table->timestampTz('last_seen_at')->nullable();
             $table->timestampsTz();

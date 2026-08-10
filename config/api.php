@@ -25,5 +25,7 @@ return [
         'agencies:read' => 'Consultar agencias (compatibilidad)',
         'agencies:map' => 'Consultar datos cartográficos',
         'profile:read' => 'Consultar propietario del token',
+        'shalom-recordar:bootstrap' => 'Registrar instalación de Shalom Recordar',
+        'shalom-recordar:sync' => 'Sincronizar Shalom Recordar',
     ],
 ];

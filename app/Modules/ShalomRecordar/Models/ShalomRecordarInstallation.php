@@ -26,6 +26,7 @@ class ShalomRecordarInstallation extends Model
         'last_sync_cursor',
         'last_sync_hash',
         'last_seen_at',
+        'sync_token_id',
     ];
 
     protected $casts = [
