@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.15 - 2026-08-10
+
+### Changed
+
+- Se rehace el paquete de la extensión con la versión sincronizada desde la fuente única y el lockfile regenerado por una instalación limpia.
+
 ## 2.7.14 - 2026-08-10
 
 ### Fixed
