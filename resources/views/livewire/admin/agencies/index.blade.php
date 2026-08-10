@@ -36,6 +36,12 @@
     </div>
 
     <x-ui.card>
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p class="text-sm text-[color:var(--color-text-secondary)]">Usa filtros combinados para afinar el listado sin perder el contexto del padrón.</p>
+            @if ($hasActiveFilters)
+                <x-ui.button type="button" variant="ghost" wire:click="clearFilters">Limpiar filtros</x-ui.button>
+            @endif
+        </div>
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <x-ui.search-box wire:model.live.debounce.400ms="search" label="Buscar" placeholder="ID, Code, agencia o identificador chosen..." />
             <x-ui.input wire:model.live.debounce.400ms="old_name" label="Nombre anterior" placeholder="Buscar por nombre anterior" />
@@ -120,11 +126,11 @@
         </x-ui.card>
     @endif
 
-    <div wire:loading.delay wire:target="search,status,department,province,district,size,category,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
+    <div wire:loading.delay wire:target="search,old_name,status,department,province,district,size,category,has_chosen_terrestre,has_chosen_aereo,has_changed_name,source,operationsCenter,moved,withoutCoordinates,withoutPhone,underReview,withTrashed,perPage">
         <x-ui.skeleton variant="table" :rows="5" />
     </div>
 
-    <x-ui.table id="agencies-list" wire:loading.class="opacity-50" wire:target="search,status,department,province,district,size,category,operationsCenter,moved,source,withoutCoordinates,withoutPhone,withTrashed,underReview,perPage">
+    <x-ui.table id="agencies-list" wire:loading.class="opacity-50" wire:target="search,old_name,status,department,province,district,size,category,has_chosen_terrestre,has_chosen_aereo,has_changed_name,source,operationsCenter,moved,withoutCoordinates,withoutPhone,underReview,withTrashed,perPage">
         <thead class="bg-white/5 text-xs uppercase tracking-[0.2em] text-[color:var(--color-text-secondary)]">
             <tr>
                 <th class="w-12 px-5 py-4">
@@ -219,19 +225,31 @@
                         </div>
                     </td>
                 </tr>
-                @empty
+            @empty
                 <tr>
                     <td colspan="13" class="px-5 py-12">
-                        <x-ui.empty-state
-                            title="No hay agencias registradas"
-                            description="Crea una agencia nueva o importa el JSON del Gist para empezar."
-                            icon="⌁"
-                        >
-                            <div class="flex justify-center gap-3">
-                                @can('create', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Crear agencia</x-ui.button>@endcan
-                                @can('import', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.import.shalom') }}" variant="secondary">Sincronizar Shalom</x-ui.button>@endcan
-                            </div>
-                        </x-ui.empty-state>
+                        @if ($isFilteredEmpty)
+                            <x-ui.empty-state
+                                title="No hay agencias que coincidan con los filtros seleccionados"
+                                description="Ajusta los criterios o limpia los filtros para volver al listado completo."
+                                icon="⌁"
+                            >
+                                <div class="flex justify-center gap-3">
+                                    <x-ui.button type="button" variant="secondary" wire:click="clearFilters">Limpiar filtros</x-ui.button>
+                                </div>
+                            </x-ui.empty-state>
+                        @else
+                            <x-ui.empty-state
+                                title="No hay agencias registradas"
+                                description="Crea una agencia nueva o importa el JSON del Gist para empezar."
+                                icon="⌁"
+                            >
+                                <div class="flex justify-center gap-3">
+                                    @can('create', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.create') }}" variant="primary">Crear agencia</x-ui.button>@endcan
+                                    @can('import', \App\Modules\Agencies\Models\Agency::class)<x-ui.button href="{{ route('admin.agencies.import.shalom') }}" variant="secondary">Sincronizar Shalom</x-ui.button>@endcan
+                                </div>
+                            </x-ui.empty-state>
+                        @endif
                     </td>
                 </tr>
             @endforelse

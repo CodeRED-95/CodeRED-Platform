@@ -8,7 +8,6 @@ use App\Modules\Agencies\Actions\BulkForceDeleteAgenciesAction;
 use App\Modules\Agencies\Actions\BulkRestoreAgenciesAction;
 use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
-use App\Modules\Agencies\Enums\Category;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Services\AgencyBackupService;
 use App\Modules\Agencies\Services\AgencySearchService;
@@ -95,6 +94,7 @@ class Index extends Component
     public function mount(): void
     {
         Gate::authorize('viewAny', Agency::class);
+        $this->category = $this->validCategoryValue($this->category);
     }
 
     public function updating(string $property): void
@@ -105,6 +105,34 @@ class Index extends Component
 
         $this->clearSelection();
         $this->resetPage();
+    }
+
+    public function updatedDepartment(): void
+    {
+        $this->province = '';
+        $this->district = '';
+    }
+
+    public function updatedProvince(): void
+    {
+        $this->district = '';
+    }
+
+    public function updatedCategory(): void
+    {
+        $this->category = $this->validCategoryValue($this->category);
+    }
+
+    public function updatedWithTrashed(): void
+    {
+        $this->sanitizePaginationAndSelection();
+    }
+
+    public function updated(string $property): void
+    {
+        if ($this->isFilterProperty($property)) {
+            $this->sanitizePaginationAndSelection();
+        }
     }
 
     public function updatingPaginators(): void
@@ -140,6 +168,30 @@ class Index extends Component
     {
         $this->selectedAgencyIds = [];
         $this->pendingBulkAction = null;
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->old_name = '';
+        $this->status = '';
+        $this->department = '';
+        $this->province = '';
+        $this->district = '';
+        $this->size = '';
+        $this->category = '';
+        $this->has_chosen_terrestre = '';
+        $this->has_chosen_aereo = '';
+        $this->has_changed_name = '';
+        $this->source = '';
+        $this->operationsCenter = '';
+        $this->moved = '';
+        $this->withoutCoordinates = '';
+        $this->withoutPhone = '';
+        $this->underReview = '';
+        $this->withTrashed = '';
+        $this->resetPage();
+        $this->clearSelection();
     }
 
     public function createBackup(AgencyBackupService $service): void
@@ -277,6 +329,8 @@ class Index extends Component
 
         return view('livewire.admin.agencies.index', [
             'agencies' => $agencies,
+            'hasActiveFilters' => $this->hasActiveFilters(),
+            'isFilteredEmpty' => $agencies->total() === 0 && $this->hasActiveFilters(),
             'pageIds' => $pageIds,
             'allPageSelected' => $pageIds !== [] && array_diff($pageIds, $selectedIds) === [],
             'bulkSummary' => [
@@ -301,7 +355,7 @@ class Index extends Component
             'provinces' => Agency::withTrashed()->select('province')->distinct()->orderBy('province')->pluck('province'),
             'districts' => Agency::withTrashed()->select('district')->distinct()->orderBy('district')->pluck('district'),
             'sizes' => ['' => 'Todos'] + AgencySize::options(),
-            'categories' => ['' => 'Todos'] + collect(Category::cases())->mapWithKeys(fn ($c) => [$c->value => $c->value])->all(),
+            'categories' => $this->categoryOptions(),
             'statuses' => ['' => 'Todos'] + AgencyStatus::options(),
             'filteredExportUrl' => route('admin.agencies.export', ['scope' => 'filtered'] + array_filter($filters, fn (string $value): bool => $value !== '')),
             'allExportUrl' => route('admin.agencies.export', ['scope' => 'all']),
@@ -312,10 +366,18 @@ class Index extends Component
     private function filters(): array
     {
         return [
-            'search' => $this->search, 'status' => $this->status, 'department' => $this->department,
-            'province' => $this->province, 'district' => $this->district, 'size' => $this->size,
-            'category' => $this->category, 'source' => $this->source, 'operations_center' => $this->operationsCenter, 'moved' => $this->moved,
-            'without_coordinates' => $this->withoutCoordinates, 'without_phone' => $this->withoutPhone,
+            'search' => trim($this->search),
+            'status' => $this->status,
+            'department' => $this->department,
+            'province' => $this->province,
+            'district' => $this->district,
+            'size' => $this->size,
+            'category' => $this->validCategoryValue($this->category),
+            'source' => $this->source,
+            'operations_center' => $this->operationsCenter,
+            'moved' => $this->moved,
+            'without_coordinates' => $this->withoutCoordinates,
+            'without_phone' => $this->withoutPhone,
             'under_review' => $this->underReview, 'trash' => $this->withTrashed,
             'old_name' => $this->old_name,
             'has_chosen_terrestre' => $this->has_chosen_terrestre,
@@ -331,6 +393,72 @@ class Index extends Component
             ->orderBy($this->sortField, $this->sortDirection)
             ->forPage($this->getPage(), $this->perPage)
             ->pluck('id')->map(fn (int $id): int => $id)->all();
+    }
+
+    private function sanitizePaginationAndSelection(): void
+    {
+        $this->clearSelection();
+        $this->resetPage();
+    }
+
+    private function isFilterProperty(string $property): bool
+    {
+        return in_array($property, [
+            'search', 'old_name', 'status', 'department', 'province', 'district', 'size', 'category',
+            'has_chosen_terrestre', 'has_chosen_aereo', 'has_changed_name', 'source', 'operationsCenter',
+            'moved', 'withoutCoordinates', 'withoutPhone', 'underReview', 'withTrashed', 'perPage',
+        ], true);
+    }
+
+    private function hasActiveFilters(): bool
+    {
+        return collect($this->filters())
+            ->except(['per_page'])
+            ->filter(fn (mixed $value): bool => filled($value))
+            ->isNotEmpty();
+    }
+
+    /** @return array<string, string> */
+    private function categoryOptions(): array
+    {
+        $service = app(AgencySearchService::class);
+        $values = Agency::query()
+            ->whereNotNull('classification_category')
+            ->where('classification_category', '<>', '')
+            ->pluck('classification_category')
+            ->map(fn (string $value): string => $service->normalizeCategoryValue($value))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $labels = [
+            'micro' => 'MICRO',
+            'pequeña' => 'PEQUEÑA',
+            'mediana' => 'MEDIANA',
+            'grande co' => 'GRANDE CO',
+            'mini micro' => 'MINI-MICRO',
+            'mexico' => 'MEXICO',
+            'micro e/r' => 'MICRO E/R',
+            'luna pizarro' => 'LUNA PIZARRO',
+        ];
+
+        $options = ['' => 'Todas'];
+        foreach ($values as $value) {
+            $options[$value] = $labels[$value] ?? strtoupper($value);
+        }
+
+        return $options;
+    }
+
+    private function validCategoryValue(?string $value): string
+    {
+        $normalized = app(AgencySearchService::class)->normalizeCategoryValue($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        return array_key_exists($normalized, $this->categoryOptions()) ? $normalized : '';
     }
 
     /** @return array<int, int> */

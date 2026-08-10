@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.0.3] - 2026-08-10
+
+### ℹ️ Nota
+
+- Bump manual
+
+---
+
 ## [4.0.2] - 2026-08-10
 
 ### ℹ️ Nota

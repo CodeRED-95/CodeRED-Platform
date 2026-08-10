@@ -38,10 +38,17 @@ class AgencySearchService
         $query->search($filters['search'] ?? null);
         $query->byLocation($filters['department'] ?? null, $filters['province'] ?? null, $filters['district'] ?? null);
 
-        foreach (['status', 'source', 'size', 'category', 'old_name'] as $field) {
+        foreach (['status', 'source', 'size', 'old_name'] as $field) {
             if (! empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
             }
+        }
+
+        if (! empty($filters['category'])) {
+            $query->whereRaw(
+                "regexp_replace(lower(unaccent(coalesce(classification_category, ''))), '[[:space:]\-_/]+', ' ', 'g') = ?",
+                [$this->normalizeCategoryValue((string) $filters['category'])],
+            );
         }
 
         if (array_key_exists('operations_center', $filters) && $filters['operations_center'] !== '' && $filters['operations_center'] !== null) {
@@ -76,6 +83,21 @@ class AgencySearchService
         $this->applyPresenceFilter($query, $filters, 'has_changed_name', 'old_name');
 
         return $query;
+    }
+
+    public function normalizeCategoryValue(?string $value): string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        $value = mb_strtolower($value);
+        $value = str_replace(['-', '_', '/'], ' ', $value);
+        $value = preg_replace('/\s+/u', ' ', $value) ?: '';
+
+        return trim($value);
     }
 
     /**

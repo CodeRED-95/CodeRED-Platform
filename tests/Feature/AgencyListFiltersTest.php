@@ -33,6 +33,7 @@ class AgencyListFiltersTest extends TestCase
         Agency::factory()->create([
             'code' => 'AG-CON-CHOSEN',
             'name' => 'AGENCIA CON CHOSEN',
+            'classification_category' => 'GRANDE / CO',
             'texto_chosen_terrestre' => 'TERRESTRE-1',
             'texto_chosen_aereo' => 'AEREO-1',
             'old_name' => 'NOMBRE ANTERIOR',
@@ -41,6 +42,7 @@ class AgencyListFiltersTest extends TestCase
         Agency::factory()->create([
             'code' => 'AG-SIN-CHOSEN',
             'name' => 'AGENCIA SIN CHOSEN',
+            'classification_category' => 'MINI MICRO',
             'texto_chosen_terrestre' => null,
             'texto_chosen_aereo' => null,
             'old_name' => null,
@@ -50,6 +52,7 @@ class AgencyListFiltersTest extends TestCase
         Agency::factory()->create([
             'code' => 'AG-CHOSEN-VACIO',
             'name' => 'AGENCIA CHOSEN VACIO',
+            'classification_category' => 'MINI-MICRO',
             'texto_chosen_terrestre' => '',
             'texto_chosen_aereo' => '',
             'old_name' => '',
@@ -141,5 +144,43 @@ class AgencyListFiltersTest extends TestCase
             property_exists(AgenciesIndex::class, 'classification_category'),
             'El componente ya no debe exponer el filtro de clasificación.',
         );
+    }
+
+    public function test_category_filter_normalizes_equivalent_values_and_loads_only_current_categories(): void
+    {
+        $this->seedAgencies();
+
+        $superAdmin = $this->superAdmin();
+        $component = Livewire::actingAs($superAdmin)->test(AgenciesIndex::class);
+
+        $component->assertSeeHtml('agencies-category-filter')
+            ->assertSee('Categoría');
+
+        $this->assertSame(
+            ['AG-CON-CHOSEN'],
+            $component->set('category', 'GRANDE CO')->viewData('agencies')->getCollection()->pluck('code')->all()
+        );
+
+        $expectedMiniMicro = ['AG-SIN-CHOSEN', 'AG-CHOSEN-VACIO'];
+        sort($expectedMiniMicro);
+        $this->assertSame(
+            $expectedMiniMicro,
+            $component->set('category', 'MINI-MICRO')->viewData('agencies')->getCollection()->pluck('code')->sort()->values()->all()
+        );
+
+        $component->set('category', 'VALOR-QUE-NO-EXISTE');
+        $component->assertSet('category', '');
+    }
+
+    public function test_filters_show_empty_state_message_when_no_records_match(): void
+    {
+        $this->seedAgencies();
+
+        Livewire::actingAs($this->superAdmin())
+            ->test(AgenciesIndex::class)
+            ->set('department', 'Nadie')
+            ->assertSee('No hay agencias que coincidan con los filtros seleccionados')
+            ->assertSee('Limpiar filtros')
+            ->assertDontSee('No hay agencias registradas');
     }
 }
