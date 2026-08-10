@@ -130,6 +130,12 @@ class AgencyRestoreService
             $restore->forceFill(['safety_backup_id' => $safety->id, 'stage' => 'Restaurando agencias', 'progress' => 8])->save();
 
             $columns = $this->restorableColumns();
+
+            // Contexto para sanear claves foráneas: el backup puede venir de otra
+            // instalación, donde los ids de usuario/ubigeo del archivo no existen.
+            // Sin esto la inserción viola agencies_created_by_foreign (y similares).
+            $fkContext = $this->buildForeignKeyContext($restore, $agencies);
+
             $idMap = [];
             $created = 0;
             $updated = 0;
@@ -137,14 +143,16 @@ class AgencyRestoreService
             $deferredMoves = [];
 
             foreach (array_chunk($agencies, self::CHUNK) as $chunk) {
-                DB::transaction(function () use ($chunk, $columns, &$idMap, &$created, &$updated, &$deferredMoves): void {
+                DB::transaction(function () use ($chunk, $columns, $fkContext, &$idMap, &$created, &$updated, &$deferredMoves): void {
                     foreach ($chunk as $row) {
-                        $result = $this->restoreAgencyRow($row, $columns);
+                        $result = $this->restoreAgencyRow($row, $columns, $fkContext);
                         $idMap[$result['backup_id']] = $result['id'];
                         $result['created'] ? $created++ : $updated++;
 
-                        if ($result['moved_to_agency_id'] !== null) {
-                            $deferredMoves[$result['id']] = $result['moved_to_agency_id'];
+                        if ($result['moved_to_backup_id'] !== null) {
+                            // Se guarda el id de destino del ARCHIVO; se resuelve
+                            // después por code (portable entre instalaciones).
+                            $deferredMoves[$result['id']] = $result['moved_to_backup_id'];
                         }
                     }
                 });
@@ -163,10 +171,10 @@ class AgencyRestoreService
             // Segunda pasada: la autorreferencia moved_to_agency_id solo puede
             // resolverse cuando ya existen todas las agencias.
             $restore->forceFill(['stage' => 'Enlazando traslados', 'progress' => 84])->save();
-            $movedLinked = $this->applyDeferredMoves($deferredMoves, $idMap);
+            $movedLinked = $this->applyDeferredMoves($deferredMoves, $idMap, $fkContext['backup_code_by_id']);
 
             $restore->forceFill(['stage' => 'Restaurando historial de nombres', 'progress' => 88])->save();
-            $historyCount = $this->restoreNameHistories($archive['agency_name_histories'], $idMap);
+            $historyCount = $this->restoreNameHistories($archive['agency_name_histories'], $idMap, $fkContext);
 
             $trashed = 0;
             if ($restore->mode === AgencyBackupRestore::MODE_REPLACE) {
@@ -240,22 +248,124 @@ class AgencyRestoreService
     }
 
     /**
+     * Prepara el contexto para sanear claves foráneas de un archivo que puede
+     * proceder de otra instalación.
+     *
+     * @param  array<int, array<string, mixed>>  $agencies
+     * @return array{
+     *     valid_user_ids: array<int, bool>,
+     *     valid_ubigeo_ids: array<int, bool>,
+     *     fallback_user_id: int|null,
+     *     backup_code_by_id: array<int, string>
+     * }
+     */
+    private function buildForeignKeyContext(AgencyBackupRestore $restore, array $agencies): array
+    {
+        $validUserIds = array_fill_keys(
+            DB::table('users')->pluck('id')->map(fn ($id): int => (int) $id)->all(),
+            true
+        );
+
+        $validUbigeoIds = [];
+        if (Schema::hasTable('ubigeos')) {
+            $validUbigeoIds = array_fill_keys(
+                DB::table('ubigeos')->pluck('id')->map(fn ($id): int => (int) $id)->all(),
+                true
+            );
+        }
+
+        // Usuario que ejecuta la restauración: primera opción para reemplazar un
+        // created_by/updated_by histórico que ya no existe. Debe existir él mismo.
+        $fallbackUserId = $restore->created_by !== null && isset($validUserIds[(int) $restore->created_by])
+            ? (int) $restore->created_by
+            : null;
+
+        // Mapa id-del-archivo => code, para resolver moved_to_agency_id por un
+        // identificador estable en lugar del id autoincremental.
+        $codeById = [];
+        foreach ($agencies as $agency) {
+            $id = (int) ($agency['id'] ?? 0);
+            $code = isset($agency['code']) && $agency['code'] !== '' ? (string) $agency['code'] : null;
+            if ($id > 0 && $code !== null) {
+                $codeById[$id] = $code;
+            }
+        }
+
+        return [
+            'valid_user_ids' => $validUserIds,
+            'valid_ubigeo_ids' => $validUbigeoIds,
+            'fallback_user_id' => $fallbackUserId,
+            'backup_code_by_id' => $codeById,
+        ];
+    }
+
+    /**
+     * Resuelve una FK hacia users: conserva el id si existe, si no usa el admin
+     * que ejecuta la restauración y, en última instancia, null (columna nullable).
+     *
+     * @param  array{valid_user_ids: array<int, bool>, fallback_user_id: int|null}  $context
+     */
+    private function resolveUserFk(mixed $value, array $context): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $id = (int) $value;
+
+        if (isset($context['valid_user_ids'][$id])) {
+            return $id;
+        }
+
+        return $context['fallback_user_id'];
+    }
+
+    /**
+     * Resuelve ubigeo_id: se conserva si existe en el destino; si no, null. No
+     * hay un sustituto razonable para un ubigeo inexistente.
+     *
+     * @param  array{valid_ubigeo_ids: array<int, bool>}  $context
+     */
+    private function resolveUbigeoFk(mixed $value, array $context): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $id = (int) $value;
+
+        return isset($context['valid_ubigeo_ids'][$id]) ? $id : null;
+    }
+
+    /**
      * @param  array<string, mixed>  $row
      * @param  array<int, string>  $columns
-     * @return array{id: int, backup_id: int, created: bool, moved_to_agency_id: int|null}
+     * @param  array<string, mixed>  $fkContext
+     * @return array{id: int, backup_id: int, created: bool, moved_to_backup_id: int|null}
      */
-    private function restoreAgencyRow(array $row, array $columns): array
+    private function restoreAgencyRow(array $row, array $columns, array $fkContext): array
     {
         $backupId = (int) ($row['id'] ?? 0);
         $attributes = array_intersect_key($row, array_flip($columns));
 
         // moved_to_agency_id se aplica en una segunda pasada, cuando ya existen
-        // todas las agencias y se conoce el mapa de ids.
+        // todas las agencias; se guarda el id de destino del ARCHIVO.
         $movedTo = isset($attributes['moved_to_agency_id']) && $attributes['moved_to_agency_id'] !== null
             ? (int) $attributes['moved_to_agency_id']
             : null;
         $attributes['moved_to_agency_id'] = null;
         unset($attributes['id']);
+
+        // Saneo de FKs: nunca se inserta un id que no exista en el destino.
+        if (array_key_exists('created_by', $attributes)) {
+            $attributes['created_by'] = $this->resolveUserFk($attributes['created_by'], $fkContext);
+        }
+        if (array_key_exists('updated_by', $attributes)) {
+            $attributes['updated_by'] = $this->resolveUserFk($attributes['updated_by'], $fkContext);
+        }
+        if (array_key_exists('ubigeo_id', $attributes)) {
+            $attributes['ubigeo_id'] = $this->resolveUbigeoFk($attributes['ubigeo_id'], $fkContext);
+        }
 
         $attributes = $this->encodeJsonColumns($attributes);
 
@@ -280,12 +390,12 @@ class AgencyRestoreService
         if ($existingId !== null) {
             DB::table('agencies')->where('id', $existingId)->update($attributes);
 
-            return ['id' => (int) $existingId, 'backup_id' => $backupId, 'created' => false, 'moved_to_agency_id' => $movedTo];
+            return ['id' => (int) $existingId, 'backup_id' => $backupId, 'created' => false, 'moved_to_backup_id' => $movedTo];
         }
 
         $newId = DB::table('agencies')->insertGetId($attributes);
 
-        return ['id' => (int) $newId, 'backup_id' => $backupId, 'created' => true, 'moved_to_agency_id' => $movedTo];
+        return ['id' => (int) $newId, 'backup_id' => $backupId, 'created' => true, 'moved_to_backup_id' => $movedTo];
     }
 
     /**
@@ -307,20 +417,30 @@ class AgencyRestoreService
     }
 
     /**
+     * Enlaza moved_to_agency_id en una segunda pasada, de forma portable.
+     *
+     * El destino se resuelve así, sin confiar nunca en el id autoincremental:
+     *   1. por el mapa archivo→real (la agencia destino venía en la copia);
+     *   2. si no, por el `code` estable del destino, buscándolo en el destino.
+     * Si no se puede resolver, se deja en null: se conservan igualmente
+     * has_moved, moved_to_address y move_notice (los datos textuales del
+     * traslado no se pierden).
+     *
      * @param  array<int, int>  $deferredMoves  id real => id de destino en el archivo
      * @param  array<int, int>  $idMap  id del archivo => id real
+     * @param  array<int, string>  $backupCodeById  id del archivo => code
      */
-    private function applyDeferredMoves(array $deferredMoves, array $idMap): int
+    private function applyDeferredMoves(array $deferredMoves, array $idMap, array $backupCodeById): int
     {
         $applied = 0;
 
         foreach ($deferredMoves as $agencyId => $backupTargetId) {
-            // Si el destino venía en la copia se traduce; si no, se acepta tal
-            // cual solo cuando esa agencia existe en la base.
             $targetId = $idMap[$backupTargetId] ?? null;
 
-            if ($targetId === null && DB::table('agencies')->where('id', $backupTargetId)->exists()) {
-                $targetId = $backupTargetId;
+            // Reconstrucción por identificador estable (code), no por id.
+            if ($targetId === null && isset($backupCodeById[$backupTargetId])) {
+                $targetId = DB::table('agencies')->where('code', $backupCodeById[$backupTargetId])->value('id');
+                $targetId = $targetId !== null ? (int) $targetId : null;
             }
 
             if ($targetId === null) {
@@ -337,8 +457,9 @@ class AgencyRestoreService
     /**
      * @param  array<int, array<string, mixed>>  $histories
      * @param  array<int, int>  $idMap
+     * @param  array<string, mixed>  $fkContext
      */
-    private function restoreNameHistories(array $histories, array $idMap): int
+    private function restoreNameHistories(array $histories, array $idMap, array $fkContext): int
     {
         if ($histories === []) {
             return 0;
@@ -348,7 +469,7 @@ class AgencyRestoreService
         $restoredAgencyIds = array_values($idMap);
         $inserted = 0;
 
-        DB::transaction(function () use ($histories, $columns, $restoredAgencyIds, &$inserted): void {
+        DB::transaction(function () use ($histories, $columns, $restoredAgencyIds, $fkContext, &$inserted): void {
             // Se reemplaza el historial de las agencias restauradas para que el
             // resultado sea el del archivo y no una mezcla con lo que hubiera.
             foreach (array_chunk($restoredAgencyIds, 500) as $chunk) {
@@ -369,6 +490,13 @@ class AgencyRestoreService
                     $row = array_intersect_key($history, array_flip($columns));
                     unset($row['id']);
                     $row['agency_id'] = $agencyId;
+
+                    // changed_by → users(id): mismo saneo de FK que en agencies.
+                    if (array_key_exists('changed_by', $row)) {
+                        $row['changed_by'] = $this->resolveUserFk($row['changed_by'], $fkContext);
+                    }
+
+                    // import_run_id no tiene FK en el esquema; se conserva tal cual.
 
                     if (array_key_exists('metadata', $row) && is_array($row['metadata'])) {
                         $row['metadata'] = json_encode($row['metadata'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

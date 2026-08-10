@@ -6,6 +6,32 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.5.2] - 2026-08-10
+
+### CORREGIDO
+
+- **La restauración de agencias fallaba con `SQLSTATE[23503] ...
+  agencies_created_by_foreign` al restaurar una copia de otra instalación.** El
+  archivo trae `created_by`/`updated_by` con ids de usuario históricos que no
+  existen en el destino, y se insertaban tal cual, violando la clave foránea.
+  Ahora, antes de insertar, cada FK del backup se sanea:
+  - **`created_by` / `updated_by`** (y `changed_by` del historial de nombres):
+    se conserva el usuario si existe; si no, se usa el administrador que ejecuta
+    la restauración; y si tampoco lo hay, `null` (columnas nullable). Nunca se
+    inserta un id inválido.
+  - **`ubigeo_id`**: se conserva si el ubigeo existe en el destino; si no, `null`.
+  - **`moved_to_agency_id`**: se reenlaza en una segunda pasada resolviendo el
+    destino por el identificador **estable `code`**, no por el id
+    autoincremental, de modo que el traslado se reconstruye aunque los ids
+    difieran entre instalaciones. Si no se puede resolver, queda `null` pero se
+    conservan `has_moved`, `moved_to_address` y `move_notice`.
+- La restauración es ahora **portable entre instalaciones**: no depende de ids
+  autoincrementales idénticos y empareja agencias por `code`.
+- Un fallo de restauración sigue mostrando en la interfaz un mensaje resumido y
+  entendible; nunca se vuelca la SQL completa al usuario.
+
+---
+
 ## [4.5.1] - 2026-08-10
 
 ### CORREGIDO
