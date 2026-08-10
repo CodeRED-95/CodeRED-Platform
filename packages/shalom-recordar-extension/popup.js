@@ -1,89 +1,238 @@
-const loginView = document.getElementById('loginView');
-const sessionView = document.getElementById('sessionView');
-const statusEl = document.getElementById('status');
-const userName = document.getElementById('userName');
-const userEmail = document.getElementById('userEmail');
-const lastSync = document.getElementById('lastSync');
+const el = (id) => document.getElementById(id);
+
+const loadingView = el('loadingView');
+const loginView = el('loginView');
+const sessionView = el('sessionView');
+const statusEl = el('status');
+const tagline = el('tagline');
+const avatarBtn = el('btnAvatar');
+const accountMenu = el('accountMenu');
+
+/** Última sesión conocida; evita releer storage en cada interacción del menú. */
+let currentState = null;
 
 function setStatus(message, tone = 'muted') {
-    statusEl.textContent = message;
-    statusEl.style.color = tone === 'error' ? '#fca5a5' : tone === 'success' ? '#86efac' : '#9ca3af';
+    statusEl.textContent = message ?? '';
+    statusEl.style.color = tone === 'error' ? '#fca5a5' : tone === 'success' ? '#86efac' : tone === 'warn' ? '#fbbf24' : '#9ca3af';
 }
 
-function showLoggedOut() {
-    loginView.classList.remove('hidden');
-    sessionView.classList.add('hidden');
+function initials(state) {
+    const source = state?.user?.name || state?.user?.email || '';
+    const trimmed = source.trim();
+    return trimmed ? trimmed[0].toUpperCase() : '?';
+}
+
+function formatDate(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
+}
+
+function closeMenu() {
+    accountMenu.classList.add('hidden');
+    avatarBtn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleMenu() {
+    const willOpen = accountMenu.classList.contains('hidden');
+    accountMenu.classList.toggle('hidden', !willOpen);
+    avatarBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+
+/** Solo se muestra una vista a la vez: cargando, login o sesión. */
+function showView(name) {
+    loadingView.classList.toggle('hidden', name !== 'loading');
+    loginView.classList.toggle('hidden', name !== 'login');
+    sessionView.classList.toggle('hidden', name !== 'session');
+
+    const authenticated = name === 'session';
+    avatarBtn.classList.toggle('hidden', !authenticated);
+    if (!authenticated) {
+        closeMenu();
+    }
+}
+
+function showLoading() {
+    showView('loading');
+    setStatus('Validando sesión guardada...');
+}
+
+function showLoggedOut(message, tone = 'muted') {
+    currentState = null;
+    showView('login');
+    tagline.textContent = 'Inicia sesión con tu cuenta de CodeRED Platform. No se guarda tu contraseña.';
+    setStatus(message ?? 'Inicia sesión para sincronizar tu extensión.', tone);
 }
 
 function showLoggedIn(state) {
-    loginView.classList.add('hidden');
-    sessionView.classList.remove('hidden');
-    userName.textContent = state.user?.name || 'Usuario autenticado';
-    userEmail.textContent = state.user?.email || '';
-    lastSync.textContent = state.server?.last_synced_at
-        ? `Última sincronización: ${new Date(state.server.last_synced_at).toLocaleString()}`
-        : 'Aún no hay sincronizaciones';
+    currentState = state;
+    showView('session');
+
+    const name = state.user?.name || 'Usuario autenticado';
+    const email = state.user?.email || '';
+
+    tagline.textContent = 'Sesión activa en CodeRED Platform.';
+    el('userName').textContent = name;
+    el('userEmail').textContent = email;
+    avatarBtn.textContent = initials(state);
+
+    el('menuName').textContent = name;
+    el('menuEmail').textContent = email;
+
+    // "Degradado" = hay token válido guardado pero la plataforma no respondió.
+    const degraded = Boolean(state.degraded);
+    el('connDot').className = degraded ? 'dot warn' : 'dot';
+    el('connText').textContent = degraded ? 'Sin conexión con la plataforma' : 'Conectado';
+    el('menuState').textContent = degraded ? 'Sin conexión' : 'Conectado';
+
+    const lastSync = formatDate(state.server?.last_synced_at) || formatDate(state.meta?.lastSyncAt);
+    el('lastSync').textContent = lastSync ?? 'Aún no hay sincronizaciones';
+
+    const records = state.server?.records_count;
+    el('recordCount').textContent = typeof records === 'number' ? String(records) : '—';
 }
 
-async function refreshState() {
-    const state = await globalThis.ShalomRecordarSync.getSessionState();
-    if (state.authenticated) {
-        showLoggedIn(state);
-        setStatus('Sesión activa', 'success');
-    } else {
-        showLoggedOut();
-        setStatus('Inicia sesión para sincronizar tu extensión.');
+async function refreshState({ silent = false } = {}) {
+    if (!silent) {
+        showLoading();
     }
-}
 
-document.getElementById('btnLogin').addEventListener('click', async () => {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const btn = document.getElementById('btnLogin');
-    btn.disabled = true;
-    btn.textContent = 'Validando...';
     try {
-        const result = await globalThis.ShalomRecordarSync.login({ email, password });
-        if (!result.ok) {
-            setStatus(result.message || 'No se pudo iniciar sesión.', 'error');
-            return;
+        const state = await globalThis.ShalomRecordarSync.getSessionState();
+
+        if (state.authenticated) {
+            showLoggedIn(state);
+            setStatus(state.degraded ? (state.error?.message ?? 'No se pudo contactar con la plataforma.') : 'Sesión activa', state.degraded ? 'warn' : 'success');
+            return state;
         }
-        await refreshState();
-        setStatus('Sesión iniciada correctamente.', 'success');
-    } catch (error) {
-        setStatus(error instanceof Error ? error.message : 'No se pudo iniciar sesión.', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Iniciar sesión';
-    }
-});
 
-document.getElementById('btnSync').addEventListener('click', async () => {
-    const btn = document.getElementById('btnSync');
-    btn.disabled = true;
-    btn.textContent = 'Sincronizando...';
+        showLoggedOut(state.error?.message, state.reason === 'session-revoked' ? 'error' : 'muted');
+        return state;
+    } catch (error) {
+        showLoggedOut(error instanceof Error ? error.message : 'No se pudo cargar la sesión.', 'error');
+        return null;
+    }
+}
+
+async function withButton(button, busyLabel, action) {
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = busyLabel;
     try {
+        return await action();
+    } finally {
+        button.disabled = false;
+        button.textContent = original;
+    }
+}
+
+async function doSync(button) {
+    return withButton(button, 'Sincronizando...', async () => {
         const result = await globalThis.ShalomRecordarSync.syncNow();
+
         if (!result.ok) {
+            if (result.reason === 'session-revoked') {
+                await refreshState({ silent: true });
+                setStatus(result.message, 'error');
+                return;
+            }
             setStatus(result.message || 'No se pudo sincronizar.', 'error');
             return;
         }
-        await refreshState();
-        setStatus(result.message || 'Sincronización completada.', 'success');
-    } catch (error) {
-        setStatus(error instanceof Error ? error.message : 'No se pudo sincronizar.', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Sincronizar ahora';
+
+        await refreshState({ silent: true });
+        setStatus(result.synced > 0 ? `Sincronización completada: ${result.synced} registro(s).` : (result.message || 'Sin registros nuevos.'), 'success');
+    });
+}
+
+el('btnLogin').addEventListener('click', async () => {
+    const email = el('email').value.trim();
+    const password = el('password').value;
+    const btn = el('btnLogin');
+
+    if (!email || !password) {
+        setStatus('Introduce correo y contraseña.', 'error');
+        return;
+    }
+
+    await withButton(btn, 'Validando...', async () => {
+        try {
+            const result = await globalThis.ShalomRecordarSync.login({ email, password });
+            if (!result.ok) {
+                setStatus(result.message || 'No se pudo iniciar sesión.', 'error');
+                return;
+            }
+
+            // El campo de contraseña se vacía en cuanto deja de hacer falta.
+            el('password').value = '';
+
+            // Se pinta de inmediato con lo devuelto por el login para que la
+            // vista cambie sin esperar a la validación de estado.
+            showLoggedIn({ user: result.user, server: result.data ?? null, meta: {} });
+            setStatus('Sesión iniciada correctamente.', 'success');
+
+            await refreshState({ silent: true });
+        } catch (error) {
+            setStatus(error instanceof Error ? error.message : 'No se pudo iniciar sesión.', 'error');
+        }
+    });
+});
+
+el('btnSync').addEventListener('click', () => doSync(el('btnSync')));
+el('btnRefresh').addEventListener('click', () => refreshState());
+
+el('btnExport').addEventListener('click', async () => {
+    await withButton(el('btnExport'), 'Exportando...', async () => {
+        try {
+            const payload = await globalThis.ShalomRecordarSync.buildExportPayload();
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `shalom-recordar-${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            setStatus(`Exportados ${payload.records.length + payload.pending.length} registro(s).`, 'success');
+        } catch (error) {
+            setStatus(error instanceof Error ? error.message : 'No se pudo exportar.', 'error');
+        }
+    });
+});
+
+avatarBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleMenu();
+});
+
+document.addEventListener('click', (event) => {
+    if (!accountMenu.classList.contains('hidden') && !accountMenu.contains(event.target) && event.target !== avatarBtn) {
+        closeMenu();
     }
 });
 
-document.getElementById('btnRefresh').addEventListener('click', refreshState);
-
-document.getElementById('btnLogout').addEventListener('click', async () => {
-    await globalThis.ShalomRecordarSync.logout();
-    showLoggedOut();
-    setStatus('Sesión cerrada.');
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        closeMenu();
+    }
 });
 
-document.addEventListener('DOMContentLoaded', refreshState);
+el('menuSync').addEventListener('click', async () => {
+    closeMenu();
+    await doSync(el('btnSync'));
+});
+
+el('menuAccount').addEventListener('click', () => {
+    closeMenu();
+    chrome.tabs.create({ url: globalThis.ShalomRecordarSync.PLATFORM_ACCOUNT_URL });
+});
+
+el('menuLogout').addEventListener('click', async () => {
+    closeMenu();
+    await withButton(el('menuLogout'), 'Cerrando...', async () => {
+        // Cerrar sesión no borra el historial local: solo revoca credenciales.
+        const result = await globalThis.ShalomRecordarSync.logout();
+        showLoggedOut(result.revoked ? 'Sesión cerrada y token revocado.' : 'Sesión cerrada en este navegador.');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => refreshState());

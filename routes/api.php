@@ -74,6 +74,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/sync/status', [ShalomRecordarSyncController::class, 'status'])
                 ->middleware(['throttle:shalom-recordar'])
                 ->name('sync.status');
+            // Cierre de sesión de la extensión: revoca el token en uso sin
+            // tocar los registros locales ni los ya sincronizados.
+            Route::post('/auth/logout', [ShalomRecordarSyncController::class, 'logout'])
+                ->middleware(['throttle:shalom-recordar'])
+                ->name('auth.logout');
         });
         Route::middleware(['throttle:api-agencias', 'api.audit:agencias', 'abilities:agencias:consultar'])->group(function (): void {
             Route::get('/agencias', [AgencyCatalogController::class, 'index'])->name('agencias.index');

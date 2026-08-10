@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <style>
@@ -57,34 +57,113 @@
             border: 1px solid rgba(255,255,255,.08);
             background: rgba(255,255,255,.05);
         }
+        .dot { width: 8px; height: 8px; border-radius: 999px; background: #22c55e; display: inline-block; }
+        .dot.offline { background: #9ca3af; }
+        .dot.warn { background: #f59e0b; }
+
+        /* Cabecera con avatar de cuenta */
+        .header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .avatar-wrap { position: relative; }
+        .avatar {
+            width: 34px; height: 34px; min-width: 34px;
+            margin: 0; padding: 0;
+            border-radius: 999px;
+            background: #2563eb;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(255,255,255,.14);
+        }
+        .avatar:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+        .menu {
+            position: absolute;
+            top: 42px;
+            right: 0;
+            z-index: 20;
+            width: 232px;
+            padding: 8px;
+            border-radius: 12px;
+            background: #0b1220;
+            border: 1px solid rgba(255,255,255,.12);
+            box-shadow: 0 12px 28px rgba(0,0,0,.45);
+        }
+        .menu-head { padding: 6px 8px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+        .menu-name { font-weight: 700; font-size: 13px; word-break: break-word; }
+        .menu-mail { color: #9ca3af; font-size: 11px; word-break: break-all; }
+        .menu-state { margin-top: 6px; font-size: 11px; color: #86efac; display: flex; align-items: center; gap: 6px; }
+        .menu button {
+            width: 100%;
+            margin: 4px 0 0;
+            padding: 8px 10px;
+            text-align: left;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #e5e7eb;
+        }
+        .menu button:hover { background: rgba(255,255,255,.07); }
+        .menu button.danger-item { color: #fca5a5; }
+        .menu button.danger-item:hover { background: rgba(185,28,28,.18); }
+        .stat { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-top: 6px; }
+        .stat span:last-child { color: #e5e7eb; font-weight: 600; }
     </style>
 </head>
 <body>
-    <h3>Shalom Recordar</h3>
-    <p class="muted">Inicia sesión con tu cuenta de CodeRED Platform. No se guarda tu contraseña.</p>
+    <div class="header">
+        <h3>Shalom Recordar</h3>
+        <div class="avatar-wrap">
+            <button id="btnAvatar" class="avatar hidden" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Menú de cuenta">?</button>
+            <div id="accountMenu" class="menu hidden" role="menu" aria-labelledby="btnAvatar">
+                <div class="menu-head">
+                    <div id="menuName" class="menu-name"></div>
+                    <div id="menuEmail" class="menu-mail"></div>
+                    <div class="menu-state"><span class="dot"></span><span id="menuState">Conectado</span></div>
+                </div>
+                <button id="menuSync" type="button" role="menuitem">Sincronizar ahora</button>
+                <button id="menuAccount" type="button" role="menuitem">Mi cuenta en CodeRED Platform</button>
+                <button id="menuLogout" type="button" role="menuitem" class="danger-item">Cerrar sesión</button>
+            </div>
+        </div>
+    </div>
+    <p id="tagline" class="muted">Inicia sesión con tu cuenta de CodeRED Platform. No se guarda tu contraseña.</p>
 
-    <div id="loginView" class="card">
-        <label class="muted">Correo electrónico</label>
+    <!-- Estado inicial mientras se valida la sesión guardada: evita que el
+         formulario de login parpadee para quien ya tiene sesión. -->
+    <div id="loadingView" class="card">
+        <p class="muted" style="margin:0;">Cargando sesión...</p>
+    </div>
+
+    <div id="loginView" class="card hidden">
+        <label class="muted" for="email">Correo electrónico</label>
         <input id="email" type="email" autocomplete="username" placeholder="usuario@codered.lat">
-        <label class="muted">Contraseña</label>
+        <label class="muted" for="password">Contraseña</label>
         <input id="password" type="password" autocomplete="current-password" placeholder="••••••••••••">
         <button id="btnLogin">Iniciar sesión</button>
         <a href="https://platform.codered.lat/register" target="_blank" rel="noreferrer" class="muted" style="display:block;margin-top:10px;">Crear cuenta en CodeRED Platform</a>
     </div>
 
     <div id="sessionView" class="card hidden">
-        <div id="userPill" class="pill">Sesión activa</div>
-        <p id="userName" style="margin:10px 0 4px;font-weight:700;"></p>
+        <p id="userName" style="margin:0 0 4px;font-weight:700;"></p>
         <p id="userEmail" class="muted" style="margin:0;"></p>
-        <p id="lastSync" class="muted" style="margin:10px 0 0;"></p>
+        <div id="userPill" class="pill" style="margin-top:10px;"><span id="connDot" class="dot"></span><span id="connText">Conectado</span></div>
+
+        <div style="margin-top:12px;">
+            <div class="stat"><span class="muted">Última sincronización</span><span id="lastSync">—</span></div>
+            <div class="stat"><span class="muted">Registros</span><span id="recordCount">—</span></div>
+        </div>
+
         <div class="row">
             <button id="btnSync">Sincronizar ahora</button>
             <button id="btnRefresh" class="secondary">Refrescar</button>
         </div>
-        <button id="btnLogout" class="danger">Cerrar sesión</button>
+        <button id="btnExport" class="secondary">Exportar</button>
     </div>
 
     <p id="status"></p>
+    <script src="db.js"></script>
     <script src="sync.js"></script>
     <script src="popup.js"></script>
 </body>

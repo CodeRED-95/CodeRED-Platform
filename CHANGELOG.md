@@ -6,6 +6,61 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.4.0] - 2026-08-10
+
+### CORREGIDO
+
+**La extensión Shalom Recordar nunca conservaba la sesión.** Tras un login
+correcto el popup seguía mostrando el formulario, y al reabrirlo parecía que no
+había sesión.
+
+- **Causa:** `StatusShalomRecordarRequest` exigía `installation_uuid`, pero la
+  extensión consultaba `GET /sync/status` sin parámetros. El servidor respondía
+  **422**, `getSessionState()` interpretaba cualquier fallo como "no
+  autenticado" y volvía al login, aunque el token estuviera guardado y fuese
+  válido. El mensaje "Sesión iniciada correctamente" se pintaba después de esa
+  comprobación, de ahí la contradicción en pantalla.
+- `installation_uuid` pasa a ser opcional: el token se emite por instalación, así
+  que el servidor la resuelve por `sync_token_id` cuando no se envía. Las
+  versiones de la extensión ya instaladas quedan arregladas sin actualizarlas.
+- La extensión, además, envía ahora `installation_uuid` y `extension_version` en
+  la consulta de estado.
+- **Segundo fallo, en la sincronización:** `records.*.timestamp` valida
+  `Y-m-d\TH:i:s\Z`, pero `Date.toISOString()` de JavaScript siempre añade
+  milisegundos, así que "Sincronizar ahora" devolvía 422 siempre. Los timestamps
+  se normalizan antes de enviarse.
+- Un fallo de red o un 500 ya **no** cierran la sesión: solo un 401/403 la
+  invalidan. Antes, cualquier error dejaba al usuario fuera.
+
+### AÑADIDO
+
+- **`POST /api/v1/shalom-recordar/auth/logout`**: revoca el token en uso. Solo
+  toca credenciales; ni los registros locales del navegador ni los ya
+  sincronizados se ven afectados.
+- **`GET /sync/status` devuelve además el usuario del token y `records_count`**,
+  para que el popup muestre identidad y número de registros sin depender de la
+  copia guardada en el navegador.
+- **Popup con estado de carga**: al abrirse muestra "Cargando sesión..." y solo
+  después decide entre la vista autenticada y el login, evitando el parpadeo del
+  formulario para quien ya tiene sesión.
+- **Menú de cuenta en el avatar** (esquina superior derecha) con nombre, correo,
+  estado de conexión, *Sincronizar ahora*, *Mi cuenta en CodeRED Platform* y
+  *Cerrar sesión*.
+- **Botón Exportar** y panel con última sincronización y número de registros.
+- Pruebas: `tests/Feature/ShalomRecordar/RecordarSessionTest.php` (8 casos del
+  flujo de sesión) y `packages/shalom-recordar-extension/tests/session.test.cjs`
+  (10 casos de la lógica del popup, sin navegador ni red).
+
+### SEGURIDAD
+
+- La contraseña no se guarda en ningún punto y el campo se vacía tras el login.
+- Cerrar sesión conserva `installationUuid`, la cola pendiente y el historial
+  cifrado en IndexedDB: cerrar sesión no es borrar datos.
+- Los scripts de la extensión no escriben en consola, de modo que ningún token
+  puede acabar en un log.
+
+---
+
 ## [4.0.5] - 2026-08-10
 
 ### ℹ️ Nota

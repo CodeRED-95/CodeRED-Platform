@@ -87,6 +87,79 @@ class ShalomRecordarSyncService
         ];
     }
 
+    /**
+     * Resuelve la instalación de una consulta de estado.
+     *
+     * Si viene `installation_uuid` se usa (y se refresca `last_seen_at`). Si no,
+     * se deduce del token en uso, que se emite por instalación: la extensión
+     * consultaba el estado sin parámetros y recibía un 422, de modo que nunca
+     * lograba validar una sesión perfectamente válida.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function resolveInstallationForRequest(User $user, array $data, ?Request $request = null): ?ShalomRecordarInstallation
+    {
+        $uuid = isset($data['installation_uuid']) ? trim((string) $data['installation_uuid']) : '';
+
+        if ($uuid !== '') {
+            return $this->upsertInstallation($user, [
+                'installation_uuid' => $uuid,
+                'extension_version' => (string) ($data['extension_version'] ?? ''),
+            ] + $data, $request);
+        }
+
+        $tokenId = $user->currentAccessToken()?->getKey();
+
+        $installation = $tokenId === null ? null : ShalomRecordarInstallation::query()
+            ->where('user_id', $user->id)
+            ->where('sync_token_id', $tokenId)
+            ->first();
+
+        $installation?->forceFill(['last_seen_at' => now()])->save();
+
+        return $installation;
+    }
+
+    /**
+     * Registros ya sincronizados por esta instalación (o por el usuario si no
+     * se pudo resolver). Alimenta el contador que muestra el popup.
+     */
+    public function recordsCountFor(User $user, ?ShalomRecordarInstallation $installation): int
+    {
+        $query = ShalomRecordarRecord::query()->where('user_id', $user->id);
+
+        if ($installation instanceof ShalomRecordarInstallation) {
+            $query->where('installation_id', $installation->getKey());
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Revoca el token con el que se está autenticando la petición actual.
+     *
+     * Solo toca credenciales: ni los registros locales del navegador ni los ya
+     * sincronizados se ven afectados.
+     */
+    public function revokeCurrentToken(?User $user): bool
+    {
+        $token = $user?->currentAccessToken();
+
+        if ($token === null) {
+            return false;
+        }
+
+        $apiToken = ApiToken::query()->find($token->getKey());
+
+        if (! $apiToken instanceof ApiToken || $apiToken->revoked_at !== null) {
+            return false;
+        }
+
+        $apiToken->forceFill(['revoked_at' => now()])->save();
+
+        return true;
+    }
+
     public function upsertInstallation(User $user, array $data, ?Request $request = null): ShalomRecordarInstallation
     {
         return DB::transaction(function () use ($user, $data, $request): ShalomRecordarInstallation {
