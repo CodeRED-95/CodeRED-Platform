@@ -16,6 +16,7 @@ class PermissionsSeeder extends Seeder
             $permissions = collect([
                 ['slug' => 'dashboard.view', 'name' => 'Ver dashboard'],
                 ['slug' => 'agencies.view', 'name' => 'Ver agencias'],
+                ['slug' => 'agencies.map', 'name' => 'Ver mapa de agencias'],
                 ['slug' => 'agencies.manage', 'name' => 'Gestionar agencias'],
                 ['slug' => 'agencies.create', 'name' => 'Crear agencias'],
                 ['slug' => 'agencies.update', 'name' => 'Editar agencias'],
@@ -78,6 +79,8 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'integrations.n8n.manage', 'name' => 'Gestionar integración n8n empresarial'],
                 ['slug' => 'integrations.view', 'name' => 'Ver integraciones'],
                 ['slug' => 'shalom-recordar.view', 'name' => 'Ver Shalom Recordar'],
+                ['slug' => 'shalom-recordar.view-own', 'name' => 'Ver mis sincronizaciones de Shalom Recordar'],
+                ['slug' => 'shalom-recordar.sync', 'name' => 'Sincronizar mis datos de Shalom Recordar'],
                 ['slug' => 'shalom-recordar.manage', 'name' => 'Gestionar Shalom Recordar'],
                 ['slug' => 'shalom-recordar:bootstrap', 'name' => 'Registrar instalación Shalom Recordar'],
                 ['slug' => 'shalom-recordar:sync', 'name' => 'Sincronizar Shalom Recordar'],
@@ -99,11 +102,17 @@ class PermissionsSeeder extends Seeder
             $this->syncRolePermissions('editor', $this->permissionIdsForSlugs([
                 'dashboard.view',
                 'agencies.view',
+                'agencies.map',
                 'agencies.create',
                 'agencies.update',
                 'agencies.manage_status',
             ]));
-            $this->syncRolePermissions('viewer', $this->permissionIdsForSlugs(['agencies.view']));
+            $this->syncRolePermissions('viewer', $this->permissionIdsForSlugs([
+                'agencies.view',
+                'agencies.map',
+                'shalom-recordar.sync',
+                'shalom-recordar.view-own',
+            ]));
         });
     }
 

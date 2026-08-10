@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Integrations\IntegrationDiscoveryController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTelegramPersonalCodeController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
+use App\Http\Controllers\Api\V1\ShalomRecordarAuthController;
 use App\Http\Controllers\Api\V1\SystemVersionController;
 use App\Http\Controllers\Api\V1\TokenRequestController as PublicTokenRequestController;
 use App\Http\Controllers\Api\V1\TokenRotationRequestController;
@@ -53,6 +54,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/token-requests/{request_uuid}/retrieve', [N8nTokenRequestController::class, 'retrieve'])->name('token-requests.retrieve');
         Route::post('/token-requests/{request_uuid}/delivery', [N8nTokenRequestController::class, 'delivery'])->name('token-requests.delivery');
         Route::post('/token-requests/{request_uuid}/cancel', [N8nTokenRequestController::class, 'cancel'])->name('token-requests.cancel');
+    });
+    Route::prefix('shalom-recordar')->name('shalom-recordar.')->group(function (): void {
+        Route::post('/auth/login', [ShalomRecordarAuthController::class, 'login'])
+            ->middleware(['throttle:shalom-recordar'])
+            ->name('auth.login');
     });
     Route::middleware(['auth:sanctum', 'api.token-owner-active', 'api.private-cache'])->group(function (): void {
         Route::prefix('shalom-recordar')->name('shalom-recordar.')->group(function (): void {

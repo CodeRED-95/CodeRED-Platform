@@ -11,10 +11,11 @@
 
 ## Autenticación
 
-La sincronización utiliza `auth:sanctum` con tokens de API existentes. El flujo se separa en:
+La sincronización utiliza `auth:sanctum` con tokens individuales por instalación. El flujo actual es:
 
-- `shalom-recordar:bootstrap` para registrar una instalación y emitir su token individual;
-- `shalom-recordar:sync` para sincronizar los datos de esa instalación.
+- `POST /api/v1/shalom-recordar/auth/login` para autenticar con correo y contraseña y emitir un token de instalación;
+- `shalom-recordar:sync` para sincronizar los datos de esa instalación;
+- `shalom-recordar:read-own` para consultar estado o datos propios.
 
 ## Rutas
 

@@ -49,7 +49,7 @@ class ShalomRecordarSyncService
             $token = $this->tokenGenerator->create(
                 $user,
                 $tokenName,
-                ['shalom-recordar:sync'],
+                ['shalom-recordar:sync', 'shalom-recordar:read-own'],
                 365
             );
 
@@ -64,6 +64,27 @@ class ShalomRecordarSyncService
                 'token' => $token->plainTextToken,
             ];
         });
+    }
+
+    public function statusForUser(?User $user): array
+    {
+        if (! $user instanceof User) {
+            return [
+                'authenticated' => false,
+            ];
+        }
+
+        return [
+            'authenticated' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+            'installations' => $user->shalomRecordarInstallations()->count(),
+            'records' => $user->shalomRecordarRecords()->count(),
+            'last_synced_at' => $user->shalomRecordarInstallations()->max('last_synced_at'),
+        ];
     }
 
     public function upsertInstallation(User $user, array $data, ?Request $request = null): ShalomRecordarInstallation

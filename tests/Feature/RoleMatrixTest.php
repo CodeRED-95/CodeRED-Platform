@@ -27,8 +27,8 @@ class RoleMatrixTest extends TestCase
     public function test_seeders_define_only_three_roles_with_exact_permission_matrix(): void
     {
         $this->assertSame(['editor', 'super-admin', 'viewer'], Role::query()->orderBy('slug')->pluck('slug')->all());
-        $this->assertSame(['agencies.create', 'agencies.manage_status', 'agencies.update', 'agencies.view', 'dashboard.view'], $this->permissions('editor'));
-        $this->assertSame(['agencies.view'], $this->permissions('viewer'));
+        $this->assertSame(['agencies.create', 'agencies.manage_status', 'agencies.map', 'agencies.update', 'agencies.view', 'dashboard.view'], $this->permissions('editor'));
+        $this->assertSame(['agencies.map', 'agencies.view', 'shalom-recordar.sync', 'shalom-recordar.view-own'], $this->permissions('viewer'));
         $this->assertSame(Permission::query()->count(), count($this->permissions('super-admin')));
     }
 
@@ -49,6 +49,7 @@ class RoleMatrixTest extends TestCase
         $this->get(route('admin.agencies.import.shalom'))->assertForbidden();
         $this->get(route('admin.users.index'))->assertForbidden();
         $this->get(route('admin.design-system'))->assertForbidden();
+        $this->get(route('admin.shalom-recordar.index'))->assertOk();
     }
 
     public function test_editor_accesses_dashboard_and_agency_creation_editing_but_not_sensitive_modules(): void

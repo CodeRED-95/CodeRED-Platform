@@ -38,7 +38,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "saveData") {
     handleSaveData(request.data);
   } else if (request.action === "manualSync") {
-    performSync()
+    ShalomRecordarSync.syncNow()
       .then(() => sendResponse({ ok: true }))
       .catch((err) => sendResponse({ error: err.message }));
     return true; // indica que sendResponse será llamado asincronamente

@@ -219,6 +219,25 @@ class AuthenticationFlowTest extends TestCase
             ->assertSessionHasErrors(['email', 'password', 'remember']);
     }
 
+    public function test_public_registration_assigns_viewer_role_and_redirects_to_agencies(): void
+    {
+        $token = 'csrf-register';
+
+        $this->withSession(['_token' => $token])
+            ->post(route('register.store'), [
+                '_token' => $token,
+                'name' => 'Usuario Público',
+                'email' => 'publico@example.test',
+                'password' => 'Secret12345!@#',
+                'password_confirmation' => 'Secret12345!@#',
+            ])
+            ->assertRedirect(route('admin.agencies.index'));
+
+        $user = User::query()->where('email', 'publico@example.test')->firstOrFail();
+        $this->assertTrue($user->hasRole('viewer'));
+        $this->assertAuthenticatedAs($user);
+    }
+
     private function activeUser(array $attributes = []): User
     {
         return User::factory()->create([

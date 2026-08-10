@@ -87,6 +87,9 @@
             <x-ui.button type="submit" variant="primary" class="mt-6 w-full">
                 Entrar
             </x-ui.button>
+            <x-ui.button href="{{ route('register') }}" variant="outline" class="mt-3 w-full">
+                Crear cuenta
+            </x-ui.button>
         </form>
     </section>
 </div>

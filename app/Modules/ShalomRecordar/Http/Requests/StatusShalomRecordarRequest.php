@@ -10,7 +10,7 @@ class StatusShalomRecordarRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->tokenCan('shalom-recordar:sync') ?? false;
+        return $this->user()?->tokenCan('shalom-recordar:sync') || $this->user()?->tokenCan('shalom-recordar:read-own') ?? false;
     }
 
     public function rules(): array

@@ -79,8 +79,8 @@ class RolePermissionSeederIdempotencyTest extends TestCase
 
     private function assertExpectedPermissionMatrix(): void
     {
-        $this->assertSame(['agencies.create', 'agencies.manage_status', 'agencies.update', 'agencies.view', 'dashboard.view'], $this->permissionSlugsForRole('editor'));
-        $this->assertSame(['agencies.view'], $this->permissionSlugsForRole('viewer'));
+        $this->assertSame(['agencies.create', 'agencies.manage_status', 'agencies.map', 'agencies.update', 'agencies.view', 'dashboard.view'], $this->permissionSlugsForRole('editor'));
+        $this->assertSame(['agencies.map', 'agencies.view', 'shalom-recordar.sync', 'shalom-recordar.view-own'], $this->permissionSlugsForRole('viewer'));
         $this->assertSame(Permission::query()->count(), Role::query()->where('slug', 'super-admin')->firstOrFail()->permissions()->count());
     }
 

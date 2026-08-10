@@ -26,7 +26,7 @@ class UserShow extends Component
 
     public function mount(User $user): void
     {
-        Gate::authorize('shalom-recordar.view');
+        abort_unless(auth()->user()?->hasPermission('shalom-recordar.view') || (auth()->user()?->hasPermission('shalom-recordar.view-own') && auth()->id() === $user->id), 403);
         $this->user = $user;
     }
 

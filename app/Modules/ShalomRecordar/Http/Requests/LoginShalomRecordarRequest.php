@@ -6,16 +6,18 @@ namespace App\Modules\ShalomRecordar\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class RegisterShalomRecordarInstallationRequest extends FormRequest
+class LoginShalomRecordarRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->tokenCan('shalom-recordar:sync') ?? false;
+        return true;
     }
 
     public function rules(): array
     {
         return [
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
             'installation_uuid' => ['required', 'string', 'uuid'],
             'extension_version' => ['required', 'string', 'max:40'],
             'device_name' => ['nullable', 'string', 'max:120'],
@@ -23,6 +25,8 @@ class RegisterShalomRecordarInstallationRequest extends FormRequest
             'browser_version' => ['nullable', 'string', 'max:40'],
             'platform_name' => ['nullable', 'string', 'max:80'],
             'platform_version' => ['nullable', 'string', 'max:40'],
+            'installation' => ['nullable', 'array'],
+            'remember' => ['nullable', 'boolean'],
         ];
     }
 }

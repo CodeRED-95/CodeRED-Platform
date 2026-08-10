@@ -25,7 +25,7 @@ class InstallationShow extends Component
 
     public function mount(ShalomRecordarInstallation $installation): void
     {
-        Gate::authorize('shalom-recordar.view');
+        abort_unless(auth()->user()?->hasPermission('shalom-recordar.view') || (auth()->user()?->hasPermission('shalom-recordar.view-own') && auth()->id() === $installation->user_id), 403);
         $this->installation = $installation->load('user');
     }
 
