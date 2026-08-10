@@ -72,6 +72,35 @@ class RecordarBatchTest extends TestCase
         ]);
     }
 
+    /**
+     * Regresión del bug real: los botones renderizaban `wire:click="viewBatch(@js($batchKey))"`
+     * porque la directiva @js no se compila dentro de los atributos de un
+     * componente, y Livewire recibía texto sin sentido. Se comprueba que el HTML
+     * lleva claves base64 reales y nunca la directiva literal.
+     */
+    public function test_batch_action_buttons_render_a_parseable_wire_click(): void
+    {
+        $admin = $this->admin();
+        $inst = $this->installationFor($admin);
+        $this->record($inst, 'DNI', '12345678', 'batch-A');
+
+        $key = base64_encode('batch-A');
+
+        $html = Livewire::actingAs($admin)
+            ->test(InstallationShow::class, ['installation' => $inst])
+            ->html();
+
+        // Nunca debe filtrarse la directiva sin compilar.
+        $this->assertStringNotContainsString('@js(', $html);
+
+        // Los tres botones llevan la clave base64 concreta del lote.
+        $this->assertStringContainsString("viewBatch('".$key."')", $html);
+        $this->assertStringContainsString("exportBatch('".$key."')", $html);
+        // El de eliminar pasa por confirm-dialog: las comillas se escapan a &#039;
+        // (el navegador las decodifica), así que se busca el nombre + la clave.
+        $this->assertMatchesRegularExpression('/deleteSyncBatch\((&#039;|\')'.preg_quote($key, '/').'/', $html);
+    }
+
     public function test_deleting_a_batch_removes_only_its_records_and_updates_counters(): void
     {
         $admin = $this->admin();

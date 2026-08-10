@@ -63,15 +63,18 @@
                             <td class="p-3">
                                 @php($batchKey = base64_encode((string) $batch->batch_id))
                                 <div class="flex flex-wrap justify-end gap-2">
-                                    <x-ui.button size="sm" variant="outline" wire:click="viewBatch(@js($batchKey))">Ver lote</x-ui.button>
+                                    {{-- La clave va en base64 (sin comillas ni espacios), interpolada con
+                                         {{ }} porque la directiva @js NO se compila dentro de los atributos
+                                         de un componente y llegaría literal a Livewire, rompiendo el click. --}}
+                                    <x-ui.button size="sm" variant="outline" wire:click="viewBatch('{{ $batchKey }}')">Ver lote</x-ui.button>
                                     @if ($canManage)
-                                        <x-ui.button size="sm" variant="secondary" wire:click="exportBatch(@js($batchKey))">Exportar Excel</x-ui.button>
+                                        <x-ui.button size="sm" variant="secondary" wire:click="exportBatch('{{ $batchKey }}')">Exportar Excel</x-ui.button>
                                         <x-ui.confirm-dialog
                                             id="delete-batch-{{ md5((string) $batch->batch_id) }}"
                                             title="Eliminar lote"
                                             message="Se eliminarán {{ $batch->records_count }} registros de este lote. Esta acción no se puede deshacer."
                                             confirm-label="Eliminar lote"
-                                            confirm-action="deleteSyncBatch(@js($batchKey))">
+                                            confirm-action="deleteSyncBatch('{{ $batchKey }}')">
                                             <x-slot:trigger><x-ui.button size="sm" variant="danger">Eliminar lote</x-ui.button></x-slot:trigger>
                                         </x-ui.confirm-dialog>
                                     @endif

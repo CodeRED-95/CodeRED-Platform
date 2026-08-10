@@ -6,6 +6,24 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.5.1] - 2026-08-10
+
+### CORREGIDO
+
+- **Los botones `Ver lote`, `Exportar Excel` y `Eliminar lote` no ejecutaban
+  ninguna acción.** Se pasaba la clave del lote con la directiva `@js($batchKey)`
+  dentro del atributo `wire:click` de un componente Blade, pero `@js` **no se
+  compila** en los atributos de un componente: llegaba literal al DOM
+  (`wire:click="viewBatch(@js($batchKey))"`) y Livewire no podía interpretarlo,
+  así que el clic no hacía nada. Ahora la clave se interpola con `{{ }}`
+  (`wire:click="viewBatch('...')"`), el patrón que ya usa el resto del proyecto.
+  Las tres acciones —abrir el detalle del lote, descargar su `.xlsx` y eliminar
+  solo ese lote con confirmación y recuento inmediato— vuelven a funcionar.
+- Nueva prueba de regresión que verifica el HTML renderizado: el `wire:click`
+  lleva la clave base64 real y nunca la directiva `@js` sin compilar.
+
+---
+
 ## [4.5.0] - 2026-08-10
 
 ### CORREGIDO
