@@ -10,19 +10,31 @@ use App\Models\User;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarInstallation;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarRecord;
 use App\Services\ApiTokens\ApiTokenGenerator;
+use App\Support\SimpleXlsxWriter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ShalomRecordarSyncService
 {
-    public function __construct(private readonly ApiTokenGenerator $tokenGenerator)
-    {
-    }
+    /**
+     * Clave de lote canónica.
+     *
+     * Un registro puede no tener `sync_batch_id` (datos antiguos), así que el
+     * lote se identifica por el primer valor disponible. La MISMA expresión se
+     * usa para agrupar, ver, exportar y eliminar: si difieren, "Eliminar lote"
+     * no encuentra filas y falla con 404, que es justo el bug que había.
+     */
+    public const BATCH_KEY_SQL = 'coalesce(sync_batch_id, sync_cursor, recorded_at::text)';
+
+    public function __construct(private readonly ApiTokenGenerator $tokenGenerator) {}
 
     public function registerInstallation(User $user, array $data, ?Request $request = null): array
     {
-        return DB::transaction(function () use ($user, $data, $request): array {
+        return DB::transaction(function () use ($user, $data): array {
             /** @var ShalomRecordarInstallation $installation */
             $installation = ShalomRecordarInstallation::query()->updateOrCreate(
                 [
@@ -189,7 +201,7 @@ class ShalomRecordarSyncService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $records
+     * @param  array<int, array<string, mixed>>  $records
      * @return array{created:int, updated:int, cursor:?string}
      */
     public function syncRecords(User $user, ShalomRecordarInstallation $installation, array $records): array
@@ -247,16 +259,53 @@ class ShalomRecordarSyncService
         return compact('created', 'updated', 'cursor', 'batchId');
     }
 
+    /**
+     * Registros de un lote concreto de una instalación, más recientes primero.
+     *
+     * @return Builder<ShalomRecordarRecord>
+     */
+    public function batchRecordsQuery(ShalomRecordarInstallation $installation, string $batchKey)
+    {
+        return ShalomRecordarRecord::query()
+            ->where('installation_id', $installation->id)
+            ->whereRaw(self::BATCH_KEY_SQL.' = ?', [$batchKey])
+            ->orderByDesc('recorded_at');
+    }
+
+    /**
+     * Resumen de un lote (conteo y rango de fechas), o null si no existe.
+     *
+     * @return array{key:string, records_count:int, first_at:?string, last_at:?string}|null
+     */
+    public function batchSummary(ShalomRecordarInstallation $installation, string $batchKey): ?array
+    {
+        $row = ShalomRecordarRecord::query()
+            ->where('installation_id', $installation->id)
+            ->whereRaw(self::BATCH_KEY_SQL.' = ?', [$batchKey])
+            ->selectRaw('count(*) as records_count, min(recorded_at) as first_at, max(recorded_at) as last_at')
+            ->first();
+
+        if ($row === null || (int) $row->records_count === 0) {
+            return null;
+        }
+
+        return [
+            'key' => $batchKey,
+            'records_count' => (int) $row->records_count,
+            'first_at' => $row->first_at,
+            'last_at' => $row->last_at,
+        ];
+    }
+
     public function deleteSyncBatch(ShalomRecordarInstallation $installation, string $batchId, AuditLogger $audit): int
     {
         return DB::transaction(function () use ($installation, $batchId, $audit): int {
-            $records = ShalomRecordarRecord::query()
-                ->where('installation_id', $installation->id)
-                ->where('sync_batch_id', $batchId)
-                ->get();
+            // Se empareja por la MISMA clave con la que se listan los lotes,
+            // de modo que también se eliminan los registros sin sync_batch_id.
+            $records = $this->batchRecordsQuery($installation, $batchId)->get();
 
             $count = $records->count();
-            abort_if($count === 0, 404, 'Batch de sincronización no encontrado.');
+            abort_if($count === 0, 404, 'Lote de sincronización no encontrado.');
 
             foreach ($records as $record) {
                 $audit->log($record, 'shalom_recordar_sync_batch_deleted', [
@@ -268,6 +317,72 @@ class ShalomRecordarSyncService
 
             return $count;
         });
+    }
+
+    /**
+     * Genera un .xlsx con los registros de un lote e información de contexto
+     * (usuario, instalación y lote) en un archivo temporal, y devuelve su ruta.
+     *
+     * @return array{path:string, filename:string, records_count:int}
+     */
+    public function exportBatchToXlsx(ShalomRecordarInstallation $installation, string $batchKey): array
+    {
+        $summary = $this->batchSummary($installation, $batchKey);
+        abort_if($summary === null, 404, 'Lote de sincronización no encontrado.');
+
+        $installation->loadMissing('user');
+        $writer = new SimpleXlsxWriter('Lote');
+
+        // Bloque de contexto: usuario, instalación y lote.
+        $writer->addRow(['Shalom Recordar · Exportación de lote']);
+        $writer->addRow(['Usuario', $installation->user?->name ?? '—']);
+        $writer->addRow(['Correo', $installation->user?->email ?? '—']);
+        $writer->addRow(['Instalación (UUID)', $installation->installation_uuid]);
+        $writer->addRow(['Versión de extensión', $installation->extension_version ?? '—']);
+        $writer->addRow(['Lote', $batchKey]);
+        $writer->addRow(['Registros', (string) $summary['records_count']]);
+        $writer->addRow(['Primer registro', $this->formatDate($summary['first_at'])]);
+        $writer->addRow(['Último registro', $this->formatDate($summary['last_at'])]);
+        $writer->addRow(['Exportado', now('America/Lima')->format('d/m/Y H:i:s')]);
+        $writer->addRow([]);
+
+        // Cabecera de datos y filas del lote.
+        $writer->addRow(['Fecha', 'Campo', 'Valor']);
+
+        $this->batchRecordsQuery($installation, $batchKey)
+            ->orderBy('recorded_at')
+            ->chunk(500, function ($records) use ($writer): void {
+                foreach ($records as $record) {
+                    $writer->addRow([
+                        $this->formatDate($record->recorded_at),
+                        (string) $record->field,
+                        (string) $record->value,
+                    ]);
+                }
+            });
+
+        $path = tempnam(sys_get_temp_dir(), 'shalom-lote-').'.xlsx';
+        $writer->saveTo($path);
+
+        $filename = 'shalom-recordar-lote-'
+            .Str::slug(Str::limit((string) $installation->installation_uuid, 12, '')).'-'
+            .Str::slug(Str::limit($batchKey, 20, '')).'-'
+            .now()->format('Ymd-His').'.xlsx';
+
+        return ['path' => $path, 'filename' => $filename, 'records_count' => $summary['records_count']];
+    }
+
+    private function formatDate(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+
+        try {
+            return Carbon::parse($value)->timezone('America/Lima')->format('d/m/Y H:i:s');
+        } catch (\Throwable) {
+            return (string) $value;
+        }
     }
 
     public function deleteInstallationSyncs(ShalomRecordarInstallation $installation, AuditLogger $audit): int
@@ -319,5 +434,4 @@ class ShalomRecordarSyncService
             $installation->delete();
         });
     }
-
 }

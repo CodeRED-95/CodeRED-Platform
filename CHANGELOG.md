@@ -6,6 +6,47 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.5.0] - 2026-08-10
+
+### CORREGIDO
+
+- **`Eliminar lote` en Shalom Recordar volvía a fallar con "no encontrado".**
+  Los lotes se listan por `coalesce(sync_batch_id, sync_cursor, recorded_at::text)`
+  pero el borrado solo emparejaba por `sync_batch_id`, así que un lote heredado
+  sin ese campo nunca coincidía. Ahora ver, exportar y eliminar usan la misma
+  clave canónica (`ShalomRecordarSyncService::BATCH_KEY_SQL`).
+- Los contadores se actualizan de inmediato tras eliminar (re-render de Livewire).
+
+### AÑADIDO
+
+Gestión por lote en el detalle de la instalación de Shalom Recordar
+(`admin.shalom-recordar.installations.show`):
+
+- **Acciones por lote: `Ver lote`, `Exportar Excel` y `Eliminar lote`**, con
+  confirmación reutilizando `x-ui.confirm-dialog`.
+- **`Ver lote`** abre el detalle con solo los registros de ese lote (Fecha,
+  Campo, Valor) y un buscador por campo o valor.
+- **Filtro por fecha (calendario)** sobre los lotes, con botón para limpiarlo.
+- **`Exportar Excel`** genera un `.xlsx` únicamente con los registros del lote,
+  precedido de un bloque de contexto (usuario, correo, instalación, versión,
+  lote, conteo y rango de fechas). El archivo se produce con un escritor OOXML
+  propio (`App\Support\SimpleXlsxWriter`), sin añadir dependencias.
+- Las claves de lote se pasan en base64 a las acciones Livewire para soportar
+  valores con espacios o dos puntos.
+
+### CAMBIADO
+
+- Se retira la **lista general de registros** que aparecía bajo *Lotes de
+  sincronización*: los registros se consultan ahora por lote con `Ver lote`.
+
+### SEGURIDAD
+
+- Ver, exportar y eliminar lotes exigen ser administrador
+  (`shalom-recordar.manage`) o el dueño de la instalación; ningún usuario accede
+  a lotes de otro. El super-admin conserva el acceso administrativo completo.
+
+---
+
 ## [4.4.2] - 2026-08-10
 
 ### CORREGIDO
