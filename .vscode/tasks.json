@@ -12,9 +12,9 @@
     {
       "label": "PHP: Check completo",
       "type": "shell",
-      "command": "composer check",
+      "command": "docker compose exec -T app composer check",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": {
         "kind": "test",
@@ -25,9 +25,9 @@
     {
       "label": "PHP: Todas las pruebas",
       "type": "shell",
-      "command": "composer test",
+      "command": "docker compose exec -T app composer test",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "test",
       "problemMatcher": []
@@ -35,9 +35,9 @@
     {
       "label": "PHP: Unit",
       "type": "shell",
-      "command": "composer test-unit",
+      "command": "docker compose exec -T app composer test-unit",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "test",
       "problemMatcher": []
@@ -45,9 +45,9 @@
     {
       "label": "PHP: Feature",
       "type": "shell",
-      "command": "composer test-feature",
+      "command": "docker compose exec -T app composer test-feature",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "test",
       "problemMatcher": []
@@ -55,9 +55,9 @@
     {
       "label": "PHP: Prueba específica",
       "type": "shell",
-      "command": "php artisan test --filter \"${input:testFilter}\"",
+      "command": "docker compose exec -T app php artisan test --filter \"${input:testFilter}\"",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "test",
       "problemMatcher": []
@@ -65,9 +65,9 @@
     {
       "label": "PHP: Pint validar",
       "type": "shell",
-      "command": "composer lint",
+      "command": "docker compose exec -T app composer lint",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "test",
       "problemMatcher": []
@@ -75,9 +75,9 @@
     {
       "label": "PHP: Pint corregir",
       "type": "shell",
-      "command": "composer lint-fix",
+      "command": "docker compose exec -T app composer lint-fix",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "build",
       "problemMatcher": []
@@ -85,9 +85,9 @@
     {
       "label": "PHP: PHPStan",
       "type": "shell",
-      "command": "composer analyse",
+      "command": "docker compose exec -T app composer analyse",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "test",
       "problemMatcher": []
@@ -95,9 +95,9 @@
     {
       "label": "Laravel: Rutas",
       "type": "shell",
-      "command": "php artisan route:list",
+      "command": "docker compose exec -T app php artisan route:list",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "none",
       "problemMatcher": []
@@ -105,9 +105,9 @@
     {
       "label": "Laravel: Limpiar cachés",
       "type": "shell",
-      "command": "php artisan optimize:clear",
+      "command": "docker compose exec -T app php artisan optimize:clear",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "none",
       "problemMatcher": []
@@ -115,9 +115,9 @@
     {
       "label": "Frontend: Build",
       "type": "shell",
-      "command": "npm run build",
+      "command": "docker compose exec -T app npm run build",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "build",
       "problemMatcher": []
@@ -125,9 +125,9 @@
     {
       "label": "Frontend: Desarrollo",
       "type": "shell",
-      "command": "npm run dev",
+      "command": "docker compose exec -T app npm run dev",
       "options": {
-        "cwd": "/var/www/html"
+        "cwd": "${workspaceFolder}"
       },
       "group": "build",
       "problemMatcher": []

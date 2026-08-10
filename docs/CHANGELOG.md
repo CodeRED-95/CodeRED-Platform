@@ -16,6 +16,11 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]
 
+### Changed
+
+- Se elimina el soporte de VS Code Dev Containers. El flujo oficial pasa a ser VS Code Remote SSH sobre el host Linux con Docker Compose como entorno de ejecución.
+- Se actualizan las tareas y documentación para ejecutar verificaciones mediante `docker compose exec -T app ...`.
+
 ## [2.3.0] - 2026-08-03
 
 ### Added
@@ -257,7 +262,6 @@ Todas las versiones siguen `Keep a Changelog`.
 
 - Mapa administrativo de agencias con búsqueda, filtros, agrupación de coordenadas y enlaces seguros a Google Maps, sin dependencias cartográficas nuevas.
 
-- Entorno reproducible con Dev Containers, configuración versionada de VS Code y verificadores `verify.sh`/`verify.ps1`.
 - Script Composer `check` para ejecutar Pint, PHPStan y PHPUnit dentro del contenedor PHP.
 
 - Módulo administrativo de usuarios con Livewire, Policy, reglas de seguridad y pantallas de detalle.

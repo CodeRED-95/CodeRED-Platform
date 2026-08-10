@@ -5,35 +5,35 @@
 - Docker Desktop.
 - Docker Compose.
 - VS Code.
-- Extensión Dev Containers.
+- Extensión Remote - SSH.
 - Extensión Docker.
 - Extensiones PHP recomendadas por el proyecto.
 
 ## Primer uso
 
 1. Abre o clona el repositorio.
-2. Abre VS Code.
-3. Ejecuta `Dev Containers: Reopen in Container`.
-4. Espera a que el servicio `app` termine de preparar el entorno.
-5. Verifica `php`, `composer` y `php artisan`.
-6. Ejecuta `composer check`.
+2. Abre VS Code y conéctate por Remote SSH.
+3. Abre el repositorio `CodeRED-Platform`.
+4. Levanta los servicios con `docker compose up -d`.
+5. Verifica el entorno con `docker compose exec -T app php -v`, `docker compose exec -T app composer --version` y `docker compose exec -T app php artisan about`.
+6. Ejecuta `docker compose exec -T app composer check`.
 
 ## Comandos
 
-- `composer test`
-- `composer test-unit`
-- `composer test-feature`
-- `composer lint`
-- `composer lint-fix`
-- `composer analyse`
-- `composer check`
-- `composer verify` (alias compatible de `composer check`)
+- `docker compose exec -T app composer test`
+- `docker compose exec -T app composer test-unit`
+- `docker compose exec -T app composer test-feature`
+- `docker compose exec -T app composer lint`
+- `docker compose exec -T app composer lint-fix`
+- `docker compose exec -T app composer analyse`
+- `docker compose exec -T app composer check`
+- `docker compose exec -T app composer verify` (alias compatible de `composer check`)
 
 ## Tareas de VS Code
 
 - Abre la paleta con `Ctrl + Shift + P`.
 - Ejecuta `Tasks: Run Task`.
-- La tarea predeterminada del grupo `test` es `PHP: Check completo`. Todas las tareas usan `/var/www/html` y se ejecutan dentro del servicio PHP `app`.
+- La tarea predeterminada del grupo `test` es `PHP: Check completo`. Todas las tareas invocan `docker compose exec -T app` y se ejecutan sobre el servicio PHP `app`.
 
 ## Verificación desde el host
 
@@ -60,6 +60,5 @@ Ambos scripts levantan las dependencias mínimas y ejecutan `composer check` med
 - Si PostgreSQL no responde, revisa `DB_HOST`, `DB_PORT`, `DB_USERNAME` y `DB_PASSWORD`.
 - Si Redis no responde, revisa `REDIS_HOST` y `REDIS_PORT`.
 - Si PHPStan usa demasiada memoria, ajusta `phpstan.neon.dist`.
-- Si el Dev Container no abre, usa `Dev Containers: Rebuild and Reopen in Container`.
 - Si la ruta de trabajo es incorrecta, confirma que sea `/var/www/html`.
 - Si las pruebas usan la base de desarrollo por error, revisa `phpunit.xml` y `.env.testing`.

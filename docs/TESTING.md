@@ -2,7 +2,7 @@
 
 ## Cómo ejecutar pruebas
 
-Dentro del Dev Container:
+Dentro del contenedor `app`:
 
 ```bash
 composer test
@@ -66,11 +66,11 @@ docker compose exec -T app composer test
 - Verificar HTTP de assets con `docker compose exec app sh scripts/check-assets.sh`.
 - Verificar en consola que no aparezca `Detected multiple instances of Alpine running`.
 
-## VS Code y Dev Containers
+## VS Code y desarrollo remoto
 
-- La integración oficial de desarrollo usa `.devcontainer/devcontainer.json`.
+- La integración oficial de desarrollo usa VS Code Remote SSH sobre el host Linux.
 - La tarea predeterminada es `PHP: Check completo`.
-- Las tareas de VS Code ejecutan comandos directos dentro del contenedor y no requieren `docker compose exec` cuando el proyecto ya está abierto en Dev Container.
+- Las tareas de VS Code ejecutan comandos mediante `docker compose exec -T app ...`.
 - El comando de verificación principal es `composer check`; `composer verify` se conserva como alias.
 - `verify.sh` y `verify.ps1` permiten lanzar la misma verificación desde el host sin instalar PHP ni Composer.
 - Si la base de pruebas no existe, el bootstrap de PHPUnit la crea de forma idempotente.

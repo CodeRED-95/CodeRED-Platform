@@ -1,6 +1,6 @@
 <?php
 
 return [
-    'current' => env('APP_VERSION', '3.2.0'),
+    'current' => env('APP_VERSION', '3.3.0'),
     'api' => env('API_VERSION', 'v1'),
 ];

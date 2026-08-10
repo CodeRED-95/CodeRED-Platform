@@ -4,7 +4,7 @@ CodeRED Platform es el centro de control modular para administración y consulta
 
 ## Versión actual
 
-CodeRED Platform publica la versión `2.2.0` desde una fuente única de configuración usando **versionado semántico automático**. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en la documentación de release. La extensión Chrome mantiene su propio versionado en `packages/codered-chrome-extension` y publica `2.3.0`.
+CodeRED Platform publica la versión `3.3.0` desde una fuente única de configuración usando **versionado semántico automático**. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en la documentación de release. La extensión Chrome mantiene su propio versionado en `packages/codered-chrome-extension` y publica `2.3.0`.
 
 ```bash
 php artisan app:version
@@ -30,14 +30,14 @@ El comando `php artisan app:bump-version {major|minor|patch}` actualiza automát
 - `composer.json`
 - `config/version.php`
 - `config/app.php`
-- `CHANGELOG.md`
+- `docs/CHANGELOG.md`
 
 **Para setup:** Ver [docs-dev/VERSIONING.md](docs-dev/VERSIONING.md)
 
 Variables opcionales:
 
 ```env
-APP_VERSION=3.0.0
+APP_VERSION=3.3.0
 API_VERSION=v1
 ```
 
@@ -94,13 +94,22 @@ CodeRED Platform conserva la autoridad de usuarios, permisos, tokens, auditoría
 
 ## Requisitos
 
-- Docker y Docker Compose v2.
 - Git.
+- Docker Engine.
+- Docker Compose.
+- SSH para desarrollo remoto.
 - OpenSSL para generar secretos seguros.
 - DNS público para `APP_URL` y, si se expone, `CODERED_AGENT_PUBLIC_URL`.
 - PostgreSQL y Redis mediante los servicios incluidos.
 - Cloudflare, red privada o firewall cuando el agente sea accesible desde fuera del host.
 - Puertos habituales: `8090` para Nginx local y `5680` para CodeRED Agent ligado por defecto a `127.0.0.1`.
+
+## Flujo de trabajo
+
+1. Conéctate al host Linux por VS Code Remote SSH.
+2. Abre el repositorio `CodeRED-Platform` directamente en el host.
+3. Edita los archivos sobre el filesystem del host.
+4. Ejecuta tareas y comandos mediante Docker Compose, por ejemplo `docker compose exec -T app ...`.
 
 ## Instalación
 

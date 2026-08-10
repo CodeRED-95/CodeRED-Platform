@@ -7,7 +7,6 @@
   "files.trimTrailingWhitespace": true,
   "files.exclude": {
     "**/.git": true,
-    "**/.devcontainer": false,
     "**/node_modules": true,
     "**/vendor": true,
     "**/storage/framework/cache": true,
@@ -33,6 +32,5 @@
     "**/node_modules/**",
     "**/storage/framework/**"
   ],
-  "files.insertFinalNewline": true,
-  "terminal.integrated.cwd": "/var/www/html"
+  "files.insertFinalNewline": true
 }

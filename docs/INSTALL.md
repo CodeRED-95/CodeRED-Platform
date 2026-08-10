@@ -106,13 +106,11 @@ Si cambian variables de entorno relevantes, reinicia los contenedores con el mis
 
 ## Desarrollo con VS Code
 
-1. Instala la extensión Dev Containers.
-2. Abre el repositorio en VS Code.
-3. Ejecuta `Dev Containers: Reopen in Container`.
-4. Espera a que Composer termine el `postCreateCommand`.
-5. Ejecuta la tarea `PHP: Check completo`.
-
-El Dev Container reutiliza el servicio `app`, abre `/var/www/html` como workspace y levanta Nginx, PostgreSQL, Redis, queue y scheduler.
+1. Instala la extensión Remote - SSH.
+2. Conéctate al host Linux con VS Code.
+3. Abre el repositorio `CodeRED-Platform`.
+4. Usa las tareas del editor o ejecuta comandos con `docker compose exec -T app ...` desde la terminal integrada.
+5. Ejecuta la tarea `PHP: Check completo` o `composer verify` dentro del contenedor `app`.
 
 ## Desarrollo desde terminal
 
