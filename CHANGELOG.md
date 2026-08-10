@@ -6,6 +6,37 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.0] - 2026-08-10
+
+### CAMBIADO
+
+Rediseño completo de la documentación de la API (`/docs`), integrada con el
+Design System actual.
+
+- **Documentación seccionada por módulos reales**: Introducción, Autenticación,
+  Tokens, Agencias, RUC, DNI, Shalom Recordar, Integraciones y Errores comunes.
+  Cada endpoint se documenta con método, ruta, ability/permiso, parámetros,
+  ejemplo de request (curl) y de response (JSON), y errores comunes.
+- **Navegación lateral seccionada** con la sección activa resaltada
+  (IntersectionObserver); en móvil se convierte en un índice compacto y
+  colapsable.
+- **Bloques de código** con buen contraste, scroll horizontal y botón de copiar;
+  las rutas también son copiables. No se muestran tokens reales.
+- La documentación se genera desde `App\Support\ApiReference`, que refleja los
+  endpoints reales de `routes/api.php` (una única fuente que la vista recorre).
+  Reutiliza componentes existentes: `x-ui.card`, `x-ui.badge`, `x-ui.alert`,
+  tablas, botones y tipografías; se añaden `x-docs.code-block` y
+  `x-docs.copy-button`, coherentes con el sistema.
+
+### ELIMINADO
+
+- Se retiran de `/docs` los bloques **OpenAPI avanzada** (Swagger UI) y **Guía
+  interactiva** (playground de "probar endpoint" con token). La especificación
+  OpenAPI sigue disponible como recurso técnico interno
+  (`/docs/api/openapi.yaml`), y las rutas de `/docs/*` se conservan.
+
+---
+
 ## [4.5.3] - 2026-08-10
 
 ### CORREGIDO

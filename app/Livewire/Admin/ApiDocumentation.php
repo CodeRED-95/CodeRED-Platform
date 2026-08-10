@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Services\ApiDocumentationSettingsService;
+use App\Support\ApiReference;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
@@ -17,9 +18,12 @@ class ApiDocumentation extends Component
     public function render(): View
     {
         return view('livewire.admin.api-documentation', [
+            'sections' => ApiReference::sections(),
+            'baseUrl' => ApiReference::BASE_URL,
             'rateLimit' => (int) config('api.rate_limit_per_minute'),
             'maxPerPage' => (int) config('api.max_per_page'),
             'rucRateLimit' => (int) config('ruc.rate_limit_per_minute'),
+            'canDownloadSpec' => (bool) config('api.docs_enabled'),
         ])->layout(auth()->check() ? 'layouts.app' : 'layouts.guest', ['pageTitle' => 'Documentación API']);
     }
 }

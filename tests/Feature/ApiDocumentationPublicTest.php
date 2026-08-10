@@ -27,7 +27,7 @@ class ApiDocumentationPublicTest extends TestCase
         app(ApiDocumentationSettingsService::class)->save(true);
 
         foreach (['/docs', '/docs/api', '/docs/api/v1', '/docs/api/agencias', '/docs/api/dni', '/docs/api/autenticacion', '/docs/api/errores', '/docs/openapi'] as $path) {
-            $this->get($path)->assertOk()->assertSee('API CodeRED Platform');
+            $this->get($path)->assertOk()->assertSee('Documentación de la API');
         }
 
         $openapi = (string) file_get_contents(base_path('docs/openapi.yaml'));
