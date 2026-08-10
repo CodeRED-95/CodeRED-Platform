@@ -274,7 +274,7 @@ test('syncNow: un registro inválido no bloquea el lote', async () => {
         { field: 'dni', value: '12345678', timestamp: new Date().toISOString() },
         { field: 'vacio', value: '   ' }, // se descarta
         { field: 'Clave', value: '4444', timestamp: new Date().toISOString() },
-        { field: 'OS', value: 'OS-12345', timestamp: new Date().toISOString() },
+        { field: 'OS', value: '7121847', timestamp: new Date().toISOString() },
     ];
     fetchHandler = () => jsonResponse(200, { data: { created: 3 } });
 

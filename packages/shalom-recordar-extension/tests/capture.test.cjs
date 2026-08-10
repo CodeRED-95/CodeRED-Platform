@@ -113,7 +113,7 @@ test('CE + Enter guarda una vez', () => {
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emitKeydown({ name: 'documento', value: '004568798' });
+    emitKeydown({ id: 'inputnombre', value: '004568798' });
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'CE');
@@ -127,7 +127,7 @@ test('RUC + Enter guarda una vez', () => {
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emitKeydown({ placeholder: 'ruc', value: '20004568791' });
+    emitKeydown({ id: 'inputnombre', value: '20004568791' });
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'RUC');
@@ -155,11 +155,11 @@ test('OS + Enter guarda OS', () => {
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emitKeydown({ id: 'inputos', value: 'OS-12345' });
+    emitKeydown({ id: 'inputnroguia', value: '7121847' });
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'OS');
-    assert.equal(messages[0].data.value, 'OS-12345');
+    assert.equal(messages[0].data.value, '7121847');
 });
 
 test('DNI sin Enter no guarda', () => {
@@ -195,9 +195,37 @@ test('OS sin Enter no guarda', () => {
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emit('input', { nodeType: 1, id: 'inputos', value: 'OS-12345' });
+    emit('input', { nodeType: 1, id: 'inputnroguia', value: '7121847' });
 
     assert.equal(messages.length, 0);
+});
+
+test('inputnroguia nunca se clasifica como DNI', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ id: 'inputnroguia', value: '71218478' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'OS');
+    assert.equal(messages[0].data.value, '71218478');
+});
+
+test('Clave con valor de 8 dígitos nunca se reclasifica como DNI', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ id: 'swal-input1', value: '00456879' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '00456879');
 });
 
 test('una pulsación Enter produce un solo registro incluso con doble inicialización', () => {

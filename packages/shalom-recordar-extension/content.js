@@ -2,7 +2,6 @@
 const CONTENT_STATE_KEY = '__shalomRecordarContentState__';
 const DOC_LISTENER_KEY = '__shalomRecordarDocumentKeydownListener__';
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
-const OS_KEYWORDS = ['os', 'orden', 'servicio', 'ordenservicio'];
 
 function getContentState() {
     const globalState = globalThis[CONTENT_STATE_KEY] || {};
@@ -36,6 +35,10 @@ function getInputSource(target) {
     return raw.trim();
 }
 
+function getInputId(target) {
+    return getInputSource(target).toLowerCase();
+}
+
 function getFieldValue(target) {
     if (!target) return '';
     if (typeof target.value === 'string') return target.value;
@@ -48,13 +51,15 @@ function isCaptureTarget(target) {
 }
 
 function isClaveField(target) {
-    const source = getInputSource(target).toLowerCase();
-    return CLAVE_FIELDS.includes(source);
+    return CLAVE_FIELDS.includes(getInputId(target));
 }
 
 function isOsField(target) {
-    const source = getInputSource(target).toLowerCase();
-    return OS_KEYWORDS.some((keyword) => source.includes(keyword));
+    return getInputId(target) === 'inputnroguia';
+}
+
+function isDocumentField(target) {
+    return getInputId(target) === 'inputnombre';
 }
 
 function shouldIgnoreKeydown(event) {
@@ -95,6 +100,8 @@ function captureOnEnter(event) {
         sendCapture('OS', value, source, event.timeStamp);
         return;
     }
+
+    if (!isDocumentField(target)) return;
 
     const classified = classifyDocumentValue(getFieldValue(target));
     if (!classified) return;

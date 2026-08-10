@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.7.7 - 2026-08-10
+
+### Changed
+
+- `#inputnroguia` vuelve a capturarse como `OS` y ya no se clasifica por longitud.
+- `#inputnombre` queda como único campo que clasifica `DNI`, `CE` y `RUC` por longitud.
+- `Clave` se mantiene separada por sus campos originales `swal-input1..4` y se captura solo con `Enter`.
+
+### Fixed
+
+- Se evita que `OS` se interprete como `DNI`.
+- Se restaura la prioridad por campo antes que por longitud.
+
 ## 2.7.6 - 2026-08-10
 
 ### Changed
