@@ -1,24 +1,33 @@
-<div class="mx-auto max-w-4xl space-y-6">
-    <div>
-        <h1 class="text-3xl font-bold text-white">Sincronización Shalom</h1>
-        <p class="mt-2 text-[color:var(--color-text-secondary)]">Carga el archivo Chosen. La extracción se ejecutará en segundo plano y antes de importar verás todas las diferencias.</p>
-    </div>
+<div class="space-y-6">
+    <x-ui.page-header
+        title="Sincronización Shalom"
+        subtitle="Carga el archivo Chosen para analizar diferencias y encolar la importación sin exponer el flujo a la interfaz del navegador."
+    >
+        <x-slot:actions>
+            <x-ui.button href="{{ route('admin.agencies.index') }}" variant="secondary">Volver a agencias</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <x-ui.card>
+    <x-ui.card title="Archivo de sincronización" description="Acepta JSON, TXT o HTML con elementos <li>. El archivo se conserva dentro de la ejecución.">
         <form wire:submit="sync" class="space-y-5">
-            <div>
-                <label for="chosenFile" class="mb-2 block text-sm font-medium text-white">Archivo Chosen</label>
-                <input id="chosenFile" type="file" wire:model="chosenFile" accept=".json,.txt,.html,text/plain,application/json,text/html" class="block w-full rounded-lg border border-slate-700 bg-slate-950/40 p-3 text-sm text-white">
-                <p class="mt-2 text-xs text-[color:var(--color-text-secondary)]">Acepta JSON, TXT o HTML con elementos &lt;li&gt;. El archivo se conserva dentro de la ejecución.</p>
-                @error('chosenFile') <p class="mt-2 text-sm text-rose-300">{{ $message }}</p> @enderror
-            </div>
+            <x-ui.file-upload
+                id="chosenFile"
+                wire:model="chosenFile"
+                label="Archivo Chosen"
+                accept=".json,.txt,.html,text/plain,application/json,text/html"
+                description="Selecciona el archivo exportado desde Shalom para iniciar el análisis."
+                :error="$errors->first('chosenFile')"
+                required
+            />
 
             <div class="flex flex-wrap gap-3">
                 <x-ui.button type="submit" variant="primary" loading-target="sync" loading-label="Enviando a la cola…">Iniciar análisis</x-ui.button>
-                <x-ui.button href="{{ route('admin.agencies.index') }}" variant="secondary">Volver a agencias</x-ui.button>
+                <x-ui.button href="{{ route('admin.agencies.backups.index') }}" variant="secondary">Ir a copias</x-ui.button>
             </div>
         </form>
     </x-ui.card>
 
-    <x-ui.alert tone="info">El worker debe escuchar la cola <strong>agency-imports</strong>. El contenedor extractor solo mostrará solicitudes cuando el Job sea tomado por el worker.</x-ui.alert>
+    <x-ui.alert tone="info" title="Ejecución en segundo plano">
+        El worker debe escuchar la cola <strong>agency-imports</strong>. El contenedor extractor solo mostrará solicitudes cuando el job sea tomado por el worker.
+    </x-ui.alert>
 </div>

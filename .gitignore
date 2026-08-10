@@ -40,3 +40,6 @@ codered-agent-data/
 *.result.cache
 # Cache genérico
 *.cache
+/storage/app/private/backups/
+/storage/app/private/imports/
+/storage/app/private/livewire-tmp/

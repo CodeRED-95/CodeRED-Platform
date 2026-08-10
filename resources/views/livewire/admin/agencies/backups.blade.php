@@ -6,42 +6,33 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    @if($integrityResult)<x-ui.alert tone="info">Integridad: {{ $integrityResult }}</x-ui.alert>@endif
+    @if($integrityResult)
+        <x-ui.alert tone="info" title="Resultado de integridad">{{ $integrityResult }}</x-ui.alert>
+    @endif
 
-    {{-- Estado de la restauración en curso o de la última ejecutada --}}
     @if($activeRestore)
         <x-ui.card padding="p-5" aria-labelledby="restore-status-title">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h2 id="restore-status-title" class="font-display text-lg font-semibold text-white">Restauración</h2>
-                    <p class="mt-1 text-sm text-[color:var(--color-text-muted)]">
-                        <span class="font-mono">{{ $activeRestore->filename }}</span>
-                        · {{ $activeRestore->created_at?->timezone('America/Lima')->format('d/m/Y H:i:s') }}
-                        · {{ $activeRestore->createdBy?->name ?? 'Sistema' }}
-                    </p>
-                </div>
-                <x-ui.badge :tone="$activeRestore->status->tone()">{{ $activeRestore->status->label() }}</x-ui.badge>
-            </div>
-
-            <div class="mt-4">
-                <div class="flex items-center justify-between text-xs text-[color:var(--color-text-muted)]">
-                    <span>{{ $activeRestore->stage }}</span>
-                    <span>{{ $activeRestore->progress }}%</span>
-                </div>
-                <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow="{{ $activeRestore->progress }}" aria-valuemin="0" aria-valuemax="100">
-                    <div class="h-full rounded-full transition-all duration-500 {{ $activeRestore->status->value === 'failed' ? 'bg-rose-400' : 'bg-emerald-400' }}" style="width: {{ $activeRestore->progress }}%"></div>
-                </div>
-            </div>
+            <x-ui.operation-status
+                id="restore-status-title"
+                title="Restauración"
+                :status="$activeRestore->status->value === 'completed' ? 'completed' : ($activeRestore->status->value === 'failed' ? 'failed' : 'running')"
+                :message="$activeRestore->filename.' · '.($activeRestore->created_at?->timezone('America/Lima')->format('d/m/Y H:i:s') ?? '') . ' · '.($activeRestore->createdBy?->name ?? 'Sistema')"
+                :elapsed="$activeRestore->started_at ? $activeRestore->started_at->diffForHumans(now(), true) : null"
+            >
+                <x-slot:progress>
+                    <x-ui.progress :value="$activeRestore->progress" label="{{ $activeRestore->stage }}" tone="{{ $activeRestore->status->value === 'failed' ? 'danger' : 'success' }}" />
+                </x-slot:progress>
+            </x-ui.operation-status>
 
             <dl class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                 @foreach ([
                     ['Procesadas', $activeRestore->processed_records.' / '.$activeRestore->total_records, 'text-white'],
                     ['Creadas', $activeRestore->created_records, 'text-emerald-300'],
                     ['Actualizadas', $activeRestore->updated_records, 'text-sky-300'],
-                    ['A papelera', $activeRestore->trashed_records, $activeRestore->trashed_records > 0 ? 'text-amber-300' : 'text-white'],
+                    ['A papelera', $activeRestore->trashed_records, 'text-amber-300'],
                 ] as [$label, $value, $tone])
                     <div>
-                        <dt class="text-xs text-[color:var(--color-text-muted)]">{{ $label }}</dt>
+                        <dt class="text-xs text-[color:var(--color-text-secondary)]">{{ $label }}</dt>
                         <dd class="mt-1 text-lg font-semibold {{ $tone }}">{{ $value }}</dd>
                     </div>
                 @endforeach
@@ -52,7 +43,7 @@
             @endif
 
             @if($activeRestore->status->value === 'completed')
-                <p class="mt-4 text-sm text-[color:var(--color-text-muted)]">
+                <p class="mt-4 text-sm text-[color:var(--color-text-secondary)]">
                     Historial de nombres restaurado: {{ $activeRestore->name_histories_restored }}.
                     @if($activeRestore->safetyBackup)
                         Copia previa de seguridad: <span class="font-mono">{{ $activeRestore->safetyBackup->filename }}</span>.
@@ -64,9 +55,8 @@
 
     {{-- Subida manual de una copia para restaurar --}}
     @if($canRestore)
-        <x-ui.card padding="p-5" aria-labelledby="restore-upload-title">
-            <h2 id="restore-upload-title" class="font-display text-lg font-semibold text-white">Restaurar desde archivo</h2>
-            <p class="mt-1 text-sm text-[color:var(--color-text-muted)]">
+        <x-ui.card title="Restaurar desde archivo" description="Sube un archivo .json generado por esta misma pantalla. Antes de escribir nada se crea una copia de seguridad automática, y la restauración se ejecuta en segundo plano.">
+            <p class="text-sm text-[color:var(--color-text-secondary)]">
                 Sube un archivo <span class="font-mono">.json</span> generado por esta misma pantalla. Antes de escribir nada se crea
                 una copia de seguridad automática, y la restauración se ejecuta en segundo plano.
             </p>
@@ -74,19 +64,24 @@
             <form wire:submit="restoreFromUpload" class="mt-4 space-y-4">
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
-                        <label for="agency-restore-file" class="mb-1 block text-sm font-medium text-white">Archivo de copia</label>
-                        <input id="agency-restore-file" type="file" accept=".json,application/json" wire:model="restoreFile"
-                               class="block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm file:text-white" />
-                        <div wire:loading wire:target="restoreFile" class="mt-1 text-xs text-[color:var(--color-text-muted)]">Subiendo archivo…</div>
-                        @error('restoreFile')<p class="mt-1 text-xs text-rose-300">{{ $message }}</p>@enderror
+                        <x-ui.file-upload
+                            id="agency-restore-file"
+                            wire:model="restoreFile"
+                            label="Archivo de copia"
+                            accept=".json,application/json"
+                            description="Selecciona el JSON de backup para iniciar la validación."
+                            :error="$errors->first('restoreFile')"
+                            required
+                        />
+                        <div wire:loading wire:target="restoreFile" class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Subiendo archivo…</div>
                     </div>
 
                     <x-ui.dropdown-select id="agency-restore-mode" wire:model="restoreMode" label="Modo de restauración" :value="$restoreMode" :options="$restoreModes" />
                 </div>
 
-                @error('restoreMode')<p class="text-xs text-rose-300">{{ $message }}</p>@enderror
+                @error('restoreMode')<p class="text-xs text-[color:var(--color-danger)]">{{ $message }}</p>@enderror
 
-                <x-ui.alert tone="warning">
+                <x-ui.alert tone="warning" title="Modo réplica exacta">
                     El modo <strong>réplica exacta</strong> envía a la papelera las agencias que no aparezcan en la copia.
                     Nunca se elimina nada de forma definitiva y todo puede revertirse desde la papelera.
                 </x-ui.alert>
@@ -98,9 +93,10 @@
         </x-ui.card>
     @endif
 
-    <x-ui.table>
+    <x-ui.card title="Copias registradas" description="Listado de backups disponibles para descarga, verificación y restauración.">
+        <x-ui.table>
         <thead><tr><th class="px-5 py-4">Archivo</th><th class="px-5 py-4">Creada</th><th class="px-5 py-4">Usuario</th><th class="px-5 py-4">Agencias</th><th class="px-5 py-4">Tamaño</th><th class="px-5 py-4">Estado</th><th class="px-5 py-4">SHA-256</th><th class="px-5 py-4">Acciones</th></tr></thead>
-        <tbody class="divide-y divide-white/5">
+        <tbody>
         @forelse($backups as $backup)
             <tr>
                 <td class="px-5 py-4 font-mono text-sm">{{ $backup->filename }}</td>
@@ -129,16 +125,15 @@
             <tr><td colspan="8" class="px-5 py-12"><x-ui.empty-state title="No existen copias" description="Crea la primera copia privada de agencias." /></td></tr>
         @endforelse
         </tbody>
-    </x-ui.table>
-    <x-ui.pagination :paginator="$backups" />
+        </x-ui.table>
+        <x-ui.pagination :paginator="$backups" />
+    </x-ui.card>
 
-    {{-- Historial de restauraciones --}}
     @if($restores->isNotEmpty())
-        <x-ui.card padding="p-0" aria-labelledby="restore-history-title">
-            <div class="px-5 pt-5"><h2 id="restore-history-title" class="font-display text-lg font-semibold text-white">Restauraciones recientes</h2></div>
+        <x-ui.card title="Restauraciones recientes" padding="p-0">
             <x-ui.table>
                 <thead><tr><th class="px-5 py-4">Archivo</th><th class="px-5 py-4">Fecha</th><th class="px-5 py-4">Usuario</th><th class="px-5 py-4">Modo</th><th class="px-5 py-4">Creadas</th><th class="px-5 py-4">Actualizadas</th><th class="px-5 py-4">Papelera</th><th class="px-5 py-4">Estado</th></tr></thead>
-                <tbody class="divide-y divide-white/5">
+                <tbody>
                 @foreach($restores as $restore)
                     <tr>
                         <td class="px-5 py-4 font-mono text-sm">{{ $restore->filename }}</td>
