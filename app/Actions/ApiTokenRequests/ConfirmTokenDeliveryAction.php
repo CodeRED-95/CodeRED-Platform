@@ -72,7 +72,7 @@ class ConfirmTokenDeliveryAction
                 'message' => 'Entrega confirmada exitosamente.',
                 'delivered_at' => $fresh->delivered_at->toIso8601String(),
             ];
-        }, maxAttempts: 3);
+        }, attempts: 3);
 
         return $result;
     }

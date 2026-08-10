@@ -22,7 +22,6 @@ use App\Services\ApiTokens\TokenVaultService;
 use App\Services\Integrations\N8nTelegramTokenSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -129,7 +128,7 @@ class Index extends Component
                 return ['error' => 'El token asociado ha sido revocado o ha expirado.'];
             }
 
-            $plainTextToken = $vault->decrypt($request->token_ciphertext);
+            $plainTextToken = $vault->decryptToken($request->token_ciphertext);
 
             $request->forceFill([
                 'token_revealed_at' => now(),
@@ -292,7 +291,7 @@ class Index extends Component
         $this->dispatch('toast', type: 'success', message: 'Solicitud aprobada. El token no se muestra en el panel.');
     }
 
-    private function approveRotation(ApiTokenRequest $current, ApiTokenGenerator $generator): void
+    private function approveRotation(ApiTokenRequest $current, ApiTokenGenerator $generator, TokenVaultService $vault): void
     {
         $data = $this->validate([
             'adminNote' => ['nullable', 'string', 'max:1000'],
@@ -309,14 +308,14 @@ class Index extends Component
                 'status' => ApiTokenRequestStatus::Expired,
                 'reviewed_by' => auth()->id(),
                 'reviewed_at' => now(),
-                'encrypted_plain_text_token' => null,
+                'token_ciphertext' => null,
                 'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
             ])->save();
             $this->event($current, 'expired', 'La rotación venció porque el token original expiró antes de aprobarse.', ['source_token_id' => $currentSource->id]);
             abort(422, 'El token original expiró antes de aprobar la rotación.');
         }
 
-        DB::transaction(function () use ($generator, $data): void {
+        DB::transaction(function () use ($generator, $data, $vault): void {
             $request = ApiTokenRequest::query()->whereKey($this->selectedId)->lockForUpdate()->firstOrFail();
 
             if ($request->status !== ApiTokenRequestStatus::Pending) {
@@ -340,7 +339,7 @@ class Index extends Component
                     'status' => ApiTokenRequestStatus::Expired,
                     'reviewed_by' => auth()->id(),
                     'reviewed_at' => now(),
-                    'encrypted_plain_text_token' => null,
+                    'token_ciphertext' => null,
                     'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
                 ])->save();
                 $this->event($request, 'expired', 'La rotación venció porque el token original expiró antes de aprobarse.', ['source_token_id' => $source->id]);
@@ -381,7 +380,9 @@ class Index extends Component
                 'approved_at' => now(),
                 'personal_access_token_id' => $replacement->id,
                 'replacement_personal_access_token_id' => $replacement->id,
-                'encrypted_plain_text_token' => Crypt::encryptString($created->plainTextToken),
+                'token_ciphertext' => $vault->encrypt($created->plainTextToken),
+                'token_hash' => hash('sha256', $created->plainTextToken),
+                'token_last_four' => substr($created->plainTextToken, -4),
                 'delivery_status' => ApiTokenRequestDeliveryStatus::Pending,
                 'metadata' => array_merge($request->metadata ?? [], ['admin_note' => $data['adminNote'] ?? null]),
             ])->save();
@@ -414,7 +415,7 @@ class Index extends Component
             'rejected_at' => now(),
             'rejection_reason' => $reason === '' ? null : $reason,
             'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
-            'encrypted_plain_text_token' => null,
+            'token_ciphertext' => null,
         ])->save();
         $this->event($request, 'rejected', 'Solicitud rechazada.');
         if ($reason !== '') {
@@ -429,7 +430,7 @@ class Index extends Component
         Gate::authorize('api-token-requests.cancel');
         $request = ApiTokenRequest::query()->findOrFail($id);
         abort_if($request->status !== ApiTokenRequestStatus::Pending, 422);
-        $request->update(['status' => ApiTokenRequestStatus::Cancelled, 'reviewed_by' => auth()->id(), 'reviewed_at' => now(), 'encrypted_plain_text_token' => null]);
+        $request->update(['status' => ApiTokenRequestStatus::Cancelled, 'reviewed_by' => auth()->id(), 'reviewed_at' => now(), 'token_ciphertext' => null]);
         $this->event($request, 'cancelled', 'Solicitud cancelada.');
         NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.cancelled');
     }
@@ -439,7 +440,7 @@ class Index extends Component
         Gate::authorize('api-token-requests.cancel');
         $request = ApiTokenRequest::query()->findOrFail($id);
         abort_if($request->status !== ApiTokenRequestStatus::Pending, 422);
-        $request->update(['status' => ApiTokenRequestStatus::Expired, 'reviewed_by' => auth()->id(), 'reviewed_at' => now(), 'encrypted_plain_text_token' => null]);
+        $request->update(['status' => ApiTokenRequestStatus::Expired, 'reviewed_by' => auth()->id(), 'reviewed_at' => now(), 'token_ciphertext' => null]);
         $this->event($request, 'expired', 'Solicitud marcada como vencida.');
         NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.expired');
     }
@@ -449,7 +450,7 @@ class Index extends Component
         Gate::authorize('api-token-requests.revoke');
         $request = ApiTokenRequest::query()->findOrFail($id);
         $request->token?->delete();
-        $request->update(['encrypted_plain_text_token' => null, 'delivery_status' => ApiTokenRequestDeliveryStatus::Failed]);
+        $request->update(['token_ciphertext' => null, 'delivery_status' => ApiTokenRequestDeliveryStatus::Failed]);
         $this->event($request, 'token_revoked', 'Token revocado.');
         NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.revoked');
     }

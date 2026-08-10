@@ -6,6 +6,7 @@ use App\Actions\ApiTokenRequests\CreateOtpTokenAction;
 use App\Actions\ApiTokenRequests\VerifyOtpTokenAction;
 use App\Actions\ApiTokenRequests\RevealTokenAction;
 use App\Actions\ApiTokenRequests\ConfirmTokenDeliveryAction;
+use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Exceptions\OtpExpiredException;
 use App\Exceptions\OtpMaxAttemptsExceededException;
 use App\Models\ApiToken;
@@ -88,25 +89,33 @@ class OtpAndTokenRevealTest extends TestCase
         $this->assertFalse($result);
     }
 
+    /**
+     * El servicio devuelve false y audita; es la Action la que traduce el
+     * estado a excepción para la UI pública.
+     */
     public function test_otp_verification_fails_when_expired(): void
     {
         $otp = $this->otpService->generate($this->request, '192.168.1.1');
         $otp->update(['expires_at' => now()->subMinutes(1)]);
 
+        $this->assertFalse($this->otpService->verify($this->request, '123456', '192.168.1.1'));
+
         $this->expectException(OtpExpiredException::class);
-        $this->otpService->verify($this->request, '123456', '192.168.1.1');
+        (new VerifyOtpTokenAction($this->otpService))->execute($this->request, '123456', '192.168.1.1');
     }
 
     public function test_otp_verification_respects_max_attempts(): void
     {
-        $otp = $this->otpService->generate($this->request, '192.168.1.1');
+        $this->otpService->generate($this->request, '192.168.1.1');
 
         for ($i = 0; $i < 5; $i++) {
             $this->otpService->verify($this->request, 'wrong', '192.168.1.1');
         }
 
+        $this->assertFalse($this->otpService->verify($this->request, 'wrong', '192.168.1.1'));
+
         $this->expectException(OtpMaxAttemptsExceededException::class);
-        $this->otpService->verify($this->request, 'wrong', '192.168.1.1');
+        (new VerifyOtpTokenAction($this->otpService))->execute($this->request, 'wrong', '192.168.1.1');
     }
 
     public function test_otp_verification_creates_audit_log(): void
@@ -196,7 +205,8 @@ class OtpAndTokenRevealTest extends TestCase
         $this->assertTrue($result['success']);
 
         $this->request->refresh();
-        $this->assertEquals('delivered', $this->request->delivery_status);
+        $this->assertSame(ApiTokenRequestDeliveryStatus::Delivered, $this->request->delivery_status);
+        $this->assertSame('delivered', $this->request->deliveryStatusValue());
     }
 
     public function test_delivery_confirmation_requires_token_revealed(): void

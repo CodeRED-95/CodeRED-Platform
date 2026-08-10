@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TokenRequestAuditLog extends Model
 {
+    /**
+     * La tabla la crea 2026_08_05_100001_create_api_token_request_audit_logs_table;
+     * sin declararla, Eloquent inferiría `token_request_audit_logs`, que no existe.
+     */
+    protected $table = 'api_token_request_audit_logs';
+
     protected $fillable = [
         'api_token_request_id',
         'user_id',

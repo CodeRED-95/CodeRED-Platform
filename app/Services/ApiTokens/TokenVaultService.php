@@ -2,9 +2,11 @@
 
 namespace App\Services\ApiTokens;
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Encryption\Encrypter as ConcreteEncrypter;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 
 class TokenVaultService
@@ -51,6 +53,24 @@ class TokenVaultService
     public function decrypt(string $encryptedValue): string
     {
         return $this->encrypter->decrypt($encryptedValue);
+    }
+
+    /**
+     * Descifra un token guardado en `token_ciphertext`.
+     *
+     * Antes de unificar la columna, algunos flujos (rotación desde el panel y la
+     * integración n8n) cifraban con `Crypt`, es decir con APP_KEY, mientras que
+     * el resto usaba la clave dedicada del vault. Ambos formatos son idénticos,
+     * así que se intenta primero la clave del vault y se recurre a APP_KEY para
+     * los registros heredados.
+     */
+    public function decryptToken(string $encryptedValue): string
+    {
+        try {
+            return $this->encrypter->decrypt($encryptedValue);
+        } catch (DecryptException $e) {
+            return Crypt::decryptString($encryptedValue);
+        }
     }
 
     public function generateBlindIndex(string $email): string

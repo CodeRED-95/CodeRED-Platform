@@ -40,7 +40,7 @@ class MarkTokenRequestAsDeliveredAction
                 'delivery_email' => null,
                 'delivery_telegram_username' => null,
                 'delivery_whatsapp_number' => null,
-                'encrypted_plain_text_token' => null,
+                'token_ciphertext' => null,
             ])->save();
 
             ApiTokenRequestEvent::query()->create([

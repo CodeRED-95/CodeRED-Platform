@@ -80,9 +80,12 @@ class BumpVersionCommand extends Command
         $versionConfig = base_path('config/version.php');
         if (File::exists($versionConfig)) {
             $content = File::get($versionConfig);
+            // Las llaves son obligatorias: sin ellas "$1" seguido de "3.4.0"
+            // se lee como la retrorreferencia $13 y el número se pierde,
+            // dejando el archivo de configuración corrupto.
             $content = preg_replace(
                 "/('current'\\s*=>\\s*env\\('APP_VERSION',\\s*')[^']+('\\))/",
-                "$1$version$2",
+                '${1}'.$version.'${2}',
                 $content
             );
             File::put($versionConfig, $content);
@@ -95,7 +98,7 @@ class BumpVersionCommand extends Command
             $content = File::get($appConfig);
             $content = preg_replace(
                 "/('version'\\s*=>\\s*env\\('APP_VERSION',\\s*env\\('APP_VERSION_FALLBACK',\\s*')[^']+('\\)\\))/",
-                "$1$version$2",
+                '${1}'.$version.'${2}',
                 $content
             );
             File::put($appConfig, $content);

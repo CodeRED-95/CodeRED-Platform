@@ -6,6 +6,59 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [3.4.0] - 2026-08-10
+
+### CORREGIDO
+
+Restauración del esquema de `api_token_requests`, que quedó desalineado del
+código y dejó inutilizable el formulario público `/solicitar-token`.
+
+- **Columnas restauradas** (migración `2026_08_10_000001_restore_api_token_requests_secure_schema`).
+  La migración `2026_08_07_000001` eliminó columnas que la aplicación seguía
+  usando: `tracking_code`, `requester_name_encrypted`,
+  `requester_email_blind_index`, `requester_phone_encrypted`,
+  `purpose_encrypted`, `delivery_method_encrypted`, `delivery_reason_encrypted`,
+  `token_hash`, `token_last_four`, `token_revealed_at`,
+  `token_revealed_by_type` y `token_revealed_by_user_id`. La nueva migración es
+  idempotente y no toca ningún dato existente.
+- **`tracking_code` unificado** como `varchar(20)` con índice único, para el
+  formato vigente `CR-` + 10 caracteres (13 en total). Las filas anteriores se
+  rellenan reutilizando el código guardado en `metadata->tracking_code` y, si no
+  existe, generando uno nuevo.
+- **`encrypted_plain_text_token` → `token_ciphertext`.** Convivían los dos
+  nombres: el panel de administración cifraba en uno y las purgas (rechazo,
+  cancelación, caducidad, revocación y entrega) limpiaban el otro, de modo que
+  el token cifrado podía sobrevivir a su propio borrado. Ahora existe una sola
+  columna y `TokenVaultService::decryptToken()` descifra también los registros
+  heredados cifrados con `APP_KEY`.
+- **Rotaciones cifradas con la clave del vault** en lugar de `APP_KEY`, y se
+  guardan `token_hash` y `token_last_four` igual que en una emisión normal.
+- **`api_token_request_events.api_token_request_id` pasa a ser nullable**: las
+  consultas públicas fallidas se auditan sin solicitud asociada y provocaban un
+  error 500 en cada búsqueda sin resultados.
+- **`TokenRequestAuditLog` apuntaba a una tabla inexistente**
+  (`token_request_audit_logs` en vez de `api_token_request_audit_logs`), lo que
+  rompía todo el registro de auditoría de OTP y revelación de tokens.
+- **Campos cifrados asignables en masa.** `requester_name`, `requester_phone`,
+  `purpose`, `delivery_method` y `delivery_reason` no estaban en `$fillable`, así
+  que las solicitudes creadas desde n8n se guardaban sin nombre ni motivo; ahora
+  además aceptan valores nulos sin reventar al cifrar.
+- **`DB::transaction(..., maxAttempts: 3)`** usaba un nombre de parámetro
+  inexistente y lanzaba `Error` al confirmar una entrega o revelar un token.
+- **`app:bump-version` corrompía `config/version.php` y `config/app.php`**: la
+  retrorreferencia `$1` seguida del número se interpretaba como `$13`.
+
+### AÑADIDO
+
+- Factories `ApiTokenRequestFactory` y `ApiTokenFactory`.
+- Cobertura de creación y consulta pública de solicitudes: formato y
+  persistencia de `tracking_code`, cifrado e indexado ciego de los datos del
+  solicitante, y búsqueda por código + correo (incluido el caso sin resultados).
+- `update.sh` verifica tras migrar que `api_token_requests` conserva las
+  columnas que el código necesita y que no sobrevive la columna heredada.
+
+---
+
 ## [3.2.0] - 2026-08-09
 
 ### RENDIMIENTO

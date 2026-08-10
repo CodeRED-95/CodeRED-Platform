@@ -73,7 +73,7 @@ class RevealTokenAction
             }
 
             // Descifrar token (SOLO EN MEMORIA, no guardar)
-            $plainToken = $this->vault->decrypt($lockedRequest->token_ciphertext);
+            $plainToken = $this->vault->decryptToken($lockedRequest->token_ciphertext);
 
             // Marcar como revelado
             $lockedRequest->update([
@@ -94,7 +94,7 @@ class RevealTokenAction
             );
 
             return $plainToken;
-        }, maxAttempts: 3);
+        }, attempts: 3);
 
         // IMPORTANTE: No guardar el token en ningún lado
         // Solo se retorna para mostrar al usuario en el momento

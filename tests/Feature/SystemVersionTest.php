@@ -13,18 +13,18 @@ class SystemVersionTest extends TestCase
 
     public function test_version_config_api_and_artisan_command_share_current_version(): void
     {
-        $this->assertSame('2.2.0', config('version.current'));
-        $this->assertSame('2.2.0', config('app.version'));
+        $this->assertSame('3.4.0', config('version.current'));
+        $this->assertSame('3.4.0', config('app.version'));
 
         $this->getJson('/api/v1/version')
             ->assertOk()
-            ->assertHeader('X-Application-Version', '2.2.0')
-            ->assertJsonPath('data.version', '2.2.0')
+            ->assertHeader('X-Application-Version', '3.4.0')
+            ->assertJsonPath('data.version', '3.4.0')
             ->assertJsonPath('data.api_version', 'v1')
             ->assertJsonMissingPath('data.token');
 
         $this->artisan('app:version')
-            ->expectsOutput('2.2.0')
+            ->expectsOutput('3.4.0')
             ->assertExitCode(0);
     }
 
@@ -37,6 +37,6 @@ class SystemVersionTest extends TestCase
         $this->actingAs($user)
             ->get('/')
             ->assertOk()
-            ->assertSee('v2.2.0');
+            ->assertSee('v3.4.0');
     }
 }

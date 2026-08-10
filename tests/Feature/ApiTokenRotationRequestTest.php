@@ -134,14 +134,14 @@ class ApiTokenRotationRequestTest extends TestCase
         $this->assertSame($owner->id, $replacement->tokenable_id);
         $this->assertSame($source->tokenable_type, $replacement->tokenable_type);
         $this->assertSame($expiresAt->toIso8601String(), $replacement->expires_at?->toIso8601String());
-        $this->assertNotNull($request->encrypted_plain_text_token);
+        $this->assertNotNull($request->token_ciphertext);
         $this->withToken($oldPlainToken)->getJson('/api/v1/agencies')->assertUnauthorized();
 
         $this->assertDatabaseHas('api_token_request_events', [
             'api_token_request_id' => $request->id,
             'event' => 'rotation_approved',
         ]);
-        $this->assertStringNotContainsString((string) $request->encrypted_plain_text_token, $request->events()->pluck('metadata')->toJson());
+        $this->assertStringNotContainsString((string) $request->token_ciphertext, $request->events()->pluck('metadata')->toJson());
     }
 
     public function test_rotation_preserves_null_expiration_and_retrieve_once(): void

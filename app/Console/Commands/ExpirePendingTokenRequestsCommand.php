@@ -22,13 +22,13 @@ class ExpirePendingTokenRequestsCommand extends Command
         $cutoff = now()->subMinutes((int) $settings->get('approval_timeout_minutes', 1440));
         ApiTokenRequest::query()->where('status', ApiTokenRequestStatus::Pending->value)->where('requested_at', '<', $cutoff)->chunkById(100, function ($requests) use (&$expired): void {
             foreach ($requests as $request) {
-                $request->forceFill(['status' => ApiTokenRequestStatus::Expired, 'encrypted_plain_text_token' => null])->save();
+                $request->forceFill(['status' => ApiTokenRequestStatus::Expired, 'token_ciphertext' => null])->save();
                 ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'expired', 'description' => 'Solicitud vencida automáticamente.', 'metadata' => [], 'created_at' => now()]);
                 NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.expired');
                 $expired++;
             }
         });
-        $cleaned = ApiTokenRequest::query()->whereNotNull('encrypted_plain_text_token')->whereNotNull('result_retrieved_at')->update(['encrypted_plain_text_token' => null]);
+        $cleaned = ApiTokenRequest::query()->whereNotNull('token_ciphertext')->whereNotNull('result_retrieved_at')->update(['token_ciphertext' => null]);
         $failed = ApiTokenRequest::query()->where('delivery_status', ApiTokenRequestDeliveryStatus::Pending->value)->where('delivery_attempts', '>=', 5)->update(['delivery_status' => ApiTokenRequestDeliveryStatus::Failed]);
         $this->info("Solicitudes vencidas: {$expired}. Tokens cifrados limpiados: {$cleaned}. Entregas fallidas: {$failed}.");
 

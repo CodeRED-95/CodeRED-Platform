@@ -14,12 +14,12 @@ use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
 use App\Models\Integration;
 use App\Services\ApiTokens\ApiTokenGenerator;
+use App\Services\ApiTokens\TokenVaultService;
 use App\Services\Integrations\N8nTelegramTokenSettings;
 use DateTimeInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -140,14 +140,14 @@ class N8nTokenRequestController extends Controller
             if ($tokenRequest->deliveryStatusValue() === ApiTokenRequestDeliveryStatus::Delivered->value) {
                 return $this->fail('El token ya fue entregado.', 409, 'token_already_delivered');
             }
-            if ($tokenRequest->result_retrieved_at !== null || blank($tokenRequest->encrypted_plain_text_token)) {
+            if ($tokenRequest->result_retrieved_at !== null || blank($tokenRequest->token_ciphertext)) {
                 return $this->fail('El token ya fue recuperado anteriormente.', 409, 'token_already_retrieved');
             }
 
-            $plain = Crypt::decryptString($tokenRequest->encrypted_plain_text_token);
+            $plain = app(TokenVaultService::class)->decryptToken($tokenRequest->token_ciphertext);
             $expiresAt = $tokenRequest->personal_access_token_id ? ApiToken::query()->find($tokenRequest->personal_access_token_id)?->expires_at?->toIso8601String() : null;
             $tokenRequest->forceFill([
-                'encrypted_plain_text_token' => null,
+                'token_ciphertext' => null,
                 'result_retrieved_at' => now(),
                 'delivery_status' => ApiTokenRequestDeliveryStatus::Retrieved,
             ])->save();
@@ -206,7 +206,7 @@ class N8nTokenRequestController extends Controller
                     'delivery_channel' => $data['delivery_channel'] ?? 'manual',
                     'delivery_metadata' => $data['delivery_metadata'] ?? [],
                     'delivery_reference' => $data['telegram_message_id'] ?? null,
-                    'encrypted_plain_text_token' => null,
+                    'token_ciphertext' => null,
                 ])->save();
                 $this->event($tokenRequest, 'delivery_failed', 'n8n confirmó el estado de entrega.', $request, ['delivery_channel' => $tokenRequest->delivery_channel]);
             }
@@ -235,7 +235,7 @@ class N8nTokenRequestController extends Controller
                 'cancelled_at' => now(),
                 'reviewed_at' => now(),
                 'cancellation_reason' => $data['cancellation_reason'] ?? null,
-                'encrypted_plain_text_token' => null,
+                'token_ciphertext' => null,
                 'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
             ])->save();
             $this->event($tokenRequest, 'cancelled', 'Solicitud cancelada desde integración n8n.', $request);

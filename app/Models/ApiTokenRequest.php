@@ -6,6 +6,7 @@ use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
 use App\Services\ApiTokens\TokenVaultService;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,9 @@ use Illuminate\Support\Str;
 
 class ApiTokenRequest extends Model
 {
+    /** @use HasFactory<\Database\Factories\ApiTokenRequestFactory> */
+    use HasFactory;
+
     private ?TokenVaultService $vaultService = null;
 
     protected $fillable = [
@@ -21,6 +25,14 @@ class ApiTokenRequest extends Model
         'tracking_code',
         'request_type',
         'requester_email',
+        // Alias en claro: setAttribute() los desvía a su columna *_encrypted.
+        // Deben ser asignables o la asignación masiva los descartaría en
+        // silencio y la solicitud quedaría sin nombre, teléfono ni motivo.
+        'requester_name',
+        'requester_phone',
+        'purpose',
+        'delivery_method',
+        'delivery_reason',
         'requester_name_encrypted',
         'requester_email_blind_index',
         'requester_phone_encrypted',
@@ -151,18 +163,30 @@ class ApiTokenRequest extends Model
             'delivery_reason' => 'delivery_reason_encrypted',
         ];
 
+        // Un valor ausente se guarda como NULL: cifrar null reventaría, y los
+        // flujos de n8n/rotación envían estos campos vacíos con frecuencia.
         if (array_key_exists($key, $encryptedFields)) {
-            $this->attributes[$encryptedFields[$key]] = $this->vault()->encrypt($value);
+            $this->attributes[$encryptedFields[$key]] = $this->isBlankSecret($value)
+                ? null
+                : $this->vault()->encrypt((string) $value);
+
             return $this;
         }
-        
+
         if ($key === 'requester_email') {
-            $this->attributes['requester_email_blind_index'] = $this->vault()->generateBlindIndex($value);
+            $this->attributes['requester_email_blind_index'] = $this->isBlankSecret($value)
+                ? null
+                : $this->vault()->generateBlindIndex((string) $value);
         }
 
         return parent::setAttribute($key, $value);
     }
     
+    private function isBlankSecret(mixed $value): bool
+    {
+        return $value === null || (is_string($value) && trim($value) === '');
+    }
+
     public function requestTypeValue(): string
     {
         $type = parent::getAttribute('request_type');

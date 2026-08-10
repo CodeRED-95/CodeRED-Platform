@@ -84,8 +84,8 @@ class ApiTokenRequestAdminTest extends TestCase
             $this->assertSame($type->value, $request->token_type);
             $this->assertSame($type->abilities(), $request->requested_abilities);
             $this->assertSame($type->abilities(), $token->abilities);
-            $this->assertNotNull($request->encrypted_plain_text_token);
-            $this->assertStringNotContainsString($request->encrypted_plain_text_token, $request->events()->pluck('metadata')->toJson());
+            $this->assertNotNull($request->token_ciphertext);
+            $this->assertStringNotContainsString($request->token_ciphertext, $request->events()->pluck('metadata')->toJson());
         }
     }
 

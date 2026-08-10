@@ -91,7 +91,7 @@ class N8nTokenRequestFunctionalTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.request_id', $request->request_uuid)
             ->assertJsonPath('data.status', 'pending')
-            ->assertJsonMissingPath('data.encrypted_plain_text_token')
+            ->assertJsonMissingPath('data.token_ciphertext')
             ->assertJsonMissingPath('data.token');
     }
 
@@ -114,7 +114,7 @@ class N8nTokenRequestFunctionalTest extends TestCase
             ->assertJsonPath('data.token_type', 'Bearer');
 
         $request->refresh();
-        $this->assertNull($request->encrypted_plain_text_token);
+        $this->assertNull($request->token_ciphertext);
         $this->assertNotNull($request->result_retrieved_at);
         $this->assertSame(ApiTokenRequestDeliveryStatus::Retrieved->value, $request->deliveryStatusValue());
         $this->assertStringNotContainsString('plain-token-value', $request->events()->pluck('metadata')->toJson());
@@ -135,7 +135,7 @@ class N8nTokenRequestFunctionalTest extends TestCase
     public function test_confirm_delivery_is_idempotent(): void
     {
         $request = $this->createApprovedRequest();
-        $request->forceFill(['result_retrieved_at' => now(), 'encrypted_plain_text_token' => null, 'delivery_status' => ApiTokenRequestDeliveryStatus::Retrieved])->save();
+        $request->forceFill(['result_retrieved_at' => now(), 'token_ciphertext' => null, 'delivery_status' => ApiTokenRequestDeliveryStatus::Retrieved])->save();
 
         $payload = ['delivery_channel' => 'manual', 'delivered_to' => 'Ada', 'delivery_metadata' => ['message_id' => 'm1']];
 
@@ -221,7 +221,7 @@ class N8nTokenRequestFunctionalTest extends TestCase
             'approved_at' => now(),
             'reviewed_at' => now(),
             'personal_access_token_id' => $token->id,
-            'encrypted_plain_text_token' => Crypt::encryptString($plainToken),
+            'token_ciphertext' => Crypt::encryptString($plainToken),
             'delivery_status' => ApiTokenRequestDeliveryStatus::Pending,
             'token_type' => 'agencies',
         ])->save();

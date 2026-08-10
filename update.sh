@@ -470,6 +470,45 @@ verify_ruc_import_removal(){
 }
 verify_ruc_import_removal
 
+# El esquema de api_token_requests quedó desalineado del código en v3.3.0: la
+# migración 2026_08_07_000001 eliminó columnas que la aplicación seguía usando
+# y /solicitar-token dejó de funcionar. 2026_08_10_000001 lo restaura. Aquí
+# solo se COMPRUEBA que esas columnas existen tras migrar: no altera nada.
+verify_token_request_schema(){
+    local pg_user pg_db missing legacy
+    pg_user="$(get_env POSTGRES_USER)"; pg_db="$(get_env POSTGRES_DB)"
+    [[ -n "$pg_user" && -n "$pg_db" ]] || { info "Sin credenciales PostgreSQL en .env; se omite verificación de solicitudes de token."; return; }
+
+    missing="$(docker compose exec -T postgres psql -U "$pg_user" -d "$pg_db" -tAc \
+        "SELECT string_agg(c.name, ', ')
+           FROM (VALUES ('tracking_code'),('token_ciphertext'),('token_hash'),('token_last_four'),
+                        ('token_revealed_at'),('token_revealed_by_type'),('token_revealed_by_user_id'),
+                        ('requester_name_encrypted'),('requester_email_blind_index'),
+                        ('requester_phone_encrypted'),('purpose_encrypted'),
+                        ('delivery_method_encrypted'),('delivery_reason_encrypted')) AS c(name)
+          WHERE NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                 WHERE table_name='api_token_requests' AND column_name=c.name);" 2>/dev/null | tr -d '[:space:]')"
+
+    if [[ -n "$missing" ]]; then
+        warn "Faltan columnas en api_token_requests: $missing"
+        warn "El formulario público /solicitar-token fallará. Aplique: docker compose exec -T app php artisan migrate --force"
+    else
+        ok "Esquema de api_token_requests alineado con el código (tracking_code, token_ciphertext y campos cifrados)."
+    fi
+
+    # Si sobrevive el nombre antiguo, hay dos columnas para el mismo dato y los
+    # flujos de purga limpiarían la equivocada.
+    legacy="$(docker compose exec -T postgres psql -U "$pg_user" -d "$pg_db" -tAc \
+        "SELECT count(*) FROM information_schema.columns
+          WHERE table_name='api_token_requests' AND column_name='encrypted_plain_text_token';" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "$legacy" =~ ^[0-9]+$ && "$legacy" != "0" ]]; then
+        warn "Sigue existiendo la columna heredada encrypted_plain_text_token junto a token_ciphertext."
+        warn "Aplique: docker compose exec -T app php artisan migrate --force"
+    fi
+}
+verify_token_request_schema
+
 step 11 "Creando directorios requeridos"
 # La ruta real depende del disco "local" configurado en
 # config/filesystems.php (cambió de storage/app a storage/app/private entre
