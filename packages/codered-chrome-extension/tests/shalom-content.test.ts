@@ -6,7 +6,7 @@ import { isRuntimeRequest } from '../src/background/messages';
 import { createShalomContentController, findSearchInsertionPoint, insertSearchContainer, positionResultsPanel } from '../src/content/content';
 import { detectActiveChannel, detectActiveShalomChannelState } from '../src/content/shalom-page-adapter';
 import { findActiveDestinationSelect, selectAgencyInDestination } from '../src/content/agency-selector';
-import { hostnameMatchesAllowedDomain, isSupportedShalomHost, isSupportedShalomLocation, isSupportedShalomPath } from '../src/content/shalom-host';
+import { hostnameMatchesAllowedDomain, isNeutralShalomSearchPath, isSupportedShalomHost, isSupportedShalomLocation, isSupportedShalomPath } from '../src/content/shalom-host';
 import { searchAgencies } from '../src/search/agency-search';
 
 const terrestrialAgency = adaptAgency({
@@ -96,6 +96,12 @@ describe('supported Shalom paths', () => {
     // Ruta autorizada pero host no permitido
     expect(isSupportedShalomLocation('shalomcontrol.com', '/listaordenservicio')).toBe(false);
     expect(isSupportedShalomLocation('ventas.shalom.pe', '/listaordenservicio')).toBe(false);
+  });
+
+  it('identifies listaordenservicio as a neutral search path', () => {
+    expect(isNeutralShalomSearchPath('/listaordenservicio')).toBe(true);
+    expect(isNeutralShalomSearchPath('/listaordenservicio/')).toBe(true);
+    expect(isNeutralShalomSearchPath('/ordenservicio/listar')).toBe(false);
   });
 });
 
@@ -253,18 +259,40 @@ describe('Shalom Control DOM integration', () => {
     expect(document.querySelector<HTMLInputElement>('#codered-search-input')).toBeInstanceOf(HTMLElement);
   });
 
-  it('keeps channel detection pending until the DOM exposes an active channel and warns only once per page', async () => {
+  it('keeps listaordenservicio neutral when the DOM exposes both channels but none can be confirmed', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     document.body.innerHTML = '<div class="mdl-layout__header-row"><button type="button" title="Terrestre"></button><button type="button" title="Aéreo"></button></div><main></main>';
 
     const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
     await controller.mount();
     expect(detectActiveShalomChannelState(document)).toMatchObject({ channel: null, reason: 'ambiguous' });
-    expect(warnSpy.mock.calls.filter(([message]) => String(message).includes('Canal activo no confirmado todavía'))).toHaveLength(1);
+    expect(warnSpy.mock.calls.filter(([message]) => String(message).includes('Canal activo no confirmado todavía'))).toHaveLength(0);
 
     await controller.mount();
-    expect(warnSpy.mock.calls.filter(([message]) => String(message).includes('Canal activo no confirmado todavía'))).toHaveLength(1);
+    expect(warnSpy.mock.calls.filter(([message]) => String(message).includes('Canal activo no confirmado todavía'))).toHaveLength(0);
     warnSpy.mockRestore();
+  });
+
+  it('treats listaordenservicio as a neutral page without blocking the search when the channel is ambiguous', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    document.body.innerHTML = '<div class="mdl-layout__header-row"><button type="button" title="Terrestre"></button><button type="button" title="Aéreo"></button></div><main></main>';
+
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+
+    expect(warnSpy.mock.calls.some(([message]) => String(message).includes('Canal activo no confirmado todavía'))).toBe(false);
+    expect(warnSpy.mock.calls.some(([message]) => String(message).includes('La detección del canal sigue ambigua'))).toBe(false);
+    expect(document.body.textContent).toContain('Canal no identificado. Buscando en todas las agencias.');
+    expect(document.querySelectorAll('.codered-agency-card')).toHaveLength(1);
+    expect(infoSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+    infoSpy.mockRestore();
   });
 
   it('injects when the header appears after the observer starts', async () => {
@@ -428,6 +456,14 @@ describe('Shalom Control DOM integration', () => {
     expect(warnSpy).not.toHaveBeenCalled();
     infoSpy.mockRestore();
     warnSpy.mockRestore();
+  });
+
+  it('selects agencies in neutral mode on listaordenservicio when the channel is unknown', () => {
+    document.body.innerHTML = '<select id="x_osProDestino"><option value="">Seleccione</option><option value="t">1001 - CHICLAYO HUB - TERRESTRE</option><option value="a">1001 - CHICLAYO HUB - AEREO</option></select>';
+    const select = document.querySelector('select')!;
+
+    expect(selectAgencyInDestination(document, terrestrialAgency, 'AUTO')).toMatchObject({ success: true });
+    expect(['t', 'a']).toContain(select.value);
   });
 
   it('keeps technical failures as warnings with structured context', async () => {

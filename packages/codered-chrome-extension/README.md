@@ -147,6 +147,8 @@ El content script intenta inyectar inmediatamente al iniciar y luego observa cam
 
 Detecta Terrestre/Aereo mediante `title`, texto visible normalizado, `onclick`, clases activas y `aria-selected`. El canal interno se normaliza a `TERRESTRE` o `AEREO`.
 
+En `https://*.shalomcontrol.com/listaordenservicio` la deteccion del canal puede quedar neutral por ausencia de evidencia suficiente. En ese caso el buscador no bloquea la UI, muestra `Canal no identificado. Buscando en todas las agencias.` y busca en todas las agencias publicas disponibles.
+
 Para seleccionar destino localiza `select[id*="osProDestino"]`, prioriza selectores visibles y habilitados, rechaza multiples candidatos activos, asigna el valor real del `select`, dispara `input` y `change`, y actualiza el DOM de Chosen cuando existe. Si una agencia de CodeRED no esta en el selector actual, no cambia el formulario.
 
 El content script no recibe el token. Usa mensajes `CATALOG_GET`, `CATALOG_STATUS` y `CATALOG_SYNC` contra el service worker, que es el unico componente que llama a CodeRED Platform con Bearer token.

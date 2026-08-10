@@ -13,9 +13,19 @@ export function getChosenTextForActiveChannel(agency: Agency, channel: Exclude<S
   return '';
 }
 
-export function findActiveDestinationSelect(root: ParentNode = document, channel: Exclude<ShalomChannel, 'AUTO'> = 'TERRESTRE'): HTMLSelectElement | SelectFailure | null {
+export function findActiveDestinationSelect(root: ParentNode = document, channel: Exclude<ShalomChannel, 'AUTO'> | null = 'TERRESTRE'): HTMLSelectElement | SelectFailure | null {
   const candidates = Array.from(root.querySelectorAll('select[id*="osProDestino"]')).filter((element): element is HTMLSelectElement => element instanceof HTMLSelectElement);
   const usable = candidates.filter((select) => !select.disabled && !select.hidden && select.getAttribute('aria-hidden') !== 'true' && isPanelUsable(select));
+  if (channel === null) {
+    const visibleChosen = usable.filter((select) => {
+      const chosen = select.ownerDocument.getElementById(`${select.id}_chosen`);
+      return chosen instanceof HTMLElement ? isElementVisible(chosen) : isElementVisible(select);
+    });
+    if (visibleChosen.length === 0) return null;
+    if (visibleChosen.length === 1) return visibleChosen[0];
+    return { reason: 'multiple-active-selects', count: visibleChosen.length };
+  }
+
   const byChosen = usable.filter((select) => {
     const chosen = select.ownerDocument.getElementById(`${select.id}_chosen`);
     return chosen instanceof HTMLElement && isElementVisible(chosen) && matchesChannelContext(chosen, channel);
@@ -37,20 +47,42 @@ export function findActiveDestinationSelect(root: ParentNode = document, channel
 }
 
 export function selectAgencyInDestination(root: ParentNode, agency: Agency, requestedChannel: ShalomChannel): SelectionResult {
-  const channel = requestedChannel === 'AUTO' ? 'TERRESTRE' : requestedChannel;
-  const chosenText = getChosenTextForActiveChannel(agency, channel);
-  if (!chosenText) return { success: false, reason: 'missing-channel-text', message: `La agencia no tiene identificador Chosen para el canal ${channel === 'AEREO' ? 'Aéreo' : 'Terrestre'}.`, channel };
-
+  const channel = requestedChannel === 'AUTO' ? null : requestedChannel;
+  const candidateChannels: Array<Exclude<ShalomChannel, 'AUTO'>> = channel ? [channel] : ['TERRESTRE', 'AEREO'];
   const select = findActiveDestinationSelect(root, channel);
-  if (!select) return { success: false, reason: 'no-destination-select', message: 'No se encontró el selector de destino activo de Shalom.', channel };
-  if (!(select instanceof HTMLSelectElement)) return { success: false, reason: 'multiple-active-selects', message: 'Se encontraron varios selectores de destino activos y no se realizó ningún cambio.', channel };
+  if (!select) return { success: false, reason: 'no-destination-select', message: 'No se encontró el selector de destino activo de Shalom.', channel: channel ?? undefined };
+  if (!(select instanceof HTMLSelectElement)) return { success: false, reason: 'multiple-active-selects', message: 'Se encontraron varios selectores de destino activos y no se realizó ningún cambio.', channel: channel ?? undefined };
 
-  const option = findMatchingOption(select, chosenText, agency);
+  for (const candidateChannel of candidateChannels) {
+    const chosenText = getChosenTextForActiveChannel(agency, candidateChannel);
+    if (!chosenText) continue;
+    const option = findMatchingOption(select, chosenText, agency);
+    if (isOptionFailure(option)) {
+      if (option.reason === 'option-not-found') continue;
+      return { success: false, reason: 'multiple-matching-options', message: `Hay múltiples opciones coincidentes para ${candidateChannel === 'AEREO' ? 'Aéreo' : 'Terrestre'}; no se cambió el selector.`, channel: candidateChannel };
+    }
+
+    select.value = option.value;
+    option.selected = true;
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    updateChosenDom(select);
+    triggerChosenUpdated(select);
+
+    if (select.value !== option.value) return { success: false, reason: 'option-not-found', message: 'Shalom Control no confirmó el cambio del selector.', channel: candidateChannel };
+    return { success: true, value: option.value, channel: candidateChannel };
+  }
+
+  const fallbackChannel = candidateChannels[0];
+  const fallbackText = getChosenTextForActiveChannel(agency, fallbackChannel);
+  if (!fallbackText) return { success: false, reason: 'missing-channel-text', message: `La agencia no tiene identificador Chosen para el canal ${fallbackChannel === 'AEREO' ? 'Aéreo' : 'Terrestre'}.`, channel: fallbackChannel };
+
+  const option = findMatchingOption(select, fallbackText, agency);
   if (isOptionFailure(option)) {
     if (option.reason === 'option-not-found') {
-      return { success: false, reason: 'option-not-found', message: `La agencia está registrada, pero no está disponible en el selector actual de Shalom (${channel === 'AEREO' ? 'Aéreo' : 'Terrestre'}).`, channel };
+      return { success: false, reason: 'option-not-found', message: `La agencia está registrada, pero no está disponible en el selector actual de Shalom (${fallbackChannel === 'AEREO' ? 'Aéreo' : 'Terrestre'}).`, channel: fallbackChannel };
     }
-    return { success: false, reason: 'multiple-matching-options', message: `Hay múltiples opciones coincidentes para ${channel === 'AEREO' ? 'Aéreo' : 'Terrestre'}; no se cambió el selector.`, channel };
+    return { success: false, reason: 'multiple-matching-options', message: `Hay múltiples opciones coincidentes para ${fallbackChannel === 'AEREO' ? 'Aéreo' : 'Terrestre'}; no se cambió el selector.`, channel: fallbackChannel };
   }
 
   select.value = option.value;
@@ -60,8 +92,8 @@ export function selectAgencyInDestination(root: ParentNode, agency: Agency, requ
   updateChosenDom(select);
   triggerChosenUpdated(select);
 
-  if (select.value !== option.value) return { success: false, reason: 'option-not-found', message: 'Shalom Control no confirmó el cambio del selector.', channel };
-  return { success: true, value: option.value, channel };
+  if (select.value !== option.value) return { success: false, reason: 'option-not-found', message: 'Shalom Control no confirmó el cambio del selector.', channel: fallbackChannel };
+  return { success: true, value: option.value, channel: fallbackChannel };
 }
 
 type OptionFailure = { reason: 'option-not-found' | 'multiple-matching-options' };

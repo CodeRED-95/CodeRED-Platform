@@ -52,6 +52,10 @@ export function isSupportedShalomLocation(
   return isSupportedShalomHost(hostname, allowedDomains) && isSupportedShalomPath(pathname);
 }
 
+export function isNeutralShalomSearchPath(pathname: string | null | undefined): boolean {
+  return normalizePathname(pathname) === '/listaordenservicio';
+}
+
 export function hostnameMatchesAllowedDomain(hostname: string, allowedDomain: string): boolean {
   return isHostnameOrSubdomain(hostname, allowedDomain);
 }

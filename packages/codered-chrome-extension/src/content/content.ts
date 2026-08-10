@@ -7,7 +7,7 @@ import { searchAgencies } from '../search/agency-search';
 import { buildMapsUrl } from '../utils/format';
 import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agency-selector';
 import { bindChannelButtons, detectActiveShalomChannelState, type ShalomChannel } from './shalom-page-adapter';
-import { hostnameMatchesAllowedDomain, isSupportedShalomHost, isSupportedShalomPath } from './shalom-host';
+import { hostnameMatchesAllowedDomain, isNeutralShalomSearchPath, isSupportedShalomHost, isSupportedShalomPath } from './shalom-host';
 
 const CONTAINER_ID = 'mi-buscador-contenedor';
 const SEARCH_INPUT_ID = 'codered-search-input';
@@ -251,14 +251,18 @@ export function createShalomContentController(dependencies: ContentControllerDep
     grid.innerHTML = '';
     message.textContent = '';
     const query = input.value.trim();
+    const neutralChannel = isNeutralShalomSearchPath(window.location.pathname);
     if (!activeChannel) {
-      message.textContent = 'Todavía estamos detectando el canal activo de Shalom. Espera unos segundos e intenta de nuevo.';
+      if (!neutralChannel) {
+        message.textContent = 'Todavía estamos detectando el canal activo de Shalom. Espera unos segundos e intenta de nuevo.';
+      } else {
+        message.textContent = 'Canal no identificado. Buscando en todas las agencias.';
+      }
       positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
-      return;
     }
 
     const channel = activeChannel;
-    const channelAgencies = agencies.filter((agency) => getChosenTextForActiveChannel(agency, channel));
+    const channelAgencies = channel ? agencies.filter((agency) => getChosenTextForActiveChannel(agency, channel)) : agencies;
 
     if (agencies.length === 0) {
       message.textContent = 'No hay agencias sincronizadas. Abre la configuración de la extensión y pulsa Sincronizar ahora.';
@@ -266,14 +270,18 @@ export function createShalomContentController(dependencies: ContentControllerDep
       return;
     }
     if (query.length < 2) {
-      message.textContent = `Escribe al menos 2 caracteres para buscar en el canal ${channelLabel(channel)}.`;
+      message.textContent = channel
+        ? `Escribe al menos 2 caracteres para buscar en el canal ${channelLabel(channel)}.`
+        : 'Escribe al menos 2 caracteres para buscar en todas las agencias.';
       positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
       return;
     }
 
     const found = searchAgencies(channelAgencies, query, 30).map((result) => result.agency);
     if (found.length === 0) {
-      message.textContent = `No se encontraron agencias para ‘${query}’ en el canal ${channelLabel(channel)}.`;
+      message.textContent = channel
+        ? `No se encontraron agencias para ‘${query}’ en el canal ${channelLabel(channel)}.`
+        : `No se encontraron agencias para ‘${query}’.`;
       positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
       return;
     }
@@ -295,17 +303,17 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   function selectAgency(agency: Agency): void {
     void refreshChannelDetection();
-    if (!activeChannel) {
-      const container = document.getElementById(CONTAINER_ID);
-      const message = container?.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
+    const container = document.getElementById(CONTAINER_ID);
+    const input = container?.querySelector<HTMLInputElement>(`#${SEARCH_INPUT_ID}`);
+    const message = container?.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
+    const neutralPath = isNeutralShalomSearchPath(window.location.pathname);
+    const requestedChannel = activeChannel ?? (neutralPath ? 'AUTO' : null);
+    if (!requestedChannel) {
       if (message) message.textContent = 'No fue posible determinar el canal activo de Shalom todavía.';
       return;
     }
 
-    const selected = selectAgencyInDestination(document, agency, activeChannel);
-    const container = document.getElementById(CONTAINER_ID);
-    const input = container?.querySelector<HTMLInputElement>(`#${SEARCH_INPUT_ID}`);
-    const message = container?.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
+    const selected = selectAgencyInDestination(document, agency, requestedChannel);
     if (selected.success) {
       if (input) input.value = '';
       if (container) closeResults(container);
@@ -313,7 +321,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     }
     if (selected.reason === 'option-not-found') {
       infoOnce('select-agency-unavailable', '[CodeRED Shalom] La agencia seleccionada no está disponible actualmente en Shalom Control', {
-        channel: activeChannel,
+        channel: requestedChannel,
         agency: safeAgencyContext(agency),
       });
       if (message) message.textContent = 'La agencia seleccionada no está disponible actualmente en Shalom Control.';
@@ -322,7 +330,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
     warnOnce('select-agency', '[CodeRED Shalom] No se pudo seleccionar agencia', {
       reason: selected.reason,
-      channel: activeChannel,
+      channel: requestedChannel,
       agency: safeAgencyContext(agency),
       detail: selected.message,
     });
@@ -354,6 +362,12 @@ export function createShalomContentController(dependencies: ContentControllerDep
       return detection.channel;
     }
 
+    if (isNeutralShalomSearchPath(window.location.pathname)) {
+      channelDetectionPending = false;
+      channelRetryAttempts = 0;
+      return null;
+    }
+
     if (forceLog || !channelDetectionPending) {
       channelDetectionPending = true;
       channelRetryAttempts = 0;
@@ -369,6 +383,11 @@ export function createShalomContentController(dependencies: ContentControllerDep
   }
 
   function scheduleChannelRetry(): void {
+    if (isNeutralShalomSearchPath(window.location.pathname)) {
+      channelDetectionPending = false;
+      channelRetryAttempts = 0;
+      return;
+    }
     if (channelRetryAttempts >= 10) {
       channelDetectionPending = false;
       warnOnce('channel-pending-timeout', '[CodeRED Shalom] El canal activo sigue sin poder determinarse tras varios intentos; se detiene la espera automática', {
@@ -538,14 +557,14 @@ function closeResults(container: HTMLElement): void {
   if (panel) panel.hidden = true;
 }
 
-function updateChannelBadge(container: HTMLElement): void {
-  const badge = container.querySelector<HTMLElement>(`.${CHANNEL_BADGE_CLASS}`);
-  if (badge) badge.textContent = activeChannelText(container.ownerDocument);
-}
+  function updateChannelBadge(container: HTMLElement): void {
+    const badge = container.querySelector<HTMLElement>(`.${CHANNEL_BADGE_CLASS}`);
+    if (badge) badge.textContent = activeChannelText(container.ownerDocument);
+  }
 
   function activeChannelText(root: ParentNode): string {
   const channel = detectActiveShalomChannelState(root).channel;
-  if (!channel) return '⌛ Canal pendiente';
+  if (!channel) return isNeutralShalomSearchPath(window.location.pathname) ? '🌐 Canal neutral' : '⌛ Canal pendiente';
   return channel === 'AEREO' ? '✈️ Aéreo' : '🚚 Terrestre';
 }
 
