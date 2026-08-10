@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.1 - 2026-08-10
+
+- Corrige la deteccion del canal activo en Shalom Control para no forzar TERRESTRE mientras el DOM sigue cargando.
+- Deduplica los warnings de canal y de seleccion fallida para evitar ruido repetido en la consola.
+- Mejora el flujo de seleccion de agencias con mensajes estructurados y sin concatenar objetos.
+- Sube la version visible de la extension a `2.3.1`.
+
 ## 2.3.0 - 2026-08-02
 
 - Reconstruye el popup compacto desde cero con una sola columna de 360 px, tema oscuro CodeRED, sin scroll interno y sin layout de dos columnas.

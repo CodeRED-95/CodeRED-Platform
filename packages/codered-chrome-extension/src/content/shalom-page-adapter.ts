@@ -27,7 +27,17 @@ export function findHeader(root: ParentNode = document): HTMLElement | null {
   return null;
 }
 
-export function detectActiveShalomChannel(root: ParentNode = document): Exclude<ShalomChannel, 'AUTO'> {
+export interface ChannelDetectionResult {
+  channel: Exclude<ShalomChannel, 'AUTO'> | null;
+  reason: 'detected' | 'pending' | 'ambiguous';
+  candidates: number;
+}
+
+export function detectActiveShalomChannel(root: ParentNode = document): Exclude<ShalomChannel, 'AUTO'> | null {
+  return detectActiveShalomChannelState(root).channel;
+}
+
+export function detectActiveShalomChannelState(root: ParentNode = document): ChannelDetectionResult {
   const candidates = collectChannelCandidates(root);
   const scored = candidates
     .map((element) => ({ element, channel: detectElementChannel(element), active: isActiveChannelElement(element) }))
@@ -35,12 +45,14 @@ export function detectActiveShalomChannel(root: ParentNode = document): Exclude<
 
   const active = scored.find((item) => item.active);
   if (active) {
-    console.log(`[CodeRED Shalom] Canal activo detectado: ${active.channel}`);
-    return active.channel;
+    return { channel: active.channel, reason: 'detected', candidates: scored.length };
   }
 
-  console.warn('[CodeRED Shalom] No se pudo detectar el canal activo; usando TERRESTRE temporalmente');
-  return 'TERRESTRE';
+  if (scored.length > 1) {
+    return { channel: null, reason: 'ambiguous', candidates: scored.length };
+  }
+
+  return { channel: null, reason: 'pending', candidates: scored.length };
 }
 
 export const detectActiveChannel = detectActiveShalomChannel;
@@ -52,7 +64,10 @@ export function bindChannelButtons(root: ParentNode, onChange: (channel: Exclude
     if (!channel || element.dataset.coderedChannelBound === 'true') continue;
     element.dataset.coderedChannelBound = 'true';
     element.addEventListener('click', () => {
-      window.setTimeout(() => onChange(detectActiveShalomChannel(root)), 0);
+      window.setTimeout(() => {
+        const detection = detectActiveShalomChannelState(root);
+        if (detection.channel) onChange(detection.channel);
+      }, 0);
     });
   }
 }

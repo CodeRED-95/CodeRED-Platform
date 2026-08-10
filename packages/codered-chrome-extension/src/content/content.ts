@@ -6,7 +6,7 @@ import { statusNotice } from '../models/agency';
 import { searchAgencies } from '../search/agency-search';
 import { buildMapsUrl } from '../utils/format';
 import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agency-selector';
-import { bindChannelButtons, detectActiveShalomChannel, type ShalomChannel } from './shalom-page-adapter';
+import { bindChannelButtons, detectActiveShalomChannelState, type ShalomChannel } from './shalom-page-adapter';
 import { hostnameMatchesAllowedDomain, isSupportedShalomHost, isSupportedShalomPath } from './shalom-host';
 
 const CONTAINER_ID = 'mi-buscador-contenedor';
@@ -37,11 +37,14 @@ interface InjectionTarget {
 
 export function createShalomContentController(dependencies: ContentControllerDependencies = {}) {
   let agencies: Agency[] = [];
-  let activeChannel: Exclude<ShalomChannel, 'AUTO'> = 'TERRESTRE';
+  let activeChannel: Exclude<ShalomChannel, 'AUTO'> | null = null;
+  let channelDetectionPending = false;
+  let channelRetryAttempts = 0;
   let injectionObserver: MutationObserver | null = null;
   let injectionDebounceTimer: number | null = null;
   let storageListenerBound = false;
   let resizeListenerBound = false;
+  const emittedLogs = new Set<string>();
 
   async function initializeContentScript(): Promise<void> {
     console.log('[CodeRED Shalom] Content script iniciado');
@@ -53,16 +56,16 @@ export function createShalomContentController(dependencies: ContentControllerDep
     // inyección, pero esta comprobación es la que garantiza que no se ejecute
     // nada en rutas parecidas ni tras una navegación SPA.
     if (!isSupportedShalomPage()) return;
-    activeChannel = detectActiveShalomChannel(document);
-    await cargarDatos(activeChannel);
+    await refreshChannelDetection(true);
+    await cargarDatos();
     const result = injectSearchIfPossible();
     console.log('[CodeRED Shalom] Resultado de inyección', { reason: result.reason });
     startInjectionObserver();
     listenForCatalogChanges();
   }
 
-  async function cargarDatos(channel: Exclude<ShalomChannel, 'AUTO'> = activeChannel): Promise<void> {
-    activeChannel = channel;
+  async function cargarDatos(channel?: Exclude<ShalomChannel, 'AUTO'>): Promise<void> {
+    if (channel) activeChannel = channel;
     try {
       agencies = await requestCatalog();
       console.log(`[CodeRED Shalom] Catálogo local cargado: ${agencies.length} agencias`);
@@ -161,7 +164,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
   function injectSearchIfPossible(): InjectionResult {
     if (!document.body) return { success: false, reason: 'body-not-ready' };
     if (!isSupportedShalomPage()) return { success: false, reason: 'unsupported-page' };
-    activeChannel = detectActiveShalomChannel(document);
+    void refreshChannelDetection();
 
     const existing = document.getElementById(CONTAINER_ID);
     if (existing?.isConnected) {
@@ -193,8 +196,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
       injectionDebounceTimer = window.setTimeout(() => {
         injectionDebounceTimer = null;
         bindChannelButtons(document, handleChannelChange);
-        const detected = detectActiveShalomChannel(document);
-        if (detected !== activeChannel) handleChannelChange(detected);
+        void refreshChannelDetection();
         const existing = document.getElementById(CONTAINER_ID);
         if (!existing?.isConnected) console.log('[CodeRED Shalom] El header cambió; reinyectando');
         const result = injectSearchIfPossible();
@@ -214,7 +216,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
   function mount(): Promise<InjectionResult> {
     // No se descarga el catálogo fuera de las rutas autorizadas.
     if (!isSupportedShalomPage()) return Promise.resolve({ success: false, reason: 'unsupported-page' });
-    return cargarDatos(activeChannel).then(() => injectSearchIfPossible());
+    return refreshChannelDetection(true).then(() => cargarDatos()).then(() => injectSearchIfPossible());
   }
 
   function bindResizeReposition(container: HTMLElement, panel: HTMLElement): void {
@@ -249,7 +251,14 @@ export function createShalomContentController(dependencies: ContentControllerDep
     grid.innerHTML = '';
     message.textContent = '';
     const query = input.value.trim();
-    const channelAgencies = agencies.filter((agency) => getChosenTextForActiveChannel(agency, activeChannel));
+    if (!activeChannel) {
+      message.textContent = 'Todavía estamos detectando el canal activo de Shalom. Espera unos segundos e intenta de nuevo.';
+      positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
+      return;
+    }
+
+    const channel = activeChannel;
+    const channelAgencies = agencies.filter((agency) => getChosenTextForActiveChannel(agency, channel));
 
     if (agencies.length === 0) {
       message.textContent = 'No hay agencias sincronizadas. Abre la configuración de la extensión y pulsa Sincronizar ahora.';
@@ -257,14 +266,14 @@ export function createShalomContentController(dependencies: ContentControllerDep
       return;
     }
     if (query.length < 2) {
-      message.textContent = `Escribe al menos 2 caracteres para buscar en el canal ${channelLabel(activeChannel)}.`;
+      message.textContent = `Escribe al menos 2 caracteres para buscar en el canal ${channelLabel(channel)}.`;
       positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
       return;
     }
 
     const found = searchAgencies(channelAgencies, query, 30).map((result) => result.agency);
     if (found.length === 0) {
-      message.textContent = `No se encontraron agencias para ‘${query}’ en el canal ${channelLabel(activeChannel)}.`;
+      message.textContent = `No se encontraron agencias para ‘${query}’ en el canal ${channelLabel(channel)}.`;
       positionResultsPanel(input.closest(`#${CONTAINER_ID}`) as HTMLElement, panel);
       return;
     }
@@ -285,7 +294,14 @@ export function createShalomContentController(dependencies: ContentControllerDep
   }
 
   function selectAgency(agency: Agency): void {
-    activeChannel = detectActiveShalomChannel(document);
+    void refreshChannelDetection();
+    if (!activeChannel) {
+      const container = document.getElementById(CONTAINER_ID);
+      const message = container?.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
+      if (message) message.textContent = 'No fue posible determinar el canal activo de Shalom todavía.';
+      return;
+    }
+
     const selected = selectAgencyInDestination(document, agency, activeChannel);
     const container = document.getElementById(CONTAINER_ID);
     const input = container?.querySelector<HTMLInputElement>(`#${SEARCH_INPUT_ID}`);
@@ -295,7 +311,17 @@ export function createShalomContentController(dependencies: ContentControllerDep
       if (container) closeResults(container);
       return;
     }
-    console.warn('[CodeRED Shalom] No se pudo seleccionar agencia', { reason: selected.reason, channel: activeChannel, agency: agency.externalId ?? agency.code });
+    warnOnce('select-agency', '[CodeRED Shalom] No se pudo seleccionar agencia', {
+      reason: selected.reason,
+      channel: activeChannel,
+      agency: {
+        id: agency.id,
+        externalId: agency.externalId,
+        code: agency.code,
+        name: agency.name,
+      },
+      detail: selected.message,
+    });
     if (message) message.textContent = selected.message;
   }
 
@@ -311,8 +337,66 @@ export function createShalomContentController(dependencies: ContentControllerDep
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'local') return;
       if (!Object.keys(changes).some((key) => CATALOG_STORAGE_KEYS.has(key))) return;
-      void cargarDatos(activeChannel);
+      void cargarDatos(activeChannel ?? undefined);
     });
+  }
+
+  async function refreshChannelDetection(forceLog = false): Promise<Exclude<ShalomChannel, 'AUTO'> | null> {
+    const detection = detectActiveShalomChannelState(document);
+    if (detection.channel) {
+      if (detection.channel !== activeChannel) handleChannelChange(detection.channel);
+      channelDetectionPending = false;
+      channelRetryAttempts = 0;
+      return detection.channel;
+    }
+
+    if (forceLog || !channelDetectionPending) {
+      channelDetectionPending = true;
+      channelRetryAttempts = 0;
+      warnOnce('channel-pending', '[CodeRED Shalom] Canal activo no confirmado todavía; esperando a que Shalom termine de cargar el DOM', {
+        path: window.location.pathname,
+        reason: detection.reason,
+        candidates: detection.candidates,
+      });
+      scheduleChannelRetry();
+    }
+
+    return null;
+  }
+
+  function scheduleChannelRetry(): void {
+    if (channelRetryAttempts >= 10) {
+      channelDetectionPending = false;
+      warnOnce('channel-pending-timeout', '[CodeRED Shalom] El canal activo sigue sin poder determinarse tras varios intentos; se detiene la espera automática', {
+        path: window.location.pathname,
+      });
+      return;
+    }
+    channelRetryAttempts += 1;
+    window.setTimeout(() => {
+      const detection = detectActiveShalomChannelState(document);
+      if (detection.channel) {
+        channelDetectionPending = false;
+        channelRetryAttempts = 0;
+        handleChannelChange(detection.channel);
+        return;
+      }
+      if (detection.reason === 'ambiguous') {
+        warnOnce('channel-ambiguous', '[CodeRED Shalom] La detección del canal sigue ambigua; se mantendrá la búsqueda en espera', {
+          path: window.location.pathname,
+          candidates: detection.candidates,
+        });
+        channelDetectionPending = false;
+        return;
+      }
+      scheduleChannelRetry();
+    }, 200);
+  }
+
+  function warnOnce(key: string, message: string, context: Record<string, unknown>): void {
+    if (emittedLogs.has(key)) return;
+    emittedLogs.add(key);
+    console.warn(message, context);
   }
 
   async function requestCatalog(): Promise<Agency[]> {
@@ -440,8 +524,9 @@ function updateChannelBadge(container: HTMLElement): void {
   if (badge) badge.textContent = activeChannelText(container.ownerDocument);
 }
 
-function activeChannelText(root: ParentNode): string {
-  const channel = detectActiveShalomChannel(root);
+  function activeChannelText(root: ParentNode): string {
+  const channel = detectActiveShalomChannelState(root).channel;
+  if (!channel) return '⌛ Canal pendiente';
   return channel === 'AEREO' ? '✈️ Aéreo' : '🚚 Terrestre';
 }
 

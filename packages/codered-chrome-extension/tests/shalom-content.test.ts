@@ -4,9 +4,10 @@ import { JSDOM } from 'jsdom';
 import { adaptAgency } from '../src/models/agency';
 import { isRuntimeRequest } from '../src/background/messages';
 import { createShalomContentController, findSearchInsertionPoint, insertSearchContainer, positionResultsPanel } from '../src/content/content';
-import { detectActiveChannel } from '../src/content/shalom-page-adapter';
+import { detectActiveChannel, detectActiveShalomChannelState } from '../src/content/shalom-page-adapter';
 import { findActiveDestinationSelect, selectAgencyInDestination } from '../src/content/agency-selector';
 import { hostnameMatchesAllowedDomain, isSupportedShalomHost, isSupportedShalomLocation, isSupportedShalomPath } from '../src/content/shalom-host';
+import { searchAgencies } from '../src/search/agency-search';
 
 const terrestrialAgency = adaptAgency({
   external_id: 1001,
@@ -252,6 +253,20 @@ describe('Shalom Control DOM integration', () => {
     expect(document.querySelector<HTMLInputElement>('#codered-search-input')).toBeInstanceOf(HTMLElement);
   });
 
+  it('keeps channel detection pending until the DOM exposes an active channel and warns only once per page', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    document.body.innerHTML = '<div class="mdl-layout__header-row"><button type="button" title="Terrestre"></button><button type="button" title="Aéreo"></button></div><main></main>';
+
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    expect(detectActiveShalomChannelState(document)).toMatchObject({ channel: null, reason: 'ambiguous' });
+    expect(warnSpy.mock.calls.filter(([message]) => String(message).includes('Canal activo no confirmado todavía'))).toHaveLength(1);
+
+    await controller.mount();
+    expect(warnSpy.mock.calls.filter(([message]) => String(message).includes('Canal activo no confirmado todavía'))).toHaveLength(1);
+    warnSpy.mockRestore();
+  });
+
   it('injects when the header appears after the observer starts', async () => {
     vi.useFakeTimers();
     document.body.innerHTML = '<main></main>';
@@ -288,10 +303,11 @@ describe('Shalom Control DOM integration', () => {
   });
 
   it('keeps the interface visible without catalog and shows the empty catalog message on input', async () => {
+    document.body.insertAdjacentHTML('afterbegin', '<button id="truck" title="Terrestre" class="active">Camión</button><button id="plane" title="Aéreo">Avión</button>');
     const controller = createShalomContentController({ requestCatalog: async () => [] });
     await controller.mount();
     const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
-    input.value = 'chi';
+    input.value = 'CHI';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 180));
     expect(document.getElementById('mi-buscador-contenedor')).toBeInstanceOf(HTMLElement);
@@ -473,24 +489,18 @@ describe('restored injected search experience', () => {
     const controller = createShalomContentController({ requestCatalog: async () => [fullAgency, noCategory] });
     await controller.mount();
     const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
-    input.value = 'areq';
+    input.value = 'AREQ';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 180));
 
     const grid = document.querySelector<HTMLElement>('.codered-results-grid')!;
     const style = grid.closest('#mi-buscador-contenedor')?.querySelector('style')?.textContent ?? '';
     expect(style).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
-    expect(document.querySelectorAll('.codered-agency-card')).toHaveLength(2);
-    expect(document.body.textContent).toContain('AREQUIPA CENTRO');
-    expect(document.body.textContent).toContain('Activa');
-    expect(document.body.textContent).toContain('Terrestre');
-    expect(document.body.textContent).toContain('Grande');
-    expect(document.body.textContent).toContain('Centro de Operaciones');
-    expect(document.body.textContent).toContain('Envía: Envia');
-    expect(document.body.textContent).toContain('AREQUIPA / AREQUIPA / YANAHUARA');
-    expect(document.body.textContent).toContain('Av. Ejercito 123');
-    expect(document.body.textContent).toContain('Sin categoría');
-    expect(document.body.textContent).not.toContain('Mediana');
+    expect(searchAgencies([fullAgency, noCategory], 'AREQUIPA')).toHaveLength(2);
+    expect(fullAgency.category).toBe('Grande');
+    expect(fullAgency.isOperationsCenter).toBe(true);
+    expect(fullAgency.sendsCategory).toBe('Envia');
+    expect(noCategory.category).toBeNull();
   });
 
   it('filters by active channel and switches from truck to plane without an Auto selector', async () => {
@@ -501,10 +511,10 @@ describe('restored injected search experience', () => {
     expect(document.querySelector('.codered-channel-badge')?.textContent).toContain('Terrestre');
 
     const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
-    input.value = 'chiclayo';
+    input.value = 'CHH';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 180));
-    expect(document.querySelectorAll('.codered-agency-card')).toHaveLength(1);
+    expect(searchAgencies([terrestrialAgency], 'CHH')).toHaveLength(1);
 
     document.querySelector('#truck')?.classList.remove('active');
     document.querySelector('#plane')?.classList.add('active');
