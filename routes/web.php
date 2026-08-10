@@ -21,6 +21,9 @@ use App\Livewire\Admin\ApiTools\RucTester;
 use App\Livewire\Admin\DesignSystem;
 use App\Livewire\Admin\Ruc\Records as RucRecords;
 use App\Livewire\Admin\Ruc\Show as RucShow;
+use App\Livewire\Admin\ShalomRecordar\Index as ShalomRecordarIndex;
+use App\Livewire\Admin\ShalomRecordar\InstallationShow as ShalomRecordarInstallationShow;
+use App\Livewire\Admin\ShalomRecordar\UserShow as ShalomRecordarUserShow;
 use App\Livewire\Admin\Settings\AgencyBackups as AgencyBackupSettings;
 use App\Livewire\Admin\Settings\ApiDocumentation as ApiDocumentationSettings;
 use App\Livewire\Admin\Settings\Dni as DniSettings;
@@ -115,6 +118,9 @@ Route::delete('/admin/ruc/backups/multipart/{upload}', [RucBackupMultipartUpload
 // HTTP 500 (model binding fallido) en vez del 404 que corresponde.
 Route::get('/admin/ruc/{record}', RucShow::class)->middleware(['auth'])->whereNumber('record')->name('admin.ruc.show');
 Route::get('/admin/shalom/entregas', DeliveryRecordsManager::class)->middleware(['auth'])->name('admin.shalom.delivery-records');
+Route::get('/admin/shalom-recordar', ShalomRecordarIndex::class)->middleware(['auth'])->name('admin.shalom-recordar.index');
+Route::get('/admin/shalom-recordar/users/{user}', ShalomRecordarUserShow::class)->middleware(['auth'])->name('admin.shalom-recordar.users.show');
+Route::get('/admin/shalom-recordar/installations/{installation}', ShalomRecordarInstallationShow::class)->middleware(['auth'])->name('admin.shalom-recordar.installations.show');
 Route::prefix('admin/shalom/api-keys')->middleware(['auth'])->name('admin.shalom.api-keys.')->group(function (): void {
     Route::get('/', [ShalomApiKeyController::class, 'index'])->name('index');
     Route::post('/', [ShalomApiKeyController::class, 'store'])->name('store');

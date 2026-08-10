@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasRoles;
+use App\Modules\ShalomRecordar\Models\ShalomRecordarInstallation;
+use App\Modules\ShalomRecordar\Models\ShalomRecordarRecord;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -106,6 +109,16 @@ class User extends Authenticatable
     public function updater(): BelongsTo
     {
         return $this->belongsTo(self::class, 'updated_by');
+    }
+
+    public function shalomRecordarInstallations(): HasMany
+    {
+        return $this->hasMany(ShalomRecordarInstallation::class);
+    }
+
+    public function shalomRecordarRecords(): HasMany
+    {
+        return $this->hasMany(ShalomRecordarRecord::class);
     }
 
     public function scopeActive(Builder $query): Builder

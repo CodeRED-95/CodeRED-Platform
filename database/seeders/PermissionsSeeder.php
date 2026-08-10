@@ -77,6 +77,8 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'api-token-requests.configure', 'name' => 'Configurar integración n8n y Telegram'],
                 ['slug' => 'integrations.n8n.manage', 'name' => 'Gestionar integración n8n empresarial'],
                 ['slug' => 'integrations.view', 'name' => 'Ver integraciones'],
+                ['slug' => 'shalom-recordar.view', 'name' => 'Ver Shalom Recordar'],
+                ['slug' => 'shalom-recordar.manage', 'name' => 'Gestionar Shalom Recordar'],
             ])
                 ->map(fn (array $item): array => [
                     'slug' => trim(strtolower($item['slug'])),

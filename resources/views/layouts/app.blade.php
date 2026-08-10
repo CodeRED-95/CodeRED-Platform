@@ -69,6 +69,7 @@
                             'API' => [
                                 ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
                                 ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-token-requests.view')],
+                                ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => auth()->user()->hasPermission('shalom-recordar.view')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
                             'Administración' => [
@@ -209,6 +210,7 @@
                             'API' => [
                                 ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-tokens.view-any')],
                                 ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => auth()->user()->hasPermission('api-token-requests.view')],
+                                ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => auth()->user()->hasPermission('shalom-recordar.view')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
                             'Administración' => [

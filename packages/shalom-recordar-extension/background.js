@@ -1,5 +1,4 @@
 importScripts("crypto.js", "db.js", "sync.js");
-d;
 
 const MAX_PENDING_QUEUE = 500; // tope de eventos en espera mientras la extensión está bloqueada
 

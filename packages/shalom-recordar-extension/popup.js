@@ -3,6 +3,7 @@ const vistaUnlock = document.getElementById('vistaUnlock');
 const vistaApp = document.getElementById('vistaApp');
 const cuerpoTabla = document.getElementById('cuerpoTabla');
 const inputUsuario = document.getElementById('inputUsuario');
+const inputApiToken = document.getElementById('inputApiToken');
 const syncStatus = document.getElementById('syncStatus');
 
 let currentKey = null; // CryptoKey, solo en memoria de este popup
@@ -184,10 +185,20 @@ inputUsuario.addEventListener('change', async () => {
     }
 });
 
+inputApiToken.addEventListener('change', async () => {
+    const apiToken = inputApiToken.value.trim();
+    if (apiToken.length > 0) {
+        await chrome.storage.local.set({ apiToken });
+    }
+});
+
 async function cargarUsuario() {
-    const res = await chrome.storage.local.get(['username']);
+    const res = await chrome.storage.local.get(['username', 'apiToken']);
     if (res.username) {
         inputUsuario.value = res.username;
+    }
+    if (res.apiToken) {
+        inputApiToken.value = res.apiToken;
     }
 }
 

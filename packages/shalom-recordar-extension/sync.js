@@ -2,7 +2,7 @@
 
 const SYNC_ALARM_NAME = 'shalom-daily-sync';
 // Dominio productivo: codered.lat (migrado desde codered.host).
-const API_ENDPOINT = 'https://platform.codered.lat/api/v1/shalom/sync';
+const API_ENDPOINT = 'https://platform.codered.lat/api/v1/shalom-recordar/sync';
 const SYNC_INTERVAL_MINUTES = 1440; // 24 horas
 
 function getNextSyncTime() {
@@ -39,15 +39,15 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 async function performSync() {
-    const username = await getUsernameFromStorage();
-    if (!username) {
-        console.log('[Shalom] Sync skipped: username not configured');
+    const token = await getApiToken();
+    if (!token) {
+        console.info('[Shalom Recordar] Sync skipped: API token not configured');
         return;
     }
 
     const key = await getSessionKey();
     if (!key) {
-        console.log('[Shalom] Sync skipped: not unlocked');
+        console.info('[Shalom Recordar] Sync skipped: not unlocked');
         return;
     }
 
@@ -55,17 +55,24 @@ async function performSync() {
         const records = await getAllRecords();
         const decrypted = await decryptAllRecords(records, key);
         const processedRecords = processRecordsForSync(decrypted);
+        const installation = await getInstallationInfo();
 
         if (processedRecords.length === 0) {
-            console.log('[Shalom] No records to sync');
+            console.info('[Shalom Recordar] No records to sync');
             return;
         }
 
         const response = await fetch(API_ENDPOINT, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
             body: JSON.stringify({
-                username: username,
+                installation_uuid: installation.installation_uuid,
+                extension_version: installation.extension_version,
+                installation: installation.installation,
+                cursor: installation.cursor,
                 records: processedRecords,
             }),
         });
@@ -76,10 +83,10 @@ async function performSync() {
         }
 
         const result = await response.json();
-        await recordSyncSuccess(result.batch_id, processedRecords.length);
-        console.log(`[Shalom] Sync successful: ${result.record_count} records, batch ${result.batch_id}`);
+        await recordSyncSuccess(result.data?.cursor ?? null, processedRecords.length);
+        console.info(`[Shalom Recordar] Sync successful: ${processedRecords.length} records`);
     } catch (e) {
-        console.error('[Shalom] Sync failed:', e.message);
+        console.error('[Shalom Recordar] Sync failed:', e.message);
         await recordSyncFailure(e.message);
     }
 }
@@ -120,6 +127,7 @@ function processRecordsForSync(records) {
         const camposPermitidos = ['DNI', 'CE', 'RUC', 'OS', 'Clave'];
         if (camposPermitidos.includes(campo)) {
             processed.push({
+                record_id: item.record_id ?? `${item.timestamp}-${campo}`,
                 field: campo,
                 value: valor,
                 timestamp: item.timestamp,
@@ -129,9 +137,32 @@ function processRecordsForSync(records) {
     return processed;
 }
 
-async function getUsernameFromStorage() {
-    const res = await chrome.storage.local.get(['username']);
-    return res.username || null;
+async function getApiToken() {
+    const res = await chrome.storage.local.get(['apiToken']);
+    return res.apiToken || null;
+}
+
+async function getInstallationInfo() {
+    const res = await chrome.storage.local.get(['installationUuid', 'installationMeta']);
+    let installationUuid = res.installationUuid || null;
+
+    if (!installationUuid) {
+        installationUuid = crypto.randomUUID();
+        await chrome.storage.local.set({ installationUuid });
+    }
+
+    return {
+        installation_uuid: installationUuid,
+        extension_version: chrome.runtime.getManifest().version,
+        installation: res.installationMeta || {
+            device_name: navigator.userAgentData?.platform || navigator.platform || 'unknown',
+            browser_name: 'Chrome',
+            browser_version: navigator.userAgent,
+            platform_name: navigator.platform || 'unknown',
+            platform_version: navigator.userAgent,
+        },
+        cursor: new Date().toISOString(),
+    };
 }
 
 async function recordSyncSuccess(batchId, recordCount) {

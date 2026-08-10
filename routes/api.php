@@ -18,6 +18,7 @@ use App\Modules\Ruc\Http\Controllers\RucApiController;
 use App\Modules\Ruc\Http\Controllers\RucSearchApiController;
 use App\Modules\Shalom\Http\Controllers\ShalomSyncController;
 use App\Modules\Shalom\Http\Controllers\DeliveryRecordsExportController;
+use App\Modules\ShalomRecordar\Http\Controllers\ShalomRecordarSyncController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
@@ -54,6 +55,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/token-requests/{request_uuid}/cancel', [N8nTokenRequestController::class, 'cancel'])->name('token-requests.cancel');
     });
     Route::middleware(['auth:sanctum', 'api.token-owner-active', 'api.private-cache'])->group(function (): void {
+        Route::prefix('shalom-recordar')->name('shalom-recordar.')->middleware(['abilities:shalom-recordar.manage'])->group(function (): void {
+            Route::post('/installation', [ShalomRecordarSyncController::class, 'register'])->middleware('throttle:shalom-recordar')->name('installation.register');
+            Route::post('/sync', [ShalomRecordarSyncController::class, 'sync'])->middleware('throttle:shalom-recordar')->name('sync');
+        });
         Route::middleware(['throttle:api-agencias', 'api.audit:agencias', 'abilities:agencias:consultar'])->group(function (): void {
             Route::get('/agencias', [AgencyCatalogController::class, 'index'])->name('agencias.index');
             Route::get('/agencias/{id}', [AgencyCatalogController::class, 'showById'])->name('agencias.show');

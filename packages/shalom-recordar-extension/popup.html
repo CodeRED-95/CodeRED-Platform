@@ -22,6 +22,10 @@
             width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 10px;
             background: #1f1f1f; border: 1px solid #333; border-radius: 8px; color: #e0e0e0;
         }
+        input[type="text"] {
+            width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 10px;
+            background: #1f1f1f; border: 1px solid #333; border-radius: 8px; color: #e0e0e0;
+        }
 
         button {
             width: 100%; padding: 10px; margin-bottom: 10px; cursor: pointer;
@@ -72,6 +76,8 @@
         <div style="background:#1f1f1f;padding:10px;border-radius:8px;margin-bottom:10px;font-size:12px;">
             <label style="color:#999;">Usuario sincronización:</label>
             <input type="text" id="inputUsuario" placeholder="Nombre de usuario" style="width:100%;box-sizing:border-box;padding:6px;margin-top:4px;background:#0a0a0a;border:1px solid #333;border-radius:6px;color:#e0e0e0;">
+            <label style="color:#999;">Token API:</label>
+            <input type="password" id="inputApiToken" placeholder="Bearer token de CodeRED" style="width:100%;box-sizing:border-box;padding:6px;margin-top:4px;background:#0a0a0a;border:1px solid #333;border-radius:6px;color:#e0e0e0;">
             <div id="syncStatus" style="margin-top:6px;font-size:11px;color:#999;"></div>
         </div>
 
