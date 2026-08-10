@@ -7,6 +7,7 @@ enum ApiTokenType: string
     case Dni = 'dni';
     case Ruc = 'ruc';
     case Agencies = 'agencies';
+    case ShalomRecordar = 'shalom-recordar';
 
     public function label(): string
     {
@@ -14,6 +15,7 @@ enum ApiTokenType: string
             self::Dni => 'Token DNI',
             self::Ruc => 'Token RUC',
             self::Agencies => 'Token AGENCIAS',
+            self::ShalomRecordar => 'Token SHALOM RECORDAR',
         };
     }
 
@@ -23,6 +25,7 @@ enum ApiTokenType: string
             self::Dni => 'Permite consultar datos por DNI.',
             self::Ruc => 'Permite consultar RUC por numero y buscar por razon social.',
             self::Agencies => 'Permite consultar agencias, catalogo compatible y datos cartograficos.',
+            self::ShalomRecordar => 'Permite sincronizar datos de Shalom Recordar Extension con CodeRED Platform.',
         };
     }
 
@@ -33,6 +36,7 @@ enum ApiTokenType: string
             self::Dni => ['dni:consultar'],
             self::Ruc => ['ruc:consultar', 'ruc:buscar'],
             self::Agencies => ['agencies:read'],
+            self::ShalomRecordar => ['shalom-recordar:sync'],
         };
     }
 

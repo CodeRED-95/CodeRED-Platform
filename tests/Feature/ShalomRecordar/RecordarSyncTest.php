@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\ShalomRecordar;
 
 use App\Livewire\Admin\ShalomRecordar\Index as ShalomRecordarIndex;
+use App\Livewire\Admin\ShalomRecordar\InstallationShow;
+use App\Livewire\Admin\ShalomRecordar\UserShow;
 use App\Models\Role;
+use App\Models\ActivityLog;
 use App\Models\User;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarInstallation;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarRecord;
@@ -168,6 +171,52 @@ class RecordarSyncTest extends TestCase
 
         Livewire::actingAs($user)->test(ShalomRecordarIndex::class)
             ->assertSee('Shalom Recordar');
+    }
+
+    public function test_batch_installation_and_user_sync_deletions_are_isolated_and_audited(): void
+    {
+        $owner = $this->superAdmin();
+        $service = app(ShalomRecordarSyncService::class);
+        $registered = $service->registerInstallation($owner, [
+            'installation_uuid' => '550e8400-e29b-41d4-a716-446655440020',
+            'extension_version' => '2.4.0',
+        ]);
+        $installation = $registered['installation'];
+
+        $service->syncRecords($owner, $installation, [
+            ['record_id' => '1', 'field' => 'DNI', 'value' => '12345678', 'timestamp' => '2026-08-10T10:30:00Z', 'batch_id' => 'batch-a'],
+            ['record_id' => '2', 'field' => 'OS', 'value' => 'OS-2', 'timestamp' => '2026-08-10T10:35:00Z', 'batch_id' => 'batch-b'],
+        ]);
+
+        Livewire::actingAs($owner)->test(InstallationShow::class, ['installation' => $installation])
+            ->call('revokeInstallationToken')
+            ->assertHasNoErrors();
+
+        $this->assertNotNull($installation->fresh()->syncToken?->revoked_at);
+
+        Livewire::actingAs($owner)->test(InstallationShow::class, ['installation' => $installation])
+            ->call('deleteSyncBatch', 'batch-a')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseMissing('shalom_recordar_records', [
+            'installation_id' => $installation->id,
+            'sync_batch_id' => 'batch-a',
+        ]);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'shalom_recordar_sync_batch_deleted']);
+
+        Livewire::actingAs($owner)->test(InstallationShow::class, ['installation' => $installation])
+            ->call('deleteInstallationSyncs')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseCount('shalom_recordar_records', 0);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'shalom_recordar_installation_syncs_deleted']);
+
+        Livewire::actingAs($owner)->test(UserShow::class, ['user' => $owner])
+            ->call('deleteAllSyncs')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('activity_logs', ['action' => 'shalom_recordar_user_syncs_deleted']);
+        $this->assertDatabaseHas('users', ['id' => $owner->id]);
     }
 
     private function superAdmin(): User

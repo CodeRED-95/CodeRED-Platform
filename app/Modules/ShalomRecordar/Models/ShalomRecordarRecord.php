@@ -21,6 +21,7 @@ class ShalomRecordarRecord extends Model
         'field',
         'value',
         'recorded_at',
+        'sync_batch_id',
         'sync_cursor',
         'payload',
     ];

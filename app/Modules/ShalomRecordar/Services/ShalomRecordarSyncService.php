@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\ShalomRecordar\Services;
 
+use App\Core\Audit\AuditLogger;
 use App\Models\ApiToken;
 use App\Models\User;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarInstallation;
@@ -102,14 +103,16 @@ class ShalomRecordarSyncService
         $created = 0;
         $updated = 0;
         $cursor = null;
+        $batchId = null;
 
-        DB::transaction(function () use ($user, $installation, $records, &$created, &$updated, &$cursor): void {
+        DB::transaction(function () use ($user, $installation, $records, &$created, &$updated, &$cursor, &$batchId): void {
             foreach ($records as $record) {
                 $field = trim((string) ($record['field'] ?? ''));
                 $value = trim((string) ($record['value'] ?? ''));
                 $recordedAt = (string) ($record['timestamp'] ?? now()->toISOString());
                 $externalRecordId = trim((string) ($record['record_id'] ?? $record['id'] ?? ''));
                 $cursor = (string) ($record['cursor'] ?? $cursor ?? $recordedAt);
+                $batchId = (string) ($record['batch_id'] ?? $batchId ?? ($record['cursor'] ?? $cursor ?? $recordedAt));
                 $recordHash = hash('sha256', json_encode([
                     'installation_uuid' => $installation->installation_uuid,
                     'field' => $field,
@@ -130,6 +133,7 @@ class ShalomRecordarSyncService
                         'field' => $field,
                         'value' => $value,
                         'recorded_at' => $recordedAt,
+                        'sync_batch_id' => $batchId,
                         'sync_cursor' => $cursor,
                         'payload' => $record,
                     ]
@@ -146,7 +150,80 @@ class ShalomRecordarSyncService
             ])->save();
         });
 
-        return compact('created', 'updated', 'cursor');
+        return compact('created', 'updated', 'cursor', 'batchId');
+    }
+
+    public function deleteSyncBatch(ShalomRecordarInstallation $installation, string $batchId, AuditLogger $audit): int
+    {
+        return DB::transaction(function () use ($installation, $batchId, $audit): int {
+            $records = ShalomRecordarRecord::query()
+                ->where('installation_id', $installation->id)
+                ->where('sync_batch_id', $batchId)
+                ->get();
+
+            $count = $records->count();
+            abort_if($count === 0, 404, 'Batch de sincronización no encontrado.');
+
+            foreach ($records as $record) {
+                $audit->log($record, 'shalom_recordar_sync_batch_deleted', [
+                    'installation_id' => $installation->id,
+                    'sync_batch_id' => $batchId,
+                ], [], ['sync_batch_id']);
+                $record->delete();
+            }
+
+            return $count;
+        });
+    }
+
+    public function deleteInstallationSyncs(ShalomRecordarInstallation $installation, AuditLogger $audit): int
+    {
+        return DB::transaction(function () use ($installation, $audit): int {
+            $records = ShalomRecordarRecord::query()->where('installation_id', $installation->id)->get();
+            $count = $records->count();
+
+            foreach ($records as $record) {
+                $audit->log($record, 'shalom_recordar_record_deleted', [
+                    'installation_id' => $installation->id,
+                ], [], ['installation_id']);
+                $record->delete();
+            }
+
+            $audit->log($installation, 'shalom_recordar_installation_syncs_deleted', [
+                'installation_id' => $installation->id,
+                'installation_uuid' => $installation->installation_uuid,
+                'records' => $count,
+            ], [], ['installation_id', 'installation_uuid', 'records']);
+
+            return $count;
+        });
+    }
+
+    public function revokeInstallationToken(ShalomRecordarInstallation $installation, AuditLogger $audit): void
+    {
+        DB::transaction(function () use ($installation, $audit): void {
+            $token = $installation->syncToken;
+            if ($token instanceof ApiToken && $token->revoked_at === null) {
+                $audit->log($token, 'shalom_recordar_installation_token_revoked', [
+                    'installation_id' => $installation->id,
+                    'installation_uuid' => $installation->installation_uuid,
+                ], [], ['installation_id', 'installation_uuid']);
+                $token->forceFill(['revoked_at' => now()])->save();
+            }
+        });
+    }
+
+    public function deleteInstallation(ShalomRecordarInstallation $installation, AuditLogger $audit): void
+    {
+        DB::transaction(function () use ($installation, $audit): void {
+            $this->revokeInstallationToken($installation, $audit);
+            $this->deleteInstallationSyncs($installation, $audit);
+            $audit->log($installation, 'shalom_recordar_installation_deleted', [
+                'installation_id' => $installation->id,
+                'installation_uuid' => $installation->installation_uuid,
+            ], [], ['installation_id', 'installation_uuid']);
+            $installation->delete();
+        });
     }
 
 }

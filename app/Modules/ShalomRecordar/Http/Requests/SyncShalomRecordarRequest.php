@@ -18,6 +18,7 @@ class SyncShalomRecordarRequest extends FormRequest
         return [
             'installation_uuid' => ['required', 'string', 'uuid'],
             'extension_version' => ['required', 'string', 'max:40'],
+            'batch_id' => ['nullable', 'string', 'max:120'],
             'cursor' => ['nullable', 'string', 'max:120'],
             'installation' => ['nullable', 'array'],
             'installation.device_name' => ['nullable', 'string', 'max:120'],

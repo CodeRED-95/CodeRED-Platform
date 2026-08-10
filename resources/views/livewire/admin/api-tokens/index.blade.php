@@ -1,5 +1,5 @@
 <div class="space-y-8">
-    <x-ui.page-header title="Tokens API" subtitle="Clientes y credenciales separadas para Agencias y DNI.">
+    <x-ui.page-header title="Tokens API" subtitle="Clientes y credenciales separadas para Agencias, DNI, RUC y Shalom Recordar.">
         <x-slot:actions>
             <x-ui.button href="{{ route('api.docs') }}" variant="secondary">Documentación API</x-ui.button>
         </x-slot:actions>
@@ -114,7 +114,7 @@
             <x-ui.pagination :paginator="$tokens" scroll-to="#api-token-list" />
         </div>
 
-        <x-ui.card title="Crear token" description="Elige DNI, RUC o AGENCIAS. El secreto se mostrará una sola vez.">
+        <x-ui.card title="Crear token" description="Elige DNI, RUC, AGENCIAS o SHALOM RECORDAR. El secreto se mostrará una sola vez.">
             <form wire:submit="createToken" class="space-y-4">
                 <x-ui.input id="token-name" wire:model="name" label="Nombre" required :error="$errors->first('name')" placeholder="Extensión Chrome - PC principal" />
                 <x-ui.textarea id="token-description" wire:model="description" label="Descripción" :error="$errors->first('description')" />

@@ -76,6 +76,21 @@ class ApiTokenManagementTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
+    public function test_shalom_recordar_token_type_is_available_with_canonical_minimal_ability(): void
+    {
+        $type = ApiTokenType::ShalomRecordar;
+
+        $this->assertSame('Token SHALOM RECORDAR', $type->label());
+        $this->assertSame('Permite sincronizar datos de Shalom Recordar Extension con CodeRED Platform.', $type->description());
+        $this->assertSame(['shalom-recordar:sync'], $type->abilities());
+        $this->assertContains('shalom-recordar:sync', ApiTokenType::allowedAbilities());
+        $this->assertContains('shalom-recordar', ApiTokenType::values());
+        $this->assertContains(
+            ['value' => 'shalom-recordar', 'label' => 'Token SHALOM RECORDAR', 'description' => 'Permite sincronizar datos de Shalom Recordar Extension con CodeRED Platform.', 'abilities' => ['shalom-recordar:sync']],
+            ApiTokenType::options()
+        );
+    }
+
     public function test_manual_generation_maps_each_token_type_to_canonical_abilities(): void
     {
         $super = $this->superAdmin();

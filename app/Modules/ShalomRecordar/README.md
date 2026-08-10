@@ -28,3 +28,13 @@ La sincronización utiliza `auth:sanctum` con tokens de API existentes. El flujo
 - `/admin/shalom-recordar`
 - `/admin/shalom-recordar/users/{user}`
 - `/admin/shalom-recordar/installations/{installation}`
+
+## Administración
+
+En el panel administrativo se pueden gestionar sincronizaciones por lote o por instalación:
+
+- eliminar un lote individual;
+- eliminar todas las sincronizaciones de una instalación;
+- revocar el token de una instalación;
+- eliminar una instalación completa sin borrar el usuario;
+- eliminar todas las sincronizaciones de un usuario mediante acción explícita.
