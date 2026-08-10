@@ -109,7 +109,7 @@ Tipos capturados:
   - 11 dígitos: `RUC`
 - `#inputnroguia`:
   - `OS`
-- `Clave`: valor del campo correspondiente
+- `Clave`: se recupera desde el flujo original del modal `#modalValidarCodigo` y los inputs `swal-input1..4`
 
 Valores con letras, espacios internos, longitudes distintas o caracteres inválidos se ignoran.
 La protección contra duplicados técnicos evita guardar varias veces el mismo valor por una sola interacción rápida del DOM.

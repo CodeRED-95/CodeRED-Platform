@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.9 - 2026-08-10
+
+### Fixed
+
+- Se restaura la detección de `Clave` usando la lógica original basada en el modal `#modalValidarCodigo` y los inputs `swal-input1..4`.
+- `Clave` vuelve a guardarse como `Clave` sin pasar por la clasificación de `DNI`, `CE` o `RUC`.
+
 ## 2.7.8 - 2026-08-10
 
 ### Changed

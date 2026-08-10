@@ -12,6 +12,7 @@ const SOURCE = fs.readFileSync(path.join(EXTENSION_DIR, 'content.js'), 'utf8');
 let listeners = {};
 const registrations = [];
 const messages = [];
+const mutationObservers = [];
 
 function registerListener(type, handler) {
     listeners[type] ||= [];
@@ -37,6 +38,7 @@ function reset() {
     listeners = {};
     registrations.length = 0;
     messages.length = 0;
+    mutationObservers.length = 0;
 }
 
 function loadContentScript(sandbox) {
@@ -44,6 +46,15 @@ function loadContentScript(sandbox) {
 }
 
 function createSandbox() {
+    const modal = {
+        id: 'modalValidarCodigo',
+        style: 'display: block;',
+        getAttribute(name) {
+            if (name === 'style') return this.style;
+            return null;
+        },
+    };
+
     return {
         chrome: {
             runtime: {
@@ -58,12 +69,20 @@ function createSandbox() {
             },
             documentElement: { nodeType: 1 },
             body: { nodeType: 1 },
-            getElementById() {
+            getElementById(id) {
+                if (id === 'modalValidarCodigo') return modal;
                 return null;
             },
         },
         MutationObserver: class {
-            observe() {}
+            constructor(callback) {
+                this.callback = callback;
+                mutationObservers.push(this);
+            }
+            observe(target, options) {
+                this.target = target;
+                this.options = options;
+            }
             disconnect() {}
         },
         Date: class extends Date {
@@ -74,6 +93,15 @@ function createSandbox() {
         console,
         Node: { ELEMENT_NODE: 1 },
     };
+}
+
+function closeClaveModal() {
+    for (const observer of mutationObservers) {
+        if (observer.target && observer.target.id === 'modalValidarCodigo') {
+            observer.target.style = 'display: none;';
+            observer.callback([{ attributeName: 'style', target: observer.target }]);
+        }
+    }
 }
 
 const tests = [];
@@ -129,6 +157,7 @@ test('Clave por input guarda Clave', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'swal-input1', value: '3535' });
+    closeClaveModal();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');
@@ -208,6 +237,7 @@ test('Clave con valor de 8 dígitos nunca se reclasifica como DNI', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'swal-input1', value: '00456879' });
+    closeClaveModal();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');

