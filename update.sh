@@ -89,6 +89,34 @@ get_env(){
     printf '%s' "$value"
 }
 
+# Versión del proyecto desde la fuente única de verdad. Se delega en
+# bin/version.sh para no duplicar aquí la forma de leer composer.json.
+read_project_version(){
+    if [[ -x "$PROJECT_DIR/bin/version.sh" ]]; then
+        "$PROJECT_DIR/bin/version.sh" 2>/dev/null || echo "desconocida"
+    elif [[ -f "$PROJECT_DIR/bin/version.sh" ]]; then
+        bash "$PROJECT_DIR/bin/version.sh" 2>/dev/null || echo "desconocida"
+    else
+        echo "desconocida"
+    fi
+}
+
+# Instalaciones anteriores a 3.5.0 fijaban APP_VERSION en su .env. Esa copia
+# ganaba sobre el código y hacía que la app reportara una versión que no era la
+# desplegada. Ya no se consulta: se elimina para que no confunda a quien lea el
+# archivo. No se toca ninguna otra variable.
+migrate_legacy_app_version(){
+    local legacy tmp
+    legacy="$(grep -E '^APP_VERSION=' .env 2>/dev/null | head -n1 || true)"
+    [[ -n "$legacy" ]] || return 0
+
+    tmp="$(mktemp)"
+    grep -v -E '^APP_VERSION=' .env > "$tmp"
+    mv "$tmp" .env
+    chmod 600 .env 2>/dev/null || true
+    ok "APP_VERSION heredado eliminado del .env (la versión vive en composer.json > extra.version)."
+}
+
 set_env(){
     local key="$1" value="$2" _quote="${3:-false}" encoded tmp
     [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "Clave .env invalida: $key"
@@ -335,14 +363,24 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     git status --short
 fi
 OLD_HEAD="$(git rev-parse HEAD)"
+# La versión se lee de la fuente única de verdad (composer.json > extra.version)
+# ANTES del pull para poder informar del salto exacto al terminar.
+OLD_VERSION="$(read_project_version)"
 git pull --ff-only || die "git pull falló. Resuelva cambios locales o sincronización remota y reintente."
 NEW_HEAD="$(git rev-parse HEAD)"
+NEW_VERSION="$(read_project_version)"
 ok "Repositorio actualizado: $OLD_HEAD -> $NEW_HEAD"
+if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
+    info "Versión de CodeRED Platform: $NEW_VERSION (sin cambios)."
+else
+    ok "Versión de CodeRED Platform: $OLD_VERSION -> $NEW_VERSION"
+fi
 
 step 5 "Revisando variables nuevas"
 sync_postgres_env
 ensure_agent_env
 check_domain_consistency
+migrate_legacy_app_version
 ok "Variables PostgreSQL, CodeRED Agent y n8n verificadas sin mostrar secretos."
 
 step 6 "Construyendo imágenes"
@@ -620,6 +658,18 @@ step 13 "Verificando salud"
 docker compose ps
 docker compose exec -T app php artisan about
 
+# La aplicación dentro del contenedor debe reportar exactamente la misma
+# versión que la fuente de verdad del repositorio. Si difieren, casi siempre es
+# una caché de configuración vieja o un contenedor que no se recreó.
+SSOT_VERSION="$(read_project_version)"
+APP_REPORTED_VERSION="$(docker compose exec -T app php artisan app:version 2>/dev/null | tr -d '[:space:]')"
+if [[ "$SSOT_VERSION" == "$APP_REPORTED_VERSION" ]]; then
+    ok "Versión verificada en el contenedor: $APP_REPORTED_VERSION (coincide con composer.json)."
+else
+    warn "Discrepancia de versión: composer.json dice '$SSOT_VERSION' y la app reporta '$APP_REPORTED_VERSION'."
+    warn "Ejecute: docker compose exec -T app php artisan config:clear && docker compose up -d --force-recreate app"
+fi
+
 step 14 "Validando configuración de PostgreSQL (FASE 2)"
 # Verify that codered.conf is being used with optimized settings
 # (shared_buffers=1GB, effective_cache_size=3GB, work_mem=32MB, etc.)
@@ -701,6 +751,11 @@ done
 
 step 16 "Actualización completada"
 ok "CodeRED Platform actualizado correctamente."
+if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
+    echo "Versión: $NEW_VERSION (sin cambios en esta actualización)"
+else
+    echo "Versión: $OLD_VERSION -> $NEW_VERSION"
+fi
 echo "Backup del .env: .env.backup-$STAMP"
 ok "RUC performance optimization complete:"
 echo "  ✓ PHASE 1: Cursor pagination, hardcoded filters, column selection"

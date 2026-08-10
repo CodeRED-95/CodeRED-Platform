@@ -6,6 +6,68 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [3.5.0] - 2026-08-10
+
+### CAMBIADO
+
+Sistema de versionado con **fuente única de verdad**. La versión estaba
+duplicada en cinco sitios (`.env`, `.env.example`, `config/version.php`,
+`config/app.php` y `composer.json`) y la copia del `.env` ganaba sobre el
+código: una instalación con `APP_VERSION=3.2.0` heredado reportaba esa versión
+en el footer, en `GET /api/v1/version` y en los metadatos de backup aunque el
+código desplegado fuese 3.4.0.
+
+- **`composer.json > extra.version` es ahora la única definición.**
+  `App\Support\Version` la lee (con caché por proceso) y de ahí derivan
+  `config/version.php`, `config/app.php`, la UI, la API, los comandos y los
+  scripts de despliegue.
+- **`APP_VERSION` ya no se consulta** y se eliminó de `.env` y `.env.example`.
+  `.env.example` no la reintroduce a propósito: sería una segunda fuente de
+  verdad. Un `.env` heredado que aún la defina se ignora, y `./update.sh`
+  elimina la línea automáticamente (`migrate_legacy_app_version`).
+- **`config/version.php` expone además `version.source`**, la ruta del archivo
+  que define la versión.
+
+### AÑADIDO
+
+- **`bin/version.sh`** — consulta la versión desde el host sin levantar Laravel
+  ni entrar en un contenedor. No depende de PHP ni de `jq`: los usa si están
+  disponibles y si no extrae el valor con `sed`/`grep`. `--source` imprime la
+  ruta de la fuente de verdad.
+- **`app:bump-version --dry-run`** para ver la versión resultante sin escribir.
+- **`App\Support\Version`** con validación SemVer estricta
+  (`MAJOR.MINOR.PATCH`, con prerelease/build opcionales) y cálculo de bump.
+  Una versión malformada se rechaza en lugar de propagarse.
+- **`update.sh` informa del salto de versión** (`Versión: 3.4.0 -> 3.5.0`) y,
+  tras reconstruir la caché, verifica que la app dentro del contenedor reporta
+  exactamente la misma versión que `composer.json`; si no coinciden, avisa con
+  el comando de corrección. Es el fallo clásico de contenedor sin recrear o
+  `config:cache` obsoleta.
+- Cobertura de versionado: `tests/Unit/VersionTest.php` (SemVer, bump,
+  validación) y `SystemVersionTest` ampliado, que ahora compara contra
+  `composer.json` en vez de contra una constante y comprueba que un
+  `APP_VERSION` heredado no altera la versión reportada.
+
+### CORREGIDO
+
+- **`app:bump-version` ya no reescribe archivos de configuración.** Modificaba
+  `config/version.php` y `config/app.php` por expresión regular y los corrompía:
+  `"$1"` seguido del número se interpretaba como la retrorreferencia `$13`, y
+  dejaba `.4.0'),` en lugar de la versión. Ahora escribe un único archivo.
+- **La entrada del CHANGELOG se inserta en su sitio**, encima de la última
+  versión, en vez de por delante de la cabecera introductoria del documento.
+
+### DOCUMENTACIÓN
+
+- `docs-dev/VERSIONING.md` reescrito: fuente de verdad, criterios
+  MAJOR/MINOR/PATCH con ejemplos del propio proyecto, consulta, bump, despliegue
+  y compatibilidad.
+- `README.md`, `CLAUDE.md` y `docs/ENVIRONMENT.md` actualizados; se retiraron
+  las versiones fijas obsoletas (`2.2.0`, `3.3.0`) que ya no coincidían con el
+  código.
+
+---
+
 ## [3.4.0] - 2026-08-10
 
 ### CORREGIDO

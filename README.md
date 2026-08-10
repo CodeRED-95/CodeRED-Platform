@@ -4,42 +4,69 @@ CodeRED Platform es el centro de control modular para administración y consulta
 
 ## Versión actual
 
-CodeRED Platform publica la versión `3.3.0` desde una fuente única de configuración usando **versionado semántico automático**. La versión se refleja en el footer del panel web, en `GET /api/v1/version`, en el header `X-Application-Version`, en `php artisan app:version`, en `composer.json > extra.version`, en la documentación de release. La extensión Chrome mantiene su propio versionado en `packages/codered-chrome-extension` y publica `2.3.0`.
+La versión sigue **versionado semántico** (`MAJOR.MINOR.PATCH`) y se define en un
+único sitio:
+
+```
+composer.json > extra.version      ← fuente única de verdad
+```
+
+Todo lo demás la deriva de ahí: `config/version.php`, `config/app.php`, el footer
+del panel, `GET /api/v1/version`, el header `X-Application-Version`,
+`php artisan app:version` y los scripts de despliegue. **No hay que tocar `.env`**:
+`APP_VERSION` ya no se consulta.
 
 ```bash
-php artisan app:version
+./bin/version.sh                    # desde el host, sin contenedores
+php artisan app:version             # dentro del contenedor
 curl https://platform.codered.lat/api/v1/version
 ```
+
+Para incrementarla (actualiza `composer.json` y `CHANGELOG.md`, nada más):
+
+```bash
+docker compose exec -T app php artisan app:bump-version patch   # correcciones
+docker compose exec -T app php artisan app:bump-version minor   # funcionalidad compatible
+docker compose exec -T app php artisan app:bump-version major   # cambios incompatibles
+```
+
+Detalles completos en [docs-dev/VERSIONING.md](docs-dev/VERSIONING.md). La
+extensión Chrome mantiene su propio versionado en
+`packages/codered-chrome-extension` y publica `2.3.0`.
 
 ### Sistema de versionado automático
 
 Las versiones se actualizan automáticamente basadas en el tipo de commit:
 
 ```bash
-# Nueva característica → minor bump (2.2.0 → 2.3.0)
+# Nueva característica → minor bump (3.5.0 → 3.6.0)
 git commit -m "feat: agregar endpoint de búsqueda RUC"
 
-# Bug fix → patch bump (2.2.0 → 2.2.1)
+# Bug fix → patch bump (3.5.0 → 3.5.1)
 git commit -m "fix: corregir error de validación"
 
-# Breaking change → major bump (2.2.0 → 3.0.0)
+# Breaking change → major bump (3.5.0 → 4.0.0)
 git commit -m "feat: reescribir API BREAKING CHANGE: endpoint anterior removido"
 ```
 
-El comando `php artisan app:bump-version {major|minor|patch}` actualiza automáticamente:
-- `composer.json`
-- `config/version.php`
-- `config/app.php`
-- `docs/CHANGELOG.md`
+El comando `php artisan app:bump-version {major|minor|patch}` actualiza:
+- `composer.json` → `extra.version` (**la fuente única de verdad**)
+- `CHANGELOG.md` → entrada nueva con fecha
+
+`config/version.php` y `config/app.php` ya no se tocan: derivan del valor
+anterior a través de `App\Support\Version`.
 
 **Para setup:** Ver [docs-dev/VERSIONING.md](docs-dev/VERSIONING.md)
 
 Variables opcionales:
 
 ```env
-APP_VERSION=3.3.0
 API_VERSION=v1
 ```
+
+> `APP_VERSION` fue retirado en 3.5.0. La versión se lee de
+> `composer.json > extra.version`; si su `.env` todavía la define, `./update.sh`
+> elimina la línea automáticamente.
 
 ## ✨ Novedades en esta versión (3.0.0)
 
@@ -237,7 +264,7 @@ N8N_WEBHOOK_URL=https://n8n.codered.lat/
 ```
 ## Webhook de nuevas solicitudes de token
 
-CodeRED Platform v2.2.0 notifica a n8n cada vez que se crea una solicitud nueva de token. El flujo es: Platform crea la solicitud, dispara `TokenRequestCreated` después del commit, un listener en cola envía un webhook HMAC a n8n y el workflow `CodeRED — Nueva solicitud de token` envía el aviso por Telegram.
+CodeRED Platform notifica a n8n cada vez que se crea una solicitud nueva de token. El flujo es: Platform crea la solicitud, dispara `TokenRequestCreated` después del commit, un listener en cola envía un webhook HMAC a n8n y el workflow `CodeRED — Nueva solicitud de token` envía el aviso por Telegram.
 
 Variables requeridas:
 

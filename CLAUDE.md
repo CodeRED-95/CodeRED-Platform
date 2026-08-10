@@ -8,7 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **CodeRED Platform** is a modular Laravel 12 + Livewire 3 application for managing Peruvian business/agency data (DNI/RUC queries), API tokens, and integrations with n8n via CodeRED Agent.
 
-**Current version:** 2.2.0 (semantic versioning with automatic bumping via git hooks)
+**Version:** semantic versioning (`MAJOR.MINOR.PATCH`). The single source of truth is
+`composer.json > extra.version`, read by `App\Support\Version`; `.env` no longer defines
+`APP_VERSION`. Check it with `./bin/version.sh` or `php artisan app:version`, and change it
+only with `php artisan app:bump-version {major|minor|patch}`. See `docs-dev/VERSIONING.md`.
 
 **Key features:**
 - Multi-tenant agency management (Shalom integration)
@@ -79,7 +82,7 @@ database/
 └── factories/                  # Model factories for testing
 
 config/                         # Environment-based config
-├── version.php                 # Version (also in composer.json extra)
+├── version.php                 # Derives the version from composer.json extra.version
 ├── queue.php                   # Queue connections (ruc-imports + default)
 ├── token-requests.php          # OTP, encryption, audit settings
 └── ...
@@ -103,6 +106,7 @@ docker/
 └── postgres/initdb/            # Init scripts (roles, DBs)
 
 bin/
+├── version.sh                  # Print the current version (host, no PHP/jq needed)
 ├── setup-git-hooks.sh          # Enable git hook for version bumping
 └── git-hooks/prepare-commit-msg # Auto-detect feat|fix|BREAKING for versioning
 
@@ -293,7 +297,7 @@ git commit -m "feat: add streaming support"
 
 # Manual bump
 php artisan app:bump-version minor --reason="RUC v3.0 release"
-# Updates: composer.json, config/version.php, CHANGELOG.md
+# Updates: composer.json (extra.version) and CHANGELOG.md — nothing else
 ```
 
 ### Debugging

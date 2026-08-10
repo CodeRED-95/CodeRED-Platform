@@ -1,135 +1,112 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
+use App\Support\Version;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Throwable;
 
 class BumpVersionCommand extends Command
 {
-    protected $signature = 'app:bump-version {type : major|minor|patch} {--reason= : Motivo del cambio (ej: "RUC v3.0 release")}';
-    protected $description = 'Incrementa la versión semántica y actualiza archivos de versión';
+    protected $signature = 'app:bump-version
+        {type : major|minor|patch}
+        {--reason= : Motivo del cambio (se añade al CHANGELOG)}
+        {--dry-run : Muestra la versión resultante sin escribir nada}';
+
+    protected $description = 'Incrementa la versión semántica en la fuente única de verdad (composer.json > extra.version).';
 
     public function handle(): int
     {
-        $type = $this->argument('type');
-        $reason = $this->option('reason') ?? 'Manual bump';
+        $type = (string) $this->argument('type');
 
-        if (!in_array($type, ['major', 'minor', 'patch'])) {
-            $this->error("Tipo debe ser: major, minor o patch");
-            return 1;
+        if (! in_array($type, ['major', 'minor', 'patch'], true)) {
+            $this->error('Tipo debe ser: major, minor o patch.');
+
+            return self::FAILURE;
         }
 
-        // Leer versión actual
-        $current = $this->getCurrentVersion();
-        $this->info("Versión actual: $current");
+        $current = Version::current();
 
-        // Calcular nueva versión
-        $new = $this->bumpVersion($current, $type);
-        $this->info("Nueva versión: $new");
+        try {
+            $new = Version::bump($current, $type);
+        } catch (Throwable $e) {
+            $this->error($e->getMessage());
 
-        if (!$this->confirm("¿Confirmar bump a $new?")) {
+            return self::FAILURE;
+        }
+
+        $this->line('Fuente de verdad: <comment>'.Version::sourcePath().'</comment>');
+        $this->line("Versión actual:   <comment>{$current}</comment>");
+        $this->line("Nueva versión:    <info>{$new}</info>");
+
+        if ($this->option('dry-run')) {
+            $this->comment('--dry-run: no se ha modificado ningún archivo.');
+
+            return self::SUCCESS;
+        }
+
+        if (! $this->confirm("¿Confirmar bump a {$new}?", ! $this->input->isInteractive())) {
             $this->line('Cancelado.');
-            return 0;
+
+            return self::SUCCESS;
         }
 
-        // Actualizar archivos
-        $this->updateComposerJson($new);
-        $this->updateConfigFiles($new);
-        $this->updateChangelogDate($new, $reason);
+        try {
+            // Un único archivo cambia. La configuración de Laravel, la UI, la
+            // API y los scripts derivan de aquí, así que no hay nada más que
+            // mantener sincronizado.
+            Version::write($new);
+        } catch (Throwable $e) {
+            $this->error($e->getMessage());
 
-        $this->info("✅ Versión actualizada a: $new");
-        $this->line("💡 Proximos pasos:");
-        $this->line("  1. git add .");
-        $this->line("  2. git commit -m \"chore: bump version to $new\"");
-        $this->line("  3. git tag v$new");
-        $this->line("  4. git push origin main --tags");
-
-        return 0;
-    }
-
-    private function getCurrentVersion(): string
-    {
-        $composer = json_decode(File::get(base_path('composer.json')), true);
-        return $composer['extra']['version'] ?? '0.0.0';
-    }
-
-    private function bumpVersion(string $current, string $type): string
-    {
-        [$major, $minor, $patch] = explode('.', $current);
-
-        return match ($type) {
-            'major' => ($major + 1) . '.0.0',
-            'minor' => $major . '.' . ($minor + 1) . '.0',
-            'patch' => $major . '.' . $minor . '.' . ($patch + 1),
-        };
-    }
-
-    private function updateComposerJson(string $version): void
-    {
-        $path = base_path('composer.json');
-        $composer = json_decode(File::get($path), true);
-        $composer['extra']['version'] = $version;
-        File::put($path, json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
-        $this->line("✓ composer.json actualizado");
-    }
-
-    private function updateConfigFiles(string $version): void
-    {
-        // config/version.php
-        $versionConfig = base_path('config/version.php');
-        if (File::exists($versionConfig)) {
-            $content = File::get($versionConfig);
-            // Las llaves son obligatorias: sin ellas "$1" seguido de "3.4.0"
-            // se lee como la retrorreferencia $13 y el número se pierde,
-            // dejando el archivo de configuración corrupto.
-            $content = preg_replace(
-                "/('current'\\s*=>\\s*env\\('APP_VERSION',\\s*')[^']+('\\))/",
-                '${1}'.$version.'${2}',
-                $content
-            );
-            File::put($versionConfig, $content);
-            $this->line("✓ config/version.php actualizado");
+            return self::FAILURE;
         }
 
-        // config/app.php
-        $appConfig = base_path('config/app.php');
-        if (File::exists($appConfig)) {
-            $content = File::get($appConfig);
-            $content = preg_replace(
-                "/('version'\\s*=>\\s*env\\('APP_VERSION',\\s*env\\('APP_VERSION_FALLBACK',\\s*')[^']+('\\)\\))/",
-                '${1}'.$version.'${2}',
-                $content
-            );
-            File::put($appConfig, $content);
-            $this->line("✓ config/app.php actualizado");
-        }
+        $this->line('✓ composer.json actualizado (extra.version)');
+
+        $this->updateChangelog($new, (string) ($this->option('reason') ?: 'Bump manual'));
+
+        $this->newLine();
+        $this->info("✅ Versión actualizada a: {$new}");
+        $this->line('💡 Próximos pasos:');
+        $this->line('  1. Revise el bloque nuevo de CHANGELOG.md');
+        $this->line("  2. git commit -am \"chore: bump version to {$new}\"");
+        $this->line("  3. git tag v{$new} && git push origin main --tags");
+        $this->line('  4. En el servidor: ./update.sh');
+
+        return self::SUCCESS;
     }
 
-    private function updateChangelogDate(string $version, string $reason): void
+    /**
+     * Inserta la entrada nueva justo antes de la primera versión listada, de
+     * modo que la cabecera introductoria del CHANGELOG se mantiene arriba.
+     */
+    private function updateChangelog(string $version, string $reason): void
     {
-        $changelogPath = base_path('CHANGELOG.md');
+        $path = base_path('CHANGELOG.md');
 
-        if (!File::exists($changelogPath)) {
-            $this->warn("CHANGELOG.md no encontrado");
+        if (! File::exists($path)) {
+            $this->warn('CHANGELOG.md no encontrado; se omite.');
+
             return;
         }
 
-        $content = File::get($changelogPath);
-        $today = now()->format('Y-m-d');
-        $placeholder = "## [UNRELEASED]";
-        $newEntry = "## [$version] - $today\n\n### ℹ️ Nota\n- $reason\n\n";
+        $content = File::get($path);
+        $entry = sprintf("## [%s] - %s\n\n### ℹ️ Nota\n\n- %s\n\n---\n\n", $version, now()->format('Y-m-d'), $reason);
 
-        if (str_contains($content, $placeholder)) {
-            $content = str_replace($placeholder, $newEntry . $placeholder, $content);
+        if (str_contains($content, '## [UNRELEASED]')) {
+            $content = str_replace('## [UNRELEASED]', rtrim($entry)."\n\n## [UNRELEASED]", $content);
+        } elseif (preg_match('/^## \[\d+\.\d+\.\d+\]/m', $content, $match, PREG_OFFSET_CAPTURE) === 1) {
+            $offset = (int) $match[0][1];
+            $content = substr($content, 0, $offset).$entry.substr($content, $offset);
         } else {
-            // Si no hay UNRELEASED, agregar después del header inicial
-            $lines = explode("\n", $content);
-            array_splice($lines, 2, 0, ["", $newEntry]);
-            $content = implode("\n", $lines);
+            $content = rtrim($content)."\n\n".$entry;
         }
 
-        File::put($changelogPath, $content);
-        $this->line("✓ CHANGELOG.md actualizado");
+        File::put($path, $content);
+        $this->line('✓ CHANGELOG.md actualizado');
     }
 }

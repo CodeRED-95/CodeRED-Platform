@@ -11,7 +11,7 @@ Todas las variables listadas provienen de `.env.example`.
 | `APP_KEY` | Clave criptográfica de Laravel. | Generada con `key:generate` | `base64:...` | Sí | Rompe cifrado y sesiones si cambia. | Ninguna |
 | `APP_DEBUG` | Activa depuración. | `false` en producción | `true` | Sí | Expone errores detallados. | `LOG_LEVEL` |
 | `APP_URL` | URL base de la aplicación. | URL pública real | `http://localhost:8090` | Sí | Afecta enlaces absolutos. Debe coincidir con el puerto expuesto por Nginx. | `SANCTUM_STATEFUL_DOMAINS` |
-| `APP_VERSION` | Versión visible/API de CodeRED Platform. | `1.0.0` o versión release | `1.0.0` | No | Cambia metadatos de versión expuestos por la app. | Despliegue |
+| ~~`APP_VERSION`~~ | **Retirada en 3.5.0.** La versión ya no se define por entorno: su fuente única de verdad es `composer.json > extra.version`. Si sigue presente en un `.env` heredado se ignora, y `./update.sh` la elimina. | No usar | — | No | Ninguno: la variable no se consulta. | `docs-dev/VERSIONING.md` |
 | `APP_TIMEZONE` | Zona horaria de la app. | `America/Lima` | `America/Lima` | Sí | Cambia fechas mostradas y tareas programadas. | `APP_LOCALE` |
 | `APP_LOCALE` | Idioma principal. | `es` | `es` | Sí | Cambia traducciones. | `APP_FALLBACK_LOCALE` |
 | `APP_FALLBACK_LOCALE` | Idioma de respaldo. | `es` | `es` | Sí | Se usa si falta traducción. | `APP_LOCALE` |

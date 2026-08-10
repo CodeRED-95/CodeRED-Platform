@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\Version;
+
 return [
     'name' => env('APP_NAME', 'CodeRED Platform'),
     'env' => env('APP_ENV', 'production'),
@@ -9,5 +11,6 @@ return [
     'locale' => env('APP_LOCALE', 'es'),
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'es'),
     'faker_locale' => env('APP_FAKER_LOCALE', 'es_PE'),
-    'version' => env('APP_VERSION', env('APP_VERSION_FALLBACK', '3.4.0')),
+    // Fuente única de verdad: composer.json > extra.version (ver config/version.php).
+    'version' => Version::current(),
 ];
