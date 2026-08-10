@@ -90,7 +90,7 @@ test('isoSeconds: el timestamp enviado no lleva milisegundos', async () => {
     const api = loadSync();
     reset();
     storage.syncToken = 'tok';
-    storage.pendingQueue = [{ field: 'f', value: 'v', timestamp: new Date().toISOString() }];
+    storage.pendingQueue = [{ field: 'DNI', value: '12345678', timestamp: new Date().toISOString() }];
 
     fetchHandler = () => jsonResponse(200, { data: { created: 1 } });
     await api.syncNow();
@@ -99,6 +99,8 @@ test('isoSeconds: el timestamp enviado no lleva milisegundos', async () => {
     const pattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
     assert.match(body.records[0].timestamp, pattern, 'el timestamp del registro debe ir sin milisegundos');
     assert.match(body.cursor, pattern, 'el cursor debe ir sin milisegundos');
+    assert.equal(body.records[0].field, 'DNI', 'el tipo debe conservarse al sincronizar');
+    assert.equal(body.records[0].value, '12345678');
 });
 
 test('login guarda token y usuario, y nunca la contraseña', async () => {

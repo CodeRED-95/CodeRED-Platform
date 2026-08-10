@@ -6,6 +6,21 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.4.2] - 2026-08-10
+
+### CORREGIDO
+
+- La extensión Shalom Recordar vuelve a clasificar correctamente las capturas
+  como `DNI`, `CE` o `RUC` según la longitud exacta del valor.
+- Se ignoran valores inválidos o alfanuméricos en la captura, evitando guardar
+  registros genéricos como `inputnombre`.
+- Se reducen duplicados por eventos repetidos (`input`, `change`, `blur` y
+  observadores del DOM) tanto en la captura como en la cola local.
+- La sincronización conserva el tipo semántico del registro al enviarlo a
+  CodeRED Platform.
+
+---
+
 ## [4.4.1] - 2026-08-10
 
 ### CORREGIDO

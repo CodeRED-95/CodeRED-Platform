@@ -1,6 +1,23 @@
 importScripts("crypto.js", "db.js", "sync.js");
 
 const MAX_PENDING_QUEUE = 500; // tope de eventos en espera mientras la extensión está bloqueada
+let recentCapture = { key: '', at: 0 };
+
+function captureKey(data) {
+  return [data?.field ?? '', data?.value ?? '', data?.timestamp ?? ''].join('|');
+}
+
+function isDuplicateCapture(data) {
+  const now = Date.now();
+  const key = captureKey(data);
+  const duplicate = recentCapture.key === key && (now - recentCapture.at) < 1500;
+
+  if (!duplicate) {
+    recentCapture = { key, at: now };
+  }
+
+  return duplicate;
+}
 
 async function getSessionKey() {
   const session = await chrome.storage.session.get(["keyB64"]);
@@ -19,6 +36,10 @@ async function queuePending(data) {
 }
 
 async function handleSaveData(data) {
+  if (!data || isDuplicateCapture(data)) {
+    return;
+  }
+
   const key = await getSessionKey();
   if (!key) {
     // Bloqueado: no hay clave en memoria de sesión (aún no se abrió el popup para desbloquear).
