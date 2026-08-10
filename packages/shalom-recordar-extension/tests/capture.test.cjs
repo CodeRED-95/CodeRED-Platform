@@ -15,6 +15,9 @@ const messages = [];
 const mutationObservers = [];
 const timers = new Map();
 let timerSeq = 0;
+const sandboxState = {
+    claveFields: {},
+};
 
 function registerListener(type, handler) {
     listeners[type] ||= [];
@@ -23,6 +26,9 @@ function registerListener(type, handler) {
 }
 
 function emit(type, target, overrides = {}) {
+    if (target?.id && sandboxState.claveFields[target.id]) {
+        sandboxState.claveFields[target.id].value = target.value ?? '';
+    }
     const event = {
         type,
         target: { nodeType: 1, ...target },
@@ -43,6 +49,7 @@ function reset() {
     mutationObservers.length = 0;
     timers.clear();
     timerSeq = 0;
+    sandboxState.claveFields = {};
 }
 
 function loadContentScript(sandbox) {
@@ -50,6 +57,12 @@ function loadContentScript(sandbox) {
 }
 
 function createSandbox() {
+    sandboxState.claveFields = {
+        'swal-input1': { id: 'swal-input1', value: '' },
+        'swal-input2': { id: 'swal-input2', value: '' },
+        'swal-input3': { id: 'swal-input3', value: '' },
+        'swal-input4': { id: 'swal-input4', value: '' },
+    };
     const modal = {
         id: 'modalValidarCodigo',
         style: 'display: block;',
@@ -75,6 +88,7 @@ function createSandbox() {
             body: { nodeType: 1 },
             getElementById(id) {
                 if (id === 'modalValidarCodigo') return modal;
+                if (sandboxState.claveFields[id]) return sandboxState.claveFields[id];
                 return null;
             },
         },
@@ -185,6 +199,23 @@ test('Clave por input guarda Clave', () => {
     assert.equal(messages[0].data.value, '3535');
 });
 
+test('Clave de 57 guarda un solo registro completo', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'swal-input1', value: '5' });
+    emit('input', { id: 'swal-input2', value: '7' });
+    runTimers();
+    closeClaveModal();
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '57');
+});
+
 test('Clave conserva ceros iniciales y el primer dígito completo', () => {
     reset();
     const sandbox = createSandbox();
@@ -218,6 +249,25 @@ test('Clave progresiva por input termina en un solo registro final', () => {
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');
     assert.equal(messages[0].data.value, '3535');
+});
+
+test('Clave de 0123 conserva ceros iniciales', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'swal-input1', value: '0' });
+    emit('input', { id: 'swal-input2', value: '1' });
+    emit('input', { id: 'swal-input3', value: '2' });
+    emit('input', { id: 'swal-input4', value: '3' });
+    runTimers();
+    closeClaveModal();
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '0123');
 });
 
 test('OS por input guarda OS', () => {

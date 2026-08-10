@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.7.14 - 2026-08-10
+
+### Fixed
+
+- `Clave` se confirma una sola vez aunque el modal dispare tanto el debounce como el cierre.
+- Se evita volver a guardar la misma clave completa cuando el debounce ya se ejecutó.
+
+## 2.7.13 - 2026-08-10
+
+### Fixed
+
+- `Clave` vuelve a guardarse como un único valor completo desde el modal, sin fragmentarse en registros por dígito.
+- Se conserva el valor completo de claves como `57`, `3535` y `0123`.
+
 ## 2.7.12 - 2026-08-10
 
 ### Fixed
