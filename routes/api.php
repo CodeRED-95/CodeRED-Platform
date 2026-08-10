@@ -55,9 +55,19 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/token-requests/{request_uuid}/cancel', [N8nTokenRequestController::class, 'cancel'])->name('token-requests.cancel');
     });
     Route::middleware(['auth:sanctum', 'api.token-owner-active', 'api.private-cache'])->group(function (): void {
-        Route::prefix('shalom-recordar')->name('shalom-recordar.')->middleware(['abilities:shalom-recordar.manage'])->group(function (): void {
-            Route::post('/installation', [ShalomRecordarSyncController::class, 'register'])->middleware('throttle:shalom-recordar')->name('installation.register');
-            Route::post('/sync', [ShalomRecordarSyncController::class, 'sync'])->middleware('throttle:shalom-recordar')->name('sync');
+        Route::prefix('shalom-recordar')->name('shalom-recordar.')->group(function (): void {
+            Route::post('/installation', [ShalomRecordarSyncController::class, 'register'])
+                ->middleware(['throttle:shalom-recordar'])
+                ->name('installation.register');
+            Route::post('/installations/register', [ShalomRecordarSyncController::class, 'register'])
+                ->middleware(['throttle:shalom-recordar'])
+                ->name('installations.register');
+            Route::post('/sync', [ShalomRecordarSyncController::class, 'sync'])
+                ->middleware(['throttle:shalom-recordar'])
+                ->name('sync');
+            Route::get('/sync/status', [ShalomRecordarSyncController::class, 'status'])
+                ->middleware(['throttle:shalom-recordar'])
+                ->name('sync.status');
         });
         Route::middleware(['throttle:api-agencias', 'api.audit:agencias', 'abilities:agencias:consultar'])->group(function (): void {
             Route::get('/agencias', [AgencyCatalogController::class, 'index'])->name('agencias.index');

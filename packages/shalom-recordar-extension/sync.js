@@ -1,31 +1,78 @@
-// Sincronización automática con CodeRED Platform (diaria a las 9:00 AM Perú = UTC-5)
-
+const API_BASE = 'https://platform.codered.lat/api/v1/shalom-recordar';
+const REGISTER_ENDPOINT = `${API_BASE}/installations/register`;
+const SYNC_ENDPOINT = `${API_BASE}/sync`;
+const STATUS_ENDPOINT = `${API_BASE}/sync/status`;
 const SYNC_ALARM_NAME = 'shalom-daily-sync';
-// Dominio productivo: codered.lat (migrado desde codered.host).
-const API_ENDPOINT = 'https://platform.codered.lat/api/v1/shalom-recordar/sync';
-const SYNC_INTERVAL_MINUTES = 1440; // 24 horas
+const SYNC_INTERVAL_MINUTES = 1440;
+const INSTALLATION_STORAGE_KEY = 'installationUuid';
+const SYNC_TOKEN_STORAGE_KEY = 'syncToken';
+const BOOTSTRAP_TOKEN_STORAGE_KEY = 'bootstrapToken';
 
-function getNextSyncTime() {
+let syncInProgress = false;
+let lastExpectedFailureKey = null;
+
+function logOnce(level, key, message, extra = null) {
+    const dedupeKey = `${level}:${key}`;
+    if (lastExpectedFailureKey === dedupeKey) {
+        return;
+    }
+
+    lastExpectedFailureKey = dedupeKey;
+    if (extra === null) {
+        console[level](message);
+        return;
+    }
+    console[level](message, extra);
+}
+
+function clearExpectedFailure(key = null) {
+    if (key === null || lastExpectedFailureKey?.endsWith(`:${key}`)) {
+        lastExpectedFailureKey = null;
+    }
+}
+
+function safeText(value) {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function getErrorMessage(error) {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return typeof error === 'string' ? error : 'Error desconocido';
+}
+
+function buildRequestBody(installation, records) {
+    return {
+        installation_uuid: installation.installation_uuid,
+        extension_version: installation.extension_version,
+        installation: installation.installation,
+        cursor: installation.cursor,
+        batch_id: installation.batch_id,
+        records,
+    };
+}
+
+function buildInstallationContext(installation) {
+    return {
+        installation_uuid: installation.installation_uuid,
+        extension_version: installation.extension_version,
+        installation: installation.installation,
+        cursor: installation.cursor,
+        batch_id: installation.batch_id,
+    };
+}
+
+async function setupDailySync() {
     const now = new Date();
-    // Convertir a UTC-5 (Perú)
     const peruTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Lima' }));
-
-    let nextSync = new Date(peruTime);
-    nextSync.setHours(9, 0, 0, 0); // 9:00 AM
-
-    // Si ya pasaron las 9:00 AM hoy, programar para mañana
+    const nextSync = new Date(peruTime);
+    nextSync.setHours(9, 0, 0, 0);
     if (nextSync <= peruTime) {
         nextSync.setDate(nextSync.getDate() + 1);
     }
 
-    // Convertir de vuelta a UTC para chrome.alarms (que siempre usa UTC)
-    const diffMs = peruTime.getTime() - now.getTime();
-    return (nextSync.getTime() + diffMs) / 1000; // segundos
-}
-
-async function setupDailySync() {
-    const delayInSeconds = Math.max(60, getNextSyncTime()); // mín 60s de espera
-
+    const delayInSeconds = Math.max(60, (nextSync.getTime() - peruTime.getTime()) / 1000);
     await chrome.alarms.create(SYNC_ALARM_NAME, {
         periodInMinutes: SYNC_INTERVAL_MINUTES,
         when: Date.now() + (delayInSeconds * 1000),
@@ -38,57 +85,236 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
 });
 
+async function ensureInstallationInfo() {
+    const res = await chrome.storage.local.get([INSTALLATION_STORAGE_KEY]);
+    let installationUuid = safeText(res[INSTALLATION_STORAGE_KEY]);
+    if (!installationUuid) {
+        installationUuid = crypto.randomUUID();
+        await chrome.storage.local.set({ [INSTALLATION_STORAGE_KEY]: installationUuid });
+    }
+
+    return {
+        installation_uuid: installationUuid,
+        extension_version: chrome.runtime.getManifest().version,
+        installation: {
+            device_name: navigator.userAgentData?.platform || navigator.platform || 'unknown',
+            browser_name: 'Chrome',
+            browser_version: navigator.userAgent || 'unknown',
+            platform_name: navigator.platform || 'unknown',
+            platform_version: navigator.userAgentData?.platformVersion || navigator.userAgent || 'unknown',
+        },
+        cursor: new Date().toISOString(),
+        batch_id: `batch-${Date.now()}`,
+    };
+}
+
+async function getStoredToken(key) {
+    const res = await chrome.storage.local.get([key]);
+    return safeText(res[key]);
+}
+
+async function setStoredToken(key, value) {
+    await chrome.storage.local.set({ [key]: value });
+}
+
+async function bootstrapInstallation(installation) {
+    const bootstrapToken = await getStoredToken(BOOTSTRAP_TOKEN_STORAGE_KEY);
+    if (!bootstrapToken) {
+        return { ok: false, reason: 'bootstrap-token-missing' };
+    }
+
+    const response = await fetch(REGISTER_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${bootstrapToken}`,
+        },
+        body: JSON.stringify(buildInstallationContext(installation)),
+    });
+
+    const parsed = await parseApiResponse(response, 'registro de instalación');
+    if (!parsed.ok) {
+        return parsed;
+    }
+
+    const syncToken = safeText(parsed.json?.data?.sync_token);
+    if (!syncToken) {
+        return { ok: false, reason: 'register-missing-token', message: 'El servidor no devolvió un token de sincronización.' };
+    }
+
+    await setStoredToken(SYNC_TOKEN_STORAGE_KEY, syncToken);
+    await setStoredToken('apiToken', syncToken);
+
+    return { ok: true, installation: parsed.json?.data ?? null };
+}
+
+async function parseApiResponse(response, context) {
+    const contentType = response.headers.get('content-type') || '';
+    const rawText = await response.text();
+
+    let payload = null;
+    if (rawText && contentType.includes('application/json')) {
+        try {
+            payload = JSON.parse(rawText);
+        } catch {
+            return {
+                ok: false,
+                reason: 'invalid-json',
+                message: `Respuesta JSON inválida durante ${context}.`,
+                status: response.status,
+            };
+        }
+    } else if (rawText) {
+        try {
+            payload = JSON.parse(rawText);
+        } catch {
+            payload = null;
+        }
+    }
+
+    if (response.ok) {
+        return { ok: true, json: payload, status: response.status };
+    }
+
+    return {
+        ok: false,
+        status: response.status,
+        reason: statusReason(response.status),
+        message: extractServerMessage(payload, rawText, response.status, context),
+        json: payload,
+    };
+}
+
+function statusReason(status) {
+    if (status === 401) return 'unauthorized';
+    if (status === 403) return 'forbidden';
+    if (status === 404) return 'not-found';
+    if (status === 422) return 'validation';
+    if (status === 429) return 'rate-limit';
+    if (status >= 500) return 'server-error';
+    return 'http-error';
+}
+
+function extractServerMessage(payload, rawText, status, context) {
+    const message = safeText(payload?.message || payload?.error || payload?.data?.message || rawText);
+    if (message) {
+        return message;
+    }
+
+    const base = `HTTP ${status} durante ${context}.`;
+    return base;
+}
+
 async function performSync() {
-    const token = await getApiToken();
-    if (!token) {
-        console.info('[Shalom Recordar] Sync skipped: API token not configured');
+    if (syncInProgress) {
         return;
     }
 
-    const key = await getSessionKey();
-    if (!key) {
-        console.info('[Shalom Recordar] Sync skipped: not unlocked');
-        return;
-    }
+    syncInProgress = true;
 
     try {
-        const records = await getAllRecords();
-        const decrypted = await decryptAllRecords(records, key);
-        const processedRecords = processRecordsForSync(decrypted);
-        const installation = await getInstallationInfo();
+        const installation = await ensureInstallationInfo();
+        let token = await getStoredToken(SYNC_TOKEN_STORAGE_KEY);
+        if (!token) {
+            const bootstrapResult = await bootstrapInstallation(installation);
+            if (!bootstrapResult.ok) {
+                if (bootstrapResult.reason === 'bootstrap-token-missing') {
+                    logOnce('info', 'bootstrap-missing', '[Shalom Recordar] Sync skipped: no bootstrap token configured');
+                    return;
+                }
+                logOnce('warn', `bootstrap-${bootstrapResult.reason || 'failed'}`, `[Shalom Recordar] Bootstrap failed: ${bootstrapResult.message || bootstrapResult.reason || 'unknown'}`);
+                return;
+            }
+            token = await getStoredToken(SYNC_TOKEN_STORAGE_KEY);
+        }
 
-        if (processedRecords.length === 0) {
-            console.info('[Shalom Recordar] No records to sync');
+        if (!token) {
+            logOnce('info', 'no-token', '[Shalom Recordar] Sync skipped: missing bootstrap/sync token');
             return;
         }
 
-        const response = await fetch(API_ENDPOINT, {
+        const sessionKey = await getSessionKey();
+        if (!sessionKey) {
+            logOnce('info', 'locked', '[Shalom Recordar] Sync skipped: extension locked');
+            return;
+        }
+
+        const records = await getAllRecords();
+        const decrypted = await decryptAllRecords(records, sessionKey);
+        const processedRecords = processRecordsForSync(decrypted);
+        if (processedRecords.length === 0) {
+            logOnce('info', 'empty', '[Shalom Recordar] Sync skipped: no records to send');
+            return;
+        }
+
+        const response = await fetch(SYNC_ENDPOINT, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
+                Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({
-                installation_uuid: installation.installation_uuid,
-                extension_version: installation.extension_version,
-                installation: installation.installation,
-                cursor: installation.cursor,
-                records: processedRecords,
-            }),
+            body: JSON.stringify(buildRequestBody(installation, processedRecords)),
         });
 
-        if (!response.ok) {
-            const err = await response.text();
-            throw new Error(`HTTP ${response.status}: ${err}`);
+        const parsed = await parseApiResponse(response, 'sincronización');
+        if (!parsed.ok) {
+            if (parsed.status === 401 || parsed.status === 403) {
+                logOnce('info', `auth-${parsed.status}`, `[Shalom Recordar] Sync rejected (${parsed.status}): ${parsed.message}`);
+                return;
+            }
+            if (parsed.status === 404) {
+                logOnce('info', 'not-found', `[Shalom Recordar] Sync endpoint not found: ${parsed.message}`);
+                return;
+            }
+            if (parsed.status === 422 || parsed.status === 429) {
+                logOnce('warn', `${parsed.reason}`, `[Shalom Recordar] Sync warning (${parsed.status}): ${parsed.message}`);
+                return;
+            }
+            if (parsed.status >= 500) {
+                logOnce('error', `server-${parsed.status}`, `[Shalom Recordar] Sync failed (${parsed.status}): ${parsed.message}`);
+                return;
+            }
+
+            logOnce('warn', 'http-error', `[Shalom Recordar] Sync warning: ${parsed.message}`);
+            return;
         }
 
-        const result = await response.json();
-        await recordSyncSuccess(result.data?.cursor ?? null, processedRecords.length);
+        clearExpectedFailure();
+        await recordSyncSuccess(parsed.json?.data?.cursor ?? null, processedRecords.length);
         console.info(`[Shalom Recordar] Sync successful: ${processedRecords.length} records`);
-    } catch (e) {
-        console.error('[Shalom Recordar] Sync failed:', e.message);
-        await recordSyncFailure(e.message);
+    } catch (error) {
+        const message = getErrorMessage(error);
+        if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+            logOnce('warn', 'network', '[Shalom Recordar] Sync failed: network/CORS issue while contacting platform');
+        } else {
+            logOnce('error', 'unexpected', `[Shalom Recordar] Sync failed: ${message}`);
+        }
+        await recordSyncFailure(message);
+    } finally {
+        syncInProgress = false;
     }
+}
+
+async function syncStatus() {
+    const token = await getStoredToken(SYNC_TOKEN_STORAGE_KEY);
+    if (!token) {
+        return null;
+    }
+
+    const installation = await ensureInstallationInfo();
+    const url = new URL(STATUS_ENDPOINT);
+    url.searchParams.set('installation_uuid', installation.installation_uuid);
+    url.searchParams.set('extension_version', installation.extension_version);
+
+    const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    const parsed = await parseApiResponse(response, 'consulta de estado');
+    return parsed.ok ? parsed.json : null;
 }
 
 async function decryptAllRecords(records, key) {
@@ -100,9 +326,10 @@ async function decryptAllRecords(records, key) {
                 timestamp: record.timestamp,
                 field: record.field,
                 value: value,
+                record_id: record.record_id,
             });
-        } catch (e) {
-            console.warn('[Shalom] Failed to decrypt record:', record.id);
+        } catch {
+            logOnce('debug', `decrypt-${record.id || record.timestamp}`, '[Shalom Recordar] Record skipped: decrypt failed');
         }
     }
     return decrypted;
@@ -112,7 +339,7 @@ function processRecordsForSync(records) {
     const processed = [];
     for (const item of records) {
         let campo = item.field;
-        let valor = item.value.trim();
+        const valor = safeText(item.value);
 
         if (campo === 'inputnombre') {
             if (valor.length < 8) continue;
@@ -134,35 +361,8 @@ function processRecordsForSync(records) {
             });
         }
     }
+
     return processed;
-}
-
-async function getApiToken() {
-    const res = await chrome.storage.local.get(['apiToken']);
-    return res.apiToken || null;
-}
-
-async function getInstallationInfo() {
-    const res = await chrome.storage.local.get(['installationUuid', 'installationMeta']);
-    let installationUuid = res.installationUuid || null;
-
-    if (!installationUuid) {
-        installationUuid = crypto.randomUUID();
-        await chrome.storage.local.set({ installationUuid });
-    }
-
-    return {
-        installation_uuid: installationUuid,
-        extension_version: chrome.runtime.getManifest().version,
-        installation: res.installationMeta || {
-            device_name: navigator.userAgentData?.platform || navigator.platform || 'unknown',
-            browser_name: 'Chrome',
-            browser_version: navigator.userAgent,
-            platform_name: navigator.platform || 'unknown',
-            platform_version: navigator.userAgent,
-        },
-        cursor: new Date().toISOString(),
-    };
 }
 
 async function recordSyncSuccess(batchId, recordCount) {
@@ -170,11 +370,11 @@ async function recordSyncSuccess(batchId, recordCount) {
     const log = res.syncLog || [];
     log.push({
         type: 'success',
-        batchId: batchId,
-        recordCount: recordCount,
+        batchId,
+        recordCount,
         timestamp: new Date().toISOString(),
     });
-    while (log.length > 100) log.shift(); // Guardar solo últimos 100
+    while (log.length > 100) log.shift();
     await chrome.storage.local.set({ syncLog: log });
 }
 
@@ -183,12 +383,11 @@ async function recordSyncFailure(error) {
     const log = res.syncLog || [];
     log.push({
         type: 'error',
-        error: error,
+        error: safeText(error),
         timestamp: new Date().toISOString(),
     });
     while (log.length > 100) log.shift();
     await chrome.storage.local.set({ syncLog: log });
 }
 
-// Inicializar sincronización al cargar el service worker
 setupDailySync();

@@ -186,18 +186,20 @@ inputUsuario.addEventListener('change', async () => {
 });
 
 inputApiToken.addEventListener('change', async () => {
-    const apiToken = inputApiToken.value.trim();
-    if (apiToken.length > 0) {
-        await chrome.storage.local.set({ apiToken });
+    const bootstrapToken = inputApiToken.value.trim();
+    if (bootstrapToken.length > 0) {
+        await chrome.storage.local.set({ bootstrapToken, apiToken: bootstrapToken });
     }
 });
 
 async function cargarUsuario() {
-    const res = await chrome.storage.local.get(['username', 'apiToken']);
+    const res = await chrome.storage.local.get(['username', 'bootstrapToken', 'apiToken', 'syncToken']);
     if (res.username) {
         inputUsuario.value = res.username;
     }
-    if (res.apiToken) {
+    if (res.bootstrapToken) {
+        inputApiToken.value = res.bootstrapToken;
+    } else if (res.apiToken && !res.syncToken) {
         inputApiToken.value = res.apiToken;
     }
 }

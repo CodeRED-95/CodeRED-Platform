@@ -13,6 +13,7 @@ use App\Modules\ShalomRecordar\Services\ShalomRecordarSyncService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class RecordarSyncTest extends TestCase
@@ -25,17 +26,15 @@ class RecordarSyncTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_installation_registration_and_record_sync_are_authenticated_and_idempotent(): void
+    public function test_installation_registration_issues_per_installation_sync_token(): void
     {
         $user = $this->superAdmin();
-        $token = $user->createToken('Shalom Recordar', ['shalom-recordar.manage'])->plainTextToken;
+        $bootstrap = $user->createToken('Shalom Recordar Bootstrap', ['shalom-recordar:bootstrap'])->plainTextToken;
 
         $installationUuid = '550e8400-e29b-41d4-a716-446655440000';
-        $timestamp = '2026-08-10T10:30:00Z';
-
         $payload = [
             'installation_uuid' => $installationUuid,
-            'extension_version' => '2.2.0',
+            'extension_version' => '2.4.0',
             'installation' => [
                 'device_name' => 'Laptop',
                 'browser_name' => 'Chrome',
@@ -43,33 +42,89 @@ class RecordarSyncTest extends TestCase
                 'platform_name' => 'Linux',
                 'platform_version' => '6.0',
             ],
-            'records' => [
-                ['record_id' => '1', 'field' => 'DNI', 'value' => '12345678', 'timestamp' => $timestamp, 'cursor' => 'c1'],
-            ],
         ];
 
-        $this->postJson('/api/v1/shalom-recordar/sync', $payload, ['Authorization' => 'Bearer '.$token])
+        $response = $this->postJson('/api/v1/shalom-recordar/installations/register', $payload, ['Authorization' => 'Bearer '.$bootstrap])
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.created', 1)
-            ->assertJsonPath('data.updated', 0);
+            ->assertJsonPath('data.installation_uuid', $installationUuid)
+            ->assertJsonStructure(['success', 'data' => ['installation_uuid', 'extension_version', 'sync_token']]);
+
+        $syncToken = (string) $response->json('data.sync_token');
+        $this->assertNotSame('', $syncToken);
 
         $this->assertDatabaseHas('shalom_recordar_installations', [
             'user_id' => $user->id,
             'installation_uuid' => $installationUuid,
-            'extension_version' => '2.2.0',
+            'extension_version' => '2.4.0',
         ]);
+
+        $installation = ShalomRecordarInstallation::query()->where('installation_uuid', $installationUuid)->firstOrFail();
+        $this->assertNotNull($installation->sync_token_id);
+
+        Sanctum::actingAs($user, ['shalom-recordar:sync']);
+        $this->postJson('/api/v1/shalom-recordar/sync', [
+            'installation_uuid' => $installationUuid,
+            'extension_version' => '2.4.0',
+            'records' => [
+                ['record_id' => '1', 'field' => 'DNI', 'value' => '12345678', 'timestamp' => '2026-08-10T10:30:00Z', 'cursor' => 'c1'],
+            ],
+        ], ['Authorization' => 'Bearer '.$syncToken])
+            ->assertOk()
+            ->assertJsonPath('data.created', 1)
+            ->assertJsonPath('data.updated', 0);
+
         $this->assertDatabaseHas('shalom_recordar_records', [
             'user_id' => $user->id,
             'installation_uuid' => $installationUuid,
             'field' => 'DNI',
             'value' => '12345678',
         ]);
+    }
 
-        $this->postJson('/api/v1/shalom-recordar/sync', $payload, ['Authorization' => 'Bearer '.$token])
+    public function test_installation_sync_is_idempotent_and_status_is_available(): void
+    {
+        $user = $this->superAdmin();
+        $bootstrap = $user->createToken('Shalom Recordar Bootstrap', ['shalom-recordar:bootstrap'])->plainTextToken;
+        $payload = [
+            'installation_uuid' => '550e8400-e29b-41d4-a716-446655440010',
+            'extension_version' => '2.4.0',
+            'installation' => [
+                'device_name' => 'Laptop',
+                'browser_name' => 'Chrome',
+                'browser_version' => '127.0',
+                'platform_name' => 'Linux',
+                'platform_version' => '6.0',
+            ],
+        ];
+
+        $register = $this->postJson('/api/v1/shalom-recordar/installations/register', $payload, ['Authorization' => 'Bearer '.$bootstrap])
+            ->assertOk();
+        $syncToken = (string) $register->json('data.sync_token');
+
+        $syncPayload = [
+            'installation_uuid' => $payload['installation_uuid'],
+            'extension_version' => $payload['extension_version'],
+            'records' => [
+                ['record_id' => '1', 'field' => 'OS', 'value' => 'OS-1', 'timestamp' => '2026-08-10T10:30:00Z', 'cursor' => 'c1'],
+            ],
+        ];
+
+        Sanctum::actingAs($user, ['shalom-recordar:sync']);
+        $this->postJson('/api/v1/shalom-recordar/sync', $syncPayload)
+            ->assertOk()
+            ->assertJsonPath('data.created', 1);
+
+        Sanctum::actingAs($user, ['shalom-recordar:sync']);
+        $this->postJson('/api/v1/shalom-recordar/sync', $syncPayload)
             ->assertOk()
             ->assertJsonPath('data.created', 0)
             ->assertJsonPath('data.updated', 1);
+
+        Sanctum::actingAs($user, ['shalom-recordar:sync']);
+        $this->getJson('/api/v1/shalom-recordar/sync/status?installation_uuid='.$payload['installation_uuid'].'&extension_version='.$payload['extension_version'])
+            ->assertOk()
+            ->assertJsonPath('data.installation_uuid', $payload['installation_uuid']);
 
         $this->assertSame(1, ShalomRecordarRecord::query()->count());
     }

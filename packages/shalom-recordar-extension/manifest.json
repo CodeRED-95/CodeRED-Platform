@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Registro de Actividad Shalom",
-  "version": "2.3",
+  "version": "2.4",
   "permissions": ["storage", "unlimitedStorage", "alarms"],
-  "host_permissions": ["https://platform.codered.lat/*", "https://platform.codered.host/*"],
+  "host_permissions": ["https://platform.codered.lat/*"],
   "icons": {
     "128": "icon128.png"
   },

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\ShalomRecordar\Models;
 
+use App\Models\ApiToken;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ShalomRecordarInstallation extends Model
 {
@@ -44,5 +46,10 @@ class ShalomRecordarInstallation extends Model
     public function records(): HasMany
     {
         return $this->hasMany(ShalomRecordarRecord::class, 'installation_id');
+    }
+
+    public function syncToken(): HasOne
+    {
+        return $this->hasOne(ApiToken::class, 'id', 'sync_token_id');
     }
 }
