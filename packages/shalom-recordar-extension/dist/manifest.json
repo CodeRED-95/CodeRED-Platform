@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Registro de Actividad Shalom",
-  "version": "2.7.5",
+  "version": "2.7.6",
   "permissions": [
     "storage",
     "unlimitedStorage",

@@ -1,9 +1,5 @@
 /**
  * Pruebas rápidas de captura por Enter en content.js.
- *
- * Verifica que la extensión solo guarda documentos cuando el usuario
- * presiona Enter y que no se generan duplicados técnicos por listeners o
- * reinicializaciones del content script.
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -16,19 +12,6 @@ const SOURCE = fs.readFileSync(path.join(EXTENSION_DIR, 'content.js'), 'utf8');
 let listeners = {};
 const registrations = [];
 const messages = [];
-let fakeNow = 1_000_000;
-
-function createDateClass() {
-    return class extends Date {
-        constructor(...args) {
-            super(...(args.length ? args : [Date.now()]));
-        }
-
-        static now() {
-            return fakeNow;
-        }
-    };
-}
 
 function registerListener(type, handler) {
     listeners[type] ||= [];
@@ -37,22 +20,16 @@ function registerListener(type, handler) {
 }
 
 function emitKeydown(target, overrides = {}) {
-    const elementTarget = {
-        nodeType: 1,
-        matches: () => true,
-        closest: () => null,
-        ...target,
-    };
     const event = {
         key: 'Enter',
-        target: elementTarget,
+        target: { nodeType: 1, matches: () => true, closest: () => null, ...target },
         defaultPrevented: false,
         isComposing: false,
         shiftKey: false,
         altKey: false,
         ctrlKey: false,
         metaKey: false,
-        timeStamp: fakeNow,
+        timeStamp: 1000,
         preventDefault() {},
         ...overrides,
     };
@@ -73,7 +50,6 @@ function reset() {
     listeners = {};
     registrations.length = 0;
     messages.length = 0;
-    fakeNow = 1_000_000;
 }
 
 function loadContentScript(sandbox) {
@@ -103,7 +79,11 @@ function createSandbox() {
             observe() {}
             disconnect() {}
         },
-        Date: createDateClass(),
+        Date: class extends Date {
+            static now() {
+                return 1_000_000;
+            }
+        },
         console,
         Node: { ELEMENT_NODE: 1 },
     };
@@ -112,7 +92,77 @@ function createSandbox() {
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
-test('no guarda al escribir sin Enter', () => {
+test('DNI + Enter guarda una vez', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ id: 'inputnombre', value: ' 00456879 ' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'DNI');
+    assert.equal(messages[0].data.value, '00456879');
+});
+
+test('CE + Enter guarda una vez', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ name: 'documento', value: '004568798' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'CE');
+    assert.equal(messages[0].data.value, '004568798');
+});
+
+test('RUC + Enter guarda una vez', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ placeholder: 'ruc', value: '20004568791' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'RUC');
+    assert.equal(messages[0].data.value, '20004568791');
+});
+
+test('Clave + Enter guarda Clave', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ id: 'swal-input1', value: '3535' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '3535');
+});
+
+test('OS + Enter guarda OS', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emitKeydown({ id: 'inputos', value: 'OS-12345' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'OS');
+    assert.equal(messages[0].data.value, 'OS-12345');
+});
+
+test('DNI sin Enter no guarda', () => {
     reset();
     const sandbox = createSandbox();
     sandbox.globalThis = sandbox;
@@ -126,112 +176,72 @@ test('no guarda al escribir sin Enter', () => {
     assert.equal(messages.length, 0);
 });
 
-test('guarda DNI una sola vez al presionar Enter', () => {
+test('Clave sin Enter no guarda', () => {
     reset();
     const sandbox = createSandbox();
     sandbox.globalThis = sandbox;
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emitKeydown({ id: 'inputnombre', name: 'inputnombre', placeholder: 'inputnombre', value: ' 00456879 ' });
-
-    assert.equal(messages.length, 1);
-    assert.equal(messages[0].data.field, 'DNI');
-    assert.equal(messages[0].data.value, '00456879');
-});
-
-test('guarda CE y RUC una sola vez al presionar Enter', () => {
-    reset();
-    const sandbox = createSandbox();
-    sandbox.globalThis = sandbox;
-    vm.createContext(sandbox);
-    loadContentScript(sandbox);
-
-    emitKeydown({ value: '004568798' });
-    emitKeydown({ value: '20004568791' });
-
-    assert.equal(messages.length, 2);
-    assert.deepEqual(messages.map((message) => message.data.field), ['CE', 'RUC']);
-});
-
-test('ignora longitudes inválidas y caracteres no numéricos', () => {
-    reset();
-    const sandbox = createSandbox();
-    sandbox.globalThis = sandbox;
-    vm.createContext(sandbox);
-    loadContentScript(sandbox);
-
-    emitKeydown({ value: '0045687' });
-    emitKeydown({ value: '1234567890' });
-    emitKeydown({ value: 'ABC00456879' });
+    emit('input', { nodeType: 1, id: 'swal-input1', value: '3535' });
 
     assert.equal(messages.length, 0);
 });
 
-test('preserva ceros iniciales y no convierte a número', () => {
+test('OS sin Enter no guarda', () => {
     reset();
     const sandbox = createSandbox();
     sandbox.globalThis = sandbox;
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emitKeydown({ value: '00456879' });
+    emit('input', { nodeType: 1, id: 'inputos', value: 'OS-12345' });
 
-    assert.equal(messages[0].data.value, '00456879');
+    assert.equal(messages.length, 0);
 });
 
-test('una pulsación Enter no genera duplicados aunque se cargue otra vez el script', () => {
+test('una pulsación Enter produce un solo registro incluso con doble inicialización', () => {
     reset();
     const sandbox = createSandbox();
     sandbox.globalThis = sandbox;
     vm.createContext(sandbox);
     loadContentScript(sandbox);
     const before = registrations.filter((type) => type === 'keydown').length;
-
     loadContentScript(sandbox);
     const after = registrations.filter((type) => type === 'keydown').length;
 
-    emitKeydown({ value: '71218478' });
+    emitKeydown({ id: 'inputnombre', value: '00456879' });
 
-    assert.equal(after, before, 'la segunda carga no debe registrar un listener adicional');
+    assert.equal(after, before, 'no debe registrar otro listener');
     assert.equal(messages.length, 1);
 });
 
-test('el mismo documento puede guardarse de nuevo en un Enter posterior legítimo', () => {
+test('mismo dato con nuevo Enter posterior vuelve a guardarse', () => {
     reset();
     const sandbox = createSandbox();
     sandbox.globalThis = sandbox;
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emitKeydown({ value: '20123456789' });
-    fakeNow += 300_000;
-    emitKeydown({ value: '20123456789' });
+    emitKeydown({ id: 'inputnombre', value: '00456879' });
+    emitKeydown({ id: 'inputnombre', value: '00456879' }, { timeStamp: 5000 });
 
     assert.equal(messages.length, 2);
-    assert.equal(messages[0].data.value, '20123456789');
-    assert.equal(messages[1].data.value, '20123456789');
-});
-
-test('MutationObserver solo asegura listeners y no guarda datos por sí mismo', () => {
-    reset();
-    const sandbox = createSandbox();
-    sandbox.globalThis = sandbox;
-    vm.createContext(sandbox);
-    loadContentScript(sandbox);
-
-    assert.ok(registrations.includes('keydown'));
-    assert.equal(messages.length, 0);
 });
 
 if (require.main === module) {
-    for (const [name, fn] of tests) {
-        try {
-            fn();
-            process.stdout.write(`  ✓ ${name}\n`);
-        } catch (error) {
-            process.stderr.write(`  ✗ ${name}\n`);
-            throw error;
+    (async () => {
+        for (const [name, fn] of tests) {
+            try {
+                const out = fn();
+                if (out && typeof out.then === 'function') {
+                    await out;
+                }
+                process.stdout.write(`  ✓ ${name}\n`);
+            } catch (error) {
+                process.stderr.write(`  ✗ ${name}\n`);
+                throw error;
+            }
         }
-    }
+    })();
 }

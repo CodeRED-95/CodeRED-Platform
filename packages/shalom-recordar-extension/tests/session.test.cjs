@@ -273,16 +273,18 @@ test('syncNow: un registro inválido no bloquea el lote', async () => {
     storage.pendingQueue = [
         { field: 'dni', value: '12345678', timestamp: new Date().toISOString() },
         { field: 'vacio', value: '   ' }, // se descarta
-        { field: 'clave', value: '4444', timestamp: new Date().toISOString() },
+        { field: 'Clave', value: '4444', timestamp: new Date().toISOString() },
+        { field: 'OS', value: 'OS-12345', timestamp: new Date().toISOString() },
     ];
-    fetchHandler = () => jsonResponse(200, { data: { created: 2 } });
+    fetchHandler = () => jsonResponse(200, { data: { created: 3 } });
 
     const result = await api.syncNow();
 
     assert.equal(result.ok, true);
-    assert.equal(result.synced, 2, 'se envían solo los 2 válidos');
+    assert.equal(result.synced, 3, 'se envían los 3 válidos');
     const body = JSON.parse(fetchCalls.at(-1).options.body);
-    assert.equal(body.records.length, 2);
+    assert.equal(body.records.length, 3);
+    assert.deepEqual(body.records.map((record) => record.field), ['dni', 'Clave', 'OS']);
     assert.equal(storage.pendingQueue.length, 0, 'la cola se vacía tras aceptar');
 });
 

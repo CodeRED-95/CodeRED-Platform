@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.7.6 - 2026-08-10
+
+### Changed
+
+- La captura continúa ocurriendo únicamente con `Enter`, pero ahora recupera también `Clave` y `OS` además de los documentos numéricos.
+- `Clave` vuelve a salir del campo correspondiente sin ser reclasificada como DNI, CE o RUC.
+- `OS` vuelve a guardarse desde su campo correspondiente y se conserva como texto.
+
+### Fixed
+
+- Se restaura la detección de `Clave` y `OS` que había en la extensión base.
+- Se mantiene la prioridad correcta: campo relevante primero y clasificación por longitud solo para documentos.
+
 ## 2.7.5 - 2026-08-10
 
 ### Changed

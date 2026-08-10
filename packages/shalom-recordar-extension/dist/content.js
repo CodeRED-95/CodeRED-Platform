@@ -1,7 +1,8 @@
 (() => {
 const CONTENT_STATE_KEY = '__shalomRecordarContentState__';
-const DOCUMENT_SELECTOR = 'input, textarea, [contenteditable="true"]';
 const DOC_LISTENER_KEY = '__shalomRecordarDocumentKeydownListener__';
+const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
+const OS_KEYWORDS = ['os', 'orden', 'servicio', 'ordenservicio'];
 
 function getContentState() {
     const globalState = globalThis[CONTENT_STATE_KEY] || {};
@@ -9,8 +10,12 @@ function getContentState() {
     return globalState;
 }
 
+function normalizeText(rawValue) {
+    return String(rawValue ?? '').trim();
+}
+
 function normalizeDigits(rawValue) {
-    return String(rawValue ?? '').trim().replace(/\s+/g, '');
+    return normalizeText(rawValue).replace(/\s+/g, '');
 }
 
 function classifyDocumentValue(rawValue) {
@@ -20,23 +25,15 @@ function classifyDocumentValue(rawValue) {
         return null;
     }
 
-    if (value.length === 8) {
-        return { field: 'DNI', value };
-    }
-
-    if (value.length === 9) {
-        return { field: 'CE', value };
-    }
-
-    if (value.length === 11) {
-        return { field: 'RUC', value };
-    }
-
+    if (value.length === 8) return { field: 'DNI', value };
+    if (value.length === 9) return { field: 'CE', value };
+    if (value.length === 11) return { field: 'RUC', value };
     return null;
 }
 
 function getInputSource(target) {
-    return String(target?.id || target?.name || target?.placeholder || target?.getAttribute?.('aria-label') || target?.tagName || 'sin_nombre').trim();
+    const raw = String(target?.id || target?.name || target?.placeholder || target?.getAttribute?.('aria-label') || target?.tagName || 'sin_nombre');
+    return raw.trim();
 }
 
 function getFieldValue(target) {
@@ -47,29 +44,30 @@ function getFieldValue(target) {
 }
 
 function isCaptureTarget(target) {
-    if (!target || target.nodeType !== 1) {
-        return typeof target?.value === 'string' || typeof target?.textContent === 'string';
-    }
+    return Boolean(target) && (target.nodeType === 1 || typeof target.value === 'string' || typeof target.textContent === 'string');
+}
 
-    if (target.matches?.(DOCUMENT_SELECTOR)) {
-        return true;
-    }
+function isClaveField(target) {
+    const source = getInputSource(target).toLowerCase();
+    return CLAVE_FIELDS.includes(source);
+}
 
-    return typeof target.closest === 'function' && Boolean(target.closest(DOCUMENT_SELECTOR));
+function isOsField(target) {
+    const source = getInputSource(target).toLowerCase();
+    return OS_KEYWORDS.some((keyword) => source.includes(keyword));
 }
 
 function shouldIgnoreKeydown(event) {
     return event.defaultPrevented || event.isComposing || event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
 }
 
-function queueCapture(classified, source, eventTimeStamp) {
-    const captureId = [source, classified.field, classified.value, String(eventTimeStamp ?? Date.now())].join('|');
+function sendCapture(field, value, source, eventTimeStamp) {
     chrome.runtime.sendMessage({
         action: 'saveData',
         data: {
-            captureId,
-            field: classified.field,
-            value: classified.value,
+            captureId: [source, field, value, String(eventTimeStamp ?? Date.now())].join('|'),
+            field,
+            value,
             source,
             timestamp: new Date().toISOString(),
         },
@@ -77,59 +75,55 @@ function queueCapture(classified, source, eventTimeStamp) {
 }
 
 function captureOnEnter(event) {
-    if (shouldIgnoreKeydown(event)) {
+    if (shouldIgnoreKeydown(event)) return;
+
+    const target = event.target;
+    if (!isCaptureTarget(target)) return;
+
+    const source = getInputSource(target);
+
+    if (isClaveField(target)) {
+        const value = normalizeText(getFieldValue(target));
+        if (!value) return;
+        sendCapture('Clave', value, source, event.timeStamp);
         return;
     }
 
-    const target = event.target;
-    if (!isCaptureTarget(target)) {
+    if (isOsField(target)) {
+        const value = normalizeText(getFieldValue(target));
+        if (!value) return;
+        sendCapture('OS', value, source, event.timeStamp);
         return;
     }
 
     const classified = classifyDocumentValue(getFieldValue(target));
-    if (!classified) {
-        return;
-    }
+    if (!classified) return;
 
-    queueCapture(classified, getInputSource(target), event.timeStamp);
+    sendCapture(classified.field, classified.value, source, event.timeStamp);
 }
 
 function ensureDocumentListener() {
     const state = getContentState();
-    if (state.documentListenerAttached) {
-        return;
-    }
-
+    if (state.documentListenerAttached) return;
     state.documentListenerAttached = true;
-    if (globalThis[DOC_LISTENER_KEY]) {
-        return;
-    }
-
+    if (globalThis[DOC_LISTENER_KEY]) return;
     globalThis[DOC_LISTENER_KEY] = captureOnEnter;
     document.addEventListener('keydown', captureOnEnter, true);
 }
 
 function ensureMutationObserver() {
     const state = getContentState();
-    if (state.captureObserverAttached || typeof MutationObserver === 'undefined') {
-        return;
-    }
+    if (state.captureObserverAttached || typeof MutationObserver === 'undefined') return;
 
     const root = document.documentElement || document.body;
-    if (!root) {
-        return;
-    }
+    if (!root) return;
 
     state.captureObserverAttached = true;
     const observer = new MutationObserver(() => {
         ensureDocumentListener();
     });
 
-    observer.observe(root, {
-        childList: true,
-        subtree: true,
-    });
-
+    observer.observe(root, { childList: true, subtree: true });
     state.captureObserver = observer;
 }
 
