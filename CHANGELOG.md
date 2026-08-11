@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.12] - 2026-08-11
+
+### Fixed
+
+- Se actualizaron dependencias PHP con advisories conocidos a versiones corregidas: `guzzlehttp/guzzle` 7.15.3, `guzzlehttp/promises` 2.5.2 y `league/commonmark` 2.9.2.
+- Se alinearon dependencias npm del root a versiones corregidas y se añadió una override puntual para `fast-uri` 3.1.5, dejando el árbol sin vulnerabilidades reportadas por `npm audit`.
+
 ## [4.6.11] - 2026-08-11
 
 ### Fixed
