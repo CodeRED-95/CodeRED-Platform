@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.9] - 2026-08-11
+
+### Fixed
+
+- Se corrigió el modal de token revelado para que el estado visual de copiado comparta el mismo contexto Alpine y el aviso "Copiado!" aparezca correctamente.
+- Se añadieron `type="button"` y etiquetas accesibles a botones de cierre y confirmación en modales administrativos para evitar submits accidentales y mejorar la interacción con teclado.
+
 ## [4.6.8] - 2026-08-11
 
 ### Fixed

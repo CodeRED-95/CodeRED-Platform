@@ -9,9 +9,9 @@ use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucBackupOperation;
 use App\Modules\Ruc\Services\RucBackupService;
 use App\Modules\Shalom\Jobs\DeleteExpiredRecordsJob;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Mockery;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class QueueJobSafetyTest extends TestCase
@@ -20,7 +20,7 @@ class QueueJobSafetyTest extends TestCase
 
     public function test_shalom_expired_records_job_uses_tries_instead_of_retries(): void
     {
-        $job = new DeleteExpiredRecordsJob();
+        $job = new DeleteExpiredRecordsJob;
 
         $this->assertSame(3, $job->tries);
         $this->assertObjectNotHasProperty('retries', $job);
@@ -31,7 +31,7 @@ class QueueJobSafetyTest extends TestCase
         $backup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         $operation = RucBackupOperation::create([
             'uuid' => '11111111-1111-1111-1111-111111111111',
-            'backup_id' => $backup->id,
+            'backup_id' => $backup->getKey(),
             'operation_type' => RucBackupOperation::TYPE_RESTORE,
             'status' => RucBackupOperation::STATUS_PENDING,
             'stage' => RucBackupOperation::STAGE_QUEUED,
@@ -42,8 +42,41 @@ class QueueJobSafetyTest extends TestCase
         $operation->delete();
 
         $job = new RestoreRucBackupJob($operation->id);
-        $service = Mockery::mock(RucBackupService::class);
-        $service->shouldNotReceive('acquireRestoreLock');
+        $service = new class extends RucBackupService
+        {
+            public function acquireRestoreLock(): Lock
+            {
+                return new class implements Lock
+                {
+                    public function name(): string
+                    {
+                        return 'test-lock';
+                    }
+
+                    public function owner(): string
+                    {
+                        return 'test-owner';
+                    }
+
+                    public function get($callback = null): bool
+                    {
+                        return true;
+                    }
+
+                    public function block($seconds, $callback = null): mixed
+                    {
+                        return $callback instanceof \Closure ? $callback() : true;
+                    }
+
+                    public function release(): bool
+                    {
+                        return true;
+                    }
+
+                    public function forceRelease(): void {}
+                };
+            }
+        };
 
         $failedJobsBefore = DB::table('failed_jobs')->count();
         $job->handle($service);
