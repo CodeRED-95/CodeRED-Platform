@@ -11,7 +11,7 @@ if (manifest.version !== packageJson.version) {
   errors.push(`manifest.json (${manifest.version}) y package.json (${packageJson.version}) no están sincronizados`);
 }
 
-for (const file of ['background.js', 'content.js', 'crypto.js', 'db.js', 'popup.js', 'sync.js', 'tests/capture.test.cjs', 'tests/session.test.cjs']) {
+for (const file of ['background.js', 'content.js', 'crypto.js', 'db.js', 'popup.js', 'sync.js', 'tests/capture.test.cjs', 'tests/session.test.cjs', 'tests/automatic-sync.test.cjs']) {
   const result = spawnSync(process.execPath, ['--check', join(root, file)], { encoding: 'utf8' });
   if (result.status !== 0) {
     errors.push(`node --check ${file} falló: ${result.stderr || result.stdout}`.trim());

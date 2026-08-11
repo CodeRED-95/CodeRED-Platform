@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.8.0 - 2026-08-11
+
+### Added
+
+- Sincronización automática diaria a las 08:00 AM de `America/Lima` con recuperación en la siguiente apertura de Chrome si la alarma no pudo ejecutarse.
+
+### Changed
+
+- El popup muestra la última sincronización automática y la próxima ventana programada.
+
+### Fixed
+
+- La sincronización automática solo se marca como completada después de un envío exitoso.
+- Se evita duplicar la sincronización automática del mismo día incluso si el popup, el startup y la alarma coinciden.
+
 ## 2.7.16 - 2026-08-10
 
 ### Fixed

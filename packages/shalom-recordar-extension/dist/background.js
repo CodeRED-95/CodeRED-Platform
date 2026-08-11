@@ -1,10 +1,11 @@
-importScripts("crypto.js", "db.js", "sync.js");
+importScripts('crypto.js', 'db.js', 'sync.js');
 
 const MAX_PENDING_QUEUE = 500; // tope de eventos en espera mientras la extensión está bloqueada
 const recentCaptureIds = [];
+let syncInFlight = null;
 
 function rememberCaptureId(captureId) {
-  if (typeof captureId !== "string" || captureId.length === 0) {
+  if (typeof captureId !== 'string' || captureId.length === 0) {
     return false;
   }
 
@@ -21,19 +22,19 @@ function rememberCaptureId(captureId) {
 }
 
 async function getSessionKey() {
-  const session = await chrome.storage.session.get(["keyB64"]);
+  const session = await chrome.storage.session.get(['keyB64']);
   if (!session.keyB64) return null;
   return importKeyB64(session.keyB64);
 }
 
 async function queuePending(data) {
-  const res = await chrome.storage.local.get(["pendingQueue"]);
+  const res = await chrome.storage.local.get(['pendingQueue']);
   const queue = res.pendingQueue || [];
   queue.push(data);
   while (queue.length > MAX_PENDING_QUEUE) queue.shift();
   await chrome.storage.local.set({ pendingQueue: queue });
-  chrome.action.setBadgeBackgroundColor({ color: "#d32f2f" });
-  chrome.action.setBadgeText({ text: "!" });
+  chrome.action.setBadgeBackgroundColor({ color: '#d32f2f' });
+  chrome.action.setBadgeText({ text: '!' });
 }
 
 async function handleSaveData(data) {
@@ -56,13 +57,81 @@ async function handleSaveData(data) {
   });
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "saveData") {
-    handleSaveData(request.data);
-  } else if (request.action === "manualSync") {
-    ShalomRecordarSync.syncNow()
-      .then(() => sendResponse({ ok: true }))
-      .catch((err) => sendResponse({ error: err.message }));
-    return true; // indica que sendResponse será llamado asincronamente
+function runExclusive(task) {
+  if (syncInFlight) {
+    return syncInFlight;
   }
+
+  syncInFlight = Promise.resolve()
+      .then(task)
+      .finally(() => {
+        syncInFlight = null;
+      });
+
+  return syncInFlight;
+}
+
+async function manualSync() {
+  return runExclusive(() => ShalomRecordarSync.syncNow());
+}
+
+async function checkAutomaticSync(reason = 'startup') {
+  return runExclusive(async () => {
+    await ShalomRecordarSync.ensureDailyAutomaticSyncAlarm();
+    return ShalomRecordarSync.runAutomaticSyncIfNeeded({ source: reason });
+  });
+}
+
+async function bootstrap(reason = 'startup') {
+  return checkAutomaticSync(reason);
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'saveData') {
+    handleSaveData(request.data);
+    return false;
+  }
+
+  if (request.action === 'manualSync') {
+    manualSync()
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || 'No se pudo sincronizar.' }));
+    return true; // indica que sendResponse será llamado asincrónicamente
+  }
+
+  if (request.action === 'checkAutomaticSync') {
+    checkAutomaticSync(request.reason || 'popup')
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || 'No se pudo revisar la sincronización automática.' }));
+    return true;
+  }
+
+  return false;
 });
+
+chrome.runtime.onInstalled.addListener(() => {
+  bootstrap('installed').catch(() => {});
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  bootstrap('startup').catch(() => {});
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm?.name !== ShalomRecordarSync.DAILY_SYNC_ALARM_NAME) {
+    return;
+  }
+
+  checkAutomaticSync('alarm')
+      .then(() => {})
+      .catch(() => {});
+});
+
+globalThis.ShalomRecordarBackground = {
+  handleSaveData,
+  manualSync,
+  checkAutomaticSync,
+  bootstrap,
+  runExclusive,
+  queuePending,
+};

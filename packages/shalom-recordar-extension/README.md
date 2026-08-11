@@ -96,6 +96,9 @@ Al iniciar sesión:
 - La sincronización usa `Authorization: Bearer ...`.
 - El historial local se envía deduplicado.
 - Los errores 401, 403, 422, 429 y 5xx se muestran con mensajes diferenciados.
+- La sincronización automática diaria se ejecuta a las 08:00 AM en `America/Lima`.
+- Si Chrome estaba cerrado o suspendido a esa hora, la extensión recupera la ejecución en la siguiente apertura.
+- La sincronización automática solo corre con sesión válida, token activo e `installation_uuid`.
 
 ## Captura de datos
 

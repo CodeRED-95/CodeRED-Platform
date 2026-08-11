@@ -8,6 +8,19 @@ const tagline = el('tagline');
 const avatarBtn = el('btnAvatar');
 const accountMenu = el('accountMenu');
 
+function sendMessage(request) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(request, (response) => {
+            const error = chrome.runtime.lastError;
+            if (error) {
+                reject(new Error(error.message));
+                return;
+            }
+            resolve(response);
+        });
+    });
+}
+
 /** Última sesión conocida; evita releer storage en cada interacción del menú. */
 function setStatus(message, tone = 'muted') {
     statusEl.textContent = message ?? '';
@@ -24,6 +37,22 @@ function formatDate(value) {
     if (!value) return null;
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
+}
+
+function formatPeruDate(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return new Intl.DateTimeFormat('es-PE', {
+        timeZone: 'America/Lima',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).format(date).replace(',', '');
 }
 
 function escapeHtml(text) {
@@ -129,6 +158,11 @@ function showLoggedIn(state) {
     const lastSync = formatDate(state.server?.last_synced_at) || formatDate(state.meta?.lastSyncAt);
     el('lastSync').textContent = lastSync ?? 'Aún no hay sincronizaciones';
 
+    const lastAutomaticSync = formatPeruDate(state.automatic_sync?.lastAutomaticSyncAt);
+    el('lastAutomaticSync').textContent = lastAutomaticSync || 'Aún no hay sincronización automática';
+    const nextAutomaticSync = formatPeruDate(state.automatic_sync?.nextAutomaticSyncAt);
+    el('nextAutomaticSync').textContent = nextAutomaticSync || '—';
+
     // "Registros locales": lo que hay en el navegador pendiente/guardado. El
     // conteo del servidor se muestra aparte solo si difiere sería confuso, así
     // que aquí prima lo local, que es lo que lista el popup debajo.
@@ -149,6 +183,18 @@ async function refreshState({ silent = false } = {}) {
         if (state.authenticated) {
             showLoggedIn(state);
             setStatus(state.degraded ? (state.error?.message ?? 'No se pudo contactar con la plataforma.') : 'Sesión activa', state.degraded ? 'warn' : 'success');
+            if (state.automatic_sync?.automaticSyncAvailable && !state.automatic_sync?.automaticSyncDoneToday) {
+                try {
+                    const auto = await sendMessage({ action: 'checkAutomaticSync', reason: 'popup' });
+                    if (auto?.ok && auto.result?.ok && !auto.result?.skipped) {
+                        await refreshState({ silent: true });
+                        setStatus('Sincronización automática completada.', 'success');
+                    }
+                } catch {
+                    // Silencioso: si el worker no responde, el usuario sigue
+                    // pudiendo sincronizar manualmente.
+                }
+            }
             return state;
         }
 
@@ -174,7 +220,8 @@ async function withButton(button, busyLabel, action) {
 
 async function doSync(button) {
     return withButton(button, 'Sincronizando...', async () => {
-        const result = await globalThis.ShalomRecordarSync.syncNow();
+        const response = await sendMessage({ action: 'manualSync' });
+        const result = response?.result || { ok: false, message: response?.error || 'No se pudo sincronizar.' };
 
         if (!result.ok) {
             if (result.reason === 'session-revoked') {

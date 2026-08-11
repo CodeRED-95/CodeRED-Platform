@@ -9,6 +9,11 @@ const INSTALLATION_STORAGE_KEY = 'installationUuid';
 const SYNC_TOKEN_STORAGE_KEY = 'syncToken';
 const USER_STORAGE_KEY = 'syncUser';
 const META_STORAGE_KEY = 'syncMeta';
+const AUTO_SYNC_DATE_STORAGE_KEY = 'lastAutomaticSyncDate';
+const AUTO_SYNC_AT_STORAGE_KEY = 'lastAutomaticSyncAt';
+const DAILY_SYNC_ALARM_NAME = 'shalom-recordar-daily-sync';
+const DAILY_SYNC_HOUR = 8;
+const PERU_TIME_ZONE = 'America/Lima';
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 
 /**
@@ -22,6 +27,102 @@ const SESSION_STORAGE_KEYS = [SYNC_TOKEN_STORAGE_KEY, USER_STORAGE_KEY];
 
 function safeText(value) {
     return typeof value === 'string' ? value.trim() : '';
+}
+
+function getLimaDateParts(value = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: PERU_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+    }).formatToParts(value).reduce((acc, part) => {
+        if (part.type !== 'literal') {
+            acc[part.type] = part.value;
+        }
+        return acc;
+    }, {});
+
+    return {
+        year: Number(parts.year),
+        month: Number(parts.month),
+        day: Number(parts.day),
+        hour: Number(parts.hour),
+        minute: Number(parts.minute),
+        second: Number(parts.second),
+    };
+}
+
+function formatLimaDate(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const parts = getLimaDateParts(date);
+    const pad = (number) => String(number).padStart(2, '0');
+
+    return `${pad(parts.day)}/${pad(parts.month)}/${parts.year} ${pad(parts.hour)}:${pad(parts.minute)}`;
+}
+
+function getLimaDateString(value = new Date()) {
+    const parts = getLimaDateParts(value);
+    const pad = (number) => String(number).padStart(2, '0');
+
+    return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+}
+
+function isAfterDailySyncHour(value = new Date()) {
+    const parts = getLimaDateParts(value);
+    return parts.hour > DAILY_SYNC_HOUR || (parts.hour === DAILY_SYNC_HOUR && parts.minute >= 0);
+}
+
+function getNextAutomaticSyncAt(value = new Date()) {
+    const parts = getLimaDateParts(value);
+    const nowMinutes = (parts.hour * 60) + parts.minute;
+    const target = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 13, 0, 0));
+
+    if (nowMinutes >= DAILY_SYNC_HOUR * 60) {
+        target.setUTCDate(target.getUTCDate() + 1);
+    }
+
+    return target;
+}
+
+async function getAutomaticSyncState(now = new Date()) {
+    const local = await getStored([AUTO_SYNC_DATE_STORAGE_KEY, AUTO_SYNC_AT_STORAGE_KEY]);
+    const lastAutomaticSyncDate = safeText(local[AUTO_SYNC_DATE_STORAGE_KEY]);
+    const lastAutomaticSyncAt = safeText(local[AUTO_SYNC_AT_STORAGE_KEY]);
+    const nextAutomaticSyncAt = getNextAutomaticSyncAt(now);
+    const today = getLimaDateString(now);
+
+    return {
+        lastAutomaticSyncDate: lastAutomaticSyncDate || null,
+        lastAutomaticSyncAt: lastAutomaticSyncAt || null,
+        lastAutomaticSyncAtLabel: formatLimaDate(lastAutomaticSyncAt),
+        nextAutomaticSyncAt: nextAutomaticSyncAt.toISOString(),
+        nextAutomaticSyncAtLabel: formatLimaDate(nextAutomaticSyncAt),
+        currentLimaDate: today,
+        automaticSyncDoneToday: lastAutomaticSyncDate === today,
+        automaticSyncAvailable: isAfterDailySyncHour(now),
+    };
+}
+
+async function markAutomaticSyncSuccess(now = new Date()) {
+    const automaticSyncAt = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
+    const automaticSyncDate = getLimaDateString(automaticSyncAt);
+    const storedMeta = await getStored([META_STORAGE_KEY]);
+    await setStored({
+        [AUTO_SYNC_DATE_STORAGE_KEY]: automaticSyncDate,
+        [AUTO_SYNC_AT_STORAGE_KEY]: automaticSyncAt.toISOString(),
+        [META_STORAGE_KEY]: {
+            ...((storedMeta[META_STORAGE_KEY]) ?? {}),
+            lastAutomaticSyncAt: automaticSyncAt.toISOString(),
+            lastAutomaticSyncDate: automaticSyncDate,
+        },
+    });
 }
 
 /**
@@ -322,11 +423,13 @@ async function logout() {
  */
 async function getSessionState() {
     const syncContext = await getSyncContext();
+    const automaticSync = await getAutomaticSyncState();
     const base = {
         installation_uuid: syncContext.installation_uuid,
         extension_version: syncContext.extension_version,
         user: syncContext.user,
         meta: syncContext.meta,
+        automatic_sync: automaticSync,
     };
 
     if (!syncContext.token) {
@@ -469,6 +572,59 @@ async function syncNow() {
     return { ok: true, status: response.status, synced: normalized.length, data: response.json?.data ?? null };
 }
 
+async function ensureDailyAutomaticSyncAlarm(now = new Date()) {
+    if (!chrome?.alarms?.create) {
+        return null;
+    }
+
+    const nextAutomaticSyncAt = getNextAutomaticSyncAt(now);
+    await chrome.alarms.create(DAILY_SYNC_ALARM_NAME, { when: nextAutomaticSyncAt.getTime() });
+    return nextAutomaticSyncAt;
+}
+
+async function runAutomaticSyncIfNeeded({ now = new Date(), source = 'unknown' } = {}) {
+    const syncContext = await getSyncContext();
+    const automaticSyncState = await getAutomaticSyncState(now);
+
+    if (!syncContext.token) {
+        return { ok: false, skipped: true, reason: 'no-session', message: 'Esperando sesión válida para la sincronización automática.' };
+    }
+
+    if (!automaticSyncState.automaticSyncAvailable) {
+        return { ok: true, skipped: true, reason: 'before-window', message: 'Todavía no es hora de la sincronización automática.' };
+    }
+
+    if (automaticSyncState.automaticSyncDoneToday) {
+        return { ok: true, skipped: true, reason: 'already-done', message: 'La sincronización automática de hoy ya se realizó.' };
+    }
+
+    const result = await syncNow();
+    if (result.ok) {
+        await markAutomaticSyncSuccess(now);
+        return {
+            ...result,
+            automatic: true,
+            source,
+        };
+    }
+
+    return {
+        ...result,
+        automatic: true,
+        source,
+        message: result.message || describeFailure(result),
+    };
+}
+
+async function getAutomaticSyncSummary(now = new Date()) {
+    const state = await getAutomaticSyncState(now);
+    return {
+        ...state,
+        lastAutomaticSyncAtLabel: state.lastAutomaticSyncAtLabel || null,
+        nextAutomaticSyncAtLabel: state.nextAutomaticSyncAtLabel || null,
+    };
+}
+
 /**
  * Exporta el historial local (cola pendiente + registros de IndexedDB) como
  * JSON descargable. No incluye token ni credenciales.
@@ -501,6 +657,14 @@ globalThis.ShalomRecordarSync = {
     logout,
     getSessionState,
     syncNow,
+    ensureDailyAutomaticSyncAlarm,
+    runAutomaticSyncIfNeeded,
+    getAutomaticSyncState,
+    getAutomaticSyncSummary,
+    getNextAutomaticSyncAt,
+    getLimaDateString,
+    formatLimaDate,
+    isAfterDailySyncHour,
     buildExportPayload,
     getRecentRecords,
     describeFailure,
@@ -511,4 +675,7 @@ globalThis.ShalomRecordarSync = {
     isSessionRejected,
     PLATFORM_ACCOUNT_URL,
     SESSION_STORAGE_KEYS,
+    DAILY_SYNC_ALARM_NAME,
+    AUTO_SYNC_DATE_STORAGE_KEY,
+    AUTO_SYNC_AT_STORAGE_KEY,
 };
