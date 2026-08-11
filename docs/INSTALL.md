@@ -20,7 +20,7 @@ docker compose up -d --build
 También puedes usar el instalador oficial:
 
 ```bash
-sh scripts/install.sh
+bash scripts/install.sh
 ```
 
 Después de levantar los contenedores, el proyecto completa automáticamente su bootstrap:

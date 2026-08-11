@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.7] - 2026-08-11
+
+### Fixed
+
+- `scripts/install.sh` ahora usa `bash` estricto con `pipefail`, corrige ownership de los directorios de RUC creados durante la instalación y vuelve a instalar dependencias PHP/Node de forma determinista.
+- La documentación de instalación indica el comando correcto (`bash scripts/install.sh`).
+
 ## [4.6.6] - 2026-08-11
 
 ### Fixed
