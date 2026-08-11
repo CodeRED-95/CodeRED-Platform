@@ -62,7 +62,7 @@ class NotifyN8nTokenRequestStatus implements ShouldQueue
             ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notified', 'description' => 'Notificación enviada mediante Capability Registry.', 'metadata' => ['event_uuid' => $this->eventUuid, 'service' => $service, 'integration_uuid' => $integration->integration_uuid, 'http_status' => $response->status()], 'created_at' => now()]);
             $response->throw();
         } catch (Throwable $e) {
-            ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notification_failed', 'description' => 'No se pudo notificar a n8n.', 'metadata' => ['event_uuid' => $this->eventUuid, 'service' => $service, 'error' => $e->getMessage()], 'created_at' => now()]);
+            ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notification_failed', 'description' => 'No se pudo notificar a n8n.', 'metadata' => ['event_uuid' => $this->eventUuid, 'service' => $service, 'error_class' => $e::class, 'error_code' => $e->getCode() ?: null], 'created_at' => now()]);
             throw $e;
         }
     }

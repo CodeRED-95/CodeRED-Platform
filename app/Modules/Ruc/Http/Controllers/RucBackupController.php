@@ -89,7 +89,7 @@ class RucBackupController
                 "Backup creado correctamente: {$backup->name} ({$backup->formattedSize()}, ".number_format($backup->total_records ?? 0).' registros).'
             );
         } catch (Throwable $e) {
-            Log::error('RUC backup creation failed', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
+            Log::error('RUC backup creation failed', $this->safeErrorContext($e, ['user_id' => auth()->id()]));
 
             return redirect()->route('admin.ruc.backups')->with('error', 'No se pudo crear el backup. Revisa storage/logs/laravel.log para más detalles.');
         }
@@ -126,7 +126,7 @@ class RucBackupController
 
             return redirect()->route('admin.ruc.backups')->with('success', 'Backup importado correctamente.');
         } catch (Throwable $e) {
-            Log::warning('RUC backup import rejected', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
+            Log::warning('RUC backup import rejected', $this->safeErrorContext($e, ['user_id' => auth()->id()]));
 
             return redirect()->route('admin.ruc.backups')->with('error', 'El archivo no es un backup RUC válido: '.$e->getMessage());
         }
@@ -249,5 +249,20 @@ class RucBackupController
         Log::info('RUC backup deleted', ['backup_id' => $backup->id, 'user_id' => auth()->id()]);
 
         return redirect()->route('admin.ruc.backups')->with('success', 'Backup eliminado correctamente.');
+    }
+
+    /**
+     * Conserva contexto operativo útil sin volcar mensajes de excepción
+     * completos, que a veces incluyen detalles internos del sistema.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>
+     */
+    private function safeErrorContext(Throwable $e, array $context = []): array
+    {
+        return array_merge([
+            'error_class' => $e::class,
+            'error_code' => $e->getCode() ?: null,
+        ], $context);
     }
 }

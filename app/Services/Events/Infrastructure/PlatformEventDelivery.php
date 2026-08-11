@@ -45,7 +45,8 @@ final class PlatformEventDelivery implements EventDeliveryContract
                     'type' => $event->type,
                     'attempt' => $attempt,
                     'max_attempts' => $maxAttempts,
-                    'error' => $exception->getMessage(),
+                    'error_class' => $exception::class,
+                    'error_code' => $responseCode,
                 ]);
             }
         }

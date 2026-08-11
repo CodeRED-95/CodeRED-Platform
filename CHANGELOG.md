@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.11] - 2026-08-11
+
+### Fixed
+
+- El middleware de API key de Shalom dejó de registrar prefijos del secreto en intentos inválidos y ahora conserva solo el origen de la credencial y la IP.
+- Los fallos de notificaciones/eventos y de backups RUC mantienen contexto operativo útil, pero sin volcar mensajes de excepción completos en los logs o metadatos persistidos.
+
 ## [4.6.10] - 2026-08-11
 
 ### Fixed

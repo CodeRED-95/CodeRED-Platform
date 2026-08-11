@@ -27,7 +27,7 @@ class AuthenticateShalomApiKey
         if (! $keyRecord) {
             \Log::warning('Invalid Shalom API key attempt', [
                 'ip' => $request->ip(),
-                'key_prefix' => substr($apiKey, 0, 20),
+                'credential_source' => $this->credentialSource($request),
             ]);
 
             return response()->json([
@@ -91,5 +91,23 @@ class AuthenticateShalomApiKey
         }
 
         return $keyRecord;
+    }
+
+    private function credentialSource(Request $request): string
+    {
+        if ($request->hasHeader('X-Shalom-API-Key')) {
+            return 'x-shalom-api-key';
+        }
+
+        $authHeader = $request->header('Authorization');
+        if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+            return 'authorization-bearer';
+        }
+
+        if ($request->has('api_key')) {
+            return 'query-api_key';
+        }
+
+        return 'unknown';
     }
 }

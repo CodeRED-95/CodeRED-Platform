@@ -47,7 +47,7 @@ class RucBackupMultipartUploadController
                 'already_uploaded_parts' => [],
             ], 201);
         } catch (\Throwable $e) {
-            Log::warning('RUC multipart session rejected', ['error' => $e->getMessage(), 'user_id' => $request->user()?->id]);
+            Log::warning('RUC multipart session rejected', $this->safeErrorContext($e, ['user_id' => $request->user()?->id]));
 
             return response()->json(['message' => $e->getMessage()], 422);
         }
@@ -85,7 +85,8 @@ class RucBackupMultipartUploadController
             Log::warning('RUC multipart part rejected', [
                 'upload_id' => $upload->id,
                 'index' => $index,
-                'error' => $e->getMessage(),
+                'error_class' => $e::class,
+                'error_code' => $e->getCode() ?: null,
                 'user_id' => $request->user()?->id,
             ]);
 
@@ -104,5 +105,20 @@ class RucBackupMultipartUploadController
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 403);
         }
+    }
+
+    /**
+     * Conserva contexto suficiente para diagnóstico sin registrar el mensaje
+     * completo de la excepción, que puede arrastrar datos demasiado verbosos.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>
+     */
+    private function safeErrorContext(\Throwable $e, array $context = []): array
+    {
+        return array_merge([
+            'error_class' => $e::class,
+            'error_code' => $e->getCode() ?: null,
+        ], $context);
     }
 }
