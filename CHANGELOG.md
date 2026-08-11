@@ -6,6 +6,12 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.13] - 2026-08-11
+
+### Documentation
+
+- Se añadió una guía operativa de disaster recovery para dejar centralizados el inventario crítico, la estrategia de backup y los pasos de recuperación de PostgreSQL, RUC, n8n, claves y volúmenes Docker.
+
 ## [4.6.12] - 2026-08-11
 
 ### Fixed

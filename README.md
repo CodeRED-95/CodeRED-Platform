@@ -84,6 +84,8 @@ Respalda el `.env`, aplica `git pull --ff-only`, añade variables nuevas sin
 sobrescribir secretos, reconstruye solo los servicios necesarios y ejecuta
 migraciones y cachés sin borrar volúmenes. Ver
 [docs/DEPLOYMENT_SAFE.md](docs/DEPLOYMENT_SAFE.md).
+La guía operativa de recuperación ante desastres está en
+[docs/DISASTER_RECOVERY.md](docs/DISASTER_RECOVERY.md).
 
 ## Docker
 
