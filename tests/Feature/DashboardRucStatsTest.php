@@ -45,6 +45,7 @@ class DashboardRucStatsTest extends TestCase
 
         Livewire::actingAs($user)
             ->test(Dashboard::class)
+            ->assertViewHas('rucMetrics', fn (array $metrics): bool => array_key_exists('backups', $metrics))
             ->assertSee('Registros RUC')
             ->assertSee('Backups RUC')
             ->assertSee('Consultas hoy');

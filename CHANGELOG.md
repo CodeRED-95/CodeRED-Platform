@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.5] - 2026-08-11
+
+### Fixed
+
+- Se eliminó una consulta directa del Blade del dashboard para `Backups RUC`.
+- El total de backups ahora se calcula y cachea dentro de las métricas del dashboard, reduciendo una consulta por render sin cambiar el comportamiento visible.
+
 ## [4.6.4] - 2026-08-11
 
 ### Fixed

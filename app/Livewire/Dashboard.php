@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImportRun;
+use App\Modules\Ruc\Models\RucBackup;
 use App\Policies\UserPolicy;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -221,6 +222,7 @@ class Dashboard extends Component
                 'records' => $stats?->total_records ?? 0,
                 'requests_today' => ApiRequestLog::query()->where('service', 'ruc')->whereDate('created_at', today())->count(),
                 'last_restore' => $stats?->last_restore_at,
+                'backups' => RucBackup::query()->count(),
             ];
         });
     }
