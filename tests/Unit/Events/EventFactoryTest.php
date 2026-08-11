@@ -14,7 +14,7 @@ class EventFactoryTest extends TestCase
     #[Test]
     public function it_builds_the_canonical_event_envelope(): void
     {
-        $factory = new EventFactory(new UuidV7Generator());
+        $factory = new EventFactory(new UuidV7Generator);
 
         $event = $factory->make(EventType::TOKEN_REQUEST_CREATED, ['request_id' => 123]);
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Ruc;
 
+use App\Livewire\Admin\Ruc\Records as RucRecordsPage;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Ruc\Models\RucRecord;
@@ -9,6 +10,7 @@ use App\Modules\Ruc\Services\RucAnalyticsService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class RucPerformanceBenchmarkTest extends TestCase
@@ -130,20 +132,17 @@ class RucPerformanceBenchmarkTest extends TestCase
         $user = $this->adminUser();
 
         $startTime = microtime(true);
-        $response1 = $this->actingAs($user)->get(route('admin.ruc.records'));
+        $component = Livewire::actingAs($user)->test(RucRecordsPage::class);
         $time1 = microtime(true) - $startTime;
 
-        $response1->assertOk();
-        $paginator = $response1['records'];
+        $paginator = $component->viewData('records');
         $cursor = $paginator->nextPageUrl() ? explode('cursor=', $paginator->nextPageUrl())[1] ?? null : null;
 
         // Load page 2
         if ($cursor) {
             $startTime = microtime(true);
-            $response2 = $this->actingAs($user)->get(route('admin.ruc.records', ['cursor' => $cursor]));
+            $response2 = Livewire::actingAs($user)->test(RucRecordsPage::class, ['cursor' => $cursor]);
             $time2 = microtime(true) - $startTime;
-
-            $response2->assertOk();
 
             // Page 2 should be roughly as fast as page 1 (no COUNT penalty)
             // Allow 1.5x variance (may be slightly slower due to offset, but not exponential)
@@ -169,16 +168,12 @@ class RucPerformanceBenchmarkTest extends TestCase
         });
 
         $startTime = microtime(true);
-        $response = $this->actingAs($user)->get(route('admin.ruc.records'));
+        $component = Livewire::actingAs($user)->test(RucRecordsPage::class);
         $time = microtime(true) - $startTime;
 
-        $response->assertOk();
-        $response->assertViewHas('estados');
-        $response->assertViewHas('condiciones');
-
         // Verify estados/condiciones are arrays (hardcoded)
-        $this->assertIsArray($response['estados']);
-        $this->assertIsArray($response['condiciones']);
+        $this->assertIsArray($component->viewData('estados'));
+        $this->assertIsArray($component->viewData('condiciones'));
 
         // Should load in < 50ms (fast)
         $this->assertLessThan(0.05, $time, 'Filter options should load quickly (<50ms)');

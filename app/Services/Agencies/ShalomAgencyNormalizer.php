@@ -40,6 +40,8 @@ final class ShalomAgencyNormalizer
         );
         $district = $this->firstFilled(
             $this->normalizeText(data_get($ubigeo, 'distrito')),
+            $this->normalizeText(data_get($row, 'district')),
+            $this->normalizeText(data_get($sourceRecord, 'distrito')),
             $this->normalizeText(data_get($row, 'zone')),
             $this->normalizeText(data_get($sourceRecord, 'zona')),
             $this->districtFromPlace($this->firstFilled($place, data_get($sourceRecord, 'nombre')))

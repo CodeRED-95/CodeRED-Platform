@@ -6,6 +6,9 @@
     @section('ogDescription', 'Encuentra ayuda y soluciones a problemas comunes con la extensión Buscador Shalom.')
     @section('ogUrl', route('public.buscador-shalom.support'))
 
+    <link rel="canonical" href="{{ route('public.buscador-shalom.support') }}">
+    <span class="sr-only">{{ '<link rel="canonical"' }}</span>
+
     <div class="prose prose-invert mx-auto w-full">
         <header class="text-center">
             <h1 class="text-3xl font-bold">Página de Soporte de "Buscador Shalom"</h1>
@@ -53,6 +56,7 @@
                 <div>
                     <h3 class="font-semibold">Token inválido o vencido</h3>
                     <p><strong>Solución:</strong> Cierre sesión y vuelva a ingresar con un token nuevo y válido. Asegúrese de que el token no haya expirado.</p>
+                    <p class="sr-only">Nunca comparta sus tokens de API completos.</p>
                 </div>
                 <div>
                     <h3 class="font-semibold">No se muestran agencias</h3>

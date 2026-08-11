@@ -2,15 +2,15 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Helpers\Logger;
+use RucTool\Services\BackupPartitioner;
+use RucTool\Services\ManifestService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Services\BackupPartitioner;
-use RucTool\Services\ManifestService;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'backup:verify', description: 'Verify a split backup: manifest, parts, checksums, and reconstructed SHA-256')]
 class BackupVerifyCommand extends Command
@@ -28,9 +28,9 @@ class BackupVerifyCommand extends Command
         $io->title('RUC Backup Verify');
 
         try {
-            $manifestService = new ManifestService();
+            $manifestService = new ManifestService;
             $manifest = $manifestService->read($manifestPath);
-            $errors = $manifestService->validate($manifest, dirname($manifestPath), new BackupPartitioner());
+            $errors = $manifestService->validate($manifest, dirname($manifestPath), new BackupPartitioner);
 
             if (empty($errors)) {
                 $io->table(
@@ -39,12 +39,12 @@ class BackupVerifyCommand extends Command
                         ['Backup', $manifest['original_filename'] ?? '—'],
                         ['Registros', number_format($manifest['total_records'] ?? 0)],
                         ['Partes', (string) ($manifest['total_parts'] ?? 0)],
-                        ['Tamaño total', number_format($manifest['total_size_bytes'] ?? 0) . ' bytes'],
+                        ['Tamaño total', number_format($manifest['total_size_bytes'] ?? 0).' bytes'],
                         ['SHA-256', $manifest['sha256'] ?? '—'],
                     ]
                 );
                 $io->success('Backup válido.');
-                Logger::info('Backup verified OK: ' . $manifestPath);
+                Logger::info('Backup verified OK: '.$manifestPath);
 
                 return Command::SUCCESS;
             }
@@ -52,12 +52,12 @@ class BackupVerifyCommand extends Command
             foreach ($errors as $error) {
                 $io->error($error);
             }
-            Logger::error('Backup verify failed: ' . $manifestPath . ' — ' . implode(' | ', $errors));
+            Logger::error('Backup verify failed: '.$manifestPath.' — '.implode(' | ', $errors));
 
             return Command::FAILURE;
         } catch (\Exception $e) {
-            $io->error('Verify failed: ' . $e->getMessage());
-            Logger::error('Backup verify failed: ' . $e->getMessage());
+            $io->error('Verify failed: '.$e->getMessage());
+            Logger::error('Backup verify failed: '.$e->getMessage());
 
             return Command::FAILURE;
         }

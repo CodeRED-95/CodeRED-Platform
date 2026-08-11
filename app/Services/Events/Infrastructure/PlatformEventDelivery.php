@@ -16,8 +16,7 @@ final class PlatformEventDelivery implements EventDeliveryContract
     public function __construct(
         private readonly EventTransportContract $transport,
         private readonly EventDispatchRepositoryContract $repository,
-    ) {
-    }
+    ) {}
 
     public function deliver(EventDispatch $dispatch, EventData $event): bool
     {
@@ -32,6 +31,7 @@ final class PlatformEventDelivery implements EventDeliveryContract
                 $this->transport->send($event);
                 $durationMs = (int) round((hrtime(true) - $startedAt) / 1_000_000);
                 $this->repository->markSent($dispatch, 200, json_encode(['success' => true], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', $attempt, $durationMs);
+
                 return true;
             } catch (Throwable $exception) {
                 $lastException = $exception;

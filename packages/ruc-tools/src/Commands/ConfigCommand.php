@@ -2,20 +2,19 @@
 
 namespace RucTool\Commands;
 
-use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 use RucTool\Helpers\ConfigManager;
 use RucTool\Helpers\Logger;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(name: 'config', description: 'Manage RUC tool configuration')]
 class ConfigCommand extends Command
 {
-
     protected function configure(): void
     {
         $this
@@ -43,7 +42,7 @@ class ConfigCommand extends Command
         $action = $input->getArgument('action') ?? 'show';
 
         try {
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
 
             return match ($action) {
                 'show' => $this->showConfig($io, $configManager),
@@ -52,8 +51,9 @@ class ConfigCommand extends Command
                 default => $this->showHelp($io),
             };
         } catch (\Exception $e) {
-            $io->error('Config operation failed: ' . $e->getMessage());
-            Logger::error('Config command failed: ' . $e->getMessage());
+            $io->error('Config operation failed: '.$e->getMessage());
+            Logger::error('Config command failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }
@@ -88,7 +88,7 @@ class ConfigCommand extends Command
             ]
         );
 
-        $configPath = getenv('HOME') . '/.ruc-tool/ruc-tool.json';
+        $configPath = getenv('HOME').'/.ruc-tool/ruc-tool.json';
         $io->note("Configuration file: $configPath");
 
         return Command::SUCCESS;
@@ -99,9 +99,10 @@ class ConfigCommand extends Command
         $key = $input->getArgument('key');
         $value = $input->getArgument('value');
 
-        if (!$key || !$value) {
+        if (! $key || ! $value) {
             $io->error('Usage: ruc-tool config set <key> <value>');
             $io->writeln('Example: ruc-tool config set workers 8');
+
             return Command::FAILURE;
         }
 
@@ -120,18 +121,19 @@ class ConfigCommand extends Command
     private function resetConfig(SymfonyStyle $io, ConfigManager $configManager, InputInterface $input, OutputInterface $output): int
     {
         $helper = $this->getHelper('question');
-        $question = new \Symfony\Component\Console\Question\ConfirmationQuestion(
+        $question = new ConfirmationQuestion(
             'Reset configuration to defaults? (yes/no): ',
             false
         );
 
-        if (!$helper->ask($input, $output, $question)) {
+        if (! $helper->ask($input, $output, $question)) {
             $io->warning('Operation cancelled');
+
             return Command::SUCCESS;
         }
 
         // Remove config file
-        $configPath = getenv('HOME') . '/.ruc-tool/ruc-tool.json';
+        $configPath = getenv('HOME').'/.ruc-tool/ruc-tool.json';
         if (file_exists($configPath)) {
             unlink($configPath);
         }
@@ -166,7 +168,7 @@ Examples:
             'true' => true,
             'false' => false,
             'null' => null,
-            default => is_numeric($value) ? (int)$value : $value,
+            default => is_numeric($value) ? (int) $value : $value,
         };
     }
 }

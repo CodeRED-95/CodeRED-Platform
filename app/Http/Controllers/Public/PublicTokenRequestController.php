@@ -11,7 +11,6 @@ use App\Models\ApiTokenRequestEvent;
 use App\Services\ApiTokens\TokenVaultService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -85,18 +84,18 @@ class PublicTokenRequestController
             'request_uuid' => $requestUuid,
             'tracking_code' => $trackingCode,
             'request_type' => ApiTokenRequestType::Issuance,
-            
+
             'requester_name_encrypted' => $this->vault->encrypt(trim((string) $data['requester_name'])),
             'requester_email_blind_index' => $emailBlindIndex,
             'purpose_encrypted' => isset($data['reason']) ? $this->vault->encrypt($data['reason']) : null,
-            
+
             'application_name' => trim((string) $data['installation_name']),
-            
+
             'requested_token_name' => trim((string) $data['installation_name']),
             'requested_token_type' => 'agencies',
             'requested_abilities' => ['agencies:read'],
             'token_expires_in_days' => 30,
-            
+
             'status' => ApiTokenRequestStatus::Pending,
             'requested_ip' => hash('sha256', (string) $request->ip()),
             'request_source' => trim((string) ($data['source'] ?? 'public-web')),

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Shalom\Actions;
 
-use App\Models\User;
 use App\Modules\Shalom\Models\ShalomApiKey;
 use App\Modules\Shalom\Models\ShalomDeliveryRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -21,11 +21,12 @@ class RecibeShalomSyncAction
     /**
      * Recibe y almacena registros de sincronización de Shalom Recordar
      *
-     * @param array<array-key, array{field: string, value: string, timestamp: string}> $records
-     * @param string $username Usuario de la extensión
-     * @param ShalomApiKey|null $apiKey API key que autenticó la solicitud
-     * @param Request|null $request Solicitud HTTP (para auditoría)
+     * @param  array<array-key, array{field: string, value: string, timestamp: string}>  $records
+     * @param  string  $username  Usuario de la extensión
+     * @param  ShalomApiKey|null  $apiKey  API key que autenticó la solicitud
+     * @param  Request|null  $request  Solicitud HTTP (para auditoría)
      * @return string Batch ID de la sincronización
+     *
      * @throws ValidationException
      */
     public function execute(array $records, string $username, ?ShalomApiKey $apiKey = null, ?Request $request = null): string
@@ -36,7 +37,7 @@ class RecibeShalomSyncAction
 
         // Validar que cada registro tiene campos requeridos
         foreach ($records as $record) {
-            if (!isset($record['field'], $record['value'], $record['timestamp'])) {
+            if (! isset($record['field'], $record['value'], $record['timestamp'])) {
                 throw ValidationException::withMessages([
                     'records' => 'Each record must have field, value, and timestamp',
                 ]);
@@ -61,7 +62,7 @@ class RecibeShalomSyncAction
         });
 
         // Log auditoría
-        \Illuminate\Support\Facades\Log::info('Shalom sync received', [
+        Log::info('Shalom sync received', [
             'username' => $username,
             'batch_id' => $syncBatchId,
             'record_count' => count($records),

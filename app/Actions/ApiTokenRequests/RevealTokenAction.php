@@ -56,11 +56,11 @@ class RevealTokenAction
 
             // Verificar que no haya sido revelado
             if ($lockedRequest->hasTokenBeenRevealed()) {
-                throw new TokenAlreadyRevealedException();
+                throw new TokenAlreadyRevealedException;
             }
 
             // Obtener el token cifrado
-            if (!$lockedRequest->token_ciphertext) {
+            if (! $lockedRequest->token_ciphertext) {
                 AuditService::logTokenRevealDenied(
                     $lockedRequest,
                     $user,

@@ -70,6 +70,14 @@ class RucAnalyticsService
         // Used for PHASE 5: Performance measurement
         $result = DB::select('EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) '.$query);
 
+        $payload = $result[0]->{'QUERY PLAN'} ?? $result[0]->{'query plan'} ?? null;
+
+        if (is_string($payload)) {
+            $decoded = json_decode($payload, true);
+
+            return is_array($decoded) ? ($decoded[0] ?? $decoded) : [];
+        }
+
         return json_decode(json_encode($result[0]), true);
     }
 }

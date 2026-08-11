@@ -91,9 +91,10 @@ class AuthenticationFlowTest extends TestCase
 
     public function test_role_does_not_prevent_active_user_from_authenticating(): void
     {
-        $role = Role::query()->create([
-            'name' => 'Consulta',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'viewer',
+        ], [
+            'name' => 'Consulta',
             'is_system' => false,
         ]);
         $user = $this->activeUser();

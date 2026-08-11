@@ -32,7 +32,7 @@ class PadronParser
             return ['error' => 'Número de columnas insuficiente.'];
         }
 
-        if (!preg_match('/^\d{11}$/', $columns[0])) {
+        if (! preg_match('/^\d{11}$/', $columns[0])) {
             return ['error' => 'RUC inválido.'];
         }
 
@@ -75,8 +75,8 @@ class PadronParser
     public function buildAddress(array $parts): ?string
     {
         $parts = array_filter(
-            array_map(fn(mixed $value): string => trim((string) $value), $parts),
-            fn(string $value): bool => !in_array(mb_strtoupper($value), ['', '-', '--', 'NULL', 'N/A'], true)
+            array_map(fn (mixed $value): string => trim((string) $value), $parts),
+            fn (string $value): bool => ! in_array(mb_strtoupper($value), ['', '-', '--', 'NULL', 'N/A'], true)
         );
 
         $address = preg_replace('/\s+/u', ' ', implode(' ', $parts));

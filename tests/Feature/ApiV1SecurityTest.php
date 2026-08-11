@@ -76,10 +76,14 @@ class ApiV1SecurityTest extends TestCase
             ->assertJsonPath('data.0.estado', 'Activa')->assertJsonPath('data.0.centro_operaciones', true)
             ->assertJsonPath('data.0.texto_chosen_aereo', null)->assertJsonPath('meta.per_page', 1);
         $this->assertSame([
-            'external_id', 'code', 'name', 'old_name', 'place', 'department', 'province', 'district', 'address',
-            'latitude', 'longitude', 'map_url', 'schedule', 'classification', 'chosen_terrestre', 'chosen_aereo', 'status',
-            'internal_id', 'id', 'agencia', 'agencia_anterior', 'departamento', 'provincia', 'distrito', 'direccion',
-            'link_mapa', 'tamano', 'estado', 'centro_operaciones', 'texto_chosen_terrestre', 'texto_chosen_aereo',
+            'external_id', 'code', 'name', 'old_name', 'short_name', 'slug', 'place', 'ubigeo_id', 'department', 'province',
+            'district', 'address', 'reference', 'phone', 'secondary_phone', 'email', 'latitude', 'longitude', 'map_url',
+            'schedule', 'schedule_general', 'schedule_sunday', 'classification', 'classification_category',
+            'classification_sends_category', 'classification_receives_category', 'chosen_terrestre', 'chosen_aereo',
+            'status', 'is_operations_center', 'has_moved', 'moved_to_agency_id', 'moved_to_agency_code',
+            'moved_to_agency_name', 'moved_to_address', 'observations', 'updated_at', 'internal_id', 'id', 'agencia',
+            'agencia_anterior', 'departamento', 'provincia', 'distrito', 'direccion', 'link_mapa', 'tamano', 'estado',
+            'centro_operaciones', 'texto_chosen_terrestre', 'texto_chosen_aereo',
         ], array_keys($response->json('data.0')));
         $response->assertJsonMissingPath('data.0.zone');
         $response->assertJsonMissing(['internal_id' => $deleted->id]);

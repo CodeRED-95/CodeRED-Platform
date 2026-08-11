@@ -37,7 +37,7 @@ class BackupPartitioner
         $partIndex = 0;
 
         try {
-            while (!feof($source)) {
+            while (! feof($source)) {
                 $partIndex++;
                 $partFilename = sprintf('%s.part%04d', $sourceBasename, $partIndex);
                 $partPath = "{$outputDir}/{$partFilename}";
@@ -51,7 +51,7 @@ class BackupPartitioner
                 $hashContext = hash_init('sha256');
 
                 try {
-                    while ($bytesWritten < $partSizeBytes && !feof($source)) {
+                    while ($bytesWritten < $partSizeBytes && ! feof($source)) {
                         $toRead = min(self::CHUNK_SIZE, $partSizeBytes - $bytesWritten);
                         $chunk = fread($source, $toRead);
                         if ($chunk === false) {
@@ -103,7 +103,7 @@ class BackupPartitioner
      * Reconstruye el archivo original concatenando las partes en orden, por
      * streaming (stream_copy_to_stream nunca carga el archivo completo).
      *
-     * @param string[] $partPaths Rutas absolutas, ya en el orden correcto.
+     * @param  string[]  $partPaths  Rutas absolutas, ya en el orden correcto.
      */
     public function join(array $partPaths, string $outputPath): void
     {
@@ -114,18 +114,18 @@ class BackupPartitioner
 
         try {
             foreach ($partPaths as $partPath) {
-                if (!file_exists($partPath)) {
-                    throw new \Exception('Falta la parte: ' . basename($partPath));
+                if (! file_exists($partPath)) {
+                    throw new \Exception('Falta la parte: '.basename($partPath));
                 }
 
                 $source = fopen($partPath, 'rb');
                 if ($source === false) {
-                    throw new \Exception('No se pudo abrir la parte: ' . basename($partPath));
+                    throw new \Exception('No se pudo abrir la parte: '.basename($partPath));
                 }
 
                 try {
                     if (stream_copy_to_stream($source, $dest) === false) {
-                        throw new \Exception('Error copiando la parte: ' . basename($partPath));
+                        throw new \Exception('Error copiando la parte: '.basename($partPath));
                     }
                 } finally {
                     fclose($source);
@@ -142,27 +142,27 @@ class BackupPartitioner
      * único contexto de hash. Usado para verificar un split/manifest sin
      * duplicar espacio en disco.
      *
-     * @param string[] $partPaths Rutas absolutas, en el orden correcto.
+     * @param  string[]  $partPaths  Rutas absolutas, en el orden correcto.
      */
     public function streamingSha256(array $partPaths): string
     {
         $context = hash_init('sha256');
 
         foreach ($partPaths as $partPath) {
-            if (!file_exists($partPath)) {
-                throw new \Exception('Falta la parte: ' . basename($partPath));
+            if (! file_exists($partPath)) {
+                throw new \Exception('Falta la parte: '.basename($partPath));
             }
 
             $handle = fopen($partPath, 'rb');
             if ($handle === false) {
-                throw new \Exception('No se pudo abrir la parte: ' . basename($partPath));
+                throw new \Exception('No se pudo abrir la parte: '.basename($partPath));
             }
 
             try {
-                while (!feof($handle)) {
+                while (! feof($handle)) {
                     $chunk = fread($handle, self::CHUNK_SIZE);
                     if ($chunk === false) {
-                        throw new \Exception('Error leyendo la parte: ' . basename($partPath));
+                        throw new \Exception('Error leyendo la parte: '.basename($partPath));
                     }
                     if ($chunk !== '') {
                         hash_update($context, $chunk);

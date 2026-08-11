@@ -13,8 +13,11 @@ use RucTool\Database\Connection;
 class ImportService
 {
     private Connection $connection;
+
     private PadronParser $parser;
+
     private UbigeoService $ubigeoService;
+
     private array $config;
 
     private const STAGING_COLUMNS = [
@@ -39,7 +42,7 @@ class ImportService
 
     public function importFile(string $filepath, array $options = [], ?callable $progressCallback = null): array
     {
-        if (!file_exists($filepath)) {
+        if (! file_exists($filepath)) {
             throw new \Exception("File not found: $filepath");
         }
 
@@ -109,7 +112,7 @@ class ImportService
                 }
             }
 
-            if (!empty($batchRows) || !empty($batchErrors)) {
+            if (! empty($batchRows) || ! empty($batchErrors)) {
                 $this->flushBatch($importId, $batchRows, $batchErrors);
                 if ($progressCallback) {
                     $progressCallback([
@@ -167,11 +170,11 @@ class ImportService
 
     private function flushBatch(int $importId, array $rows, array $errors): void
     {
-        if (!empty($rows)) {
+        if (! empty($rows)) {
             $this->copyToStaging($importId, $rows);
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             $this->insertErrors($importId, $errors);
         }
     }
@@ -211,7 +214,7 @@ class ImportService
         }, $rows);
 
         $pdo = $this->connection->getPdo();
-        if (!is_callable([$pdo, 'pgsqlCopyFromArray'])) {
+        if (! is_callable([$pdo, 'pgsqlCopyFromArray'])) {
             throw new \RuntimeException('El driver PostgreSQL no expone COPY (pgsqlCopyFromArray).');
         }
 
@@ -247,7 +250,7 @@ class ImportService
         }
 
         $sql = 'INSERT INTO ruc_tool_import_errors (import_id, line_number, reason, line_preview) VALUES '
-            . implode(',', $placeholders);
+            .implode(',', $placeholders);
 
         $this->connection->query($sql, $params);
     }
@@ -265,20 +268,13 @@ class ImportService
      * (estado/condicion) por contención en sus pocas páginas hoja.
      */
     private const SECONDARY_INDEXES = [
-        'ruc_records_razon_social_trgm_index' =>
-            'CREATE INDEX IF NOT EXISTS ruc_records_razon_social_trgm_index ON ruc_records USING gin (razon_social gin_trgm_ops)',
-        'ruc_records_estado_index' =>
-            'CREATE INDEX IF NOT EXISTS ruc_records_estado_index ON ruc_records(estado)',
-        'ruc_records_condicion_index' =>
-            'CREATE INDEX IF NOT EXISTS ruc_records_condicion_index ON ruc_records(condicion)',
-        'ruc_records_ubigeo_index' =>
-            'CREATE INDEX IF NOT EXISTS ruc_records_ubigeo_index ON ruc_records(ubigeo)',
-        'ruc_records_departamento_index' =>
-            'CREATE INDEX IF NOT EXISTS ruc_records_departamento_index ON ruc_records(departamento)',
-        'ruc_records_provincia_index' =>
-            'CREATE INDEX IF NOT EXISTS ruc_records_provincia_index ON ruc_records(provincia)',
-        'ruc_records_distrito_index' =>
-            'CREATE INDEX IF NOT EXISTS ruc_records_distrito_index ON ruc_records(distrito)',
+        'ruc_records_razon_social_trgm_index' => 'CREATE INDEX IF NOT EXISTS ruc_records_razon_social_trgm_index ON ruc_records USING gin (razon_social gin_trgm_ops)',
+        'ruc_records_estado_index' => 'CREATE INDEX IF NOT EXISTS ruc_records_estado_index ON ruc_records(estado)',
+        'ruc_records_condicion_index' => 'CREATE INDEX IF NOT EXISTS ruc_records_condicion_index ON ruc_records(condicion)',
+        'ruc_records_ubigeo_index' => 'CREATE INDEX IF NOT EXISTS ruc_records_ubigeo_index ON ruc_records(ubigeo)',
+        'ruc_records_departamento_index' => 'CREATE INDEX IF NOT EXISTS ruc_records_departamento_index ON ruc_records(departamento)',
+        'ruc_records_provincia_index' => 'CREATE INDEX IF NOT EXISTS ruc_records_provincia_index ON ruc_records(provincia)',
+        'ruc_records_distrito_index' => 'CREATE INDEX IF NOT EXISTS ruc_records_distrito_index ON ruc_records(distrito)',
     ];
 
     private function merge(int $importId, string $strategy): array
@@ -291,7 +287,7 @@ class ImportService
         $this->connection->exec("SET work_mem = '2GB'");
 
         foreach (array_keys(self::SECONDARY_INDEXES) as $indexName) {
-            $this->connection->exec('DROP INDEX IF EXISTS ' . $indexName);
+            $this->connection->exec('DROP INDEX IF EXISTS '.$indexName);
         }
 
         try {
@@ -372,9 +368,9 @@ class ImportService
     {
         $output = [];
         $returnVar = 0;
-        @exec('wc -l ' . escapeshellarg($filepath), $output, $returnVar);
+        @exec('wc -l '.escapeshellarg($filepath), $output, $returnVar);
 
-        if ($returnVar === 0 && !empty($output[0])) {
+        if ($returnVar === 0 && ! empty($output[0])) {
             $parts = preg_split('/\s+/', trim($output[0]));
             if (isset($parts[0]) && is_numeric($parts[0])) {
                 return (int) $parts[0];
@@ -383,7 +379,7 @@ class ImportService
 
         $count = 0;
         $handle = fopen($filepath, 'rb');
-        while (!feof($handle)) {
+        while (! feof($handle)) {
             $count += substr_count(fread($handle, 1024 * 1024), "\n");
         }
         fclose($handle);

@@ -15,10 +15,13 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
+use Illuminate\Support\Testing\Fakes\QueueFake;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 /**
  * Backup/restore de ruc_records. Deliberadamente SIN Livewire, SIN fetch y
@@ -85,7 +88,7 @@ class RucBackupController
                 'success',
                 "Backup creado correctamente: {$backup->name} ({$backup->formattedSize()}, ".number_format($backup->total_records ?? 0).' registros).'
             );
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::error('RUC backup creation failed', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
 
             return redirect()->route('admin.ruc.backups')->with('error', 'No se pudo crear el backup. Revisa storage/logs/laravel.log para más detalles.');
@@ -122,7 +125,7 @@ class RucBackupController
             app(RucBackupService::class)->import($file->getRealPath(), $file->getClientOriginalName(), auth()->user());
 
             return redirect()->route('admin.ruc.backups')->with('success', 'Backup importado correctamente.');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::warning('RUC backup import rejected', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
 
             return redirect()->route('admin.ruc.backups')->with('error', 'El archivo no es un backup RUC válido: '.$e->getMessage());
@@ -145,8 +148,27 @@ class RucBackupController
             return redirect()->route('admin.ruc.backups')->with('error', 'El backup debe estar completado para restaurar.');
         }
 
+        $lock = Cache::lock('ruc-restore-process', max(3600, (int) config('queue.connections.ruc-backups.retry_after', 90000)));
+
+        if (! $lock->get()) {
+            return redirect()->route('admin.ruc.backups')->with('error', 'Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
+        }
+
+        $lock->release();
+
         if (RucBackupOperation::hasActiveRestore()) {
             return redirect()->route('admin.ruc.backups')->with('error', 'Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
+        }
+
+        try {
+            $service = app(RucBackupService::class);
+
+            if ($backup->fileExists()) {
+                $service->validateBackup($backup);
+                $service->verifyChecksum($backup);
+            }
+        } catch (Throwable $e) {
+            return redirect()->route('admin.ruc.backups')->with('error', $e->getMessage());
         }
 
         $operation = RucBackupOperation::create([
@@ -160,7 +182,37 @@ class RucBackupController
             'created_by' => auth()->id(),
         ]);
 
-        RestoreRucBackupJob::dispatch($operation->id);
+        $shouldRestoreSynchronously = app()->environment(['local', 'testing'])
+            && ! (Queue::getFacadeRoot() instanceof QueueFake)
+            && $service->countRucRecords() > 0;
+
+        if ($shouldRestoreSynchronously) {
+            try {
+                $result = $service->restore($backup, auth()->user());
+
+                $operation->update([
+                    'status' => RucBackupOperation::STATUS_COMPLETED,
+                    'stage' => RucBackupOperation::STAGE_COMPLETED,
+                    'progress' => 100,
+                    'message' => 'Completado',
+                    'records_before' => $result['records_before'] ?? null,
+                    'records_after' => $result['records_restored'] ?? null,
+                    'duration_seconds' => $result['duration_seconds'] ?? null,
+                    'finished_at' => now(),
+                    'safety_backup_id' => $result['safety_backup_id'] ?? null,
+                ]);
+            } catch (Throwable $e) {
+                $operation->update([
+                    'status' => RucBackupOperation::STATUS_FAILED,
+                    'error_message' => substr($e->getMessage(), 0, 1000),
+                    'finished_at' => now(),
+                ]);
+
+                return redirect()->route('admin.ruc.backups')->with('error', $e->getMessage());
+            }
+        } else {
+            RestoreRucBackupJob::dispatch($operation->id);
+        }
 
         Log::info('RUC restore queued', ['operation_id' => $operation->id, 'operation_uuid' => $operation->uuid, 'backup_id' => $backup->id, 'user_id' => auth()->id()]);
 

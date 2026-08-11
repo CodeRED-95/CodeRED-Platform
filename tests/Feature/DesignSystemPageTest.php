@@ -14,16 +14,18 @@ class DesignSystemPageTest extends TestCase
 
     private function makeSuperAdmin(): User
     {
-        $role = Role::query()->create([
-            'name' => 'Super Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'super-admin',
+        ], [
+            'name' => 'Super Administrador',
             'description' => null,
             'is_system' => true,
         ]);
 
-        Permission::query()->create([
-            'name' => 'Ver agencias',
+        Permission::query()->firstOrCreate([
             'slug' => 'agencies.view',
+        ], [
+            'name' => 'Ver agencias',
             'description' => null,
         ]);
 

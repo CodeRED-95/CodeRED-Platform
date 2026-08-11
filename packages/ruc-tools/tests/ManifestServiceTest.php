@@ -9,14 +9,16 @@ use RucTool\Services\ManifestService;
 class ManifestServiceTest extends TestCase
 {
     private ManifestService $manifestService;
+
     private BackupPartitioner $partitioner;
+
     private string $workDir;
 
     protected function setUp(): void
     {
-        $this->manifestService = new ManifestService();
-        $this->partitioner = new BackupPartitioner();
-        $this->workDir = sys_get_temp_dir() . '/ruc_tool_manifest_test_' . uniqid();
+        $this->manifestService = new ManifestService;
+        $this->partitioner = new BackupPartitioner;
+        $this->workDir = sys_get_temp_dir().'/ruc_tool_manifest_test_'.uniqid();
         mkdir($this->workDir, 0755, true);
     }
 
@@ -27,7 +29,7 @@ class ManifestServiceTest extends TestCase
 
     private function removeDirectory(string $dir): void
     {
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             return;
         }
         foreach (scandir($dir) as $entry) {
@@ -44,7 +46,7 @@ class ManifestServiceTest extends TestCase
     private function makeValidManifest(): array
     {
         $sourcePath = "{$this->workDir}/source.bin";
-        file_put_contents($sourcePath, str_repeat('a', 200) . str_repeat('b', 50));
+        file_put_contents($sourcePath, str_repeat('a', 200).str_repeat('b', 50));
         $checksum = hash_file('sha256', $sourcePath);
 
         $parts = $this->partitioner->split($sourcePath, $this->workDir, 'source.bin', 100);
@@ -52,7 +54,7 @@ class ManifestServiceTest extends TestCase
         return $this->manifestService->build('source.bin', 12345, 250, 100, $checksum, $parts, '2.3.0-test');
     }
 
-    public function testValidManifestPassesValidation(): void
+    public function test_valid_manifest_passes_validation(): void
     {
         $manifest = $this->makeValidManifest();
 
@@ -61,7 +63,7 @@ class ManifestServiceTest extends TestCase
         $this->assertSame([], $errors);
     }
 
-    public function testWriteAndReadRoundTrip(): void
+    public function test_write_and_read_round_trip(): void
     {
         $manifest = $this->makeValidManifest();
         $path = "{$this->workDir}/test.manifest.json";
@@ -73,7 +75,7 @@ class ManifestServiceTest extends TestCase
         $this->assertSame([], $this->manifestService->validate($read, $this->workDir, $this->partitioner));
     }
 
-    public function testManifestNeverContainsCredentials(): void
+    public function test_manifest_never_contains_credentials(): void
     {
         $manifest = $this->makeValidManifest();
         $json = json_encode($manifest);
@@ -83,7 +85,7 @@ class ManifestServiceTest extends TestCase
         }
     }
 
-    public function testMissingPartIsDetected(): void
+    public function test_missing_part_is_detected(): void
     {
         $manifest = $this->makeValidManifest();
         unlink("{$this->workDir}/{$manifest['parts'][1]['filename']}");
@@ -95,7 +97,7 @@ class ManifestServiceTest extends TestCase
         $this->assertStringContainsString($manifest['parts'][1]['filename'], $errors[0]);
     }
 
-    public function testCorruptedPartChecksumIsDetected(): void
+    public function test_corrupted_part_checksum_is_detected(): void
     {
         $manifest = $this->makeValidManifest();
         $partPath = "{$this->workDir}/{$manifest['parts'][0]['filename']}";
@@ -111,7 +113,7 @@ class ManifestServiceTest extends TestCase
         $this->assertStringContainsString('Checksum incorrecto', $errors[0]);
     }
 
-    public function testIncompleteLastPartIsDetectedByFinalShaMismatch(): void
+    public function test_incomplete_last_part_is_detected_by_final_sha_mismatch(): void
     {
         $manifest = $this->makeValidManifest();
         $lastPart = $manifest['parts'][count($manifest['parts']) - 1];
@@ -126,7 +128,7 @@ class ManifestServiceTest extends TestCase
         $this->assertStringContainsString('Tamaño incorrecto', $errors[0]);
     }
 
-    public function testWrongOrderIsDetected(): void
+    public function test_wrong_order_is_detected(): void
     {
         $manifest = $this->makeValidManifest();
         // Duplicar el index 1 y quitar el 2: rompe la secuencia 1..N.
@@ -138,7 +140,7 @@ class ManifestServiceTest extends TestCase
         $this->assertStringContainsString('orden correcto', $errors[0]);
     }
 
-    public function testCorruptManifestMissingKeyIsDetected(): void
+    public function test_corrupt_manifest_missing_key_is_detected(): void
     {
         $manifest = $this->makeValidManifest();
         unset($manifest['sha256']);
@@ -149,7 +151,7 @@ class ManifestServiceTest extends TestCase
         $this->assertStringContainsString('sha256', $errors[0]);
     }
 
-    public function testUnsupportedFormatVersionIsRejected(): void
+    public function test_unsupported_format_version_is_rejected(): void
     {
         $manifest = $this->makeValidManifest();
         $manifest['format_version'] = 999;
@@ -160,7 +162,7 @@ class ManifestServiceTest extends TestCase
         $this->assertStringContainsString('format_version', $errors[0]);
     }
 
-    public function testTotalPartsMismatchIsDetected(): void
+    public function test_total_parts_mismatch_is_detected(): void
     {
         $manifest = $this->makeValidManifest();
         $manifest['total_parts'] = count($manifest['parts']) + 5;
@@ -170,7 +172,7 @@ class ManifestServiceTest extends TestCase
         $this->assertNotEmpty($errors);
     }
 
-    public function testReassembledFileMatchesOriginalShaEndToEnd(): void
+    public function test_reassembled_file_matches_original_sha_end_to_end(): void
     {
         $sourcePath = "{$this->workDir}/source.bin";
         file_put_contents($sourcePath, random_bytes(1000));

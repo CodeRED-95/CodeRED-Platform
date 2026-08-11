@@ -66,9 +66,9 @@ class SoftDeleteManagementTest extends TestCase
 
     public function test_viewer_cannot_execute_destructive_actions(): void
     {
-        $agencyView = Permission::query()->create(['slug' => 'agencies.view', 'name' => 'Ver agencias']);
-        $usersView = Permission::query()->create(['slug' => 'users.view', 'name' => 'Ver usuarios']);
-        $role = Role::query()->create(['slug' => 'viewer', 'name' => 'Consulta']);
+        $agencyView = Permission::query()->firstOrCreate(['slug' => 'agencies.view'], ['name' => 'Ver agencias']);
+        $usersView = Permission::query()->firstOrCreate(['slug' => 'users.view'], ['name' => 'Ver usuarios']);
+        $role = Role::query()->firstOrCreate(['slug' => 'viewer'], ['name' => 'Consulta']);
         $role->permissions()->sync([$agencyView->id, $usersView->id]);
         $actor = User::factory()->create();
         $actor->roles()->attach($role);

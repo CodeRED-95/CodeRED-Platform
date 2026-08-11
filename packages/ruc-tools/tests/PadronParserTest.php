@@ -11,10 +11,10 @@ class PadronParserTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->parser = new PadronParser();
+        $this->parser = new PadronParser;
     }
 
-    public function testValidLineParsesCorrectly()
+    public function test_valid_line_parses_correctly()
     {
         $line = '20123456789|EMPRESA DEMO S.A.C.|ACTIVO|HABIDO|150101|AV|LOS PROCERES|-|-|123|-|-|-|-|-';
 
@@ -29,7 +29,7 @@ class PadronParserTest extends TestCase
         $this->assertSame('AV LOS PROCERES 123', $result['data']['direccion']);
     }
 
-    public function testHeaderLineIsDetected()
+    public function test_header_line_is_detected()
     {
         $line = 'RUC|NOMBRE O RAZÓN SOCIAL|ESTADO|CONDICION|UBIGEO';
 
@@ -38,7 +38,7 @@ class PadronParserTest extends TestCase
         $this->assertArrayHasKey('header', $result);
     }
 
-    public function testInvalidRucIsRejected()
+    public function test_invalid_ruc_is_rejected()
     {
         $line = '2012345678|EMPRESA DEMO S.A.C.|ACTIVO|HABIDO|150101';
 
@@ -47,7 +47,7 @@ class PadronParserTest extends TestCase
         $this->assertArrayHasKey('error', $result);
     }
 
-    public function testEmptyRazonSocialIsRejected()
+    public function test_empty_razon_social_is_rejected()
     {
         $line = '20123456789||ACTIVO|HABIDO|150101';
 
@@ -56,7 +56,7 @@ class PadronParserTest extends TestCase
         $this->assertArrayHasKey('error', $result);
     }
 
-    public function testMalformedUbigeoBecomesNull()
+    public function test_malformed_ubigeo_becomes_null()
     {
         $line = '20123456789|EMPRESA DEMO S.A.C.|ACTIVO|HABIDO|ABC123';
 
@@ -66,7 +66,7 @@ class PadronParserTest extends TestCase
         $this->assertNull($result['data']['ubigeo']);
     }
 
-    public function testDashPlaceholdersAreTreatedAsEmpty()
+    public function test_dash_placeholders_are_treated_as_empty()
     {
         $line = '20123456789|EMPRESA DEMO S.A.C.|-|-|-';
 
@@ -78,14 +78,14 @@ class PadronParserTest extends TestCase
         $this->assertNull($result['data']['ubigeo']);
     }
 
-    public function testBuildAddressFiltersPlaceholders()
+    public function test_build_address_filters_placeholders()
     {
         $address = $this->parser->buildAddress(['AV', 'LOS PROCERES', '-', 'N/A', '123']);
 
         $this->assertSame('AV LOS PROCERES 123', $address);
     }
 
-    public function testBuildAddressReturnsNullWhenEmpty()
+    public function test_build_address_returns_null_when_empty()
     {
         $address = $this->parser->buildAddress(['-', '', 'NULL']);
 

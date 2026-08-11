@@ -34,7 +34,7 @@ class ProfileTest extends TestCase
 
     public function test_user_updates_only_own_name_and_email_and_email_verification_is_reset(): void
     {
-        $role = Role::query()->create(['slug' => 'viewer', 'name' => 'Consulta']);
+        $role = Role::query()->firstOrCreate(['slug' => 'viewer'], ['name' => 'Consulta']);
         $user = User::factory()->create(['email' => 'old@example.test', 'status' => 'active', 'email_verified_at' => now()]);
         $other = User::factory()->create(['name' => 'Otra persona']);
         $user->roles()->attach($role);

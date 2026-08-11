@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Shalom\Livewire;
 
 use App\Modules\Shalom\Models\ShalomDeliveryRecord;
-use Livewire\Component;
 use Livewire\Attributes\On;
+use Livewire\Component;
 
 class DeliveryRecordSearch extends Component
 {

@@ -2,13 +2,14 @@
 
 namespace RucTool\Helpers;
 
-use Monolog\Logger as MonologLogger;
-use Monolog\Handler\RotatingFileHandler;
 use Monolog\Formatter\LineFormatter;
+use Monolog\Handler\RotatingFileHandler;
+use Monolog\Logger as MonologLogger;
 
 class Logger
 {
     private static ?MonologLogger $instance = null;
+
     private MonologLogger $logger;
 
     private function __construct(string $logDir)
@@ -25,7 +26,7 @@ class Logger
 
         $formatter = new LineFormatter(
             "[%datetime%] %channel%.%level_name%: %message%\n",
-            "Y-m-d H:i:s"
+            'Y-m-d H:i:s'
         );
 
         $fileHandler->setFormatter($formatter);
@@ -34,15 +35,15 @@ class Logger
 
     private function ensureLogDir(string $logDir): void
     {
-        if (!is_dir($logDir)) {
+        if (! is_dir($logDir)) {
             mkdir($logDir, 0755, true);
         }
     }
 
-    public static function getInstance(string $logDir = null): MonologLogger
+    public static function getInstance(?string $logDir = null): MonologLogger
     {
         if (self::$instance === null) {
-            $logDir = $logDir ?? getenv('HOME') . '/.ruc-tool/logs';
+            $logDir = $logDir ?? getenv('HOME').'/.ruc-tool/logs';
             $logger = new self($logDir);
             self::$instance = $logger->logger;
         }

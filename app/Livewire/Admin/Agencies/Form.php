@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Agencies;
 
 use App\Modules\Agencies\Actions\ApplyAgencyMoveAction;
+use App\Modules\Agencies\Enums\AgencySize;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Ruc\Models\Ubigeo;
@@ -68,6 +69,8 @@ class Form extends Component
     public ?string $observations = null;
 
     public string $status = 'under_review';
+
+    public ?string $size = null;
 
     public ?string $classification_category = null;
 
@@ -141,6 +144,7 @@ class Form extends Component
                 'services' => $agency->services ?? [],
                 'observations' => $agency->observations,
                 'status' => $agency->status->value,
+                'size' => $agency->size?->value,
                 'classification_category' => $agency->classification_category,
                 'classification_sends_category' => $agency->classification_sends_category,
                 'classification_receives_category' => $agency->classification_receives_category,
@@ -158,6 +162,8 @@ class Form extends Component
                 'moved_at' => optional($agency->moved_at)?->toDateString(),
             ]);
             $this->servicesInput = implode(', ', $agency->services ?? []);
+        } else {
+            $this->classification_category = $this->classification_category ?? 'PEQUEÑA';
         }
     }
 
@@ -176,6 +182,19 @@ class Form extends Component
     public function updatedClassificationCategory(): void
     {
         $this->is_operations_center = $this->normalizedOperationsCenterValue();
+    }
+
+    public function updatedIsOperationsCenter(): void
+    {
+        if ($this->is_operations_center) {
+            $this->classification_category = 'GRANDE / CO';
+
+            return;
+        }
+
+        if ($this->normalizedOperationsCenterValue()) {
+            $this->classification_category = 'PEQUEÑA';
+        }
     }
 
     public function updatedDepartment(): void
@@ -410,6 +429,7 @@ class Form extends Component
                 Rule::in(array_map(fn (AgencyStatus $case) => $case->value, AgencyStatus::cases())),
                 Rule::notIn($this->has_moved ? [] : [AgencyStatus::Moved->value]),
             ],
+            'size' => ['nullable', Rule::in(array_map(fn (AgencySize $case) => $case->value, AgencySize::cases()))],
             'ubigeo_id' => ['nullable', 'integer', 'exists:ubigeos,id'],
             'ubigeo_code' => ['nullable', 'string', 'max:20', function (string $attribute, mixed $value, \Closure $fail): void {
                 if ($value !== null && trim((string) $value) !== '' && $this->normalizeUbigeoCode($value) === null) {
@@ -470,6 +490,10 @@ class Form extends Component
         $payload['code'] = strtoupper((string) $payload['code']);
         $payload['name'] = trim((string) preg_replace('/\s+/u', ' ', $payload['name']));
         $payload['slug'] = $payload['slug'] ?: Str::slug($payload['name']);
+        $payload['size'] = filled($payload['size'] ?? null) ? $payload['size'] : null;
+        if ($payload['is_operations_center']) {
+            $payload['classification_category'] = 'GRANDE / CO';
+        }
         $payload['email'] = $payload['email'] ? mb_strtolower($payload['email']) : null;
         $payload['services'] = array_values(array_filter(array_map(
             fn ($service) => is_string($service) ? trim(preg_replace('/\s+/u', ' ', $service)) : null,

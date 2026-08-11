@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Core\Auth\AuthenticatedHome;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
-use App\Core\Auth\AuthenticatedHome;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;

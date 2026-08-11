@@ -25,12 +25,12 @@ class UbigeoService
      */
     public function seed(string $jsonPath): int
     {
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             throw new \Exception("Archivo de ubigeos no encontrado: $jsonPath");
         }
 
         $rows = json_decode(file_get_contents($jsonPath), true);
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             throw new \Exception("El archivo de ubigeos no contiene JSON válido: $jsonPath");
         }
 

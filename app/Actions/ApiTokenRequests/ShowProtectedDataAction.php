@@ -6,6 +6,7 @@ use App\Models\ApiTokenRequest;
 use App\Models\User;
 use App\Services\ApiTokens\AuditService;
 use App\Services\ApiTokens\TokenVaultService;
+use Illuminate\Auth\Access\AuthorizationException;
 
 class ShowProtectedDataAction
 {
@@ -27,7 +28,7 @@ class ShowProtectedDataAction
      *     delivery_reason: ?string,
      * }
      *
-     * @throws \Illuminate\Auth\Access\AuthorizationException
+     * @throws AuthorizationException
      */
     public function execute(
         ApiTokenRequest $request,
@@ -36,7 +37,7 @@ class ShowProtectedDataAction
         ?string $userAgent = null,
     ): array {
         // Verificar permiso
-        if (!$user->hasPermission('api-token-requests.view-protected-data')) {
+        if (! $user->hasPermission('api-token-requests.view-protected-data')) {
             AuditService::logProtectedDataViewDenied(
                 $request,
                 $user,
@@ -45,7 +46,7 @@ class ShowProtectedDataAction
                 'Permission denied'
             );
 
-            throw new \Illuminate\Auth\Access\AuthorizationException(
+            throw new AuthorizationException(
                 'No tienes permiso para ver datos protegidos.'
             );
         }

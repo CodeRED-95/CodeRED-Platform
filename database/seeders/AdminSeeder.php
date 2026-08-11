@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Services\Auth\ConfiguredAdminSyncService;
+use Illuminate\Database\Seeder;
 
 class AdminSeeder extends Seeder
 {

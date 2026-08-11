@@ -6,6 +6,7 @@ use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
 use App\Services\ApiTokens\TokenVaultService;
+use Database\Factories\ApiTokenRequestFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +16,7 @@ use Illuminate\Support\Str;
 
 class ApiTokenRequest extends Model
 {
-    /** @use HasFactory<\Database\Factories\ApiTokenRequestFactory> */
+    /** @use HasFactory<ApiTokenRequestFactory> */
     use HasFactory;
 
     private ?TokenVaultService $vaultService = null;
@@ -131,8 +132,9 @@ class ApiTokenRequest extends Model
     private function vault(): TokenVaultService
     {
         if ($this->vaultService === null) {
-            $this->vaultService = new TokenVaultService();
+            $this->vaultService = new TokenVaultService;
         }
+
         return $this->vaultService;
     }
 
@@ -181,7 +183,7 @@ class ApiTokenRequest extends Model
 
         return parent::setAttribute($key, $value);
     }
-    
+
     private function isBlankSecret(mixed $value): bool
     {
         return $value === null || (is_string($value) && trim($value) === '');
@@ -301,7 +303,7 @@ class ApiTokenRequest extends Model
      */
     public function canUserViewProtectedData($user): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -329,7 +331,7 @@ class ApiTokenRequest extends Model
      */
     public function canRevealToken(): bool
     {
-        return !$this->hasTokenBeenRevealed() && $this->statusValue() === ApiTokenRequestStatus::Approved->value;
+        return ! $this->hasTokenBeenRevealed() && $this->statusValue() === ApiTokenRequestStatus::Approved->value;
     }
 
     /**
@@ -452,4 +454,3 @@ class ApiTokenRequest extends Model
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 }
-

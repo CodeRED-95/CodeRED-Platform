@@ -83,7 +83,7 @@ class PublicTokenRequestWebTest extends TestCase
         ]));
 
         $request = ApiTokenRequest::query()->firstOrFail();
-        $vault = new TokenVaultService();
+        $vault = new TokenVaultService;
 
         $this->assertNotNull($request->getAttributes()['requester_name_encrypted']);
         $this->assertNotSame('Ada Lovelace', $request->getAttributes()['requester_name_encrypted']);

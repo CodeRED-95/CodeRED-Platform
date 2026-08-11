@@ -9,7 +9,7 @@ use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucBackupOperation;
 use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Routing\Exceptions\UrlGenerationException;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -30,7 +30,7 @@ use Tests\TestCase;
  */
 class RucBackupRestoreStatusUiTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTruncation;
 
     protected function setUp(): void
     {

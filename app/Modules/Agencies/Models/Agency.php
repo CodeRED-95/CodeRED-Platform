@@ -85,7 +85,11 @@ class Agency extends Model
 
             $agency->place = (new AgencyPlaceGenerator)($agency);
             $agency->map_url = (new AgencyMapUrlGenerator)($agency);
-            $agency->is_operations_center = mb_strtoupper(trim((string) $agency->classification_category), 'UTF-8') === 'GRANDE / CO';
+            if (array_key_exists('is_operations_center', $agency->getAttributes())) {
+                $agency->is_operations_center = (bool) $agency->is_operations_center;
+            } else {
+                $agency->is_operations_center = mb_strtoupper(trim((string) $agency->classification_category), 'UTF-8') === 'GRANDE / CO';
+            }
 
             $agency->code = filled($agency->code) ? strtoupper(trim((string) $agency->code)) : null;
             foreach (['old_name', 'department', 'province', 'district', 'phone', 'email'] as $field) {

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Hash;
@@ -120,11 +119,12 @@ class OtpValidation extends Model
      */
     public function getRemainingMinutes(): int
     {
-        if (!$this->expires_at) {
+        if (! $this->expires_at) {
             return 0;
         }
 
         $remaining = now()->diffInMinutes($this->expires_at, false);
+
         return max(0, $remaining);
     }
 
@@ -149,7 +149,7 @@ class OtpValidation extends Model
      */
     public function canResend(): bool
     {
-        return !$this->hasMaxResendsReached();
+        return ! $this->hasMaxResendsReached();
     }
 
     /**
@@ -157,6 +157,6 @@ class OtpValidation extends Model
      */
     public function canVerify(): bool
     {
-        return !$this->isExpired() && !$this->hasMaxAttemptsReached() && !$this->isValidated();
+        return ! $this->isExpired() && ! $this->hasMaxAttemptsReached() && ! $this->isValidated();
     }
 }

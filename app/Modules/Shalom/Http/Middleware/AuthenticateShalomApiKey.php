@@ -15,7 +15,7 @@ class AuthenticateShalomApiKey
     {
         $apiKey = $this->extractApiKey($request);
 
-        if (!$apiKey) {
+        if (! $apiKey) {
             return response()->json([
                 'success' => false,
                 'message' => 'API key required. Use header: X-Shalom-API-Key',
@@ -24,7 +24,7 @@ class AuthenticateShalomApiKey
 
         $keyRecord = $this->verifyApiKey($apiKey);
 
-        if (!$keyRecord) {
+        if (! $keyRecord) {
             \Log::warning('Invalid Shalom API key attempt', [
                 'ip' => $request->ip(),
                 'key_prefix' => substr($apiKey, 0, 20),
@@ -82,11 +82,11 @@ class AuthenticateShalomApiKey
             ->active()
             ->first();
 
-        if (!$keyRecord) {
+        if (! $keyRecord) {
             return null;
         }
 
-        if (!$keyRecord->verifyKey($plainKey)) {
+        if (! $keyRecord->verifyKey($plainKey)) {
             return null;
         }
 

@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Public;
 
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class BuscadorShalomLegalPagesTest extends TestCase
 {

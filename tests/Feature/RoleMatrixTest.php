@@ -124,6 +124,10 @@ class RoleMatrixTest extends TestCase
         $actor = User::factory()->suspended()->create();
         $actor->roles()->attach(Role::query()->where('slug', 'super-admin')->value('id'));
 
+        User::query()
+            ->whereNotIn('id', [$target->id, $actor->id])
+            ->update(['status' => 'suspended']);
+
         $this->expectException(AuthorizationException::class);
         app(UserSecurityService::class)->canAssignRoles($actor, $target, ['editor']);
     }

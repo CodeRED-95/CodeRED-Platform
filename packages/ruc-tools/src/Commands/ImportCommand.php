@@ -2,20 +2,20 @@
 
 namespace RucTool\Commands;
 
-use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 use RucTool\Database\Connection;
+use RucTool\Helpers\ConfigManager;
+use RucTool\Helpers\Logger;
+use RucTool\Services\BackupService;
 use RucTool\Services\ImportService;
 use RucTool\Services\PadronParser;
 use RucTool\Services\UbigeoService;
-use RucTool\Services\BackupService;
-use RucTool\Helpers\ConfigManager;
-use RucTool\Helpers\Logger;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(name: 'import', description: 'Import padrón reducido RUC (SUNAT .txt) into ruc_records')]
 class ImportCommand extends Command
@@ -43,29 +43,30 @@ class ImportCommand extends Command
         $filepath = $input->getArgument('file');
 
         try {
-            if (!file_exists($filepath)) {
+            if (! file_exists($filepath)) {
                 $io->error("File not found: $filepath");
+
                 return Command::FAILURE;
             }
 
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
             $config = $configManager->all();
             $connection = new Connection($config['database']);
 
-            if (!$input->getOption('skip-backup') && $connection->count('ruc_records') > 0) {
+            if (! $input->getOption('skip-backup') && $connection->count('ruc_records') > 0) {
                 $io->info('Creating safety backup before import...');
                 $backupService = new BackupService($connection, $config['database'], $config['backup_directory']);
                 $backup = $backupService->backup();
-                $io->success('Backup created: ' . $backup['filename']);
+                $io->success('Backup created: '.$backup['filename']);
             }
 
-            $parser = new PadronParser();
+            $parser = new PadronParser;
             $ubigeoService = new UbigeoService($connection);
             $importService = new ImportService($connection, $parser, $ubigeoService, $config);
 
             $io->title('RUC Import — Padrón Reducido SUNAT');
             $io->info("Importing from: $filepath");
-            $io->info('Encoding: ' . $input->getOption('encoding') . ' | Delimiter: "' . $input->getOption('delimiter') . '" | Strategy: ' . $input->getOption('strategy'));
+            $io->info('Encoding: '.$input->getOption('encoding').' | Delimiter: "'.$input->getOption('delimiter').'" | Strategy: '.$input->getOption('strategy'));
 
             $options = [
                 'encoding' => $input->getOption('encoding'),
@@ -79,12 +80,13 @@ class ImportCommand extends Command
                     $io->newLine();
                     $io->info('File fully read. Merging into ruc_records (deduplicating by RUC)...');
                     $io->note('This is a single large query — for 10M+ lines it can take several minutes with no visible progress. This is expected.');
+
                     return;
                 }
 
                 $pct = $progress['total'] > 0 ? round(($progress['processed'] / $progress['total']) * 100, 1) : 0;
                 $io->writeln(sprintf(
-                    "  %s%% | Processed: %s | Valid: %s | Errors: %s",
+                    '  %s%% | Processed: %s | Valid: %s | Errors: %s',
                     $pct,
                     number_format($progress['processed']),
                     number_format($progress['valid']),
@@ -102,8 +104,8 @@ class ImportCommand extends Command
                     ['Errors', number_format($stats['errors'])],
                     ['Duplicates (in file)', number_format($stats['duplicates'])],
                     ['Inserted/Updated in ruc_records', number_format($stats['inserted'])],
-                    ['Duration', $stats['duration_seconds'] . ' seconds'],
-                    ['Speed', number_format($stats['lines_per_second']) . ' lines/second'],
+                    ['Duration', $stats['duration_seconds'].' seconds'],
+                    ['Speed', number_format($stats['lines_per_second']).' lines/second'],
                 ]
             );
 
@@ -112,8 +114,9 @@ class ImportCommand extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Import failed: ' . $e->getMessage());
-            Logger::error('Import failed: ' . $e->getMessage());
+            $io->error('Import failed: '.$e->getMessage());
+            Logger::error('Import failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }

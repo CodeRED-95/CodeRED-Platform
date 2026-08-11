@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\ApiTokenFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +10,7 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class ApiToken extends PersonalAccessToken
 {
-    /** @use HasFactory<\Database\Factories\ApiTokenFactory> */
+    /** @use HasFactory<ApiTokenFactory> */
     use HasFactory;
 
     protected $table = 'personal_access_tokens';

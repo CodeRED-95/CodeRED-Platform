@@ -18,7 +18,7 @@ class ShalomSyncController extends Controller
     {
         $apiKey = $request->attributes->get('shalom_api_key');
 
-        $batchId = (new RecibeShalomSyncAction())->execute(
+        $batchId = (new RecibeShalomSyncAction)->execute(
             $request->validated('records'),
             $request->validated('username'),
             $apiKey,

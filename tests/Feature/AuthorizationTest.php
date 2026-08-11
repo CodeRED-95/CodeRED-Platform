@@ -18,15 +18,17 @@ class AuthorizationTest extends TestCase
 
     public function test_user_has_permission_and_role_helpers_work(): void
     {
-        $permission = Permission::query()->create([
-            'name' => 'Ver agencias',
+        $permission = Permission::query()->firstOrCreate([
             'slug' => 'agencies.view',
+        ], [
+            'name' => 'Ver agencias',
             'description' => null,
         ]);
 
-        $role = Role::query()->create([
-            'name' => 'Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'admin',
+        ], [
+            'name' => 'Administrador',
             'description' => null,
             'is_system' => true,
         ]);
@@ -44,9 +46,10 @@ class AuthorizationTest extends TestCase
 
     public function test_super_admin_bypasses_policies_via_gate_before(): void
     {
-        $role = Role::query()->create([
-            'name' => 'Super Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'super-admin',
+        ], [
+            'name' => 'Super Administrador',
             'description' => null,
             'is_system' => true,
         ]);
@@ -65,15 +68,17 @@ class AuthorizationTest extends TestCase
 
     public function test_gate_before_maps_viewany_to_agencies_view_permission(): void
     {
-        $permission = Permission::query()->create([
-            'name' => 'Ver agencias',
+        $permission = Permission::query()->firstOrCreate([
             'slug' => 'agencies.view',
+        ], [
+            'name' => 'Ver agencias',
             'description' => null,
         ]);
 
-        $role = Role::query()->create([
-            'name' => 'Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'admin',
+        ], [
+            'name' => 'Administrador',
             'description' => null,
             'is_system' => true,
         ]);
@@ -88,15 +93,17 @@ class AuthorizationTest extends TestCase
 
     public function test_gate_before_allows_database_permissions_without_overriding_user_can(): void
     {
-        $permission = Permission::query()->create([
-            'name' => 'Ver agencias',
+        $permission = Permission::query()->firstOrCreate([
             'slug' => 'agencies.view',
+        ], [
+            'name' => 'Ver agencias',
             'description' => null,
         ]);
 
-        $role = Role::query()->create([
-            'name' => 'Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'admin',
+        ], [
+            'name' => 'Administrador',
             'description' => null,
             'is_system' => true,
         ]);
@@ -112,15 +119,17 @@ class AuthorizationTest extends TestCase
 
     public function test_agency_policy_uses_permission_helpers(): void
     {
-        $permission = Permission::query()->create([
-            'name' => 'Ver agencias',
+        $permission = Permission::query()->firstOrCreate([
             'slug' => 'agencies.view',
+        ], [
+            'name' => 'Ver agencias',
             'description' => null,
         ]);
 
-        $role = Role::query()->create([
-            'name' => 'Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'admin',
+        ], [
+            'name' => 'Administrador',
             'description' => null,
             'is_system' => true,
         ]);
@@ -136,15 +145,17 @@ class AuthorizationTest extends TestCase
 
     public function test_blade_can_directive_uses_native_authorization(): void
     {
-        $permission = Permission::query()->create([
-            'name' => 'Ver agencias',
+        $permission = Permission::query()->firstOrCreate([
             'slug' => 'agencies.view',
+        ], [
+            'name' => 'Ver agencias',
             'description' => null,
         ]);
 
-        $role = Role::query()->create([
-            'name' => 'Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'admin',
+        ], [
+            'name' => 'Administrador',
             'description' => null,
             'is_system' => true,
         ]);
@@ -167,15 +178,17 @@ class AuthorizationTest extends TestCase
 
     public function test_can_middleware_allows_authorized_user(): void
     {
-        $permission = Permission::query()->create([
-            'name' => 'Ver agencias',
+        $permission = Permission::query()->firstOrCreate([
             'slug' => 'agencies.view',
+        ], [
+            'name' => 'Ver agencias',
             'description' => null,
         ]);
 
-        $role = Role::query()->create([
-            'name' => 'Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'admin',
+        ], [
+            'name' => 'Administrador',
             'description' => null,
             'is_system' => true,
         ]);

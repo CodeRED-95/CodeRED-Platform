@@ -5,7 +5,7 @@ namespace App\Services\Events\DTO;
 final readonly class EventDispatchData
 {
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function __construct(
         public string $eventId,
@@ -20,6 +20,5 @@ final readonly class EventDispatchData
         public string $tenant,
         public string $source,
         public ?int $durationMs = null,
-    ) {
-    }
+    ) {}
 }

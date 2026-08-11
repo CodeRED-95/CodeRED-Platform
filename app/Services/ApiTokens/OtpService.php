@@ -6,13 +6,14 @@ use App\Enums\TokenRequestAuditAction;
 use App\Models\ApiTokenRequest;
 use App\Models\OtpValidation;
 use App\Models\TokenRequestAuditLog;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
 
 class OtpService
 {
     private int $expiresInMinutes = 10;
+
     private int $maxAttempts = 5;
+
     private int $maxResends = 3;
 
     public function __construct()
@@ -24,8 +25,6 @@ class OtpService
 
     /**
      * Genera un código OTP de 6 dígitos y lo almacena
-     *
-     * @return OtpValidation
      */
     public function generate(ApiTokenRequest $request, string $ip, ?string $userAgent = null): OtpValidation
     {
@@ -66,14 +65,13 @@ class OtpService
     /**
      * Verifica un código OTP
      *
-     * @return bool
      * @throws \Exception
      */
     public function verify(ApiTokenRequest $request, string $code, string $ip, ?string $userAgent = null): bool
     {
         $otp = $request->getLatestOtpValidation();
 
-        if (!$otp) {
+        if (! $otp) {
             TokenRequestAuditLog::logAction(
                 $request,
                 TokenRequestAuditAction::OtpVerified,
@@ -81,6 +79,7 @@ class OtpService
                 userAgent: $userAgent,
                 details: ['result' => 'no_otp_found']
             );
+
             return false;
         }
 
@@ -92,6 +91,7 @@ class OtpService
                 ip: $ip,
                 userAgent: $userAgent,
             );
+
             return false;
         }
 
@@ -125,7 +125,7 @@ class OtpService
         $otp->recordAttempt($ip, $userAgent);
 
         // Verificar código
-        if (!$otp->verifyCode($code)) {
+        if (! $otp->verifyCode($code)) {
             TokenRequestAuditLog::logAction(
                 $request,
                 TokenRequestAuditAction::OtpVerified,
@@ -158,14 +158,13 @@ class OtpService
     /**
      * Reenenvía un código OTP
      *
-     * @return OtpValidation|null
      * @throws \Exception
      */
     public function resend(ApiTokenRequest $request, string $ip, ?string $userAgent = null): ?OtpValidation
     {
         $otp = $request->getLatestOtpValidation();
 
-        if (!$otp) {
+        if (! $otp) {
             return $this->generate($request, $ip, $userAgent);
         }
 
@@ -226,7 +225,7 @@ class OtpService
     {
         $otp = $request->getLatestOtpValidation();
 
-        if (!$otp) {
+        if (! $otp) {
             return [
                 'status' => 'not_sent',
                 'message' => 'Código OTP no enviado',

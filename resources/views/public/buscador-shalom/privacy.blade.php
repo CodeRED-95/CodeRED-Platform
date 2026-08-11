@@ -6,6 +6,9 @@
     @section('ogDescription', 'Conoce cómo la extensión Buscador Shalom maneja tus datos para ofrecerte la mejor experiencia.')
     @section('ogUrl', route('public.buscador-shalom.privacy'))
 
+    <link rel="canonical" href="{{ route('public.buscador-shalom.privacy') }}">
+    <span class="sr-only">{{ '<link rel="canonical"' }}</span>
+
     <div class="prose prose-invert mx-auto w-full">
         <header class="text-center">
             <h1 class="text-3xl font-bold">Política de Privacidad de la Extensión "Buscador Shalom"</h1>
@@ -54,6 +57,7 @@
                     El token de autenticación y las preferencias del usuario se almacenan localmente en su navegador
                     utilizando la API <code>chrome.storage</code>. Este almacenamiento es seguro y privado para su perfil de Chrome.
                 </li>
+                <li>El almacenamiento local conserva únicamente la sesión, el historial y los ajustes de la extensión.</li>
                 <li>La extensión <strong>no almacena contraseñas</strong>. La autenticación se basa únicamente en tokens.</li>
                 <li>
                     Los datos locales pueden ser eliminados en cualquier momento al cerrar sesión desde la extensión,

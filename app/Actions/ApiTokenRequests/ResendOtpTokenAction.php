@@ -31,8 +31,8 @@ class ResendOtpTokenAction
         // Intentar reenviar
         $otp = $this->otpService->resend($request, $ip, $userAgent);
 
-        if (!$otp) {
-            throw new OtpMaxResendsExceededException();
+        if (! $otp) {
+            throw new OtpMaxResendsExceededException;
         }
 
         // TODO: Enviar email con OTP (implementar Mail::queue)

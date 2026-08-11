@@ -2,19 +2,18 @@
 
 namespace Tests\Feature;
 
-use App\Actions\ApiTokenRequests\CreateOtpTokenAction;
-use App\Actions\ApiTokenRequests\VerifyOtpTokenAction;
-use App\Actions\ApiTokenRequests\RevealTokenAction;
 use App\Actions\ApiTokenRequests\ConfirmTokenDeliveryAction;
+use App\Actions\ApiTokenRequests\RevealTokenAction;
+use App\Actions\ApiTokenRequests\VerifyOtpTokenAction;
 use App\Enums\ApiTokenRequestDeliveryStatus;
 use App\Exceptions\OtpExpiredException;
 use App\Exceptions\OtpMaxAttemptsExceededException;
+use App\Exceptions\TokenAlreadyRevealedException;
 use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
-use App\Models\OtpValidation;
-use App\Models\TokenRequestAuditLog;
 use App\Models\User;
 use App\Services\ApiTokens\OtpService;
+use App\Services\ApiTokens\TokenVaultService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -24,13 +23,15 @@ class OtpAndTokenRevealTest extends TestCase
     use RefreshDatabase;
 
     protected OtpService $otpService;
+
     protected ApiTokenRequest $request;
+
     protected User $admin;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->otpService = new OtpService();
+        $this->otpService = new OtpService;
         $this->admin = User::factory()->create();
         $this->request = ApiTokenRequest::factory()->create([
             'status' => 'approved',
@@ -47,7 +48,7 @@ class OtpAndTokenRevealTest extends TestCase
 
         $this->assertNotNull($otp);
         $this->assertFalse(empty($otp->code_hash));
-        $this->assertTrue(Hash::check('123456', $otp->code_hash) || !Hash::check('123456', $otp->code_hash));
+        $this->assertTrue(Hash::check('123456', $otp->code_hash) || ! Hash::check('123456', $otp->code_hash));
     }
 
     public function test_otp_generation_sets_expiration(): void
@@ -145,7 +146,7 @@ class OtpAndTokenRevealTest extends TestCase
             'otp_validated_at' => now(),
         ]);
 
-        $action = new RevealTokenAction(new \App\Services\ApiTokens\TokenVaultService());
+        $action = new RevealTokenAction(new TokenVaultService);
 
         // Primera revelación
         $firstToken = $action->execute($this->request, '192.168.1.1', null, $this->admin);
@@ -153,7 +154,7 @@ class OtpAndTokenRevealTest extends TestCase
 
         // Segunda revelación debería fallar
         $this->request->refresh();
-        $this->expectException(\App\Exceptions\TokenAlreadyRevealedException::class);
+        $this->expectException(TokenAlreadyRevealedException::class);
         $action->execute($this->request, '192.168.1.1', null, $this->admin);
     }
 
@@ -161,7 +162,7 @@ class OtpAndTokenRevealTest extends TestCase
     {
         $this->request->update(['status' => 'pending']);
 
-        $action = new RevealTokenAction(new \App\Services\ApiTokens\TokenVaultService());
+        $action = new RevealTokenAction(new TokenVaultService);
 
         $this->expectException(\InvalidArgumentException::class);
         $action->execute($this->request, '192.168.1.1', null, $this->admin);
@@ -176,7 +177,7 @@ class OtpAndTokenRevealTest extends TestCase
             'otp_validated_at' => now(),
         ]);
 
-        $action = new RevealTokenAction(new \App\Services\ApiTokens\TokenVaultService());
+        $action = new RevealTokenAction(new TokenVaultService);
         $action->execute($this->request, '192.168.1.1', null, $this->admin);
 
         $this->assertDatabaseHas('api_token_request_audit_logs', [
@@ -194,7 +195,7 @@ class OtpAndTokenRevealTest extends TestCase
     {
         $this->request->update(['token_revealed_at' => now()]);
 
-        $action = new ConfirmTokenDeliveryAction();
+        $action = new ConfirmTokenDeliveryAction;
         $result = $action->execute(
             $this->request,
             'presencial',
@@ -211,7 +212,7 @@ class OtpAndTokenRevealTest extends TestCase
 
     public function test_delivery_confirmation_requires_token_revealed(): void
     {
-        $action = new ConfirmTokenDeliveryAction();
+        $action = new ConfirmTokenDeliveryAction;
 
         $this->expectException(\InvalidArgumentException::class);
         $action->execute($this->request, 'presencial', null, $this->admin);
@@ -221,7 +222,7 @@ class OtpAndTokenRevealTest extends TestCase
     {
         $this->request->update(['token_revealed_at' => now()]);
 
-        $action = new ConfirmTokenDeliveryAction();
+        $action = new ConfirmTokenDeliveryAction;
         $action->execute($this->request, 'presencial', 'Test', $this->admin);
 
         $this->assertDatabaseHas('api_token_request_audit_logs', [
@@ -236,7 +237,8 @@ class OtpAndTokenRevealTest extends TestCase
 
     private function encryptToken(string $token): string
     {
-        $vault = new \App\Services\ApiTokens\TokenVaultService();
+        $vault = new TokenVaultService;
+
         return $vault->encrypt($token);
     }
 }

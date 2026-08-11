@@ -5,12 +5,13 @@ namespace RucTool\Helpers;
 class ConfigManager
 {
     private string $configPath;
+
     private array $config = [];
 
-    public function __construct(string $configPath = null)
+    public function __construct(?string $configPath = null)
     {
         if ($configPath === null) {
-            $configPath = getenv('HOME') . '/.ruc-tool/ruc-tool.json';
+            $configPath = getenv('HOME').'/.ruc-tool/ruc-tool.json';
         }
 
         $this->configPath = $configPath;
@@ -38,8 +39,8 @@ class ConfigManager
                 'username' => 'ruc_user',
                 'password' => null,
             ],
-            'backup_directory' => getenv('HOME') . '/.ruc-tool/backups',
-            'logs_directory' => getenv('HOME') . '/.ruc-tool/logs',
+            'backup_directory' => getenv('HOME').'/.ruc-tool/backups',
+            'logs_directory' => getenv('HOME').'/.ruc-tool/logs',
             'copy_batch_size' => 50000,
             'timeout' => 3600,
         ];
@@ -63,13 +64,13 @@ class ConfigManager
     public function save(): void
     {
         $dir = dirname($this->configPath);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
         file_put_contents(
             $this->configPath,
-            json_encode($this->config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
+            json_encode($this->config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n"
         );
     }
 
@@ -79,7 +80,7 @@ class ConfigManager
         $value = $array;
 
         foreach ($keys as $k) {
-            if (!is_array($value) || !isset($value[$k])) {
+            if (! is_array($value) || ! isset($value[$k])) {
                 return $default;
             }
             $value = $value[$k];
@@ -94,7 +95,7 @@ class ConfigManager
         $current = &$array;
 
         foreach ($keys as $k) {
-            if (!isset($current[$k])) {
+            if (! isset($current[$k])) {
                 $current[$k] = [];
             }
             $current = &$current[$k];
@@ -105,6 +106,6 @@ class ConfigManager
 
     public function isDatabaseConfigured(): bool
     {
-        return isset($this->config['database']) && !empty($this->config['database']);
+        return isset($this->config['database']) && ! empty($this->config['database']);
     }
 }

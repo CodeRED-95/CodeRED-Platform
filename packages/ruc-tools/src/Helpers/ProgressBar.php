@@ -8,7 +8,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 class ProgressBar
 {
     private SymfonyProgressBar $progressBar;
+
     private int $startTime;
+
     private int $recordsPerSecond = 0;
 
     public function __construct(OutputInterface $output, int $max = 0)
@@ -61,6 +63,7 @@ class ProgressBar
         }
 
         $speed = intval($processedRecords / $elapsed);
+
         return "$speed rec/s";
     }
 

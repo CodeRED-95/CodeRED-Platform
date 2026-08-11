@@ -37,7 +37,7 @@ class VerifyOtpTokenAction
         $otp = $request->getLatestOtpValidation();
 
         // Verificar si existe OTP
-        if (!$otp) {
+        if (! $otp) {
             return [
                 'success' => false,
                 'message' => 'No hay código OTP activo. Solicita uno nuevo.',
@@ -54,23 +54,23 @@ class VerifyOtpTokenAction
 
         // Verificar si expiró
         if ($otp->isExpired()) {
-            throw new OtpExpiredException();
+            throw new OtpExpiredException;
         }
 
         // Verificar si alcanzó máximo de intentos
         if ($otp->hasMaxAttemptsReached()) {
-            throw new OtpMaxAttemptsExceededException();
+            throw new OtpMaxAttemptsExceededException;
         }
 
         // Verificar si alcanzó máximo de reenvíos
         if ($otp->hasMaxResendsReached()) {
-            throw new OtpMaxResendsExceededException();
+            throw new OtpMaxResendsExceededException;
         }
 
         // Intentar verificar el código
         $isValid = $this->otpService->verify($request, $code, $ip, $userAgent);
 
-        if (!$isValid) {
+        if (! $isValid) {
             return [
                 'success' => false,
                 'message' => 'Código OTP inválido.',

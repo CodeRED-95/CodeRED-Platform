@@ -1,0 +1,451 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Actions/ApiTokenRequests/ConfirmTokenDeliveryAction.php
+
+		-
+			message: '#^Parameter \#1 \$callback of static method Illuminate\\Database\\Connection\:\:transaction\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Actions/ApiTokenRequests/ConfirmTokenDeliveryAction.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_ciphertext\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Actions/ApiTokenRequests/RevealTokenAction.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$delivery_method\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Actions/ApiTokenRequests/ShowProtectedDataAction.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$delivery_reason\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Actions/ApiTokenRequests/ShowProtectedDataAction.php
+
+		-
+			message: '#^Property App\\Actions\\ApiTokenRequests\\ShowProtectedDataAction\:\:\$vault is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: app/Actions/ApiTokenRequests/ShowProtectedDataAction.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_ciphertext\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/V1/Integrations/N8nTokenRequestController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Public\\PublicTokenRequestController\:\:fingerprint\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Http/Controllers/Public/PublicTokenRequestController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Public\\PublicTokenRequestController\:\:hashValue\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Http/Controllers/Public/PublicTokenRequestController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Public\\PublicTokenRequestController\:\:maskDestination\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Http/Controllers/Public/PublicTokenRequestController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_revealed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Livewire/Admin/ApiTokenRequests/Index.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$expires_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Livewire/Admin/ApiTokenRequests/Index.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$revoked_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Livewire/Admin/ApiTokenRequests/Index.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>total_records" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Livewire/Dashboard.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_revealed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/ApiTokenRequest.php
+
+		-
+			message: '#^Method App\\Models\\ApiTokenRequest\:\:getLatestOtpValidation\(\) should return App\\Models\\OtpValidation\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/ApiTokenRequest.php
+
+		-
+			message: '#^Cannot call method isPast\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Models/OtpValidation.php
+
+		-
+			message: '#^Cannot call method isFinished\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Modules/Agencies/Jobs/RestoreAgencyBackupJob.php
+
+		-
+			message: '#^Cannot call method isFinished\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Modules/Agencies/Models/AgencyBackupRestore.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array\{\} and array\{\} will always evaluate to false\.$#'
+			identifier: notIdentical.alwaysFalse
+			count: 1
+			path: app/Modules/Agencies/Services/AgencyRestoreService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Modules/Agencies/Services/AgencyRestoreService.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between null and null will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 1
+			path: app/Modules/Agencies/Services/AgencyRestoreService.php
+
+		-
+			message: '#^Unreachable statement \- code above always terminates\.$#'
+			identifier: deadCode.unreachable
+			count: 1
+			path: app/Modules/Agencies/Services/AgencyRestoreService.php
+
+		-
+			message: '#^Variable \$idMap on left side of \?\? is never defined\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: app/Modules/Agencies/Services/AgencyRestoreService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>total_records" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/Ruc/Http/Controllers/RucBackupController.php
+
+		-
+			message: '#^Parameter \#1 \$user of method App\\Modules\\Ruc\\Services\\RucBackupService\:\:createSafetyBackup\(\) expects App\\Models\\User\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Ruc/Jobs/RestoreRucBackupJob.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Ruc/Models/RucBackupOperation.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$part_index\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Modules/Ruc/Services/RucBackupMultipartUploadService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$storage_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Ruc/Services/RucBackupMultipartUploadService.php
+
+		-
+			message: '#^Method App\\Modules\\Ruc\\Services\\RucBackupMultipartUploadService\:\:receivePart\(\) should return App\\Modules\\Ruc\\Models\\RucBackupUploadPart but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Modules/Ruc/Services/RucBackupMultipartUploadService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Shalom/Http/Controllers/DeliveryRecordsExportController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$key_prefix\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Shalom/Http/Controllers/DeliveryRecordsExportController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/Shalom/Http/Controllers/DeliveryRecordsExportController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>key_prefix" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/Shalom/Http/Controllers/DeliveryRecordsExportController.php
+
+		-
+			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Shalom/Livewire/Admin/DeliveryRecordsManager.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/Shalom/Livewire/Admin/DeliveryRecordsManager.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>key_prefix" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/Shalom/Livewire/Admin/DeliveryRecordsManager.php
+
+		-
+			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Shalom/Livewire/DeliveryRecordSearch.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: app/Modules/ShalomRecordar/Http/Requests/StatusShalomRecordarRequest.php
+
+		-
+			message: '#^Access to an undefined property App\\Modules\\ShalomRecordar\\Models\\ShalomRecordarRecord\:\:\$first_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
+
+		-
+			message: '#^Access to an undefined property App\\Modules\\ShalomRecordar\\Models\\ShalomRecordarRecord\:\:\$last_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
+
+		-
+			message: '#^Access to an undefined property App\\Modules\\ShalomRecordar\\Models\\ShalomRecordarRecord\:\:\$records_count\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
+
+		-
+			message: '#^Variable \$cursor on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/ApiTokens/AuditService.php
+
+		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
+			count: 4
+			path: app/Services/ApiTokens/AuditService.php
+
+		-
+			message: '#^Cannot call method label\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Services/ApiTokens/AuditService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/ApiTokens/AuditService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{action\: mixed, user\: mixed, ip\: string\|null, timestamp\: Carbon\\Carbon\|null, details\: string\|null\}, Closure\(App\\Models\\TokenRequestAuditLog\)\: array\{action\: mixed, user\: mixed, ip\: string\|null, timestamp\: Carbon\\Carbon\|null, details\: string\|null\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/ApiTokens/AuditService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Services/ApiTokens/AuditService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>value" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 4
+			path: app/Services/ApiTokens/AuditService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$requester_email_blind_index\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ApiTokens/OtpService.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int\<0, 999999\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/ApiTokens/OtpService.php
+
+		-
+			message: '#^Call to an undefined method Faker\\Generator\:\:state\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: database/factories/Modules/Ruc/Models/RucRecordFactory.php
+
+		-
+			message: '#^Access to undefined constant App\\Modules\\Ruc\\Models\\RucBackup\:\:TYPE_STANDARD\.$#'
+			identifier: classConstant.notFound
+			count: 1
+			path: database/factories/Ruc/RucBackupFactory.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Schema\\ForeignKeyDefinition\:\:references\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: database/migrations/2026_08_05_100000_create_otp_validations_table.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Schema\\ForeignKeyDefinition\:\:references\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: database/migrations/2026_08_05_100001_create_api_token_request_audit_logs_table.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_ciphertext\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/ApiTokenRequestAdminTest.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_ciphertext\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/ApiTokenRotationRequestTest.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_ciphertext\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/N8nTokenRequestFunctionalTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertNotNull\(\) with App\\Models\\OtpValidation will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Feature/OtpAndTokenRevealTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Feature/OtpAndTokenRevealTest.php
+
+		-
+			message: '#^Cannot call method isAfter\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: tests/Feature/OtpAndTokenRevealTest.php
+
+		-
+			message: '#^Negated boolean expression is always true\.$#'
+			identifier: booleanNot.alwaysTrue
+			count: 1
+			path: tests/Feature/OtpAndTokenRevealTest.php
+
+		-
+			message: '#^Result of \|\| is always true\.$#'
+			identifier: booleanOr.alwaysTrue
+			count: 1
+			path: tests/Feature/OtpAndTokenRevealTest.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$requester_email_blind_index\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/PublicTokenRequestWebTest.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$tracking_code\.$#'
+			identifier: property.notFound
+			count: 3
+			path: tests/Feature/PublicTokenRequestWebTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 14
+			path: tests/Feature/Ruc/RestoreConcurrencyTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 8
+			path: tests/Feature/Ruc/RestoreRucBackupDispatchTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/Ruc/RucBackupRestoreStatusUiTest.php
+
+		-
+			message: '#^Call to function class_exists\(\) with ''App\\\\Livewire\\\\Admin…''\|''App\\\\Modules\\\\Ruc…'' will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: tests/Feature/Ruc/RucImportSystemRemovedTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true and non\-empty\-string\|false will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Feature/Ruc/RucPerformanceBenchmarkTest.php

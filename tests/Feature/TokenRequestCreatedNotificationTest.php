@@ -7,6 +7,7 @@ use App\Jobs\NotifyN8nTokenRequestStatus;
 use App\Listeners\SendTokenRequestCreatedWebhook;
 use App\Models\ApiTokenRequest;
 use App\Models\WebhookDelivery;
+use App\Services\ApiTokens\TokenVaultService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -145,12 +146,12 @@ class TokenRequestCreatedNotificationTest extends TestCase
 
     private function createTokenRequest(array $overrides = []): ApiTokenRequest
     {
-        $vault = app(\App\Services\ApiTokens\TokenVaultService::class);
+        $vault = app(TokenVaultService::class);
         $email = $overrides['delivery_email'] ?? null;
         $name = $overrides['requester_name'] ?? 'Cliente Demo';
 
         unset($overrides['requester_name']);
-        
+
         return ApiTokenRequest::query()->create(array_merge([
             'request_uuid' => (string) Str::uuid(),
             'tracking_code' => 'CR-'.strtoupper(Str::random(10)),

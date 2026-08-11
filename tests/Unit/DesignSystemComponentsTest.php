@@ -26,7 +26,7 @@ class DesignSystemComponentsTest extends TestCase
 
         // Debe existir EXACTAMENTE un atributo x-show en todo el HTML.
         $this->assertSame(1, substr_count($html, 'x-show='));
-        $this->assertStringContainsString("stage === &#039;failed&#039;", $html);
+        $this->assertStringContainsString('stage === &#039;failed&#039;', $html);
         $this->assertStringContainsString('&amp;&amp; visible', $html);
     }
 
@@ -148,7 +148,7 @@ class DesignSystemComponentsTest extends TestCase
 
         // Modo formulario: sin wire:click, con requestSubmit sobre un <form> real.
         $this->assertStringNotContainsString('wire:click', $html);
-        $this->assertStringContainsString("document.getElementById(", $html);
+        $this->assertStringContainsString('document.getElementById(', $html);
         $this->assertStringContainsString('requestSubmit', $html);
         $this->assertStringContainsString('restore-form-1', $html);
         $this->assertStringContainsString('Esta acción reemplazará los datos actuales.', $html);

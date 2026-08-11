@@ -54,7 +54,7 @@ class ManifestService
             throw new \Exception('No se pudo generar el manifest JSON.');
         }
 
-        if (file_put_contents($path, $json . "\n") === false) {
+        if (file_put_contents($path, $json."\n") === false) {
             throw new \Exception("No se pudo escribir el manifest: {$path}");
         }
     }
@@ -66,7 +66,7 @@ class ManifestService
      */
     public function read(string $path): array
     {
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             throw new \Exception("Manifest no encontrado: {$path}");
         }
 
@@ -76,7 +76,7 @@ class ManifestService
         }
 
         $data = json_decode($contents, true);
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             throw new \Exception("Manifest inválido (JSON malformado): {$path}");
         }
 
@@ -93,22 +93,22 @@ class ManifestService
         $errors = [];
 
         foreach (['format_version', 'total_parts', 'sha256', 'parts', 'total_size_bytes', 'part_size_bytes'] as $key) {
-            if (!array_key_exists($key, $manifest)) {
+            if (! array_key_exists($key, $manifest)) {
                 $errors[] = "Manifest incompleto: falta la clave \"{$key}\".";
             }
         }
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return $errors;
         }
 
-        if (!in_array($manifest['format_version'], self::SUPPORTED_FORMAT_VERSIONS, true)) {
+        if (! in_array($manifest['format_version'], self::SUPPORTED_FORMAT_VERSIONS, true)) {
             $errors[] = "format_version {$manifest['format_version']} no soportado por esta versión de ruc-tools.";
 
             return $errors;
         }
 
         $parts = $manifest['parts'];
-        if (!is_array($parts) || count($parts) !== (int) $manifest['total_parts']) {
+        if (! is_array($parts) || count($parts) !== (int) $manifest['total_parts']) {
             $errors[] = 'El número de partes en el manifest no coincide con "total_parts".';
 
             return $errors;
@@ -130,35 +130,39 @@ class ManifestService
             $filename = $part['filename'] ?? null;
             $index = $part['index'] ?? '?';
 
-            if (!$filename) {
+            if (! $filename) {
                 $errors[] = "Parte #{$index}: falta \"filename\" en el manifest.";
+
                 continue;
             }
 
-            $partPath = $manifestDir . '/' . $filename;
+            $partPath = $manifestDir.'/'.$filename;
             $partPaths[] = $partPath;
 
-            if (!file_exists($partPath)) {
+            if (! file_exists($partPath)) {
                 $errors[] = "Falta {$filename}.";
+
                 continue;
             }
 
             $actualSize = filesize($partPath);
             if ($actualSize !== (int) $part['size_bytes']) {
                 $errors[] = "Tamaño incorrecto en {$filename}: esperado {$part['size_bytes']} bytes, encontrado {$actualSize} bytes.";
+
                 continue;
             }
 
             $actualSha = hash_file('sha256', $partPath);
             if ($actualSha !== $part['sha256']) {
                 $errors[] = "Checksum incorrecto en {$filename}.";
+
                 continue;
             }
 
             $totalSize += $actualSize;
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return $errors;
         }
 

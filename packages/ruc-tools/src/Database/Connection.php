@@ -8,7 +8,9 @@ use PDOException;
 class Connection
 {
     private static ?PDO $instance = null;
+
     private array $config;
+
     private PDO $pdo;
 
     public function __construct(array $config)
@@ -33,7 +35,7 @@ class Connection
                 ]
             );
         } catch (PDOException $e) {
-            throw new \Exception("Database connection failed: " . $e->getMessage());
+            throw new \Exception('Database connection failed: '.$e->getMessage());
         }
     }
 
@@ -42,6 +44,7 @@ class Connection
         $host = $this->config['host'] ?? 'localhost';
         $port = $this->config['port'] ?? 5432;
         $database = $this->config['database'] ?? 'ruc_db';
+
         return "pgsql:host=$host;port=$port;dbname=$database";
     }
 
@@ -54,6 +57,7 @@ class Connection
     {
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
+
         return $stmt;
     }
 
@@ -67,27 +71,29 @@ class Connection
         $sql = "INSERT INTO $table ($columnList) VALUES ($placeholders)";
         $this->query($sql, $values);
 
-        return (int)$this->pdo->lastInsertId();
+        return (int) $this->pdo->lastInsertId();
     }
 
     public function update(string $table, array $data, array $where): int
     {
-        $setClause = implode(', ', array_map(fn($k) => "$k = ?", array_keys($data)));
-        $whereClause = implode(' AND ', array_map(fn($k) => "$k = ?", array_keys($where)));
+        $setClause = implode(', ', array_map(fn ($k) => "$k = ?", array_keys($data)));
+        $whereClause = implode(' AND ', array_map(fn ($k) => "$k = ?", array_keys($where)));
 
         $sql = "UPDATE $table SET $setClause WHERE $whereClause";
         $values = array_merge(array_values($data), array_values($where));
 
         $stmt = $this->query($sql, $values);
+
         return $stmt->rowCount();
     }
 
     public function delete(string $table, array $where): int
     {
-        $whereClause = implode(' AND ', array_map(fn($k) => "$k = ?", array_keys($where)));
+        $whereClause = implode(' AND ', array_map(fn ($k) => "$k = ?", array_keys($where)));
         $sql = "DELETE FROM $table WHERE $whereClause";
 
         $stmt = $this->query($sql, array_values($where));
+
         return $stmt->rowCount();
     }
 
@@ -95,17 +101,18 @@ class Connection
     {
         $sql = "SELECT * FROM $table";
 
-        if (!empty($where)) {
-            $whereClause = implode(' AND ', array_map(fn($k) => "$k = ?", array_keys($where)));
+        if (! empty($where)) {
+            $whereClause = implode(' AND ', array_map(fn ($k) => "$k = ?", array_keys($where)));
             $sql .= " WHERE $whereClause";
         }
 
-        if (!empty($orderBy)) {
-            $orderClauses = array_map(fn($k, $v) => "$k $v", array_keys($orderBy), $orderBy);
-            $sql .= " ORDER BY " . implode(', ', $orderClauses);
+        if (! empty($orderBy)) {
+            $orderClauses = array_map(fn ($k, $v) => "$k $v", array_keys($orderBy), $orderBy);
+            $sql .= ' ORDER BY '.implode(', ', $orderClauses);
         }
 
         $stmt = $this->query($sql, array_values($where));
+
         return $stmt->fetchAll();
     }
 
@@ -113,19 +120,20 @@ class Connection
     {
         $sql = "SELECT COUNT(*) as count FROM $table";
 
-        if (!empty($where)) {
-            $whereClause = implode(' AND ', array_map(fn($k) => "$k = ?", array_keys($where)));
+        if (! empty($where)) {
+            $whereClause = implode(' AND ', array_map(fn ($k) => "$k = ?", array_keys($where)));
             $sql .= " WHERE $whereClause";
         }
 
         $stmt = $this->query($sql, array_values($where));
         $result = $stmt->fetch();
+
         return $result['count'] ?? 0;
     }
 
     public function beginTransaction(): void
     {
-        if (!$this->pdo->inTransaction()) {
+        if (! $this->pdo->inTransaction()) {
             $this->pdo->beginTransaction();
         }
     }
@@ -155,6 +163,7 @@ class Connection
             $conn = new self($config);
             self::$instance = $conn->getPdo();
         }
+
         return self::$instance;
     }
 }

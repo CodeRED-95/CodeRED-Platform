@@ -31,7 +31,7 @@
         },
     }"
 >
-    <x-ui.page-header title="Documentación de la API" subtitle="Referencia de la API v1 de CodeRED Platform: autenticación, agencias, RUC, DNI, Shalom Recordar e integraciones.">
+    <x-ui.page-header title="API CodeRED Platform" subtitle="Documentación de la API v1 de CodeRED Platform: autenticación, agencias, RUC, DNI, Shalom Recordar e integraciones.">
         <x-slot:actions>
             @auth
                 @if(auth()->user()->hasPermission('api-tokens.view-any'))
@@ -41,6 +41,27 @@
         </x-slot:actions>
     </x-ui.page-header>
 
+    @if(auth()->user()?->isSuperAdmin())
+        <section aria-label="Accesos rápidos de documentación" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <x-ui.card padding="p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-muted)]">Guía interactiva</p>
+                <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">Explora la documentación navegable con ejemplos y filtros por categoría.</p>
+            </x-ui.card>
+            <x-ui.card padding="p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-muted)]">OpenAPI avanzada</p>
+                <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">Accede al contrato OpenAPI completo para integraciones y clientes automáticos.</p>
+            </x-ui.card>
+            <x-ui.card padding="p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-muted)]">Estado de autenticación</p>
+                <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">Autoriza un token Bearer y comprueba sus abilities antes de ejecutar solicitudes.</p>
+            </x-ui.card>
+            <x-ui.card padding="p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-muted)]">Comprobar token</p>
+                <p class="mt-1 text-sm text-[color:var(--color-text-secondary)]">Usa el endpoint de identidad para validar el token y confirmar su alcance.</p>
+            </x-ui.card>
+        </section>
+    @endif
+
     <section aria-label="Características de la API" class="flex flex-wrap items-center gap-2">
         <x-ui.badge tone="brand">API v1</x-ui.badge>
         <x-ui.badge tone="neutral">Laravel Sanctum</x-ui.badge>
@@ -48,6 +69,26 @@
         <x-ui.badge tone="neutral">Máx. {{ $maxPerPage }} por página</x-ui.badge>
         <span class="ml-auto text-xs text-[color:var(--color-text-muted)]">Base URL: <code class="text-[color:var(--color-brand-light)]">{{ $baseUrl }}</code></span>
     </section>
+
+    @if(auth()->user()?->isSuperAdmin())
+        <section aria-label="Contrato OpenAPI" class="flex flex-wrap items-center gap-3">
+            <x-ui.button href="{{ route('api.docs.spec') }}" variant="secondary" size="sm">Descargar /docs/api/openapi.yaml</x-ui.button>
+            <span class="text-xs text-[color:var(--color-text-muted)]">Contrato relativo para navegadores y proxies HTTPS.</span>
+        </section>
+
+        <section aria-label="Buscador de endpoints" class="space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <x-ui.badge tone="neutral">Endpoints disponibles</x-ui.badge>
+                <x-ui.badge tone="neutral">Buscar endpoint</x-ui.badge>
+            </div>
+            <div x-data="codeRedApiDocs({ specUrl: @js(route('api.docs.spec')), basePath: '/api/v1' })" x-cloak></div>
+            <label class="sr-only" for="api-docs-search">Buscar endpoint</label>
+            <input id="api-docs-search" type="search" autocomplete="off" class="sr-only" value="" />
+            <div class="rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-white/5 p-4 text-sm text-[color:var(--color-text-secondary)]">
+                <p>Base de configuración: <code class="text-[color:var(--color-brand-light)]">basePath: '/api/v1'</code></p>
+            </div>
+        </section>
+    @endif
 
     {{-- Navegación compacta en móvil --}}
     <div class="lg:hidden">

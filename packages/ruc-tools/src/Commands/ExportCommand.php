@@ -2,15 +2,15 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Database\Connection;
+use RucTool\Helpers\ConfigManager;
+use RucTool\Helpers\Logger;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Database\Connection;
-use RucTool\Helpers\ConfigManager;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'export', description: 'Export ruc_records to CSV/JSON')]
 class ExportCommand extends Command
@@ -36,7 +36,7 @@ class ExportCommand extends Command
             $estado = $input->getOption('estado');
             $departamento = $input->getOption('departamento');
 
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
             $config = $configManager->all();
             $connection = new Connection($config['database']);
 
@@ -59,7 +59,7 @@ class ExportCommand extends Command
             $sql .= ' ORDER BY id';
 
             if ($limit) {
-                $sql .= ' LIMIT ' . (int) $limit;
+                $sql .= ' LIMIT '.(int) $limit;
             }
 
             $records = $connection->query($sql, $params)->fetchAll();
@@ -86,8 +86,9 @@ class ExportCommand extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Export failed: ' . $e->getMessage());
-            Logger::error('Export failed: ' . $e->getMessage());
+            $io->error('Export failed: '.$e->getMessage());
+            Logger::error('Export failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }
@@ -96,7 +97,7 @@ class ExportCommand extends Command
     {
         $fp = fopen($filename, 'w');
 
-        if (!empty($records)) {
+        if (! empty($records)) {
             fputcsv($fp, array_keys($records[0]));
             foreach ($records as $record) {
                 fputcsv($fp, $record);
@@ -119,6 +120,6 @@ class ExportCommand extends Command
         $pow = min($pow, count($units) - 1);
         $bytes /= (1 << (10 * $pow));
 
-        return round($bytes, 2) . ' ' . $units[$pow];
+        return round($bytes, 2).' '.$units[$pow];
     }
 }

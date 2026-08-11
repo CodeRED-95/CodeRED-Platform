@@ -20,6 +20,7 @@ use App\Services\ApiTokens\ApiTokenGenerator;
 use App\Services\ApiTokens\TelegramRequesterLinker;
 use App\Services\ApiTokens\TokenVaultService;
 use App\Services\Integrations\N8nTelegramTokenSettings;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -72,7 +73,7 @@ class Index extends Component
     public bool $deliveryContactRevealed = false;
 
     public bool $confirmingDelivery = false;
-    
+
     public bool $confirmingManualReveal = false;
 
     public ?string $manualDeliveryReason = null;
@@ -99,7 +100,7 @@ class Index extends Component
     public ?int $deleteRequestId = null;
 
     public bool $manualDeliveryConfirmation = false;
-    
+
     public function confirmManualReveal(TokenVaultService $vault): void
     {
         Gate::authorize('api-token-requests.reveal_token');
@@ -122,9 +123,9 @@ class Index extends Component
             if (empty($request->token_ciphertext)) {
                 return ['error' => 'No hay un token cifrado para revelar.'];
             }
-            
+
             $token = $request->token;
-            if (!$token || $token->revoked_at || ($token->expires_at && $token->expires_at->isPast())) {
+            if (! $token || $token->revoked_at || ($token->expires_at && $token->expires_at->isPast())) {
                 return ['error' => 'El token asociado ha sido revocado o ha expirado.'];
             }
 
@@ -197,7 +198,7 @@ class Index extends Component
         $this->event($request, 'viewed', 'Solicitud visualizada.');
     }
 
-    public function approve(N8nTelegramTokenSettings $settings, ApiTokenGenerator $generator, \App\Services\ApiTokens\TokenVaultService $vault): void
+    public function approve(N8nTelegramTokenSettings $settings, ApiTokenGenerator $generator, TokenVaultService $vault): void
     {
         Gate::authorize('api-token-requests.approve');
 
@@ -595,7 +596,7 @@ class Index extends Component
 
     public function showProtectedData(ShowProtectedDataAction $action): void
     {
-        if (!$this->selectedId) {
+        if (! $this->selectedId) {
             return;
         }
 
@@ -610,7 +611,7 @@ class Index extends Component
             );
 
             $this->showingProtectedData = true;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->addError('protected_data', $e->getMessage());
         } catch (\Exception $e) {
             $this->addError('protected_data', 'Error al obtener datos protegidos: '.$e->getMessage());
@@ -625,7 +626,7 @@ class Index extends Component
 
     public function revealTokenModal(): void
     {
-        if (!$this->selectedId) {
+        if (! $this->selectedId) {
             return;
         }
 
@@ -634,7 +635,7 @@ class Index extends Component
 
     public function revealToken(RevealTokenAction $action): void
     {
-        if (!$this->selectedId) {
+        if (! $this->selectedId) {
             return;
         }
 
@@ -665,7 +666,7 @@ class Index extends Component
             'deliveryReason' => ['nullable', 'string', 'max:500'],
         ]);
 
-        if (!$this->selectedId) {
+        if (! $this->selectedId) {
             return;
         }
 

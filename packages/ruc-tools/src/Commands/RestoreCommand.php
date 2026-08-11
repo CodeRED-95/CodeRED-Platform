@@ -2,17 +2,17 @@
 
 namespace RucTool\Commands;
 
-use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Console\Question\ConfirmationQuestion;
 use RucTool\Database\Connection;
-use RucTool\Services\BackupService;
 use RucTool\Helpers\ConfigManager;
 use RucTool\Helpers\Logger;
+use RucTool\Services\BackupService;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(name: 'restore', description: 'Restore ruc_records from a local pg_dump backup (.dump, legacy .sql.gz, or *.manifest.json)')]
 class RestoreCommand extends Command
@@ -29,7 +29,7 @@ class RestoreCommand extends Command
         $isManifest = str_ends_with($backupFilename, '.manifest.json');
 
         try {
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
             $config = $configManager->all();
             $connection = new Connection($config['database']);
             $backupService = new BackupService($connection, $config['database'], $config['backup_directory']);
@@ -41,8 +41,9 @@ class RestoreCommand extends Command
             $helper = $this->getHelper('question');
             $question = new ConfirmationQuestion('Are you sure you want to continue? (yes/no): ', false);
 
-            if (!$helper->ask($input, $output, $question)) {
+            if (! $helper->ask($input, $output, $question)) {
                 $io->warning('Restore cancelled');
+
                 return Command::SUCCESS;
             }
 
@@ -72,8 +73,9 @@ class RestoreCommand extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Restore failed: ' . $e->getMessage());
-            Logger::error('Restore failed: ' . $e->getMessage());
+            $io->error('Restore failed: '.$e->getMessage());
+            Logger::error('Restore failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }

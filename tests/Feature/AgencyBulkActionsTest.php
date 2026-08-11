@@ -8,7 +8,6 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Actions\BulkActivateAgenciesAction;
-use App\Modules\Agencies\Actions\BulkDeactivateAgenciesAction;
 use App\Modules\Agencies\Actions\BulkForceDeleteAgenciesAction;
 use App\Modules\Agencies\Actions\BulkRestoreAgenciesAction;
 use App\Modules\Agencies\Enums\AgencyStatus;

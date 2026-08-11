@@ -24,11 +24,17 @@ class BackupService
     public const DEFAULT_PART_SIZE_BYTES = 90 * 1024 * 1024; // 94371840
 
     private Connection $connection;
+
     private array $dbConfig;
+
     private string $backupDir;
+
     private DumpValidator $validator;
+
     private BackupPartitioner $partitioner;
+
     private ManifestService $manifestService;
+
     private string $toolVersion;
 
     public function __construct(Connection $connection, array $dbConfig, string $backupDir, string $toolVersion = '2.3.0')
@@ -36,26 +42,26 @@ class BackupService
         $this->connection = $connection;
         $this->dbConfig = $dbConfig;
         $this->backupDir = $backupDir;
-        $this->validator = new DumpValidator();
-        $this->partitioner = new BackupPartitioner();
-        $this->manifestService = new ManifestService();
+        $this->validator = new DumpValidator;
+        $this->partitioner = new BackupPartitioner;
+        $this->manifestService = new ManifestService;
         $this->toolVersion = $toolVersion;
         $this->ensureBackupDir();
     }
 
     private function ensureBackupDir(): void
     {
-        if (!is_dir($this->backupDir)) {
+        if (! is_dir($this->backupDir)) {
             mkdir($this->backupDir, 0755, true);
         }
     }
 
     /**
-     * @param callable|null $onStage fn(string $stage, array $context): void — hooks
-     *        de progreso para que el Command imprima cada etapa en orden sin
-     *        acoplar este servicio a SymfonyStyle. Etapas emitidas, en orden:
-     *        'dump_created' {size_bytes}, 'validated' {}, 'checksummed'
-     *        {checksum}, 'part_created' {part, total_parts}, 'verified' {}.
+     * @param  callable|null  $onStage  fn(string $stage, array $context): void — hooks
+     *                                  de progreso para que el Command imprima cada etapa en orden sin
+     *                                  acoplar este servicio a SymfonyStyle. Etapas emitidas, en orden:
+     *                                  'dump_created' {size_bytes}, 'validated' {}, 'checksummed'
+     *                                  {checksum}, 'part_created' {part, total_parts}, 'verified' {}.
      */
     public function backup(int $partSizeBytes = self::DEFAULT_PART_SIZE_BYTES, bool $keepFull = false, ?callable $onStage = null): array
     {
@@ -75,13 +81,13 @@ class BackupService
 
         $this->checkDiskSpace($this->backupDir, 512 * 1024 * 1024, 'Espacio insuficiente para iniciar el backup (mínimo 512 MB libres).');
 
-        if (!is_dir($backupSetDir) && !mkdir($backupSetDir, 0755, true) && !is_dir($backupSetDir)) {
+        if (! is_dir($backupSetDir) && ! mkdir($backupSetDir, 0755, true) && ! is_dir($backupSetDir)) {
             throw new \Exception("No se pudo crear el directorio del backup: {$backupSetDir}");
         }
 
         $this->runPgDump($fullDumpPath);
 
-        if (!file_exists($fullDumpPath) || filesize($fullDumpPath) === 0) {
+        if (! file_exists($fullDumpPath) || filesize($fullDumpPath) === 0) {
             throw new \Exception('pg_dump no generó un archivo válido (el dump está vacío o no se creó).');
         }
 
@@ -133,7 +139,7 @@ class BackupService
         $manifestPath = "{$backupSetDir}/{$manifestFilename}";
         $this->manifestService->write($manifestPath, $manifest);
 
-        if (!$keepFull) {
+        if (! $keepFull) {
             @unlink($fullDumpPath);
         }
 
@@ -176,7 +182,7 @@ class BackupService
 
     private function runPgDump(string $outputPath): void
     {
-        if (!$this->commandExists('pg_dump')) {
+        if (! $this->commandExists('pg_dump')) {
             throw new \Exception('pg_dump no está disponible en el PATH de este contenedor/máquina.');
         }
 
@@ -194,15 +200,15 @@ class BackupService
         exec($command, $output, $returnCode);
 
         if ($returnCode !== 0) {
-            throw new \Exception('pg_dump falló: ' . implode("\n", $output));
+            throw new \Exception('pg_dump falló: '.implode("\n", $output));
         }
     }
 
     private function commandExists(string $binary): bool
     {
-        exec('command -v ' . escapeshellarg($binary) . ' 2>/dev/null', $output, $code);
+        exec('command -v '.escapeshellarg($binary).' 2>/dev/null', $output, $code);
 
-        return $code === 0 && !empty($output);
+        return $code === 0 && ! empty($output);
     }
 
     /**
@@ -213,7 +219,7 @@ class BackupService
     {
         $backupPath = $this->resolveBackupPath($backupFilename);
 
-        if (!file_exists($backupPath)) {
+        if (! file_exists($backupPath)) {
             throw new \Exception("Backup no encontrado: {$backupFilename}");
         }
 
@@ -238,7 +244,7 @@ class BackupService
      */
     public function restoreFromManifest(string $manifestPath): array
     {
-        if (!file_exists($manifestPath)) {
+        if (! file_exists($manifestPath)) {
             throw new \Exception("Manifest no encontrado: {$manifestPath}");
         }
 
@@ -246,8 +252,8 @@ class BackupService
         $manifestDir = dirname($manifestPath);
 
         $errors = $this->manifestService->validate($manifest, $manifestDir, $this->partitioner);
-        if (!empty($errors)) {
-            throw new \Exception("El manifest no es válido:\n - " . implode("\n - ", $errors));
+        if (! empty($errors)) {
+            throw new \Exception("El manifest no es válido:\n - ".implode("\n - ", $errors));
         }
 
         $this->checkDiskSpace($manifestDir, (int) ($manifest['total_size_bytes'] * 1.1), 'Espacio insuficiente para reconstruir el backup antes de restaurar.');
@@ -257,7 +263,7 @@ class BackupService
             $manifest['parts']
         );
 
-        $tempDump = $manifestDir . '/.tmp_restore_' . bin2hex(random_bytes(6)) . '.dump';
+        $tempDump = $manifestDir.'/.tmp_restore_'.bin2hex(random_bytes(6)).'.dump';
 
         try {
             $this->partitioner->join($partPaths, $tempDump);
@@ -300,7 +306,7 @@ class BackupService
 
     private function runPgRestore(string $inputPath): void
     {
-        if (!$this->commandExists('pg_restore')) {
+        if (! $this->commandExists('pg_restore')) {
             throw new \Exception('pg_restore no está disponible en el PATH de este contenedor/máquina.');
         }
 
@@ -321,7 +327,7 @@ class BackupService
         exec($command, $output, $returnCode);
 
         if ($returnCode !== 0) {
-            throw new \Exception('pg_restore falló: ' . implode("\n", $output));
+            throw new \Exception('pg_restore falló: '.implode("\n", $output));
         }
     }
 
@@ -347,7 +353,7 @@ class BackupService
         $pow = min($pow, count($units) - 1);
         $bytes /= (1 << (10 * $pow));
 
-        return round($bytes, 2) . ' ' . $units[$pow];
+        return round($bytes, 2).' '.$units[$pow];
     }
 
     public function getPartitioner(): BackupPartitioner

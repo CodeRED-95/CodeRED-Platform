@@ -8,15 +8,14 @@ use App\Livewire\Admin\ShalomRecordar\Index as ShalomRecordarIndex;
 use App\Livewire\Admin\ShalomRecordar\InstallationShow;
 use App\Livewire\Admin\ShalomRecordar\UserShow;
 use App\Models\Role;
-use App\Models\ActivityLog;
 use App\Models\User;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarInstallation;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarRecord;
 use App\Modules\ShalomRecordar\Services\ShalomRecordarSyncService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Laravel\Sanctum\Sanctum;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class RecordarSyncTest extends TestCase
@@ -42,11 +41,11 @@ class RecordarSyncTest extends TestCase
             'installation' => [
                 'device_name' => 'Laptop',
                 'browser_name' => 'Chrome',
-            'browser_version' => '127.0',
-            'platform_name' => 'Linux',
-            'platform_version' => '6.0',
-        ],
-    ];
+                'browser_version' => '127.0',
+                'platform_name' => 'Linux',
+                'platform_version' => '6.0',
+            ],
+        ];
 
         $response = $this->postJson('/api/v1/shalom-recordar/auth/login', $payload)
             ->assertOk()
@@ -98,10 +97,10 @@ class RecordarSyncTest extends TestCase
                 'device_name' => 'Laptop',
                 'browser_name' => 'Chrome',
                 'browser_version' => '127.0',
-            'platform_name' => 'Linux',
-            'platform_version' => '6.0',
-        ],
-    ];
+                'platform_name' => 'Linux',
+                'platform_version' => '6.0',
+            ],
+        ];
 
         $register = $this->postJson('/api/v1/shalom-recordar/auth/login', $payload)
             ->assertOk();

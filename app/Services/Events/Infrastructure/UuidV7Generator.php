@@ -9,6 +9,6 @@ final class UuidV7Generator implements UuidGeneratorContract
 {
     public function generateV7(): string
     {
-        return (new UuidFactory())->uuid7()->toString();
+        return (new UuidFactory)->uuid7()->toString();
     }
 }

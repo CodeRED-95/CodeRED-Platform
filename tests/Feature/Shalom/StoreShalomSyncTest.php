@@ -255,5 +255,4 @@ class StoreShalomSyncTest extends TestCase
         $response->assertUnauthorized()
             ->assertJson(['success' => false]);
     }
-
 }

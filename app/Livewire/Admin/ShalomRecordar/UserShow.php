@@ -8,6 +8,7 @@ use App\Core\Audit\AuditLogger;
 use App\Models\User;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarInstallation;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarRecord;
+use App\Modules\ShalomRecordar\Services\ShalomRecordarSyncService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -84,7 +85,7 @@ class UserShow extends Component
             ->where('user_id', $this->user->id)
             ->findOrFail($installationId);
 
-        app(\App\Modules\ShalomRecordar\Services\ShalomRecordarSyncService::class)->revokeInstallationToken($installation, $audit);
+        app(ShalomRecordarSyncService::class)->revokeInstallationToken($installation, $audit);
         $this->dispatch('toast', type: 'success', message: 'Token de la instalación revocado.');
     }
 }

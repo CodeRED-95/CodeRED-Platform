@@ -21,11 +21,9 @@ final class DispatchPlatformEventJob implements ShouldQueue
     public int $tries = 1;
 
     /**
-     * @param array<string, mixed> $eventPayload
+     * @param  array<string, mixed>  $eventPayload
      */
-    public function __construct(public int $dispatchId, public array $eventPayload)
-    {
-    }
+    public function __construct(public int $dispatchId, public array $eventPayload) {}
 
     public function handle(EventDeliveryContract $delivery, EventDispatchRepositoryContract $repository): void
     {

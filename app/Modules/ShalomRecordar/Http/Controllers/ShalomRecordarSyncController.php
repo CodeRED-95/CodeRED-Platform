@@ -9,9 +9,9 @@ use App\Modules\ShalomRecordar\Http\Requests\LoginShalomRecordarRequest;
 use App\Modules\ShalomRecordar\Http\Requests\RegisterShalomRecordarInstallationRequest;
 use App\Modules\ShalomRecordar\Http\Requests\StatusShalomRecordarRequest;
 use App\Modules\ShalomRecordar\Http\Requests\SyncShalomRecordarRequest;
-use Illuminate\Support\Facades\Auth;
 use App\Modules\ShalomRecordar\Services\ShalomRecordarSyncService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
 class ShalomRecordarSyncController extends Controller
 {

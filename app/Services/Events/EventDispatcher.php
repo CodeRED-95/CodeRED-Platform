@@ -16,11 +16,10 @@ final class EventDispatcher implements EventDispatcherContract
         private readonly EventDeliveryContract $delivery,
         private readonly bool $enabled = true,
         private readonly bool $queueEnabled = true,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function dispatch(string $type, array $payload = [], ?string $tenant = null, ?string $source = null): EventData
     {
@@ -33,6 +32,7 @@ final class EventDispatcher implements EventDispatcherContract
 
         if ($this->queueEnabled) {
             DispatchPlatformEventJob::dispatch($dispatch->id, $event->toArray());
+
             return $event;
         }
 

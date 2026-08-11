@@ -2,17 +2,17 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Database\Connection;
+use RucTool\Database\Schema;
+use RucTool\Helpers\ConfigManager;
+use RucTool\Helpers\Logger;
+use RucTool\Services\UbigeoService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Database\Connection;
-use RucTool\Database\Schema;
-use RucTool\Services\UbigeoService;
-use RucTool\Helpers\ConfigManager;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'init', description: 'Initialize RUC database (PostgreSQL, schema compatible with CodeRED-Platform)')]
 class InitCommand extends Command
@@ -33,7 +33,7 @@ class InitCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         try {
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
 
             $config = [
                 'driver' => 'pgsql',
@@ -49,7 +49,7 @@ class InitCommand extends Command
             $configManager->set('database', $config);
             $configManager->save();
 
-            $io->success('Configuration saved to: ' . getenv('HOME') . '/.ruc-tool/ruc-tool.json');
+            $io->success('Configuration saved to: '.getenv('HOME').'/.ruc-tool/ruc-tool.json');
 
             $connection = new Connection($config);
             $schema = new Schema($connection);
@@ -58,8 +58,8 @@ class InitCommand extends Command
             $io->success('Database schema initialized (ruc_records, ubigeos, ruc_staging)');
             $io->note("Database: {$config['database']} at {$config['host']}:{$config['port']}");
 
-            if (!$input->getOption('skip-ubigeo')) {
-                $ubigeoPath = dirname(__DIR__, 2) . '/resources/data/ubigeos_alanube.json';
+            if (! $input->getOption('skip-ubigeo')) {
+                $ubigeoPath = dirname(__DIR__, 2).'/resources/data/ubigeos_alanube.json';
                 if (file_exists($ubigeoPath)) {
                     $ubigeoService = new UbigeoService($connection);
                     $count = $ubigeoService->seed($ubigeoPath);
@@ -73,8 +73,9 @@ class InitCommand extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Initialization failed: ' . $e->getMessage());
-            Logger::error('Initialization failed: ' . $e->getMessage());
+            $io->error('Initialization failed: '.$e->getMessage());
+            Logger::error('Initialization failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }

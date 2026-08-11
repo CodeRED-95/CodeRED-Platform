@@ -10,15 +10,13 @@ use App\Exceptions\OtpMaxAttemptsExceededException;
 use App\Exceptions\OtpMaxResendsExceededException;
 use App\Exceptions\TokenAlreadyRevealedException;
 use App\Models\ApiTokenRequest;
+use App\Models\ApiTokenRequestEvent;
 use App\Services\ApiTokens\AuditService;
+use App\Services\ApiTokens\OtpService;
 use App\Services\ApiTokens\TokenVaultService;
+use Illuminate\View\View;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
-use Illuminate\View\View;
-use Illuminate\Support\Facades\DB;
-use App\Enums\ApiTokenRequestStatus;
-use App\Enums\ApiTokenRequestDeliveryStatus;
-use App\Models\ApiTokenRequestEvent;
 
 class TokenRequestManager extends Component
 {
@@ -26,31 +24,47 @@ class TokenRequestManager extends Component
 
     // Propiedades para el formulario de creación
     public string $requester_name = '';
+
     public string $delivery_method = 'whatsapp';
+
     public string $delivery_destination = '';
+
     public string $installation_name = '';
+
     public string $integration_type = '';
+
     public string $reason = '';
+
     public bool $terms = false;
-    
+
     // Propiedades para el formulario de consulta
     public string $tracking_code_status = '';
+
     public string $email_status = '';
 
     // Propiedades para el resultado
     public ?ApiTokenRequest $foundRequest = null;
+
     public ?string $errorMessage = null;
+
     #[Locked]
     public ?string $revealedToken = null;
+
     public bool $confirmingReveal = false;
 
     // FASE 2: Nuevas propiedades para flujo de OTP
     public string $currentStep = 'status_check'; // status_check, otp_pending, token_ready
+
     public string $otpCode = '';
+
     public string $otpStatus = 'pending';
+
     public int $otpAttemptsRemaining = 5;
+
     public int $otpResendsRemaining = 3;
+
     public ?string $otpExpiresAt = null;
+
     public ?string $otpErrorMessage = null;
 
     public function mount(): void
@@ -81,9 +95,10 @@ class TokenRequestManager extends Component
             ->where('requester_email_blind_index', $blindIndex)
             ->first();
 
-        if (!$request) {
+        if (! $request) {
             $this->errorMessage = 'No se encontró una solicitud con los datos proporcionados.';
             ApiTokenRequestEvent::logPublicStatusCheck(false, $this->tracking_code_status, 'Request not found');
+
             return;
         }
 
@@ -97,8 +112,9 @@ class TokenRequestManager extends Component
 
     public function requestOtp(CreateOtpTokenAction $action): void
     {
-        if (!$this->foundRequest) {
+        if (! $this->foundRequest) {
             $this->otpErrorMessage = 'No se ha encontrado una solicitud.';
+
             return;
         }
 
@@ -122,8 +138,9 @@ class TokenRequestManager extends Component
 
     public function verifyOtp(VerifyOtpTokenAction $action): void
     {
-        if (!$this->foundRequest) {
+        if (! $this->foundRequest) {
             $this->otpErrorMessage = 'La solicitud ha expirado.';
+
             return;
         }
 
@@ -164,16 +181,18 @@ class TokenRequestManager extends Component
 
     public function revealToken(): void
     {
-        if (!$this->foundRequest) {
+        if (! $this->foundRequest) {
             $this->errorMessage = 'No se ha encontrado una solicitud para revelar.';
+
             return;
         }
 
         // Si no tiene OTP validado, pedir que lo haga primero
-        if (!$this->foundRequest->hasOtpBeenValidated() && $this->currentStep !== 'token_ready') {
+        if (! $this->foundRequest->hasOtpBeenValidated() && $this->currentStep !== 'token_ready') {
             $this->requestOtp(new CreateOtpTokenAction(
-                new \App\Services\ApiTokens\OtpService()
+                new OtpService
             ));
+
             return;
         }
 
@@ -182,9 +201,10 @@ class TokenRequestManager extends Component
 
     public function confirmRevealToken(RevealTokenAction $action): void
     {
-        if (!$this->foundRequest) {
+        if (! $this->foundRequest) {
             $this->errorMessage = 'La sesión ha expirado, por favor busca tu solicitud de nuevo.';
             $this->confirmingReveal = false;
+
             return;
         }
 
@@ -214,14 +234,13 @@ class TokenRequestManager extends Component
         } catch (\Throwable $e) {
             logger()->error('Error revealing token for public request', [
                 'request_id' => $this->foundRequest->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             $this->errorMessage = 'Ocurrió un error inesperado al procesar la solicitud. [EC:02]';
         }
 
         $this->confirmingReveal = false;
     }
-
 
     private function resetStatusFields(): void
     {

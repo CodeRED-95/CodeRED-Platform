@@ -23,11 +23,11 @@ class DumpValidator
 
     /**
      * @throws \Exception si el archivo no es un dump válido o contiene
-     *                     objetos ajenos a ruc_records.
+     *                    objetos ajenos a ruc_records.
      */
     public function assertBelongsToRucRecords(string $filePath): void
     {
-        if (!file_exists($filePath) || filesize($filePath) === 0) {
+        if (! file_exists($filePath) || filesize($filePath) === 0) {
             throw new \Exception('El archivo no existe o está vacío.');
         }
 
@@ -36,7 +36,7 @@ class DumpValidator
 
         if ($returnCode !== 0) {
             throw new \Exception(
-                'El archivo no es un dump válido de PostgreSQL (formato custom de pg_dump). ' . implode("\n", $output)
+                'El archivo no es un dump válido de PostgreSQL (formato custom de pg_dump). '.implode("\n", $output)
             );
         }
 
@@ -52,7 +52,7 @@ class DumpValidator
             // Orden importa: alternativas más largas/específicas primero
             // ("SEQUENCE OWNED BY" antes que "SEQUENCE"), o la alternancia
             // hace match parcial y desplaza los grupos capturados.
-            if (!preg_match(
+            if (! preg_match(
                 '/^\d+;\s+\d+\s+\d+\s+(TABLE DATA|SEQUENCE OWNED BY|SEQUENCE SET|SEQUENCE|TABLE|CONSTRAINT|INDEX|DEFAULT)\s+(\S+)\s+(\S+)/',
                 $line,
                 $m
@@ -62,9 +62,9 @@ class DumpValidator
 
             $objectName = $m[3];
 
-            if (!preg_match(self::ALLOWED_TOC_PATTERN, $objectName)) {
+            if (! preg_match(self::ALLOWED_TOC_PATTERN, $objectName)) {
                 throw new \Exception(
-                    "El archivo contiene el objeto \"{$objectName}\", ajeno a ruc_records. " .
+                    "El archivo contiene el objeto \"{$objectName}\", ajeno a ruc_records. ".
                     'Por seguridad solo se aceptan dumps que contengan exclusivamente la tabla ruc_records.'
                 );
             }
@@ -74,7 +74,7 @@ class DumpValidator
             }
         }
 
-        if (!$sawExpectedTable) {
+        if (! $sawExpectedTable) {
             throw new \Exception('El archivo no contiene la tabla "ruc_records" esperada.');
         }
     }

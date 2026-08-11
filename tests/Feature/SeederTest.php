@@ -6,8 +6,8 @@ use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
 use Database\Seeders\DatabaseSeeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class SeederTest extends TestCase

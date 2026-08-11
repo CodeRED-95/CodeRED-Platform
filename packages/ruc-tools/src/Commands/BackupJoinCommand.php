@@ -2,6 +2,10 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Helpers\Logger;
+use RucTool\Services\BackupPartitioner;
+use RucTool\Services\DumpValidator;
+use RucTool\Services\ManifestService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -9,10 +13,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Services\BackupPartitioner;
-use RucTool\Services\DumpValidator;
-use RucTool\Services\ManifestService;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'backup:join', description: 'Reconstruct the full .dump file from a manifest (streaming, byte-identical to the original)')]
 class BackupJoinCommand extends Command
@@ -33,14 +33,14 @@ class BackupJoinCommand extends Command
         $io->title('RUC Backup Join');
 
         try {
-            $manifestService = new ManifestService();
-            $partitioner = new BackupPartitioner();
+            $manifestService = new ManifestService;
+            $partitioner = new BackupPartitioner;
 
             $manifest = $manifestService->read($manifestPath);
 
             $io->text('Verificando manifest y partes...');
             $errors = $manifestService->validate($manifest, $manifestDir, $partitioner);
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 foreach ($errors as $error) {
                     $io->error($error);
                 }
@@ -50,14 +50,14 @@ class BackupJoinCommand extends Command
             $io->text('OK');
             $io->newLine();
 
-            $outputPath = $input->getOption('output') ?? ($manifestDir . '/' . $manifest['original_filename']);
+            $outputPath = $input->getOption('output') ?? ($manifestDir.'/'.$manifest['original_filename']);
 
             $partPaths = array_map(
-                static fn (array $p): string => $manifestDir . '/' . $p['filename'],
+                static fn (array $p): string => $manifestDir.'/'.$p['filename'],
                 $manifest['parts']
             );
 
-            $io->text('Reconstruyendo ' . basename($outputPath) . '...');
+            $io->text('Reconstruyendo '.basename($outputPath).'...');
             $partitioner->join($partPaths, $outputPath);
             $io->text('OK');
 
@@ -70,16 +70,16 @@ class BackupJoinCommand extends Command
             $io->text('SHA-256 reconstruido coincide con el manifest: <info>OK</info>');
 
             $io->text('Verificando con pg_restore --list...');
-            (new DumpValidator())->assertBelongsToRucRecords($outputPath);
+            (new DumpValidator)->assertBelongsToRucRecords($outputPath);
             $io->text('OK');
 
-            $io->success('Archivo reconstruido correctamente: ' . $outputPath);
-            Logger::info('Backup joined: ' . $outputPath);
+            $io->success('Archivo reconstruido correctamente: '.$outputPath);
+            Logger::info('Backup joined: '.$outputPath);
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Join failed: ' . $e->getMessage());
-            Logger::error('Backup join failed: ' . $e->getMessage());
+            $io->error('Join failed: '.$e->getMessage());
+            Logger::error('Backup join failed: '.$e->getMessage());
 
             return Command::FAILURE;
         }

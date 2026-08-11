@@ -27,7 +27,7 @@ class DeliveryRecordsExportController extends Controller
         ]);
 
         $query = ShalomDeliveryRecord::query()
-            ->when($validated['username'] ?? null, fn ($q, $username) => $q->where('username', 'like', '%' . $username . '%'))
+            ->when($validated['username'] ?? null, fn ($q, $username) => $q->where('username', 'like', '%'.$username.'%'))
             ->when($validated['field'] ?? null, fn ($q, $field) => $q->where('field', $field))
             ->when($validated['date_from'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '>=', $date))
             ->when($validated['date_to'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '<=', $date))
@@ -35,7 +35,7 @@ class DeliveryRecordsExportController extends Controller
             ->with(['user', 'apiKey'])
             ->latest('created_at');
 
-        $fileName = 'shalom-delivery-records-' . now()->format('Y-m-d-His') . '.csv';
+        $fileName = 'shalom-delivery-records-'.now()->format('Y-m-d-His').'.csv';
 
         return response()->streamDownload(function () use ($query): void {
             $csv = fopen('php://output', 'w');

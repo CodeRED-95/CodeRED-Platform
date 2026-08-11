@@ -2,16 +2,16 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Database\Connection;
+use RucTool\Helpers\ConfigManager;
+use RucTool\Helpers\Logger;
+use RucTool\Services\BackupService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Database\Connection;
-use RucTool\Services\BackupService;
-use RucTool\Helpers\ConfigManager;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'backup', description: 'Backup ruc_records via pg_dump, split into fixed-size parts + manifest.json')]
 class BackupCommand extends Command
@@ -37,7 +37,7 @@ class BackupCommand extends Command
         $keepFull = (bool) $input->getOption('keep-full');
 
         try {
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
             $config = $configManager->all();
 
             $io->title('RUC Backup');
@@ -47,7 +47,7 @@ class BackupCommand extends Command
 
             $recordCount = $connection->count('ruc_records');
             $io->text('Registros:');
-            $io->text('<info>' . number_format($recordCount) . '</info>');
+            $io->text('<info>'.number_format($recordCount).'</info>');
             $io->newLine();
 
             $io->text('Creando PostgreSQL dump...');
@@ -58,7 +58,7 @@ class BackupCommand extends Command
                         $io->text('OK');
                         $io->newLine();
                         $io->text('Tamaño:');
-                        $io->text('<info>' . $this->formatBytes($context['size_bytes']) . '</info>');
+                        $io->text('<info>'.$this->formatBytes($context['size_bytes']).'</info>');
                         $io->newLine();
                         $io->text('Validando dump...');
                         break;
@@ -68,7 +68,7 @@ class BackupCommand extends Command
                     case 'checksummed':
                         $io->newLine();
                         $io->text('SHA-256:');
-                        $io->text('<comment>' . $context['checksum'] . '</comment>');
+                        $io->text('<comment>'.$context['checksum'].'</comment>');
                         $io->newLine();
                         $io->text("Dividiendo en partes de {$partSizeMib} MiB...");
                         $io->newLine();
@@ -107,13 +107,13 @@ class BackupCommand extends Command
             );
 
             $io->success('Backup preparado correctamente.');
-            $io->note('Verifica en destino con: ruc-tool backup:verify ' . basename($backup['manifest_path']));
-            Logger::info('Backup created: ' . $backup['name'] . ' (' . count($backup['parts']) . ' parts)');
+            $io->note('Verifica en destino con: ruc-tool backup:verify '.basename($backup['manifest_path']));
+            Logger::info('Backup created: '.$backup['name'].' ('.count($backup['parts']).' parts)');
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Backup failed: ' . $e->getMessage());
-            Logger::error('Backup failed: ' . $e->getMessage());
+            $io->error('Backup failed: '.$e->getMessage());
+            Logger::error('Backup failed: '.$e->getMessage());
 
             return Command::FAILURE;
         }
@@ -127,6 +127,6 @@ class BackupCommand extends Command
         $pow = min($pow, count($units) - 1);
         $bytes /= (1 << (10 * $pow));
 
-        return round($bytes, 1) . ' ' . $units[$pow];
+        return round($bytes, 1).' '.$units[$pow];
     }
 }

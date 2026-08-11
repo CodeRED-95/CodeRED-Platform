@@ -2,14 +2,14 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Database\Connection;
+use RucTool\Helpers\ConfigManager;
+use RucTool\Helpers\Logger;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Database\Connection;
-use RucTool\Helpers\ConfigManager;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'stats', description: 'Show database statistics')]
 class StatsCommand extends Command
@@ -19,7 +19,7 @@ class StatsCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         try {
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
             $config = $configManager->all();
             $connection = new Connection($config['database']);
 
@@ -70,9 +70,9 @@ class StatsCommand extends Command
                 'SELECT estado, COUNT(*) as count FROM ruc_records GROUP BY estado ORDER BY count DESC LIMIT 10'
             )->fetchAll();
 
-            if (!empty($stateStats)) {
+            if (! empty($stateStats)) {
                 $io->section('Top Records by Estado');
-                $rows = array_map(fn($s) => [$s['estado'] ?? 'N/A', number_format($s['count'])], $stateStats);
+                $rows = array_map(fn ($s) => [$s['estado'] ?? 'N/A', number_format($s['count'])], $stateStats);
                 $io->table(['Estado', 'Count'], $rows);
             }
 
@@ -80,9 +80,9 @@ class StatsCommand extends Command
                 'SELECT departamento, COUNT(*) as count FROM ruc_records WHERE departamento IS NOT NULL GROUP BY departamento ORDER BY count DESC LIMIT 10'
             )->fetchAll();
 
-            if (!empty($deptStats)) {
+            if (! empty($deptStats)) {
                 $io->section('Top Departamentos');
-                $rows = array_map(fn($s) => [$s['departamento'], number_format($s['count'])], $deptStats);
+                $rows = array_map(fn ($s) => [$s['departamento'], number_format($s['count'])], $deptStats);
                 $io->table(['Departamento', 'Count'], $rows);
             }
 
@@ -90,8 +90,9 @@ class StatsCommand extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Failed to retrieve stats: ' . $e->getMessage());
-            Logger::error('Stats command failed: ' . $e->getMessage());
+            $io->error('Failed to retrieve stats: '.$e->getMessage());
+            Logger::error('Stats command failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }

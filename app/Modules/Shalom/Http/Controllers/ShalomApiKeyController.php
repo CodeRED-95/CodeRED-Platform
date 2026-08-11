@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Shalom\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Modules\Shalom\Models\ShalomApiKey;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ShalomApiKeyController extends Controller
 {
@@ -46,7 +45,7 @@ class ShalomApiKeyController extends Controller
             $validated['description'] ?? null
         );
 
-        \Illuminate\Support\Facades\Log::info('Shalom API key created', [
+        Log::info('Shalom API key created', [
             'user_id' => $request->user()->id,
             'key_id' => $result['id'],
             'name' => $validated['name'],
@@ -75,7 +74,7 @@ class ShalomApiKeyController extends Controller
             'last_used_at' => $key->last_used_at,
             'revoked_at' => $key->revoked_at,
             'created_at' => $key->created_at,
-            'is_active' => !$key->revoked_at,
+            'is_active' => ! $key->revoked_at,
         ]);
     }
 
@@ -93,7 +92,7 @@ class ShalomApiKeyController extends Controller
 
         $key->update($validated);
 
-        \Illuminate\Support\Facades\Log::info('Shalom API key updated', [
+        Log::info('Shalom API key updated', [
             'key_id' => $key->id,
             'user_id' => $request->user()->id,
         ]);
@@ -114,7 +113,7 @@ class ShalomApiKeyController extends Controller
 
         $key->revoke();
 
-        \Illuminate\Support\Facades\Log::info('Shalom API key revoked', [
+        Log::info('Shalom API key revoked', [
             'key_id' => $key->id,
             'user_id' => $request->user()->id,
         ]);
@@ -135,7 +134,7 @@ class ShalomApiKeyController extends Controller
         $keyId = $key->id;
         $key->delete();
 
-        \Illuminate\Support\Facades\Log::info('Shalom API key deleted', [
+        Log::info('Shalom API key deleted', [
             'key_id' => $keyId,
             'user_id' => $request->user()->id,
         ]);

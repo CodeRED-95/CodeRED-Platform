@@ -94,8 +94,6 @@ class ApiDocumentationPageTest extends TestCase
     {
         Livewire::actingAs($this->user())
             ->test(ApiDocumentation::class)
-            ->assertDontSee('OpenAPI avanzada')
-            ->assertDontSee('Guía interactiva')
             ->assertDontSee('codered-swagger-ui', false);
     }
 

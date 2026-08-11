@@ -29,9 +29,9 @@ class CreateOtpTokenAction
         ?string $userAgent = null,
     ): array {
         // Verificar que la solicitud tiene estado apropiado
-        if (!in_array($request->statusValue(), ['pending', 'approved'])) {
+        if (! in_array($request->statusValue(), ['pending', 'approved'])) {
             throw new \InvalidArgumentException(
-                'No se puede solicitar OTP para una solicitud en estado: ' . $request->statusValue()
+                'No se puede solicitar OTP para una solicitud en estado: '.$request->statusValue()
             );
         }
 
@@ -62,6 +62,7 @@ class CreateOtpTokenAction
 
     /**
      * Enmascara un email mostrando solo la primera letra y dominio
+     *
      * Ejemplo: user@example.com → u***@example.com
      */
     private static function maskEmail(string $email): string
@@ -74,6 +75,6 @@ class CreateOtpTokenAction
         [$local, $domain] = $parts;
         $first = mb_substr($local, 0, 1);
 
-        return $first . '***@' . $domain;
+        return $first.'***@'.$domain;
     }
 }

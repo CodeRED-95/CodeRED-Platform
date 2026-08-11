@@ -58,7 +58,7 @@ class AuditService
                     'requester_phone',
                     'purpose',
                     'delivery_method',
-                ]
+                ],
             ],
         );
     }
@@ -279,7 +279,7 @@ class AuditService
     {
         $log = TokenRequestAuditLog::getDeliveryInfo($request);
 
-        if (!$log) {
+        if (! $log) {
             return null;
         }
 

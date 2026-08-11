@@ -5,7 +5,7 @@ namespace App\Services\Events\DTO;
 final readonly class EventData
 {
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function __construct(
         public string $id,
@@ -15,8 +15,7 @@ final readonly class EventData
         public string $tenant,
         public string $source,
         public array $payload,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{id: string, type: string, version: int, occurred_at: string, tenant: string, source: string, payload: array<string, mixed>}

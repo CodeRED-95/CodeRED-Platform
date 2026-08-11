@@ -12,11 +12,10 @@ final class EventFactory
 {
     public function __construct(
         private readonly UuidGeneratorContract $uuidGenerator,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function make(string $type, array $payload = [], ?string $tenant = null, ?string $source = null, int $version = 1): EventData
     {

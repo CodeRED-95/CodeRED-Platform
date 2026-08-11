@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Shalom\Livewire\Admin;
 
 use App\Modules\Shalom\Models\ShalomDeliveryRecord;
-use Livewire\Component;
 use Livewire\Attributes\On;
+use Livewire\Component;
 use Livewire\WithPagination;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DeliveryRecordsManager extends Component
 {
@@ -43,7 +44,7 @@ class DeliveryRecordsManager extends Component
     public function getRecords()
     {
         return ShalomDeliveryRecord::query()
-            ->when($this->search_username, fn ($q) => $q->where('username', 'like', '%' . $this->search_username . '%'))
+            ->when($this->search_username, fn ($q) => $q->where('username', 'like', '%'.$this->search_username.'%'))
             ->when($this->filter_field, fn ($q) => $q->where('field', $this->filter_field))
             ->when($this->date_from, fn ($q) => $q->whereDate('created_at', '>=', $this->date_from))
             ->when($this->date_to, fn ($q) => $q->whereDate('created_at', '<=', $this->date_to))
@@ -52,7 +53,7 @@ class DeliveryRecordsManager extends Component
             ->paginate($this->per_page);
     }
 
-    public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function exportCsv(): StreamedResponse
     {
         $records = $this->getRecords()->items();
 
@@ -80,7 +81,7 @@ class DeliveryRecordsManager extends Component
             }
 
             fclose($csv);
-        }, 'shalom-delivery-records-' . now()->format('Y-m-d-His') . '.csv');
+        }, 'shalom-delivery-records-'.now()->format('Y-m-d-His').'.csv');
     }
 
     public function render()

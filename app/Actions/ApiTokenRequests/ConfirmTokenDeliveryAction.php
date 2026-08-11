@@ -25,7 +25,7 @@ class ConfirmTokenDeliveryAction
         ?string $deliveryMethod = null,
         ?string $deliveryReason = null,
         $user = null,
-        string $ip = null,
+        ?string $ip = null,
         ?string $userAgent = null,
     ): array {
         // Usar transacción para atomicidad
@@ -44,7 +44,7 @@ class ConfirmTokenDeliveryAction
                 ->firstOrFail();
 
             // Verificar que el token fue revelado
-            if (!$fresh->hasTokenBeenRevealed()) {
+            if (! $fresh->hasTokenBeenRevealed()) {
                 throw new \InvalidArgumentException(
                     'El token debe haber sido revelado antes de confirmar la entrega.'
                 );

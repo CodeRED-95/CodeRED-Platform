@@ -32,7 +32,7 @@
             <div class="mb-6">
                 <label class="block text-sm font-medium text-slate-600 dark:text-slate-400">Acceso Seguro</label>
                 <div class="relative mt-2">
-                    <div class="flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-900 p-4 font-mono text-sm text-emerald-400 dark:border-slate-600">
+                    <div class="flex items-center gap-2 rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-background-inset)] p-4 font-mono text-sm text-emerald-400">
                         <span class="flex-1 break-all" x-text="token"></span>
                         <button @click="copyToClipboard()" class="flex-shrink-0 text-slate-400 hover:text-slate-200">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,24 +83,31 @@
             </div>
 
             <!-- Confirm Delivery Section -->
-            <div class="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+            <div class="mb-6 rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] p-4">
                 <h3 class="font-medium text-slate-900 dark:text-white">Confirmar Entrega</h3>
                 <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Después de entregar el token, confirma la entrega:</p>
 
                 <div class="mt-4 space-y-3">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Método de Entrega</label>
-                        <select wire:model="deliveryMethod" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm dark:border-slate-600 dark:bg-slate-800">
-                            <option value="presencial">Presencial</option>
-                            <option value="llamada">Llamada Telefónica</option>
-                            <option value="canal_corporativo">Canal Corporativo</option>
-                            <option value="otro">Otro</option>
-                        </select>
+                        <x-ui.dropdown-select
+                            wire:model="deliveryMethod"
+                            id="token-delivery-method"
+                            label="Método de Entrega"
+                            :value="$deliveryMethod"
+                            :options="[
+                                'presencial' => 'Presencial',
+                                'llamada' => 'Llamada Telefónica',
+                                'canal_corporativo' => 'Canal Corporativo',
+                                'otro' => 'Otro',
+                            ]"
+                            :error="$errors->first('deliveryMethod')"
+                        />
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Razón (Opcional)</label>
-                        <textarea wire:model="deliveryReason" maxlength="500" rows="2" placeholder="Notas sobre la entrega..." class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm dark:border-slate-600 dark:bg-slate-800"></textarea>
+                        <textarea wire:model="deliveryReason" maxlength="500" rows="2" placeholder="Notas sobre la entrega..." class="mt-1 block w-full rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] shadow-sm placeholder:text-[color:var(--color-text-muted)] focus:border-[color:var(--color-brand)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-brand)]/20"></textarea>
                     </div>
                 </div>
             </div>

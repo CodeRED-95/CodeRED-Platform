@@ -2,16 +2,16 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Database\Connection;
+use RucTool\Helpers\ConfigManager;
+use RucTool\Helpers\Logger;
+use RucTool\Services\UbigeoService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Database\Connection;
-use RucTool\Services\UbigeoService;
-use RucTool\Helpers\ConfigManager;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'ubigeo:rebuild', description: 'Re-resolve departamento/provincia/distrito on existing ruc_records from the ubigeos catalog (like ruc:rebuild-addresses)')]
 class RebuildUbigeoCommand extends Command
@@ -29,7 +29,7 @@ class RebuildUbigeoCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         try {
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
             $config = $configManager->all();
             $connection = new Connection($config['database']);
             $ubigeoService = new UbigeoService($connection);
@@ -42,6 +42,7 @@ class RebuildUbigeoCommand extends Command
 
             if ($ubigeoService->count() === 0) {
                 $io->error('Ubigeo catalog is empty. Run `ruc-tool init` first (or re-run without --skip-ubigeo).');
+
                 return Command::FAILURE;
             }
 
@@ -56,10 +57,11 @@ class RebuildUbigeoCommand extends Command
 
             if ($total === 0) {
                 $io->success('Nothing to rebuild — no matching records.');
+
                 return Command::SUCCESS;
             }
 
-            $io->info("Records to process: " . number_format($total));
+            $io->info('Records to process: '.number_format($total));
 
             $pdo = $connection->getPdo();
             $updateStmt = $pdo->prepare(
@@ -70,7 +72,7 @@ class RebuildUbigeoCommand extends Command
             $chunks = array_chunk($rows, $chunkSize);
 
             foreach ($chunks as $chunk) {
-                if (!$dryRun) {
+                if (! $dryRun) {
                     $pdo->beginTransaction();
                 }
 
@@ -80,7 +82,7 @@ class RebuildUbigeoCommand extends Command
                         continue;
                     }
 
-                    if (!$dryRun) {
+                    if (! $dryRun) {
                         $updateStmt->execute([
                             $location['departamento'],
                             $location['provincia'],
@@ -91,20 +93,21 @@ class RebuildUbigeoCommand extends Command
                     $updated++;
                 }
 
-                if (!$dryRun) {
+                if (! $dryRun) {
                     $pdo->commit();
                 }
 
-                $io->writeln('  Processed: ' . number_format($updated) . ' / ' . number_format($total));
+                $io->writeln('  Processed: '.number_format($updated).' / '.number_format($total));
             }
 
-            $io->success(($dryRun ? 'Simulated' : 'Updated') . ': ' . number_format($updated) . ' records');
-            Logger::info("ubigeo:rebuild completed: $updated records " . ($dryRun ? 'simulated' : 'updated'));
+            $io->success(($dryRun ? 'Simulated' : 'Updated').': '.number_format($updated).' records');
+            Logger::info("ubigeo:rebuild completed: $updated records ".($dryRun ? 'simulated' : 'updated'));
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Rebuild failed: ' . $e->getMessage());
-            Logger::error('ubigeo:rebuild failed: ' . $e->getMessage());
+            $io->error('Rebuild failed: '.$e->getMessage());
+            Logger::error('ubigeo:rebuild failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }

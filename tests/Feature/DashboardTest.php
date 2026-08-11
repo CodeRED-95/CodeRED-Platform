@@ -19,9 +19,10 @@ class DashboardTest extends TestCase
 
     private function superAdmin(): User
     {
-        $role = Role::query()->create([
-            'name' => 'Super Administrador',
+        $role = Role::query()->firstOrCreate([
             'slug' => 'super-admin',
+        ], [
+            'name' => 'Super Administrador',
             'is_system' => true,
         ]);
         $actor = User::factory()->create();

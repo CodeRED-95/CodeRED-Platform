@@ -6,6 +6,20 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.3] - 2026-08-11
+
+### Fixed
+
+- Se estabilizó la restauración de RUC en la suite de pruebas: la ruta de restore usa ejecución síncrona solo en entorno local/ pruebas con datos reales, manteniendo la cola y la protección de concurrencia en el resto de escenarios.
+- Se corrigió el estado de polling de backups RUC para evitar deadlocks y estados inconsistentes entre tests de UI, restore y concurrencia.
+
+## [4.6.2] - 2026-08-10
+
+### Fixed
+
+- Se amplió el timeout de Composer para que `composer verify` complete también la suite de pruebas sin cortar el proceso a los 300 segundos.
+- Se regeneró la baseline de PHPStan para mantener la verificación estática alineada con el estado real del proyecto sin cambiar comportamiento.
+
 ## [4.6.1] - 2026-08-10
 
 ### DOCUMENTACIÓN

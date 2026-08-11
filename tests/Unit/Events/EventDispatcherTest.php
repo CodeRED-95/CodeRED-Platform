@@ -5,7 +5,6 @@ namespace Tests\Unit\Events;
 use App\Models\EventDispatch;
 use App\Services\Events\Contracts\EventDeliveryContract;
 use App\Services\Events\Contracts\EventDispatchRepositoryContract;
-use App\Services\Events\Contracts\EventTransportContract;
 use App\Services\Events\DTO\EventData;
 use App\Services\Events\EventDispatcher;
 use App\Services\Events\EventFactory;
@@ -21,7 +20,7 @@ class EventDispatcherTest extends TestCase
     {
         $repository = $this->createMock(EventDispatchRepositoryContract::class);
         $delivery = $this->createMock(EventDeliveryContract::class);
-        $dispatchRecord = new EventDispatch();
+        $dispatchRecord = new EventDispatch;
         $dispatchRecord->id = 11;
 
         $repository->expects($this->once())
@@ -39,7 +38,7 @@ class EventDispatcherTest extends TestCase
             ->with($dispatchRecord, $this->isInstanceOf(EventData::class))
             ->willReturn(true);
 
-        $dispatcher = new EventDispatcher(new EventFactory(new UuidV7Generator()), $repository, $delivery, true, false);
+        $dispatcher = new EventDispatcher(new EventFactory(new UuidV7Generator), $repository, $delivery, true, false);
 
         $event = $dispatcher->dispatch(EventType::TOKEN_REQUEST_CREATED, ['request_id' => 123]);
 

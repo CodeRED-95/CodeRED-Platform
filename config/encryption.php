@@ -16,7 +16,7 @@ return [
     'token_request_data_key' => env('TOKEN_REQUEST_DATA_ENCRYPTION_KEY'),
 
     'token_request_blind_index_key' => env('TOKEN_REQUEST_BLIND_INDEX_KEY'),
-    
+
     // You can add more keys here for other specific encryption purposes.
     // 'token_request_token_encryption_key' => env('TOKEN_REQUEST_TOKEN_ENCRYPTION_KEY'),
 

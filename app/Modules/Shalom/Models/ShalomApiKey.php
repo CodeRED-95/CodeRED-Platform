@@ -40,7 +40,7 @@ class ShalomApiKey extends Model
      */
     public static function createNewKey(string $name, ?User $user = null, ?string $description = null): array
     {
-        $plainKey = 'shalom_' . Str::random(40);
+        $plainKey = 'shalom_'.Str::random(40);
         $keyHash = hash('sha256', $plainKey);
         $keyPrefix = substr($plainKey, 0, 20);
 

@@ -2,15 +2,15 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Helpers\Logger;
+use RucTool\Services\PadronParser;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Services\PadronParser;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'validate', description: 'Validate a padrón reducido RUC (.txt) file without importing it')]
 class ValidateCommand extends Command
@@ -32,15 +32,16 @@ class ValidateCommand extends Command
         $delimiter = $input->getOption('delimiter');
 
         try {
-            if (!file_exists($filepath)) {
+            if (! file_exists($filepath)) {
                 $io->error("File not found: $filepath");
+
                 return Command::FAILURE;
             }
 
             $io->title('RUC Validation — Padrón Reducido SUNAT');
             $io->info("Validating: $filepath (encoding=$encoding, delimiter=\"$delimiter\")");
 
-            $parser = new PadronParser();
+            $parser = new PadronParser;
             $handle = fopen($filepath, 'rb');
 
             $stats = ['total' => 0, 'valid' => 0, 'invalid' => 0, 'headers_skipped' => 0, 'errors' => []];
@@ -59,6 +60,7 @@ class ValidateCommand extends Command
 
                 if (isset($result['header'])) {
                     $stats['headers_skipped']++;
+
                     continue;
                 }
 
@@ -69,6 +71,7 @@ class ValidateCommand extends Command
                     if (count($stats['errors']) < 10000) {
                         $stats['errors'][] = ['line' => $lineNumber, 'error' => $result['error'], 'preview' => mb_substr($line, 0, 300)];
                     }
+
                     continue;
                 }
 
@@ -82,7 +85,7 @@ class ValidateCommand extends Command
                 $stats['valid']++;
 
                 if ($stats['total'] % 500000 === 0) {
-                    $io->writeln('  Validated: ' . number_format($stats['total']) . ' lines');
+                    $io->writeln('  Validated: '.number_format($stats['total']).' lines');
                 }
             }
             fclose($handle);
@@ -115,7 +118,7 @@ class ValidateCommand extends Command
                 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
                 $io->warning("Found {$stats['invalid']} invalid lines");
-                $io->note("Error report saved to: $reportFile" . (count($stats['errors']) >= 10000 ? ' (truncated to first 10,000 errors)' : ''));
+                $io->note("Error report saved to: $reportFile".(count($stats['errors']) >= 10000 ? ' (truncated to first 10,000 errors)' : ''));
             } else {
                 $io->success('All lines are valid!');
             }
@@ -124,8 +127,9 @@ class ValidateCommand extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Validation failed: ' . $e->getMessage());
-            Logger::error('Validation failed: ' . $e->getMessage());
+            $io->error('Validation failed: '.$e->getMessage());
+            Logger::error('Validation failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }

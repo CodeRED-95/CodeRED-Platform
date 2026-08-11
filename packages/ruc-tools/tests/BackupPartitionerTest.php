@@ -8,12 +8,13 @@ use RucTool\Services\BackupPartitioner;
 class BackupPartitionerTest extends TestCase
 {
     private BackupPartitioner $partitioner;
+
     private string $workDir;
 
     protected function setUp(): void
     {
-        $this->partitioner = new BackupPartitioner();
-        $this->workDir = sys_get_temp_dir() . '/ruc_tool_partitioner_test_' . uniqid();
+        $this->partitioner = new BackupPartitioner;
+        $this->workDir = sys_get_temp_dir().'/ruc_tool_partitioner_test_'.uniqid();
         mkdir($this->workDir, 0755, true);
     }
 
@@ -24,7 +25,7 @@ class BackupPartitionerTest extends TestCase
 
     private function removeDirectory(string $dir): void
     {
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             return;
         }
         foreach (scandir($dir) as $entry) {
@@ -57,7 +58,7 @@ class BackupPartitionerTest extends TestCase
         return $path;
     }
 
-    public function testSplitOfTwoHundredFiftyBytesIntoHundredByteParts(): void
+    public function test_split_of_two_hundred_fifty_bytes_into_hundred_byte_parts(): void
     {
         $source = $this->makeSourceFile(250);
 
@@ -78,7 +79,7 @@ class BackupPartitionerTest extends TestCase
         }
     }
 
-    public function testAllPartsExceptLastAreExactlyPartSize(): void
+    public function test_all_parts_except_last_are_exactly_part_size(): void
     {
         $source = $this->makeSourceFile(94371840 + 1); // part-size real (90 MiB) + 1 byte
 
@@ -90,7 +91,7 @@ class BackupPartitionerTest extends TestCase
         $this->assertLessThanOrEqual(94371840, $parts[1]['size_bytes']);
     }
 
-    public function testExactMultipleOfPartSizeDoesNotProduceEmptyTrailingPart(): void
+    public function test_exact_multiple_of_part_size_does_not_produce_empty_trailing_part(): void
     {
         $source = $this->makeSourceFile(200); // exactamente 2 partes de 100
 
@@ -100,7 +101,7 @@ class BackupPartitionerTest extends TestCase
         $this->assertSame([100, 100], array_column($parts, 'size_bytes'));
     }
 
-    public function testPartNamesAreZeroPaddedAndSortable(): void
+    public function test_part_names_are_zero_padded_and_sortable(): void
     {
         $source = $this->makeSourceFile(1000); // 100 bytes/parte -> 10 partes
 
@@ -113,7 +114,7 @@ class BackupPartitionerTest extends TestCase
         $this->assertSame('source.bin.part0010', end($filenames));
     }
 
-    public function testSplittingEmptyFileThrows(): void
+    public function test_splitting_empty_file_throws(): void
     {
         $source = $this->makeSourceFile(0);
 
@@ -121,7 +122,7 @@ class BackupPartitionerTest extends TestCase
         $this->partitioner->split($source, $this->workDir, 'source.bin', 100);
     }
 
-    public function testJoinReconstructsByteIdenticalFile(): void
+    public function test_join_reconstructs_byte_identical_file(): void
     {
         $source = $this->makeSourceFile(250);
         $originalHash = hash_file('sha256', $source);
@@ -136,7 +137,7 @@ class BackupPartitionerTest extends TestCase
         $this->assertSame(250, filesize($joined));
     }
 
-    public function testStreamingSha256MatchesJoinedFileHashWithoutWritingIt(): void
+    public function test_streaming_sha256_matches_joined_file_hash_without_writing_it(): void
     {
         $source = $this->makeSourceFile(250);
         $originalHash = hash_file('sha256', $source);
@@ -147,7 +148,7 @@ class BackupPartitionerTest extends TestCase
         $this->assertSame($originalHash, $this->partitioner->streamingSha256($partPaths));
     }
 
-    public function testJoinThrowsWhenAPartIsMissing(): void
+    public function test_join_throws_when_a_part_is_missing(): void
     {
         $source = $this->makeSourceFile(250);
         $parts = $this->partitioner->split($source, $this->workDir, 'source.bin', 100);

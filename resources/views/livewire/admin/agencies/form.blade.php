@@ -59,7 +59,7 @@
                                         label="Ubicación completa"
                                         :error="$errors->first('place')"
                                         readonly
-                                        description="Generado automáticamente desde Departamento / Provincia / Distrito / Nombre."
+                                        description="Generado automáticamente. Se construye desde Departamento / Provincia / Distrito / Nombre."
                                         wrapper-class="md:col-span-2"
                                     />
                                 @elseif ($field === 'map_url')

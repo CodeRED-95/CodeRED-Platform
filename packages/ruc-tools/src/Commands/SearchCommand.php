@@ -2,15 +2,15 @@
 
 namespace RucTool\Commands;
 
+use RucTool\Database\Connection;
+use RucTool\Helpers\ConfigManager;
+use RucTool\Helpers\Logger;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use RucTool\Database\Connection;
-use RucTool\Helpers\ConfigManager;
-use RucTool\Helpers\Logger;
 
 #[AsCommand(name: 'search', description: 'Search for RUC records')]
 class SearchCommand extends Command
@@ -31,7 +31,7 @@ class SearchCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         try {
-            $configManager = new ConfigManager();
+            $configManager = new ConfigManager;
             $config = $configManager->all();
             $connection = new Connection($config['database']);
 
@@ -42,8 +42,9 @@ class SearchCommand extends Command
             $estado = $input->getOption('estado');
             $limit = (int) $input->getOption('limit');
 
-            if (!$ruc && !$razon && !$ubigeo && !$departamento && !$estado) {
+            if (! $ruc && ! $razon && ! $ubigeo && ! $departamento && ! $estado) {
                 $io->error('Provide at least one search criterion (--ruc, --razon, --ubigeo, --departamento or --estado)');
+
                 return Command::FAILURE;
             }
 
@@ -75,17 +76,18 @@ class SearchCommand extends Command
                 $params[] = $estado;
             }
 
-            $sql .= ' LIMIT ' . $limit;
+            $sql .= ' LIMIT '.$limit;
 
             $results = $connection->query($sql, $params)->fetchAll();
 
             if (empty($results)) {
                 $io->info('No records found');
+
                 return Command::SUCCESS;
             }
 
             $io->title('Search Results');
-            $io->text('Found ' . count($results) . ' record(s)');
+            $io->text('Found '.count($results).' record(s)');
             $io->newLine();
 
             foreach ($results as $record) {
@@ -93,19 +95,20 @@ class SearchCommand extends Command
                 $io->newLine();
             }
 
-            Logger::info('Search executed: found ' . count($results) . ' records');
+            Logger::info('Search executed: found '.count($results).' records');
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $io->error('Search failed: ' . $e->getMessage());
-            Logger::error('Search failed: ' . $e->getMessage());
+            $io->error('Search failed: '.$e->getMessage());
+            Logger::error('Search failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }
 
     private function displayRecord(SymfonyStyle $io, array $record): void
     {
-        $io->section('RUC: ' . $record['ruc']);
+        $io->section('RUC: '.$record['ruc']);
         $io->definitionList(
             ['Razón Social' => $record['razon_social'] ?? 'N/A'],
             ['Estado' => $record['estado'] ?? 'N/A'],

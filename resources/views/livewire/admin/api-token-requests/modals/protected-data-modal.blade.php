@@ -37,41 +37,41 @@
             <!-- Protected Data Grid -->
             <div class="mb-6 grid gap-4 sm:grid-cols-2">
                 <!-- Requester Name -->
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div class="rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] p-4">
                     <label class="block text-sm font-medium text-slate-600 dark:text-slate-400">Nombre del Solicitante</label>
-                    <div class="mt-2 break-words rounded bg-white p-2 font-mono text-sm text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+                    <div class="mt-2 break-words rounded-[var(--radius-control)] bg-[color:var(--color-background)] p-2 font-mono text-sm text-[color:var(--color-text-primary)]">
                         {{ $protectedData['requester_name'] ?? 'N/A' }}
                     </div>
                 </div>
 
                 <!-- Requester Phone -->
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div class="rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] p-4">
                     <label class="block text-sm font-medium text-slate-600 dark:text-slate-400">Teléfono</label>
-                    <div class="mt-2 break-words rounded bg-white p-2 font-mono text-sm text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+                    <div class="mt-2 break-words rounded-[var(--radius-control)] bg-[color:var(--color-background)] p-2 font-mono text-sm text-[color:var(--color-text-primary)]">
                         {{ $protectedData['requester_phone'] ?? 'N/A' }}
                     </div>
                 </div>
 
                 <!-- Purpose -->
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50 sm:col-span-2">
+                <div class="rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] p-4 sm:col-span-2">
                     <label class="block text-sm font-medium text-slate-600 dark:text-slate-400">Motivo de la Solicitud</label>
-                    <div class="mt-2 break-words rounded bg-white p-2 font-mono text-sm text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+                    <div class="mt-2 break-words rounded-[var(--radius-control)] bg-[color:var(--color-background)] p-2 font-mono text-sm text-[color:var(--color-text-primary)]">
                         {{ $protectedData['purpose'] ?? 'N/A' }}
                     </div>
                 </div>
 
                 <!-- Delivery Method -->
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div class="rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] p-4">
                     <label class="block text-sm font-medium text-slate-600 dark:text-slate-400">Método de Entrega</label>
-                    <div class="mt-2 break-words rounded bg-white p-2 font-mono text-sm text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+                    <div class="mt-2 break-words rounded-[var(--radius-control)] bg-[color:var(--color-background)] p-2 font-mono text-sm text-[color:var(--color-text-primary)]">
                         {{ $protectedData['delivery_method'] ?? 'N/A' }}
                     </div>
                 </div>
 
                 <!-- Delivery Reason -->
-                <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div class="rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] p-4">
                     <label class="block text-sm font-medium text-slate-600 dark:text-slate-400">Razón de Entrega</label>
-                    <div class="mt-2 break-words rounded bg-white p-2 font-mono text-sm text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+                    <div class="mt-2 break-words rounded-[var(--radius-control)] bg-[color:var(--color-background)] p-2 font-mono text-sm text-[color:var(--color-text-primary)]">
                         {{ $protectedData['delivery_reason'] ?? 'N/A' }}
                     </div>
                 </div>
