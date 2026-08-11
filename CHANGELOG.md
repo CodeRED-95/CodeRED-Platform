@@ -6,6 +6,16 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.14] - 2026-08-11
+
+### Documentation
+
+- Se consolidó el informe técnico final de auditoría y se dejó documentado el backlog priorizado pendiente.
+
+### Fixed
+
+- PostgreSQL dejó de registrar todas las sentencias y pasó a un nivel más apropiado para operación sostenida (`ddl`), reduciendo ruido, volumen y exposición innecesaria de SQL normal.
+
 ## [4.6.13] - 2026-08-11
 
 ### Documentation
