@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.10] - 2026-08-11
+
+### Fixed
+
+- `AgencyChromeContractTest` deja de depender de un `ubigeos.codigo` fijo y usa un código único por ejecución, evitando colisiones con datos persistidos por otras clases de prueba.
+- `RucChunkedBackupTest` ahora serializa el restore troceado con un lock dedicado, evitando carreras y deadlocks durante el swap final sin cambiar el comportamiento funcional.
+
 ## [4.6.9] - 2026-08-11
 
 ### Fixed

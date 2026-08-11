@@ -7,6 +7,8 @@ namespace App\Modules\Ruc\Services;
 use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucBackupOperation;
 use App\Modules\Ruc\Support\RucBackupArchive;
+use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -47,6 +49,25 @@ class RucChunkedRestoreService
      * @return array<string, mixed>
      */
     public function restore(
+        RucBackup $backup,
+        RucBackupOperation $operation,
+        bool $resume = false,
+        ?callable $onProgress = null,
+    ): array {
+        $lock = $this->acquireRestoreLock();
+
+        try {
+            return $this->restoreWithLock($backup, $operation, $resume, $onProgress);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * @param  null|callable(array<string, mixed>): void  $onProgress
+     * @return array<string, mixed>
+     */
+    private function restoreWithLock(
         RucBackup $backup,
         RucBackupOperation $operation,
         bool $resume = false,
@@ -191,6 +212,18 @@ class RucChunkedRestoreService
             'duration_seconds' => $duration,
             'old_table_kept' => (bool) config('ruc.backup.chunked.keep_old_table', true),
         ];
+    }
+
+    private function acquireRestoreLock(): Lock
+    {
+        $ttl = max(3600, (int) config('queue.connections.ruc-backups.retry_after', 90000));
+        $lock = Cache::lock('ruc-chunked-restore-process', $ttl);
+
+        if (! $lock->get()) {
+            throw new RuntimeException('Ya hay una restauración troceada de RUC en curso.');
+        }
+
+        return $lock;
     }
 
     /**

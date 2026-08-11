@@ -7,6 +7,7 @@ use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Ruc\Models\Ubigeo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AgencyChromeContractTest extends TestCase
@@ -15,8 +16,12 @@ class AgencyChromeContractTest extends TestCase
 
     public function test_agency_contract_exposes_safe_public_fields_required_by_chrome_extension(): void
     {
+        do {
+            $codigo = Str::padLeft((string) random_int(1, 999999), 6, '0');
+        } while (Ubigeo::query()->where('codigo', $codigo)->exists());
+
         $ubigeo = Ubigeo::query()->create([
-            'codigo' => '230110',
+            'codigo' => $codigo,
             'departamento' => 'TACNA',
             'provincia' => 'TACNA',
             'distrito' => 'CORONEL GREGORIO ALBARRACIN LANCHIPA',
