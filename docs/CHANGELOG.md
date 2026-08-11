@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-11
+
+- Se rediseña la pantalla administrativa de integraciones n8n con una jerarquía visual más clara, métricas compactas y secciones mejor distribuidas, reutilizando el Design System existente sin cambiar la lógica funcional.
+
 ## 2026-07-30
 
 - Se agrega la extension Chrome Buscador Shalom Control y el endpoint publico `/api/v1/extension/chrome/config`.
