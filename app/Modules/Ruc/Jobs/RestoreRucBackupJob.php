@@ -51,7 +51,12 @@ class RestoreRucBackupJob implements ShouldQueue
 
     public function handle(RucBackupService $service): void
     {
-        $operation = RucBackupOperation::findOrFail($this->operationId);
+        $operation = RucBackupOperation::find($this->operationId);
+
+        if ($operation === null) {
+            return;
+        }
+
         $backup = RucBackup::findOrFail($operation->backup_id);
 
         // Mismo mutex que el comando CLI `ruc:restore` (RucBackupService::

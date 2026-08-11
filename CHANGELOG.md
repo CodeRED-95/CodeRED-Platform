@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.6] - 2026-08-11
+
+### Fixed
+
+- El job `DeleteExpiredRecordsJob` volvió a usar `tries`, que es la propiedad que Laravel respeta para los reintentos de cola.
+- `RestoreRucBackupJob` deja de fallar si la operación ya no existe, evitando ruido repetido en `failed_jobs` sin reintentar un restore inexistente.
+
 ## [4.6.5] - 2026-08-11
 
 ### Fixed

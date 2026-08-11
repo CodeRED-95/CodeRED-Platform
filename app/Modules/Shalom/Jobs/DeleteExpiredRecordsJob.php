@@ -16,7 +16,7 @@ class DeleteExpiredRecordsJob implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
 
-    public int $retries = 3;
+    public int $tries = 3;
 
     public int $timeout = 300;
 
