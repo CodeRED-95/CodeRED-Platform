@@ -1,5 +1,5 @@
 export function createRucRestoreProgress(statusUrl, initialState) {
-  const terminal = ["completed", "failed"];
+  const terminal = ["completed", "failed", "cancelled"];
 
   return {
     statusUrl,

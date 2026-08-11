@@ -10,13 +10,13 @@ use App\Modules\Ruc\Models\RucBackupOperation;
 use App\Modules\Ruc\Services\RucBackupService;
 use App\Modules\Shalom\Jobs\DeleteExpiredRecordsJob;
 use Illuminate\Contracts\Cache\Lock;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class QueueJobSafetyTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     public function test_shalom_expired_records_job_uses_tries_instead_of_retries(): void
     {

@@ -199,6 +199,26 @@ class RucBackupRestoreStatusUiTest extends TestCase
         $this->assertStringNotContainsString('setInterval', $content);
     }
 
+    public function test_cancelled_operation_is_treated_as_terminal(): void
+    {
+        $this->restoreOperation(RucBackupOperation::STATUS_CANCELLED, [
+            'stage' => RucBackupOperation::STAGE_FAILED,
+            'progress' => 30,
+            'message' => 'Restauración cancelada',
+            'error_message' => null,
+            'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->adminUser())->get(route('admin.ruc.backups'));
+
+        $response->assertOk();
+        $content = $response->getContent();
+
+        $response->assertSee('Última restauración: cancelada');
+        $this->assertStringNotContainsString('rucRestoreProgress(', $content);
+        $this->assertStringNotContainsString('setInterval', $content);
+    }
+
     // ------------------------------------------------------------ extras ----
 
     /**

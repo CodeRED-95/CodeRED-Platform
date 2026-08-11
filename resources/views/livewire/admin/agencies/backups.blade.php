@@ -10,17 +10,17 @@
         <x-ui.alert tone="info" title="Resultado de integridad">{{ $integrityResult }}</x-ui.alert>
     @endif
 
-    @if($activeRestore)
+    @if($activeRestore && $activeRestore->isRunning())
         <x-ui.card padding="p-5" aria-labelledby="restore-status-title">
             <x-ui.operation-status
                 id="restore-status-title"
                 title="Restauración"
-                :status="$activeRestore->status->value === 'completed' ? 'completed' : ($activeRestore->status->value === 'failed' ? 'failed' : 'running')"
+                status="running"
                 :message="$activeRestore->filename.' · '.($activeRestore->created_at?->timezone('America/Lima')->format('d/m/Y H:i:s') ?? '') . ' · '.($activeRestore->createdBy?->name ?? 'Sistema')"
                 :elapsed="$activeRestore->started_at ? $activeRestore->started_at->diffForHumans(now(), true) : null"
             >
                 <x-slot:progress>
-                    <x-ui.progress :value="$activeRestore->progress" label="{{ $activeRestore->stage }}" tone="{{ $activeRestore->status->value === 'failed' ? 'danger' : 'success' }}" />
+                    <x-ui.progress :value="$activeRestore->progress" label="{{ $activeRestore->stage }}" tone="info" />
                 </x-slot:progress>
             </x-ui.operation-status>
 
@@ -42,11 +42,43 @@
                 <div class="mt-4"><x-ui.alert tone="danger">{{ $activeRestore->error_message }}</x-ui.alert></div>
             @endif
 
-            @if($activeRestore->status->value === 'completed')
+        </x-ui.card>
+    @elseif($lastFinishedRestore)
+        <x-ui.card padding="p-4" aria-labelledby="last-restore-title">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">Última restauración</p>
+                    <h3 id="last-restore-title" class="mt-1 text-sm font-semibold">{{ $lastFinishedRestore->status->label() }}</h3>
+                    <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">
+                        {{ $lastFinishedRestore->filename }} · {{ $lastFinishedRestore->created_at?->timezone('America/Lima')->format('d/m/Y H:i:s') ?? '' }} · {{ $lastFinishedRestore->createdBy?->name ?? 'Sistema' }}
+                    </p>
+                </div>
+                <x-ui.badge :tone="$lastFinishedRestore->status->tone()">{{ $lastFinishedRestore->status->label() }}</x-ui.badge>
+            </div>
+
+            <dl class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                @foreach ([
+                    ['Procesadas', $lastFinishedRestore->processed_records.' / '.$lastFinishedRestore->total_records, 'text-white'],
+                    ['Creadas', $lastFinishedRestore->created_records, 'text-emerald-300'],
+                    ['Actualizadas', $lastFinishedRestore->updated_records, 'text-sky-300'],
+                    ['A papelera', $lastFinishedRestore->trashed_records, 'text-amber-300'],
+                ] as [$label, $value, $tone])
+                    <div>
+                        <dt class="text-xs text-[color:var(--color-text-secondary)]">{{ $label }}</dt>
+                        <dd class="mt-1 text-lg font-semibold {{ $tone }}">{{ $value }}</dd>
+                    </div>
+                @endforeach
+            </dl>
+
+            @if($lastFinishedRestore->error_message)
+                <div class="mt-4"><x-ui.alert tone="danger">{{ $lastFinishedRestore->error_message }}</x-ui.alert></div>
+            @endif
+
+            @if($lastFinishedRestore->status->value === 'completed')
                 <p class="mt-4 text-sm text-[color:var(--color-text-secondary)]">
-                    Historial de nombres restaurado: {{ $activeRestore->name_histories_restored }}.
-                    @if($activeRestore->safetyBackup)
-                        Copia previa de seguridad: <span class="font-mono">{{ $activeRestore->safetyBackup->filename }}</span>.
+                    Historial de nombres restaurado: {{ $lastFinishedRestore->name_histories_restored }}.
+                    @if($lastFinishedRestore->safetyBackup)
+                        Copia previa de seguridad: <span class="font-mono">{{ $lastFinishedRestore->safetyBackup->filename }}</span>.
                     @endif
                 </p>
             @endif

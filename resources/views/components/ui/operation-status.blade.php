@@ -15,8 +15,8 @@
         </x-ui.operation-status>
 --}}
 @php
-    $badgeTone = ['running' => 'info', 'completed' => 'success', 'failed' => 'danger'][$status] ?? 'neutral';
-    $badgeLabel = ['running' => 'En progreso', 'completed' => 'Completado', 'failed' => 'Falló'][$status] ?? ucfirst($status);
+    $badgeTone = ['running' => 'info', 'completed' => 'success', 'failed' => 'danger', 'cancelled' => 'neutral'][$status] ?? 'neutral';
+    $badgeLabel = ['running' => 'En progreso', 'completed' => 'Completado', 'failed' => 'Falló', 'cancelled' => 'Cancelado'][$status] ?? ucfirst($status);
 @endphp
 
 <div {{ $attributes->class('space-y-4') }}>

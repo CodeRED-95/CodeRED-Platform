@@ -164,7 +164,7 @@ class RucBackupOperation extends Model
     {
         return self::query()
             ->where('operation_type', self::TYPE_RESTORE)
-            ->whereIn('status', [self::STATUS_COMPLETED, self::STATUS_FAILED])
+            ->whereIn('status', [self::STATUS_COMPLETED, self::STATUS_FAILED, self::STATUS_CANCELLED])
             ->latest('id')
             ->first();
     }

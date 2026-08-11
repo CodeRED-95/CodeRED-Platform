@@ -18,6 +18,8 @@ use Tests\TestCase;
 use ZipArchive;
 
 /**
+ * @group ruc-heavy
+ *
  * Formato .rucbackup: generación troceada, validación, restauración por
  * lotes, reanudación, cancelación y rollback.
  *

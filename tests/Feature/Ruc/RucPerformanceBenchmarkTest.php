@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
+/**
+ * @group ruc-heavy
+ */
 class RucPerformanceBenchmarkTest extends TestCase
 {
     use DatabaseTruncation;

@@ -30,13 +30,9 @@ class Backups extends Component
     /** Copia ya registrada que se quiere restaurar, si no se sube archivo. */
     public ?int $restoreBackupId = null;
 
-    public ?int $activeRestoreId = null;
-
     public function mount(): void
     {
         Gate::authorize('agencies.backup.view');
-
-        $this->activeRestoreId = AgencyBackupRestore::query()->latest('id')->value('id');
     }
 
     public function create(AgencyBackupService $service): void
@@ -158,8 +154,6 @@ class Backups extends Component
             'created_by' => $actorId,
         ]);
 
-        $this->activeRestoreId = $restore->id;
-
         // El actor viaja explícito en el job: el worker no tiene sesión y lo
         // necesita para sustituir FKs de usuario que no existan en el destino.
         RestoreAgencyBackupJob::dispatch($restore->id, $actorId)
@@ -172,13 +166,24 @@ class Backups extends Component
 
     public function render(): View
     {
-        $activeRestore = $this->activeRestoreId !== null
-            ? AgencyBackupRestore::query()->with(['createdBy', 'safetyBackup'])->find($this->activeRestoreId)
+        $activeRestore = AgencyBackupRestore::query()
+            ->with(['createdBy', 'safetyBackup'])
+            ->whereIn('status', ['pending', 'processing'])
+            ->latest('id')
+            ->first();
+
+        $lastFinishedRestore = $activeRestore === null
+            ? AgencyBackupRestore::query()
+                ->with(['createdBy', 'safetyBackup'])
+                ->whereIn('status', ['completed', 'failed'])
+                ->latest('id')
+                ->first()
             : null;
 
         return view('livewire.admin.agencies.backups', [
             'backups' => AgencyBackup::query()->with('createdBy')->latest()->paginate(20),
             'activeRestore' => $activeRestore,
+            'lastFinishedRestore' => $lastFinishedRestore,
             'restores' => AgencyBackupRestore::query()->with('createdBy')->latest('id')->limit(10)->get(),
             'restoreModes' => AgencyBackupRestore::modes(),
             'canRestore' => auth()->user()?->hasPermission('agencies.backup.restore') ?? false,

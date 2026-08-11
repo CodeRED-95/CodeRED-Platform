@@ -348,6 +348,39 @@ class AgencyBackupRestoreTest extends TestCase
         $this->assertDatabaseCount('agency_backup_restores', 0);
     }
 
+    public function test_completed_restore_does_not_remain_as_active_after_reload(): void
+    {
+        $actor = $this->superAdmin();
+        $this->fullyPopulatedAgency(['code' => 'AG-UI-012']);
+
+        $backup = app(AgencyBackupService::class)->create();
+        AgencyBackupRestore::query()->create([
+            'uuid' => (string) \Str::uuid(),
+            'agency_backup_id' => $backup->id,
+            'filename' => $backup->filename,
+            'disk' => $backup->disk,
+            'path' => $backup->path,
+            'mode' => AgencyBackupRestore::MODE_MERGE,
+            'status' => AgencyRestoreStatus::Completed,
+            'stage' => 'Completada',
+            'progress' => 100,
+            'total_records' => 1,
+            'processed_records' => 1,
+            'created_records' => 1,
+            'updated_records' => 0,
+            'trashed_records' => 0,
+            'name_histories_restored' => 0,
+            'created_by' => $actor->id,
+            'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($actor)->get(route('admin.agencies.backups.index'));
+
+        $response->assertOk();
+        $response->assertSee('Última restauración');
+        $response->assertDontSee('wire:poll.2s', false);
+    }
+
     public function test_restoring_requires_the_dedicated_permission(): void
     {
         Queue::fake();

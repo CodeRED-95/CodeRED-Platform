@@ -60,7 +60,9 @@
                 <x-ui.operation-status
                     :title="$lastFinishedRestoreOperation->status === App\Modules\Ruc\Models\RucBackupOperation::STATUS_FAILED
                         ? 'Última restauración: falló'
-                        : 'Última restauración: completada'"
+                        : ($lastFinishedRestoreOperation->status === App\Modules\Ruc\Models\RucBackupOperation::STATUS_CANCELLED
+                            ? 'Última restauración: cancelada'
+                            : 'Última restauración: completada')"
                     :status="$lastFinishedRestoreOperation->status"
                     :message="$lastFinishedRestoreOperation->message"
                     :elapsed="$lastFinishedRestoreOperation->duration_seconds"

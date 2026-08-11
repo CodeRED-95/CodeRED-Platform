@@ -4,19 +4,26 @@ namespace Tests\Feature;
 
 use App\Models\ApiClient;
 use App\Modules\Ruc\Models\RucRecord;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
+/**
+ * @runInSeparateProcess
+ */
 class RucApiTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTruncation;
 
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::flush();
         Cache::clear();
         config()->set('ruc.enabled', true);
+        config()->set('ruc.cache_enabled', true);
+        config()->set('ruc.search_min_length', 3);
+        config()->set('ruc.search_max_results', 100);
     }
 
     public function test_exact_lookup_validates_ability_and_uses_cache(): void

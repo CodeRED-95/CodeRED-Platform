@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -12,21 +13,33 @@ class AgencyAuthorizationPagesTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RolesAndPermissionsSeeder::class);
+    }
+
     private function makeRoleWithPermissions(string $slug, array $permissions): Role
     {
-        $role = Role::query()->create([
-            'name' => ucfirst(str_replace('-', ' ', $slug)),
-            'slug' => $slug,
-            'description' => null,
-            'is_system' => true,
-        ]);
+        $roleSlug = trim(strtolower($slug));
+        $role = Role::query()->firstOrCreate(
+            ['slug' => $roleSlug],
+            [
+                'name' => ucfirst(str_replace('-', ' ', $roleSlug)),
+                'description' => null,
+                'is_system' => true,
+            ]
+        );
 
-        $ids = collect($permissions)->map(function (string $permission): int {
-            return Permission::query()->updateOrCreate(
-                ['slug' => $permission],
-                ['name' => $permission, 'description' => null]
-            )->id;
-        })->all();
+        $permissionSlugs = collect($permissions)
+            ->map(fn (string $permission): string => trim(strtolower($permission)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $ids = Permission::query()->whereIn('slug', $permissionSlugs)->pluck('id')->all();
 
         $role->permissions()->syncWithoutDetaching($ids);
 

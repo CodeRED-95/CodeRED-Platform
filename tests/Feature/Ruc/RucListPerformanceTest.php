@@ -17,6 +17,8 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
+ * @group ruc-heavy
+ *
  * Contrato de rendimiento del listado del padrón (/admin/ruc), pensado para
  * 18M+ filas.
  *

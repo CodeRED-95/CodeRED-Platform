@@ -20,6 +20,12 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]
 
+### Fixed
+
+- Las pantallas de Copias de seguridad de Agencias y Backups RUC distinguen ahora entre operación activa y última operación terminada, evitando que una restauración finalizada quede pegada como progreso en curso tras recargar la página.
+- El polling de restauración RUC se detiene también para estados terminales cancelados y el historial de restauraciones terminadas incluye `cancelled`.
+- Las pruebas pesadas de RUC quedaron etiquetadas como `ruc-heavy` y se excluyen del flujo normal de `composer verify` para evitar restauraciones/bloques de gran volumen en la validación diaria.
+
 ### Changed
 
 - Se elimina el soporte de VS Code Dev Containers. El flujo oficial pasa a ser VS Code Remote SSH sobre el host Linux con Docker Compose como entorno de ejecución.
