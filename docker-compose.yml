@@ -16,6 +16,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      # `php-fpm -t` confirma que la configuración de FPM sigue válida y
+      # `php artisan about` verifica que Laravel arranca sin depender de
+      # tráfico externo, sesiones ni servicios remotos.
+      test: [ "CMD-SHELL", "php-fpm -t >/dev/null 2>&1 && php artisan about --no-interaction >/dev/null 2>&1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   nginx:
     image: nginx:1.27-alpine
@@ -27,7 +36,16 @@ services:
       - ./:/var/www/html
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+    healthcheck:
+      # Consulta local al endpoint de arranque de Laravel servido por Nginx.
+      # No depende de Cloudflare ni de tráfico externo.
+      test: [ "CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/up" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   postgres:
     image: postgres:16-alpine

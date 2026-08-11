@@ -54,6 +54,15 @@ Los workers de PHP-FPM corren como `www`, pero el master conserva el contexto ne
 
 Queue y scheduler no ejecutan FPM. Sus comandos se bajan de privilegios a `www` solo para correr `artisan`.
 
+## Healthchecks
+
+`app` y `nginx` disponen de healthchecks ligeros para mejorar la detección de arranque:
+
+- `app`: `php-fpm -t` + `php artisan about --no-interaction`
+- `nginx`: `wget -q -O /dev/null http://127.0.0.1/up`
+
+Ambos checks son locales, no generan sesiones y no dependen de Cloudflare ni de servicios externos.
+
 ## Permisos
 
 Los directorios escribibles se corrigen en el entrypoint de forma idempotente:

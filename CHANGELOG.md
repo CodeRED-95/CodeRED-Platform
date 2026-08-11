@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.4] - 2026-08-11
+
+### Fixed
+
+- Se añadieron healthchecks a `app` y `nginx` para detectar fallos de arranque sin depender de Cloudflare ni de tráfico externo.
+- `app` valida internamente `php-fpm -t` y `php artisan about`; `nginx` consulta localmente `/up` en el propio contenedor.
+
 ## [4.6.3] - 2026-08-11
 
 ### Fixed
