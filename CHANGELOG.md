@@ -6,6 +6,12 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.8] - 2026-08-11
+
+### Fixed
+
+- El healthcheck de `codered-nginx` dejó de depender de `/up` y ahora consulta un endpoint estático interno (`/nginx-health`) servido por Nginx, evitando falsos `unhealthy` causados por PHP-FPM/Laravel.
+
 ## [4.6.7] - 2026-08-11
 
 ### Fixed
