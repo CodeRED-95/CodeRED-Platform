@@ -6,6 +6,15 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.22] - 2026-08-12
+
+### Fixed
+
+- Se compactó la columna izquierda del login para que el branding completo quepa dentro del viewport en desktop sin provocar scroll vertical.
+- Login y Registro conservaron el mismo shell compartido, con logo principal más proporcionado, tarjetas informativas más compactas y ajustes específicos para pantallas de menor altura.
+
+---
+
 ## [4.6.21] - 2026-08-12
 
 ### Fixed

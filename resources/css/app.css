@@ -318,3 +318,39 @@
 .codered-swagger-ui .swagger-ui .information-container .info > hgroup.main a {
   display: none;
 }
+
+.auth-screen .auth-promo {
+  padding-block: clamp(1rem, 1.8vh, 2rem);
+}
+
+.auth-screen .auth-promo-inner {
+  gap: clamp(0.875rem, 1.4vh, 1.25rem);
+}
+
+.auth-screen .auth-form-shell {
+  padding-block: clamp(1rem, 1.7vh, 1.5rem);
+}
+
+@media (max-height: 820px) {
+  .auth-screen .auth-promo {
+    padding-block: 0.75rem;
+  }
+
+  .auth-screen .auth-promo-inner {
+    gap: 0.85rem;
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .auth-screen .auth-promo img {
+    max-width: clamp(16rem, 20vw, 24rem);
+  }
+
+  .auth-screen .auth-promo h1 {
+    font-size: clamp(2.1rem, 2.5vw, 3.1rem);
+    line-height: 0.98;
+  }
+
+  .auth-screen .auth-promo p {
+    line-height: 1.45;
+  }
+}
