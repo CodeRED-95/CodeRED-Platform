@@ -25,58 +25,73 @@
     ];
     $secondaryMetrics = collect([
         $canViewUsers ? ['label' => 'Usuarios nuevos', 'value' => $userMetrics['new'], 'detail' => $period.' días', 'tone' => 'text-[color:var(--color-brand-light)]'] : null,
-        $canViewAgencies ? ['label' => 'Inactivas', 'value' => $agencyMetrics['inactive'], 'detail' => 'Estado actual', 'tone' => 'text-slate-300'] : null,
+        $canViewAgencies ? ['label' => 'Agencias inactivas', 'value' => $agencyMetrics['inactive'], 'detail' => 'Estado actual', 'tone' => 'text-slate-300'] : null,
         $canViewAgencies ? ['label' => 'Cierre temporal', 'value' => $agencyMetrics['temporarily_closed'], 'detail' => 'Estado actual', 'tone' => 'text-amber-300'] : null,
         $canViewAgencies ? ['label' => 'Trasladadas', 'value' => $agencyMetrics['moved'], 'detail' => 'Estado actual', 'tone' => 'text-violet-300'] : null,
-        $canViewAgencies ? ['label' => 'Sincronizaciones', 'value' => $syncRunsInPeriod, 'detail' => $period.' días', 'tone' => 'text-sky-300'] : null,
-        $canViewAgencies ? ['label' => 'Errores última sincronización', 'value' => $lastSyncRun?->error_count ?? 0, 'detail' => $lastSyncRun ? 'Última ejecución' : 'Sin sincronizaciones', 'tone' => ($lastSyncRun?->error_count ?? 0) > 0 ? 'text-rose-300' : 'text-emerald-300'] : null,
+        $canViewAgencies ? ['label' => 'Pendientes / revisión', 'value' => $agencyMetrics['under_review'], 'detail' => 'Estado actual', 'tone' => 'text-sky-300'] : null,
+        $canViewAgencies ? ['label' => 'Última sincronización Shalom', 'value' => $shalomMetrics['latest_sync_at'] ? 1 : 0, 'detail' => $shalomMetrics['latest_sync_at'] ? \Illuminate\Support\Carbon::parse($shalomMetrics['latest_sync_at'])->diffForHumans() : 'Sin sincronizaciones', 'tone' => $shalomMetrics['latest_sync_at'] ? 'text-emerald-300' : 'text-[color:var(--color-text-muted)]'] : null,
     ])->filter()->values();
+    $statusStyle = [
+        'healthy' => ['text-emerald-300', 'bg-emerald-500/10', 'Bajo control'],
+        'warning' => ['text-amber-300', 'bg-amber-500/10', 'Requiere atención'],
+        'danger' => ['text-rose-300', 'bg-rose-500/10', 'Requiere intervención'],
+    ];
+    $healthState = $statusStyle[$systemHealth['status']] ?? $statusStyle['healthy'];
 @endphp
 
 <div class="mx-auto max-w-[1680px] space-y-5 overflow-x-clip">
-    <x-ui.page-header eyebrow="Centro operativo" title="Dashboard" subtitle="Resumen operativo de usuarios, agencias e importaciones.">
+    <x-ui.page-header eyebrow="CENTRO OPERATIVO" title="Dashboard" subtitle="Resumen operativo de usuarios, agencias, RUC, integraciones y actividad del sistema.">
         <x-slot:actions>
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-end">
-            @if ($canViewAgencies)
-                <div class="w-full sm:w-52">
+            <div class="flex flex-wrap items-end justify-end gap-3">
+                <div class="w-full min-w-[11rem] sm:w-56">
                     <x-ui.dropdown-select
                         id="dashboard-period"
                         wire:model.live="period"
-                        label="Periodo"
+                        label="Período"
                         :value="$period"
                         :options="[7 => 'Últimos 7 días', 30 => 'Últimos 30 días', 90 => 'Últimos 90 días']"
                     />
                 </div>
-            @endif
-            <p class="pb-3 text-xs text-[color:var(--color-text-muted)]">
-                Actualizado <time datetime="{{ $refreshedAt->toIso8601String() }}">{{ $refreshedAt->format('d/m/Y H:i') }}</time>
-            </p>
-        </div>
+                <div class="flex items-end gap-3">
+                    <p class="pb-3 text-xs text-[color:var(--color-text-muted)]">
+                        Actualizado
+                        <time datetime="{{ $refreshedAt }}">{{ \Illuminate\Support\Carbon::parse($refreshedAt)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</time>
+                    </p>
+                    <x-ui.button
+                        type="button"
+                        variant="secondary"
+                        wire:click="refreshMetrics"
+                        loading-target="refreshMetrics"
+                    >
+                        Actualizar
+                    </x-ui.button>
+                </div>
+            </div>
         </x-slot:actions>
     </x-ui.page-header>
 
-    <div class="hidden items-center gap-3 rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.03] px-4 py-3 text-sm text-[color:var(--color-text-secondary)]" wire:loading.delay.flex wire:target="period" role="status" aria-live="polite">
+    <div class="hidden items-center gap-3 rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.03] px-4 py-3 text-sm text-[color:var(--color-text-secondary)]" wire:loading.delay.flex wire:target="period,refreshMetrics" role="status" aria-live="polite">
         <x-ui.spinner size="sm" label="Actualizando indicadores" />
-        <span>Actualizando datos del periodo…</span>
+        <span>Actualizando datos del período…</span>
     </div>
 
     @if ($canViewAgencies || $canViewUsers)
-        <section aria-labelledby="dashboard-primary-metrics" wire:loading.class="opacity-60" wire:target="period">
+        <section aria-labelledby="dashboard-primary-metrics" wire:loading.class="opacity-60" wire:target="period,refreshMetrics">
             <h2 id="dashboard-primary-metrics" class="sr-only">Indicadores principales</h2>
-            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 @if ($canViewAgencies)
-                    <x-ui.stat-card label="Total de agencias" :value="$agencyMetrics['total']" tone="info" href="{{ route('admin.agencies.index') }}" description="Registros operativos y administrativos">
+                    <x-ui.stat-card label="Total de agencias" :value="$agencyMetrics['total']" tone="info" href="{{ route('admin.agencies.index') }}" description="Cantidad total real">
                         <x-slot:icon><svg class="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6" stroke="currentColor" stroke-width="1.8"/></svg></x-slot:icon>
                     </x-ui.stat-card>
-                    <x-ui.stat-card label="Agencias activas" :value="$agencyMetrics['active']" tone="success" href="{{ route('admin.agencies.index', ['status' => 'active']) }}" description="Operando actualmente">
+                    <x-ui.stat-card label="Agencias activas" :value="$agencyMetrics['active']" tone="success" href="{{ route('admin.agencies.index', ['status' => 'active']) }}" description="Operativas actualmente">
                         <x-slot:icon><x-ui.status-icon status="active" class="size-5" /></x-slot:icon>
                     </x-ui.stat-card>
-                    <x-ui.stat-card label="Agencias en revisión" :value="$agencyMetrics['under_review']" tone="info" href="{{ route('admin.agencies.index', ['status' => 'under_review']) }}" description="Pendientes de validación">
+                    <x-ui.stat-card label="Agencias en revisión" :value="$agencyMetrics['under_review']" tone="warning" href="{{ route('admin.agencies.index', ['status' => 'under_review']) }}" description="Pendientes de revisión/validación">
                         <x-slot:icon><x-ui.status-icon status="under_review" class="size-5" /></x-slot:icon>
                     </x-ui.stat-card>
                 @endif
                 @if ($canViewUsers)
-                    <x-ui.stat-card label="Total de usuarios" :value="$userMetrics['total']" tone="purple" href="{{ route('admin.users.index') }}" description="Cuentas registradas">
+                    <x-ui.stat-card label="Total de usuarios" :value="$userMetrics['total']" tone="purple" href="{{ route('admin.users.index') }}" description="Usuarios registrados">
                         <x-slot:icon><svg class="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16 20v-1.5A3.5 3.5 0 0 0 12.5 15h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7-1v6m3-3h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></x-slot:icon>
                     </x-ui.stat-card>
                 @endif
@@ -87,14 +102,14 @@
             <section aria-labelledby="dashboard-secondary-metrics">
                 <div class="mb-2 flex items-center justify-between gap-3">
                     <h2 id="dashboard-secondary-metrics" class="text-sm font-semibold text-white">Resumen secundario</h2>
-                    <span class="text-xs text-[color:var(--color-text-muted)]">Periodo: {{ $period }} días</span>
+                    <span class="text-xs text-[color:var(--color-text-muted)]">Período: {{ $period }} días</span>
                 </div>
                 <dl class="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
                     @foreach ($secondaryMetrics as $metric)
                         <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.025] px-3 py-3">
                             <dt class="truncate text-xs text-[color:var(--color-text-muted)]">{{ $metric['label'] }}</dt>
                             <dd class="mt-1 flex items-baseline justify-between gap-2">
-                                <strong class="text-xl font-semibold {{ $metric['tone'] }}">{{ number_format($metric['value']) }}</strong>
+                                <strong class="text-xl font-semibold {{ $metric['tone'] }}">{{ is_numeric($metric['value']) ? number_format((int) $metric['value']) : $metric['value'] }}</strong>
                                 <span class="text-[0.6875rem] text-[color:var(--color-text-muted)]">{{ $metric['detail'] }}</span>
                             </dd>
                         </div>
@@ -103,31 +118,29 @@
             </section>
         @endif
 
-        @if($canViewDniMetrics || $canViewRucMetrics || $isSuperAdmin)
-            <section aria-labelledby="identity-company-metrics">
-                <h2 id="identity-company-metrics" class="mb-3 text-sm font-semibold text-white">Identidad, empresas y plataforma</h2>
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    @if($canViewDniMetrics)
-                        <x-ui.stat-card label="Registros DNI internos" :value="$dniMetrics['records']" tone="info" description="Consultas hoy: {{ $dniMetrics['requests_today'] }}" />
-                        <x-ui.stat-card label="DNI resueltos internamente" :value="$dniMetrics['internal_today']" tone="success" description="PeruDevs hoy: {{ $dniMetrics['provider_today'] }}" />
-                    @endif
-                    @if($canViewRucMetrics)
-                        <x-ui.stat-card label="Registros RUC" :value="$rucMetrics['records']" tone="brand" href="{{ route('admin.ruc.records') }}" description="Consultas hoy: {{ $rucMetrics['requests_today'] }}" />
-                        <x-ui.stat-card label="Backups RUC" :value="$rucMetrics['backups']" tone="info" href="{{ route('admin.ruc.backups') }}" description="Última restauración: {{ $rucMetrics['last_restore'] ? \Illuminate\Support\Carbon::parse($rucMetrics['last_restore'])->diffForHumans() : 'Sin restauraciones' }}" />
-                    @endif
-                    @if($isSuperAdmin)
-                        <x-ui.stat-card label="Solicitudes API · 24 h" :value="$platformMetrics['requests_24h']" tone="purple" description="7 días: {{ $platformMetrics['requests_7d'] }}" />
-                        <x-ui.stat-card label="Errores API · 24 h" :value="$platformMetrics['errors_24h']" tone="warning" description="Promedio {{ $platformMetrics['average_ms'] }} ms · {{ $platformMetrics['active_tokens'] }} tokens activos" />
-                    @endif
-                </div>
-            </section>
-        @endif
+        <section aria-labelledby="dashboard-identity">
+            <h2 id="dashboard-identity" class="mb-3 text-sm font-semibold text-white">Identidad, empresas y plataforma</h2>
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                @if($canViewDniMetrics)
+                    <x-ui.stat-card label="Registros DNI internos" :value="$dniMetrics['records']" tone="info" description="Consultas hoy: {{ $dniMetrics['requests_today'] }}" />
+                    <x-ui.stat-card label="DNI resueltos internamente" :value="$dniMetrics['internal_today']" tone="success" description="Provider hoy: {{ $dniMetrics['provider_today'] }}" />
+                @endif
+                @if($canViewRucMetrics)
+                    <x-ui.stat-card label="Registros RUC" :value="$rucMetrics['records']" tone="brand" href="{{ route('admin.ruc.records') }}" description="Total persistido en ruc_statistics" />
+                    <x-ui.stat-card label="Backups RUC" :value="$rucMetrics['backups']" tone="info" href="{{ route('admin.ruc.backups') }}" description="Última restauración: {{ $rucMetrics['last_restore'] ? \Illuminate\Support\Carbon::parse($rucMetrics['last_restore'])->diffForHumans() : 'Sin restauraciones' }}" />
+                @endif
+                @if($isSuperAdmin)
+                    <x-ui.stat-card label="Solicitudes API · 24 h" :value="$platformMetrics['requests_24h']" tone="purple" description="Errores: {{ $platformMetrics['errors_24h'] }}" />
+                    <x-ui.stat-card label="Tokens activos" :value="$platformMetrics['active_tokens']" tone="warning" description="Promedio {{ $platformMetrics['average_ms'] }} ms" />
+                @endif
+            </div>
+        </section>
     @else
         <x-ui.empty-state title="No tienes indicadores disponibles" description="Tu cuenta no dispone de permisos para consultar métricas administrativas." icon="—" />
     @endif
 
     @if ($canViewAgencies)
-        <section class="grid gap-4 xl:grid-cols-[minmax(0,1.85fr)_minmax(19rem,1fr)]" aria-label="Visualizaciones de agencias" wire:loading.class="opacity-60" wire:target="period">
+        <section class="grid gap-4 xl:grid-cols-[minmax(0,1.85fr)_minmax(19rem,1fr)]" aria-label="Visualizaciones de agencias" wire:loading.class="opacity-60" wire:target="period,refreshMetrics">
             <x-ui.card padding="p-5" aria-labelledby="agency-trend-title">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -136,7 +149,7 @@
                     </div>
                     <div class="text-right">
                         <strong class="text-2xl font-semibold text-white">{{ number_format($trendTotal) }}</strong>
-                        <p class="text-xs text-[color:var(--color-text-muted)]">creadas en el periodo</p>
+                        <p class="text-xs text-[color:var(--color-text-muted)]">creadas en el período</p>
                     </div>
                 </div>
 
@@ -177,7 +190,7 @@
                 @else
                     <div class="mt-4 flex h-[280px] items-center justify-center rounded-[var(--radius-control)] border border-dashed border-[color:var(--color-border-subtle)] bg-white/[0.015] px-4 text-center">
                         <div>
-                            <p class="text-sm font-medium text-white">No se registraron agencias durante este periodo.</p>
+                            <p class="text-sm font-medium text-white">No se registraron agencias durante este período.</p>
                             <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">Prueba otro rango para consultar la tendencia histórica.</p>
                         </div>
                     </div>
@@ -187,7 +200,7 @@
             <x-ui.card padding="p-5" aria-labelledby="status-distribution-title">
                 <div>
                     <h2 id="status-distribution-title" class="font-display text-lg font-semibold text-white">Distribución por estado</h2>
-                    <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Composición actual de agencias.</p>
+                    <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Composición real de agencias.</p>
                 </div>
 
                 <div class="mt-4 grid items-center gap-4 sm:grid-cols-[9.5rem_1fr] xl:grid-cols-1 2xl:grid-cols-[9.5rem_1fr]">
@@ -209,9 +222,7 @@
                                     >
                                         <title>{{ $status['label'] }}: {{ $status['count'] }} ({{ number_format($status['percentage'], 1) }}%)</title>
                                     </circle>
-                                    @php
-                                        $distributionOffset += $status['percentage'];
-                                    @endphp
+                                    @php $distributionOffset += $status['percentage']; @endphp
                                 @endif
                             @endforeach
                         </svg>
@@ -234,16 +245,133 @@
                         @endforeach
                     </ul>
                 </div>
-                <p class="sr-only">@foreach ($statusDistribution as $status) {{ $status['label'] }}: {{ $status['count'] }}, {{ number_format($status['percentage'], 1) }} por ciento. @endforeach</p>
             </x-ui.card>
         </section>
 
-        <section class="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(19rem,1fr)]" aria-label="Información reciente">
+        <section class="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]" aria-label="Estado operativo">
+            <x-ui.card padding="p-5" aria-labelledby="system-health-title">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 id="system-health-title" class="font-display text-lg font-semibold text-white">Salud del sistema</h2>
+                        <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Estado general y señales operativas seguras.</p>
+                    </div>
+                    <span class="rounded-full px-3 py-1 text-xs font-medium {{ $healthState[1] }} {{ $healthState[0] }}">{{ $healthState[2] }}</span>
+                </div>
+
+                <dl class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
+                        <dt class="text-xs text-[color:var(--color-text-muted)]">Colas pendientes</dt>
+                        <dd class="mt-1 text-2xl font-semibold text-white">{{ number_format((int) ($systemHealth['queue_pending'] ?? 0)) }}</dd>
+                    </div>
+                    <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
+                        <dt class="text-xs text-[color:var(--color-text-muted)]">Jobs fallidos</dt>
+                        <dd class="mt-1 text-2xl font-semibold text-white">{{ number_format((int) ($systemHealth['failed_jobs'] ?? 0)) }}</dd>
+                    </div>
+                    <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
+                        <dt class="text-xs text-[color:var(--color-text-muted)]">Integraciones conectadas</dt>
+                        <dd class="mt-1 text-2xl font-semibold text-white">{{ number_format((int) ($systemHealth['integrations_connected'] ?? 0)) }}</dd>
+                    </div>
+                    <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
+                        <dt class="text-xs text-[color:var(--color-text-muted)]">Último restore RUC</dt>
+                        <dd class="mt-1 text-sm font-medium text-white">{{ data_get($systemHealth, 'last_restore.finished_at') ? \Illuminate\Support\Carbon::parse(data_get($systemHealth, 'last_restore.finished_at'))->diffForHumans() : 'Sin datos' }}</dd>
+                    </div>
+                    <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
+                        <dt class="text-xs text-[color:var(--color-text-muted)]">Último scheduler</dt>
+                        <dd class="mt-1 text-sm font-medium text-white">{{ $systemHealth['scheduler_last_run'] ? \Illuminate\Support\Carbon::parse($systemHealth['scheduler_last_run'])->diffForHumans() : 'No disponible' }}</dd>
+                    </div>
+                    <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
+                        <dt class="text-xs text-[color:var(--color-text-muted)]">Procesados 24 h</dt>
+                        <dd class="mt-1 text-sm font-medium text-white">{{ $systemHealth['processed_24h'] !== null ? number_format((int) $systemHealth['processed_24h']) : 'N/D' }}</dd>
+                    </div>
+                </dl>
+            </x-ui.card>
+
+            <x-ui.card padding="p-5" aria-labelledby="shalom-sync-title">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 id="shalom-sync-title" class="font-display text-lg font-semibold text-white">Últimas sincronizaciones Shalom</h2>
+                        <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Resultado del proceso más reciente.</p>
+                    </div>
+                    <x-ui.button href="{{ route('admin.shalom-recordar.index') }}" variant="secondary" class="shrink-0">Ver historial</x-ui.button>
+                </div>
+
+                @if ($shalomMetrics['latest_syncs']->isNotEmpty())
+                    <div class="mt-4 space-y-3">
+                        @foreach ($shalomMetrics['latest_syncs'] as $sync)
+                            @php $syncStatus = $syncStatusLabels[(string) ($sync->last_synced_at ? 'completed' : 'pending')] ?? ['Desconocida', 'neutral']; @endphp
+                            <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-medium text-white" title="{{ $sync->user?->name ?? $sync->installation_uuid }}">
+                                            {{ $sync->user?->name ?? 'Instalación '.$sync->installation_uuid }}
+                                        </p>
+                                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">
+                                            {{ $sync->last_synced_at ? $sync->last_synced_at->format('d/m/Y H:i') : 'Sin sincronización' }} · {{ $sync->installation_uuid }}
+                                        </p>
+                                    </div>
+                                    <x-ui.badge :tone="$syncStatus[1]">{{ $syncStatus[0] }}</x-ui.badge>
+                                </div>
+                                <dl class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                    <div><dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">Registros</dt><dd class="text-sm font-semibold text-white">{{ number_format((int) $sync->records_count) }}</dd></div>
+                                    <div><dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">Última versión</dt><dd class="text-sm font-semibold text-white">{{ $sync->extension_version ?? '—' }}</dd></div>
+                                    <div><dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">Cursor</dt><dd class="truncate text-sm font-semibold text-white">{{ $sync->last_sync_cursor ?? '—' }}</dd></div>
+                                    <div><dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">Actualizado</dt><dd class="text-sm font-semibold text-white">{{ $sync->last_synced_at?->diffForHumans() ?? '—' }}</dd></div>
+                                </dl>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="mt-4">
+                        <x-ui.empty-state title="No existen sincronizaciones." description="La próxima ejecución aparecerá aquí." icon="⌁" />
+                    </div>
+                @endif
+            </x-ui.card>
+        </section>
+
+        <section class="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(18rem,1fr)]" aria-label="Integraciones y actividad">
+            <x-ui.card padding="p-5" aria-labelledby="n8n-title">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 id="n8n-title" class="font-display text-lg font-semibold text-white">Integraciones n8n</h2>
+                        <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Resumen operativo de instancias conectadas.</p>
+                    </div>
+                    <x-ui.badge tone="{{ ($n8nMetrics['connected'] ?? 0) > 0 ? 'success' : 'neutral' }}">
+                        {{ number_format((int) ($n8nMetrics['instances'] ?? 0)) }} instancias
+                    </x-ui.badge>
+                </div>
+
+                @if (($n8nMetrics['latest_instances'] ?? collect())->isNotEmpty())
+                    <div class="mt-4 space-y-3">
+                        @foreach ($n8nMetrics['latest_instances'] as $integration)
+                            <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-medium text-white">{{ $integration->instance_name }}</p>
+                                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">{{ $integration->instance_url }} · {{ $integration->version }}</p>
+                                    </div>
+                                    <x-ui.badge tone="{{ $integration->connectionStatus() === 'connected' ? 'success' : 'warning' }}">{{ $integration->connectionLabel() }}</x-ui.badge>
+                                </div>
+                                <dl class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                    <div><dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">UUID</dt><dd class="truncate text-sm font-semibold text-white">{{ $integration->integration_uuid }}</dd></div>
+                                    <div><dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">Capabilities</dt><dd class="text-sm font-semibold text-white">{{ number_format((int) $integration->capabilities_count) }}</dd></div>
+                                    <div><dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">Plugins</dt><dd class="text-sm font-semibold text-white">{{ number_format((int) $integration->plugins_count) }}</dd></div>
+                                    <div><dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">Heartbeat</dt><dd class="text-sm font-semibold text-white">{{ $integration->last_seen_at?->diffForHumans() ?? '—' }}</dd></div>
+                                </dl>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="mt-4">
+                        <x-ui.empty-state title="Sin integraciones n8n" description="Cuando se conecten aparecerán aquí." icon="⌁" />
+                    </div>
+                @endif
+            </x-ui.card>
+
             <x-ui.card padding="p-5" aria-labelledby="recent-activity-title">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <h2 id="recent-activity-title" class="font-display text-lg font-semibold text-white">Actividad reciente</h2>
-                        <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Últimos eventos autorizados de usuarios y agencias.</p>
+                        <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Últimas acciones relevantes del sistema.</p>
                     </div>
                     <x-ui.badge tone="neutral">Máximo 6</x-ui.badge>
                 </div>
@@ -278,47 +406,6 @@
                     </ol>
                 @else
                     <div class="mt-4 rounded-[var(--radius-control)] border border-dashed border-[color:var(--color-border-subtle)] px-4 py-8 text-center text-sm text-[color:var(--color-text-muted)]">Tu cuenta no tiene permiso para consultar la actividad.</div>
-                @endif
-            </x-ui.card>
-
-            <x-ui.card padding="p-5" aria-labelledby="last-sync-title">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <h2 id="last-sync-title" class="font-display text-lg font-semibold text-white">Última sincronización Shalom</h2>
-                        <p class="mt-1 text-xs text-[color:var(--color-text-secondary)]">Resultado del proceso más reciente.</p>
-                    </div>
-                    @if ($lastSyncRun)
-                        @php
-                            $syncPresentation = $syncStatusLabels[(string) $lastSyncRun->status] ?? ['Desconocida', 'neutral'];
-                        @endphp
-                        <x-ui.badge :tone="$syncPresentation[1]">{{ $syncPresentation[0] }}</x-ui.badge>
-                    @endif
-                </div>
-
-                @if ($lastSyncRun)
-                    <div class="mt-4 rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
-                        <p class="truncate text-sm font-medium text-white" title="{{ $lastSyncRun->chosen_original_name }}">{{ $lastSyncRun->chosen_original_name ?? 'Sincronización Shalom' }}</p>
-                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">{{ $lastSyncRun->finished_at?->format('d/m/Y H:i') ?? $lastSyncRun->created_at?->format('d/m/Y H:i') ?? 'Fecha no disponible' }}</p>
-                    </div>
-                    <dl class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
-                        @foreach ([
-                            ['Procesadas', $lastSyncRun->total_processed, 'text-white'],
-                            ['Nuevas', $lastSyncRun->new_count, 'text-emerald-300'],
-                            ['Actualizadas', $lastSyncRun->updated_count, 'text-sky-300'],
-                            ['Sin cambios', $lastSyncRun->unchanged_count, 'text-amber-200'],
-                            ['Errores', $lastSyncRun->error_count, $lastSyncRun->error_count > 0 ? 'text-rose-300' : 'text-emerald-300'],
-                        ] as [$label, $value, $tone])
-                            <div class="rounded-lg bg-white/[0.025] px-3 py-2">
-                                <dt class="text-[0.6875rem] text-[color:var(--color-text-muted)]">{{ $label }}</dt>
-                                <dd class="mt-0.5 text-lg font-semibold tabular-nums {{ $tone }}">{{ number_format((int) $value) }}</dd>
-                            </div>
-                        @endforeach
-                    </dl>
-                @else
-                    <div class="mt-4 rounded-[var(--radius-control)] border border-dashed border-[color:var(--color-border-subtle)] px-4 py-10 text-center">
-                        <p class="text-sm font-medium text-white">No existen sincronizaciones.</p>
-                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">La primera ejecución aparecerá aquí.</p>
-                    </div>
                 @endif
             </x-ui.card>
         </section>

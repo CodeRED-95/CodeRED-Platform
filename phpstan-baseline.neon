@@ -79,12 +79,6 @@ parameters:
 			path: app/Livewire/Admin/ApiTokenRequests/Index.php
 
 		-
-			message: '#^Using nullsafe property access "\?\-\>total_records" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Livewire/Dashboard.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_revealed_at\.$#'
 			identifier: property.notFound
 			count: 1

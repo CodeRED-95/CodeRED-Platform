@@ -9,6 +9,11 @@ use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImportRun;
+use App\Modules\Ruc\Models\RucBackup;
+use App\Modules\Ruc\Models\RucBackupOperation;
+use App\Modules\ShalomRecordar\Models\ShalomRecordarInstallation;
+use App\Modules\ShalomRecordar\Models\ShalomRecordarRecord;
+use App\Services\DashboardMetricsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -16,6 +21,12 @@ use Tests\TestCase;
 class DashboardTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->app->make(DashboardMetricsService::class)->flushAll();
+    }
 
     private function superAdmin(): User
     {
@@ -59,6 +70,54 @@ class DashboardTest extends TestCase
             ]);
         }
 
+        $backup = RucBackup::query()->create([
+            'name' => 'ruc-test-backup',
+            'backup_type' => RucBackup::TYPE_MANUAL,
+            'storage_path' => 'ruc/test-backup.rucbackup',
+            'file_size_bytes' => 1024,
+            'checksum_sha256' => hash('sha256', 'test'),
+            'total_records' => 5,
+            'status' => RucBackup::STATUS_COMPLETED,
+            'created_by' => $actor->id,
+        ]);
+
+        RucBackupOperation::query()->create([
+            'uuid' => (string) str()->uuid(),
+            'backup_id' => $backup->id,
+            'operation_type' => RucBackupOperation::TYPE_RESTORE,
+            'status' => RucBackupOperation::STATUS_COMPLETED,
+            'stage' => RucBackupOperation::STAGE_COMPLETED,
+            'progress' => 100,
+            'created_by' => $actor->id,
+            'finished_at' => now(),
+        ]);
+
+        $installation = ShalomRecordarInstallation::query()->create([
+            'user_id' => $actor->id,
+            'installation_uuid' => (string) str()->uuid(),
+            'extension_version' => '1.2.3',
+            'device_name' => 'Desktop',
+            'browser_name' => 'Chrome',
+            'browser_version' => '126.0',
+            'platform_name' => 'Linux',
+            'platform_version' => '6.6',
+            'last_synced_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+        ShalomRecordarRecord::query()->create([
+            'user_id' => $actor->id,
+            'installation_id' => $installation->id,
+            'installation_uuid' => $installation->installation_uuid,
+            'external_record_id' => 'ext-1',
+            'record_hash' => hash('sha256', 'record-hash'),
+            'field' => 'DNI',
+            'value' => '12345678',
+            'recorded_at' => now(),
+            'sync_batch_id' => 'batch-1',
+            'sync_cursor' => 'cursor-1',
+            'payload' => ['field' => 'DNI', 'value' => '12345678'],
+        ]);
+
         Livewire::actingAs($actor)
             ->test(Dashboard::class)
             ->assertSet('period', 30)
@@ -70,19 +129,41 @@ class DashboardTest extends TestCase
                 'under_review' => $initialByStatus[AgencyStatus::UnderReview->value] + 1,
                 'moved' => $initialByStatus[AgencyStatus::Moved->value] + 1,
             ])
-            ->assertViewHas('userMetrics', fn (array $metrics): bool => $metrics === [
-                'total' => $initialUsers + 3,
-                'new' => $initialNewUsers + 2,
-            ])
+            ->assertViewHas('userMetrics', fn (array $metrics): bool => $metrics['total'] === $initialUsers + 3
+                && $metrics['new'] === $initialNewUsers + 2
+                && array_key_exists('previous_period', $metrics))
+            ->assertViewHas('rucMetrics', fn (array $metrics): bool => $metrics['backups'] === 1 && array_key_exists('active_restore', $metrics))
+            ->assertViewHas('shalomMetrics', fn (array $metrics): bool => $metrics['total_installations'] === 1 && $metrics['total_records'] === 1 && $metrics['latest_syncs']->count() === 1)
+            ->assertViewHas('systemHealth', fn (array $metrics): bool => array_key_exists('queue_pending', $metrics) && array_key_exists('failed_jobs', $metrics))
+            ->assertViewHas('n8nMetrics', fn (array $metrics): bool => array_key_exists('instances', $metrics))
             ->assertViewHas('statusDistribution', fn (array $distribution): bool => count($distribution) === 5)
             ->assertViewHas('agencyTrend', fn (array $trend): bool => count($trend) === 30)
+            ->assertSee('CENTRO OPERATIVO')
+            ->assertSee('Dashboard')
+            ->assertSee('Resumen operativo de usuarios, agencias, RUC, integraciones y actividad del sistema.')
+            ->assertSee('Período')
+            ->assertSee('Actualizar')
+            ->assertSee('Total de agencias')
+            ->assertSee('Agencias activas')
+            ->assertSee('Agencias en revisión')
             ->assertSee('Total de usuarios')
+            ->assertSee('Agencias inactivas')
+            ->assertSee('Cierre temporal')
+            ->assertSee('Trasladadas')
+            ->assertSee('Pendientes / revisión')
+            ->assertSee('Última sincronización Shalom')
+            ->assertSee('Registros DNI internos')
+            ->assertSee('Registros RUC')
+            ->assertSee('Backups RUC')
+            ->assertSee('Solicitudes API · 24 h')
+            ->assertSee('Tokens activos')
             ->assertSee('Tendencia de agencias')
             ->assertSee('Distribución por estado')
-            ->assertSee('Resumen secundario')
-            ->assertSeeHtml('id="dashboard-trend-area"')
-            ->assertSeeHtml('fill="none"')
-            ->assertSee('Trasladadas');
+            ->assertSee('Salud del sistema')
+            ->assertSee('Integraciones n8n')
+            ->assertSee('Últimas sincronizaciones Shalom')
+            ->assertSee('Actividad reciente')
+            ->assertSeeHtml('id="dashboard-trend-area"');
     }
 
     public function test_dashboard_period_updates_real_user_and_agency_series(): void
@@ -115,6 +196,31 @@ class DashboardTest extends TestCase
     {
         $actor = $this->superAdmin();
         $agency = Agency::factory()->create(['name' => 'Agencia Auditada']);
+        $installation = ShalomRecordarInstallation::query()->create([
+            'user_id' => $actor->id,
+            'installation_uuid' => (string) str()->uuid(),
+            'extension_version' => '1.2.3',
+            'device_name' => 'Desktop',
+            'browser_name' => 'Chrome',
+            'browser_version' => '126.0',
+            'platform_name' => 'Linux',
+            'platform_version' => '6.6',
+            'last_synced_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+        ShalomRecordarRecord::query()->create([
+            'user_id' => $actor->id,
+            'installation_id' => $installation->id,
+            'installation_uuid' => $installation->installation_uuid,
+            'external_record_id' => 'ext-1',
+            'record_hash' => hash('sha256', 'record-hash-2'),
+            'field' => 'DNI',
+            'value' => '12345678',
+            'recorded_at' => now(),
+            'sync_batch_id' => 'batch-2',
+            'sync_cursor' => 'cursor-2',
+            'payload' => ['field' => 'DNI', 'value' => '12345678'],
+        ]);
         ActivityLog::query()->create([
             'user_id' => $actor->id,
             'action' => 'updated',
@@ -143,14 +249,10 @@ class DashboardTest extends TestCase
             ->assertViewHas('recentActivity', fn ($activity): bool => $activity->count() >= 1 && $activity->first()->relationLoaded('actor'))
             ->assertSee($actor->name)
             ->assertSee('actualizó la agencia “Agencia Auditada”')
-            ->assertSee('chosen-shalom.json')
-            ->assertSee('Última sincronización Shalom')
-            ->assertSee('Procesadas')
-            ->assertSee('Nuevas')
-            ->assertSee('Actualizadas')
-            ->assertSee('Sin cambios')
-            ->assertSee('Errores')
-            ->assertSee('Fallida');
+            ->assertSee('Últimas sincronizaciones Shalom')
+            ->assertSee('Registros')
+            ->assertSee('Última versión')
+            ->assertSee('Actualizado');
     }
 
     public function test_user_without_dashboard_permission_cannot_access_dashboard(): void
@@ -174,8 +276,7 @@ class DashboardTest extends TestCase
             ->assertViewHas('statusDistribution', fn (array $distribution): bool => collect($distribution)->every(
                 fn (array $status): bool => $status['count'] === 0 && $status['percentage'] === 0.0,
             ))
-            ->assertViewHas('lastSyncRun', null)
-            ->assertSee('No se registraron agencias durante este periodo.')
+            ->assertSee('No se registraron agencias durante este período.')
             ->assertSee('No existen sincronizaciones.')
             ->assertSee('0.0%');
     }

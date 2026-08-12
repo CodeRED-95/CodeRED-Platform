@@ -1,8 +1,8 @@
 <x-layouts.auth page-title="{{ $pageTitle ?? 'Crear cuenta' }}">
     <x-slot:promo>
-        <div class="relative inline-flex">
-            <div class="pointer-events-none absolute inset-0 -z-10 translate-y-2 scale-110 rounded-full bg-[radial-gradient(circle_at_center,rgba(225,29,72,0.34),rgba(225,29,72,0)_65%)] blur-2xl"></div>
-            <x-ui.logo variant="full" class="h-20 w-auto drop-shadow-[0_0_30px_rgba(225,29,72,0.18)]" />
+        <div class="relative mx-auto w-full max-w-[300px] sm:max-w-[320px] lg:max-w-[320px] xl:max-w-[380px] 2xl:max-w-[460px]">
+            <div class="pointer-events-none absolute inset-0 -z-10 translate-y-2 rounded-full bg-[radial-gradient(circle_at_center,rgba(225,29,72,0.34),rgba(225,29,72,0)_65%)] blur-2xl"></div>
+            <x-ui.logo variant="full" class="w-full h-auto drop-shadow-[0_0_30px_rgba(225,29,72,0.18)]" />
         </div>
 
         <div class="mt-8 space-y-3">

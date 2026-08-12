@@ -6,6 +6,15 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.21] - 2026-08-12
+
+### Fixed
+
+- Se rediseñó el Dashboard como Centro Operativo con métricas reales, caché específica y distribución visual alineada al Design System actual.
+- Se corrigió la proporción del logo y del panel promocional de Login y Registro para que mantengan una jerarquía visual equilibrada en desktop y se adapten correctamente en responsive.
+
+---
+
 ## [4.6.20] - 2026-08-12
 
 ### Fixed

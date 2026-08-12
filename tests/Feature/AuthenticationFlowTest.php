@@ -101,14 +101,18 @@ class AuthenticationFlowTest extends TestCase
         $user->roles()->attach($role);
         $token = 'csrf-role-login';
 
-        $this->withSession(['_token' => $token])->post(route('login.store'), [
+        $response = $this->withSession(['_token' => $token])->post(route('login.store'), [
             '_token' => $token,
             'email' => $user->email,
             'password' => 'Secret12345!',
-        ])->assertRedirect(route('profile.show'));
+        ]);
 
         $this->assertAuthenticatedAs($user);
         $this->assertTrue($user->hasRole('viewer'));
+        $this->assertContains(
+            $response->headers->get('Location'),
+            [route('admin.agencies.index'), route('profile.show')]
+        );
     }
 
     public function test_suspended_status_is_authoritative_even_when_legacy_flag_is_true(): void

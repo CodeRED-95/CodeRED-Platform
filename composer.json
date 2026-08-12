@@ -95,6 +95,6 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "extra": {
-        "version": "4.6.20"
+        "version": "4.6.21"
     }
 }
