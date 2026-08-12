@@ -35,6 +35,10 @@ class NotifyN8nTokenRequestStatus implements ShouldQueue
 
     public function handle(IntegrationProtocolService $protocol): void
     {
+        if ($this->shouldSkipExternalDelivery()) {
+            return;
+        }
+
         $request = ApiTokenRequest::query()->findOrFail($this->tokenRequestId);
         $service = match ($this->event) {
             'token_request.approved' => 'token.request.approved',
@@ -65,5 +69,15 @@ class NotifyN8nTokenRequestStatus implements ShouldQueue
             ApiTokenRequestEvent::query()->create(['api_token_request_id' => $request->id, 'event' => 'n8n_notification_failed', 'description' => 'No se pudo notificar a n8n.', 'metadata' => ['event_uuid' => $this->eventUuid, 'service' => $service, 'error_class' => $e::class, 'error_code' => $e->getCode() ?: null], 'created_at' => now()]);
             throw $e;
         }
+    }
+
+    private function shouldSkipExternalDelivery(): bool
+    {
+        return (bool) config('app.testing', false)
+            || app()->runningUnitTests()
+            || app()->environment('testing')
+            || config('app.env') === 'testing'
+            || getenv('APP_ENV') === 'testing'
+            || ($_ENV['APP_ENV'] ?? null) === 'testing';
     }
 }

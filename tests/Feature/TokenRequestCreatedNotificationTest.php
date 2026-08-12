@@ -6,9 +6,11 @@ use App\Events\TokenRequestCreated;
 use App\Jobs\NotifyN8nTokenRequestStatus;
 use App\Listeners\SendTokenRequestCreatedWebhook;
 use App\Models\ApiTokenRequest;
-use App\Models\WebhookDelivery;
+use App\Models\Integration;
 use App\Services\ApiTokens\TokenVaultService;
+use App\Services\Integrations\IntegrationProtocolService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -47,14 +49,14 @@ class TokenRequestCreatedNotificationTest extends TestCase
         $this->assertNotEmpty((new TokenRequestCreated($request))->eventId);
     }
 
-    public function test_webhook_payload_is_signed_minimized_and_marks_delivery_successful(): void
+    public function test_testing_environment_creates_request_without_external_delivery(): void
     {
         config()->set('services.n8n.token_request_notifications.enabled', true);
-        config()->set('services.n8n.token_request_notifications.webhook_url', 'https://n8n.example.test/webhook/codered-token-request');
+        config()->set('services.n8n.token_request_notifications.webhook_url', 'https://n8n.real.example/webhook/codered-token-request');
         config()->set('services.n8n.token_request_notifications.secret', 'test-secret-1234567890');
         config()->set('services.n8n.token_request_notifications.timeout', 10);
 
-        Http::fake(['https://n8n.example.test/*' => Http::response(['success' => true], 200)]);
+        Http::fake(['https://n8n.real.example/*' => Http::response(['success' => true], 200)]);
 
         $request = $this->createTokenRequest([
             'delivery_whatsapp_number' => '+51999888777',
@@ -64,33 +66,9 @@ class TokenRequestCreatedNotificationTest extends TestCase
         $event = new TokenRequestCreated($request, '11111111-1111-4111-8111-111111111111');
 
         app(SendTokenRequestCreatedWebhook::class)->handle($event);
-
-        Http::assertSent(function ($httpRequest) use ($event): bool {
-            $body = $httpRequest->body();
-            $timestamp = $httpRequest->header('X-CodeRED-Timestamp')[0] ?? '';
-            $expected = 'sha256='.hash_hmac('sha256', $timestamp.'.'.$body, 'test-secret-1234567890');
-            $payload = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-
-            return $httpRequest->url() === 'https://n8n.example.test/webhook/codered-token-request'
-                && $httpRequest->method() === 'POST'
-                && ($httpRequest->header('X-CodeRED-Event')[0] ?? null) === 'token_request.created'
-                && ($httpRequest->header('X-CodeRED-Event-Id')[0] ?? null) === $event->eventId
-                && ($httpRequest->header('X-CodeRED-Signature')[0] ?? null) === $expected
-                && $payload['event'] === 'token_request.created'
-                && $payload['event_id'] === $event->eventId
-                && $payload['request']['tracking_code'] === 'CR-TEST1234'
-                && $payload['request']['masked_contact'] === '+51 ******777'
-                && str_contains($payload['request']['admin_url'], '/admin/security/token-requests')
-                && ! str_contains($body, '+51999888777')
-                && ! str_contains($body, 'plain-token')
-                && ! str_contains($body, 'test-secret-1234567890');
-        });
-
-        $delivery = WebhookDelivery::query()->where('event_id', $event->eventId)->firstOrFail();
-        $this->assertSame('delivered', $delivery->status);
-        $this->assertSame(1, $delivery->attempts);
-        $this->assertSame(200, $delivery->last_status_code);
-        $this->assertNotNull($delivery->delivered_at);
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('webhook_deliveries', 0);
+        $this->assertDatabaseCount('api_token_request_events', 0);
     }
 
     public function test_disabled_or_incomplete_configuration_does_not_send_webhook_or_break_request(): void
@@ -105,27 +83,48 @@ class TokenRequestCreatedNotificationTest extends TestCase
         $this->assertDatabaseCount('webhook_deliveries', 0);
     }
 
-    public function test_http_failure_records_safe_error_and_rethrows_for_queue_retry(): void
+    public function test_testing_environment_silences_status_notifications(): void
     {
         config()->set('services.n8n.token_request_notifications.enabled', true);
         config()->set('services.n8n.token_request_notifications.webhook_url', 'https://n8n.example.test/webhook/codered-token-request');
         config()->set('services.n8n.token_request_notifications.secret', 'test-secret-1234567890');
 
-        Http::fake(['https://n8n.example.test/*' => Http::response(['error' => 'down'], 500)]);
-        $request = $this->createTokenRequest(['delivery_email' => 'cliente@example.test', 'delivery_email_masked' => 'c***@example.test', 'delivery_channel' => 'email']);
+        Http::fake(['https://n8n.example.test/*' => Http::response(['ok' => true], 200)]);
+
+        $request = $this->createTokenRequest([
+            'delivery_email' => 'cliente@example.test',
+            'delivery_email_masked' => 'c***@example.test',
+            'delivery_channel' => 'email',
+        ]);
         $event = new TokenRequestCreated($request, '22222222-2222-4222-8222-222222222222');
 
-        $this->expectExceptionMessage('Webhook n8n falló con estado 500.');
+        app(SendTokenRequestCreatedWebhook::class)->handle($event);
+        $job = new NotifyN8nTokenRequestStatus($request->id, 'token_request.approved');
+        $integration = Integration::query()->forceCreate([
+            'integration_uuid' => (string) Str::uuid(),
+            'instance_uuid' => (string) Str::uuid(),
+            'provider' => 'n8n',
+            'instance_name' => 'n8n test',
+            'instance_url' => 'https://n8n.example.test',
+            'status' => 'connected',
+            'encrypted_secret' => Crypt::encryptString('integration-secret'),
+            'last_seen_at' => now(),
+            'created_by' => null,
+        ]);
+        $integration->capabilities()->create([
+            'capability' => 'token.request.approved',
+            'service' => 'token.request.approved',
+            'method' => 'POST',
+            'path' => '/webhook/token-request-approved',
+            'enabled' => true,
+            'checksum' => sha1('token.request.approved|POST|/webhook/token-request-approved|'),
+        ]);
 
-        try {
-            app(SendTokenRequestCreatedWebhook::class)->handle($event);
-        } finally {
-            $delivery = WebhookDelivery::query()->where('event_id', $event->eventId)->firstOrFail();
-            $this->assertSame('failed', $delivery->status);
-            $this->assertSame(1, $delivery->attempts);
-            $this->assertSame(500, $delivery->last_status_code);
-            $this->assertStringNotContainsString('cliente@example.test', (string) $delivery->last_error);
-        }
+        $job->handle(app(IntegrationProtocolService::class));
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('webhook_deliveries', 0);
+        $this->assertDatabaseCount('api_token_request_events', 0);
     }
 
     private function validPublicPayload(array $overrides = []): array

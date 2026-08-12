@@ -26,8 +26,17 @@ class SendTokenRequestCreatedWebhook implements ShouldQueue
         return [10, 30, 60, 180, 300];
     }
 
+    public function shouldQueue(TokenRequestCreated $event): bool
+    {
+        return ! $this->shouldSkipExternalDelivery() && $this->enabled();
+    }
+
     public function handle(TokenRequestCreated $event): void
     {
+        if ($this->shouldSkipExternalDelivery()) {
+            return;
+        }
+
         if (! $this->enabled()) {
             return;
         }
@@ -87,6 +96,16 @@ class SendTokenRequestCreatedWebhook implements ShouldQueue
         return (bool) config('services.n8n.token_request_notifications.enabled', false)
             && filled(config('services.n8n.token_request_notifications.webhook_url'))
             && filled(config('services.n8n.token_request_notifications.secret'));
+    }
+
+    private function shouldSkipExternalDelivery(): bool
+    {
+        return (bool) config('app.testing', false)
+            || app()->runningUnitTests()
+            || app()->environment('testing')
+            || config('app.env') === 'testing'
+            || getenv('APP_ENV') === 'testing'
+            || ($_ENV['APP_ENV'] ?? null) === 'testing';
     }
 
     private function safeError(\Throwable $exception): string

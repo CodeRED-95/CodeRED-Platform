@@ -3,6 +3,7 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
@@ -23,6 +24,8 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         $this->guardTestDatabase();
+        config(['app.testing' => true, 'app.env' => 'testing']);
+        Http::preventStrayRequests();
     }
 
     private function guardTestDatabase(): void

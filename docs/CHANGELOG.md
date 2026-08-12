@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-12
+
+### Fixed
+
+- Se aísla el entorno de pruebas para que las solicitudes de token no disparen notificaciones reales a n8n o Telegram durante `composer verify`.
+
 ## 2026-08-11
 
 - Se rediseña la pantalla administrativa de integraciones n8n con una jerarquía visual más clara, métricas compactas y secciones mejor distribuidas, reutilizando el Design System existente sin cambiar la lógica funcional.
