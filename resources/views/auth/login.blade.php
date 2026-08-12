@@ -8,90 +8,173 @@
     <link rel="icon" href="{{ asset('images/branding/favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full code-red-shell text-[color:var(--color-text-primary)]">
-<div class="grid min-h-screen lg:grid-cols-[1.2fr_0.8fr]">
-    <section class="hidden flex-col justify-between border-r border-white/10 p-8 lg:flex">
-        <div class="max-w-xl space-y-6">
-            <x-ui.logo variant="full" class="h-16" />
-            <div class="space-y-3">
-                <p class="text-sm uppercase tracking-[0.28em] text-[color:var(--color-brand-light)]">CodeRED Platform</p>
-                <h1 class="font-display text-5xl font-semibold tracking-tight">Plataforma modular de administración</h1>
-                <p class="max-w-lg text-base text-[color:var(--color-text-secondary)]">Operamos agencias, importaciones y servicios con una interfaz empresarial clara, sobria y pensada para equipos internos.</p>
-            </div>
+<body class="h-full overflow-hidden code-red-shell text-[color:var(--color-text-primary)]">
+<main class="grid min-h-screen lg:grid-cols-[55fr_45fr]">
+    <section class="relative hidden overflow-hidden border-r border-white/10 px-8 py-10 lg:flex">
+        <div class="pointer-events-none absolute inset-0">
+            <div class="absolute left-0 top-0 h-[38rem] w-[38rem] -translate-x-1/2 -translate-y-1/3 rounded-full bg-[radial-gradient(circle_at_center,rgba(225,29,72,0.20),rgba(225,29,72,0)_70%)] blur-3xl"></div>
+            <div class="absolute right-16 top-28 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06),rgba(255,255,255,0)_72%)] blur-3xl"></div>
+            <div class="absolute inset-x-0 top-1/3 h-px bg-gradient-to-r from-transparent via-[color:var(--color-brand)]/50 to-transparent opacity-50"></div>
         </div>
-        <div class="grid max-w-2xl grid-cols-3 gap-4">
-            <x-ui.stat-card label="Seguridad" value="Auth" tone="brand" />
-            <x-ui.stat-card label="Datos" value="PGSQL" tone="ivory" />
-            <x-ui.stat-card label="Colas" value="Redis" tone="info" />
+
+        <div class="relative z-10 flex w-full flex-col justify-between">
+            <div class="max-w-2xl space-y-8">
+                <div class="relative inline-flex">
+                    <div class="pointer-events-none absolute inset-0 -z-10 translate-y-2 scale-110 rounded-full bg-[radial-gradient(circle_at_center,rgba(225,29,72,0.34),rgba(225,29,72,0)_65%)] blur-2xl"></div>
+                    <x-ui.logo variant="full" class="h-20 w-auto drop-shadow-[0_0_30px_rgba(225,29,72,0.18)]" />
+                </div>
+
+                <div class="space-y-3">
+                    <p class="text-sm uppercase tracking-[0.32em] text-[color:var(--color-brand-light)]">CodeRED Platform</p>
+                    <h1 class="font-display text-5xl font-semibold tracking-tight">Tu centro de operaciones</h1>
+                    <p class="max-w-xl text-lg leading-8 text-[color:var(--color-text-secondary)]">
+                        Administra agencias, RUC, integraciones y automatizaciones
+                        desde una plataforma modular, segura y diseñada para
+                        potenciar a tu equipo.
+                    </p>
+                </div>
+
+                <div class="grid max-w-2xl gap-4 pt-2">
+                    <div class="flex items-start gap-4 rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-white/3 p-4 shadow-[var(--shadow-card)] backdrop-blur">
+                        <div class="flex size-12 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--color-brand-soft)] text-[color:var(--color-brand-light)]">
+                            <x-ui.icon name="database" class="size-5" />
+                        </div>
+                        <div>
+                            <p class="text-base font-semibold text-white">Administración centralizada</p>
+                            <p class="mt-1 text-sm leading-6 text-[color:var(--color-text-secondary)]">Gestiona agencias, usuarios y permisos en un solo lugar.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-4 rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-white/3 p-4 shadow-[var(--shadow-card)] backdrop-blur">
+                        <div class="flex size-12 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--color-brand-soft)] text-[color:var(--color-brand-light)]">
+                            <x-ui.icon name="shield" class="size-5" />
+                        </div>
+                        <div>
+                            <p class="text-base font-semibold text-white">Integraciones seguras</p>
+                            <p class="mt-1 text-sm leading-6 text-[color:var(--color-text-secondary)]">Conecta n8n, servicios y herramientas con total confianza.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-4 rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-white/3 p-4 shadow-[var(--shadow-card)] backdrop-blur">
+                        <div class="flex size-12 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--color-brand-soft)] text-[color:var(--color-brand-light)]">
+                            <x-ui.icon name="refresh" class="size-5" />
+                        </div>
+                        <div>
+                            <p class="text-base font-semibold text-white">Datos y automatización</p>
+                            <p class="mt-1 text-sm leading-6 text-[color:var(--color-text-secondary)]">Procesos inteligentes para decisiones más rápidas.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="pt-10 text-sm text-[color:var(--color-text-secondary)]">
+                © 2026 CodeRED Platform. Todos los derechos reservados.
+            </footer>
         </div>
     </section>
 
-    <section class="flex items-center justify-center px-4 py-8 lg:px-10">
-        <form
-            method="POST"
-            action="{{ route('login.store') }}"
-            class="w-full max-w-md rounded-[var(--radius-modal)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/95 p-6 shadow-2xl backdrop-blur"
-        >
-            @csrf
-            <div class="mb-8 space-y-3 lg:hidden">
-                <x-ui.logo variant="full" class="h-14" />
-                <p class="text-sm text-[color:var(--color-text-secondary)]">Plataforma modular de administración</p>
-            </div>
-            <h2 class="font-display text-3xl font-semibold tracking-tight">Iniciar sesión</h2>
-            <p class="mt-2 text-sm text-[color:var(--color-text-secondary)]">Acceso administrativo seguro a CodeRED Platform.</p>
+    <section class="flex items-center justify-center px-4 py-6 sm:px-6 lg:px-8">
+        <div class="w-full max-w-[32rem]">
+            <form
+                method="POST"
+                action="{{ route('login.store') }}"
+                class="rounded-[var(--radius-modal)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/95 px-5 py-6 shadow-2xl backdrop-blur sm:px-6 sm:py-7 lg:px-8 lg:py-8"
+            >
+                @csrf
 
-            @if ($errors->any())
-                <x-ui.alert tone="danger" class="mt-6 text-sm">
-                    <p class="font-medium text-[color:var(--color-danger)]">Revisa los campos marcados.</p>
-                </x-ui.alert>
-            @endif
+                <div class="mx-auto mb-7 flex flex-col items-center gap-4 text-center">
+                    <div class="flex size-16 items-center justify-center rounded-[var(--radius-card)] border border-white/10 bg-white/5 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
+                        <x-ui.logo variant="symbol" class="h-8 w-8" />
+                    </div>
+                    <div class="space-y-2">
+                        <h2 class="font-display text-3xl font-semibold tracking-tight">Iniciar sesión</h2>
+                        <p class="text-sm text-[color:var(--color-text-secondary)]">Acceso administrativo seguro a CodeRED Platform.</p>
+                    </div>
+                </div>
 
-            <div class="mt-6 space-y-4">
-                <x-ui.input
-                    type="email"
-                    id="email"
-                    name="email"
-                    label="Correo electrónico"
-                    autocomplete="username"
-                    autocapitalize="none"
-                    spellcheck="false"
-                    placeholder="admin@codered.local"
-                    :value="old('email')"
-                    :error="$errors->first('email')"
-                />
-                <div x-data="{ showPassword: false }">
+                @if ($errors->any())
+                    <x-ui.alert tone="danger" class="mb-6 text-sm">
+                        <p class="font-medium text-[color:var(--color-danger)]">Revisa los campos marcados.</p>
+                    </x-ui.alert>
+                @endif
+
+                <div class="space-y-4">
                     <x-ui.input
-                        type="password"
-                        x-bind:type="showPassword ? 'text' : 'password'"
-                        id="password"
-                        name="password"
-                        label="Contraseña"
-                        autocomplete="current-password"
-                        :error="$errors->first('password')"
+                        type="email"
+                        id="email"
+                        name="email"
+                        label="Correo electrónico"
+                        autocomplete="username"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        placeholder="admin@codered.local"
+                        :value="old('email')"
+                        :error="$errors->first('email')"
                         required
                     >
-                        <x-slot:suffix>
-                        <button
-                            type="button"
-                            x-on:click="showPassword = ! showPassword"
-                            x-bind:aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-                            class="rounded-md px-2 py-1 text-xs text-[color:var(--color-text-secondary)] transition hover:bg-white/5 hover:text-white focus-ring"
-                            x-text="showPassword ? 'Ocultar' : 'Ver'"
-                        ></button>
-                        </x-slot:suffix>
+                        <x-slot:icon>
+                            <x-ui.icon name="inbox" class="size-5" />
+                        </x-slot:icon>
                     </x-ui.input>
-                </div>
-                <x-ui.checkbox name="remember" value="1" :checked="(bool) old('remember')">Recordarme</x-ui.checkbox>
-            </div>
 
-            <x-ui.button type="submit" variant="primary" class="mt-6 w-full">
-                Entrar
-            </x-ui.button>
-            <x-ui.button href="{{ route('register') }}" variant="outline" class="mt-3 w-full">
-                Crear cuenta
-            </x-ui.button>
-        </form>
+                    <div x-data="{ showPassword: false }">
+                        <x-ui.input
+                            type="password"
+                            x-bind:type="showPassword ? 'text' : 'password'"
+                            id="password"
+                            name="password"
+                            label="Contraseña"
+                            autocomplete="current-password"
+                            :error="$errors->first('password')"
+                            required
+                        >
+                            <x-slot:icon>
+                                <x-ui.icon name="shield" class="size-5" />
+                            </x-slot:icon>
+                            <x-slot:suffix>
+                                <button
+                                    type="button"
+                                    x-on:click="showPassword = ! showPassword"
+                                    aria-label="Mostrar contraseña"
+                                    class="rounded-md p-2 text-[color:var(--color-text-secondary)] transition hover:bg-white/5 hover:text-white focus-ring"
+                                >
+                                    <span class="sr-only" x-text="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"></span>
+                                    <x-ui.icon name="eye" class="size-5" />
+                                </button>
+                            </x-slot:suffix>
+                        </x-ui.input>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-4">
+                        <x-ui.checkbox name="remember" value="1" :checked="(bool) old('remember')">Recordarme</x-ui.checkbox>
+                        @if (Route::has('password.request'))
+                            <x-ui.button href="{{ route('password.request') }}" variant="link" class="text-sm font-medium">¿Olvidaste tu contraseña?</x-ui.button>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="mt-7 space-y-4">
+                    <x-ui.button type="submit" variant="primary" class="w-full bg-[color:var(--color-brand)] py-3.5 text-base font-semibold">
+                        Entrar
+                    </x-ui.button>
+
+                    <div class="flex items-center gap-4 text-[color:var(--color-text-muted)]">
+                        <span class="h-px flex-1 bg-white/10"></span>
+                        <span class="text-xs uppercase tracking-[0.28em]">o</span>
+                        <span class="h-px flex-1 bg-white/10"></span>
+                    </div>
+
+                    <x-ui.button href="{{ route('register') }}" variant="outline" class="w-full py-3.5 text-base font-semibold">
+                        Crear cuenta
+                    </x-ui.button>
+                </div>
+            </form>
+
+            <p class="mt-5 text-center text-sm text-[color:var(--color-text-secondary)]">
+                Plataforma modular • Segura • Confiable
+            </p>
+        </div>
     </section>
-</div>
+</main>
 </body>
 </html>

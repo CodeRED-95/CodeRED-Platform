@@ -15,7 +15,12 @@ class LoginPageTest extends TestCase
     {
         $this->get('/login')
             ->assertOk()
-            ->assertSee('Iniciar sesión');
+            ->assertSee('Tu centro de operaciones')
+            ->assertSee('Iniciar sesión')
+            ->assertSee('Plataforma modular • Segura • Confiable')
+            ->assertDontSee('Seguridad 0')
+            ->assertDontSee('Datos 0')
+            ->assertDontSee('Colas 0');
     }
 
     public function test_login_form_uses_post_csrf_and_store_route(): void
@@ -100,7 +105,9 @@ class LoginPageTest extends TestCase
     {
         $this->get('/login')
             ->assertOk()
-            ->assertSeeHtml('<button type="submit"');
+            ->assertSeeHtml('type="submit"')
+            ->assertSeeHtml('aria-label="Mostrar contraseña"')
+            ->assertSeeHtml('Crear cuenta');
     }
 
     public function test_login_rejects_request_without_csrf_token(): void

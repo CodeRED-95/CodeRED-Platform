@@ -2,6 +2,12 @@
 
 ## 2026-08-12
 
+### Changed
+
+- Se rediseña la pantalla de inicio de sesión con una composición 55/45, panel informativo oscuro y card de acceso más compacta, manteniendo intacta la autenticación existente.
+
+## 2026-08-12
+
 ### Fixed
 
 - Se aísla el entorno de pruebas para que las solicitudes de token no disparen notificaciones reales a n8n o Telegram durante `composer verify`.
