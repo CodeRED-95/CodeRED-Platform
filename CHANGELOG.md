@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.7.0] - 2026-08-12
+
+### ℹ️ Nota
+
+- Integrar Declaración Jurada Shalom como servicio Docker interconectado (usuarios y consultas DNI vía CodeRED Platform)
+
+---
+
 ## [4.6.22] - 2026-08-12
 
 ### Fixed

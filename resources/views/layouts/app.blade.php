@@ -72,6 +72,7 @@
                             'Identidad' => [
                                 ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tools.dni.test')],
                                 ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('settings.dni.view')],
+                                ['label' => 'Declaración Jurada', 'url' => config('services.declaracion_jurada.url'), 'icon' => '⇗', 'can' => ! $isViewerOnly && $menuUser->hasPermission('declaracion-jurada.view') && filled(config('services.declaracion_jurada.url'))],
                             ],
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.test')],
@@ -106,8 +107,9 @@
                             </p>
                             @foreach ($items as $item)
                               @if ($item['can'])
-                                <div class="relative group" x-data="{ active: {{ request()->routeIs($item['route']) ? 'true' : 'false' }} }">
-                                    <a href="{{ route($item['route']) }}"
+                                <div class="relative group" x-data="{ active: {{ !empty($item['url']) ? 'false' : (request()->routeIs($item['route']) ? 'true' : 'false') }} }">
+                                    <a href="{{ $item['url'] ?? route($item['route']) }}"
+                                       @if(!empty($item['url'])) target="_blank" rel="noopener noreferrer" @endif
                                        :aria-current="active ? 'page' : 'false'"
                                        class="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-200"
                                        :class="{
@@ -260,6 +262,7 @@
                             'Identidad' => [
                                 ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tools.dni.test')],
                                 ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('settings.dni.view')],
+                                ['label' => 'Declaración Jurada', 'url' => config('services.declaracion_jurada.url'), 'icon' => '⇗', 'can' => ! $isViewerOnly && $menuUser->hasPermission('declaracion-jurada.view') && filled(config('services.declaracion_jurada.url'))],
                             ],
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.test')],
@@ -289,8 +292,9 @@
                         @foreach ($items as $item)
                             @if($item['can'])
                                 <a
-                                    href="{{ route($item['route']) }}"
-                                    @if(request()->routeIs($item['route'])) data-sidebar-active="true" aria-current="page" @endif
+                                    href="{{ $item['url'] ?? route($item['route']) }}"
+                                    @if(!empty($item['url'])) target="_blank" rel="noopener noreferrer" @endif
+                                    @if(empty($item['url']) && request()->routeIs($item['route'])) data-sidebar-active="true" aria-current="page" @endif
                                     @class([
                                         'sidebar-link',
                                     ])

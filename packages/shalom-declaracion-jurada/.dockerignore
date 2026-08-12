@@ -1,0 +1,15 @@
+.git
+.gitignore
+node_modules
+dist
+dist-ssr
+.data
+*.local
+.env
+.env.local
+*.log
+npm-debug.log*
+.vscode
+.idea
+.DS_Store
+"dj web.pdf"

@@ -78,6 +78,7 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'api-token-requests.configure', 'name' => 'Configurar integración n8n y Telegram'],
                 ['slug' => 'integrations.n8n.manage', 'name' => 'Gestionar integración n8n empresarial'],
                 ['slug' => 'integrations.view', 'name' => 'Ver integraciones'],
+                ['slug' => 'declaracion-jurada.view', 'name' => 'Ver Declaración Jurada'],
                 ['slug' => 'shalom-recordar.view', 'name' => 'Ver Shalom Recordar'],
                 ['slug' => 'shalom-recordar.view-own', 'name' => 'Ver mis sincronizaciones de Shalom Recordar'],
                 ['slug' => 'shalom-recordar.sync', 'name' => 'Sincronizar mis datos de Shalom Recordar'],

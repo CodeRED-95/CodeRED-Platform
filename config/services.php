@@ -8,6 +8,15 @@ return [
         'max_file_mb' => (int) env('SHALOM_EXTRACTOR_MAX_FILE_MB', 10),
     ],
 
+    // Declaración Jurada Shalom (packages/shalom-declaracion-jurada): app
+    // Node/React independiente, servida por su propio server block de
+    // Nginx (ver docker/nginx/default.conf, puerto 8091 en el host). Solo
+    // se usa para el enlace de navegación del panel — CodeRED Platform no
+    // hace llamadas HTTP hacia ella.
+    'declaracion_jurada' => [
+        'url' => env('DECLARACION_JURADA_URL'),
+    ],
+
     'n8n' => [
         'integration_enabled' => env('N8N_INTEGRATION_ENABLED', false),
         'shared_secret' => env('N8N_SHARED_SECRET', ''),

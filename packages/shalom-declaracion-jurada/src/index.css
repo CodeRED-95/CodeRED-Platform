@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+input:focus, select:focus {
+  @apply ring-2 ring-red-500 outline-none border-transparent;
+}
+
+.fully-justified {
+  width: 100%;
+  text-align: justify;
+  text-align-last: justify;
+}

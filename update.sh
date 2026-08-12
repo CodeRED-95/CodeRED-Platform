@@ -207,6 +207,20 @@ ensure_agent_env(){
     [[ "$enc" != "$token" ]] || die "Los secretos del agente deben ser diferentes."
 }
 
+# Declaración Jurada Shalom (packages/shalom-declaracion-jurada): igual que
+# ensure_agent_env, solo completa lo que falte y nunca sobrescribe un valor
+# ya presente. DECLARACION_JURADA_CODERED_API_TOKEN no se puede generar
+# aquí (requiere la base de datos y el contenedor app arriba) — se avisa al
+# final del paso si falta, con el comando exacto para emitirlo.
+ensure_declaracion_jurada_env(){
+    [[ -n "$(get_env DECLARACION_JURADA_URL)" ]] || set_env DECLARACION_JURADA_URL "https://declaracion.$CODERED_DOMAIN"
+    [[ -n "$(get_env DECLARACION_JURADA_ADMIN_EMAIL)" ]] || set_env DECLARACION_JURADA_ADMIN_EMAIL "$(get_env MAIL_FROM_ADDRESS)"
+    [[ -n "$(get_env DECLARACION_JURADA_COOKIE_SECURE)" ]] || set_env DECLARACION_JURADA_COOKIE_SECURE "true"
+    [[ -n "$(get_env DECLARACION_JURADA_DNI_API_URL)" ]] || set_env DECLARACION_JURADA_DNI_API_URL "https://api.perudevs.com/api/v1/dni/simple"
+    if need_secret DECLARACION_JURADA_ADMIN_PASSWORD; then set_env DECLARACION_JURADA_ADMIN_PASSWORD "$(generate_secret)"; ok "Password admin de Declaración Jurada generado correctamente."; fi
+    if need_secret DECLARACION_JURADA_ENCRYPTION_KEY; then set_env DECLARACION_JURADA_ENCRYPTION_KEY "$(generate_secret)"; ok "Clave de cifrado de Declaración Jurada generada correctamente."; fi
+}
+
 # Verifica que la configuración de cookies/CSRF sea coherente con APP_URL.
 # NO reescribe nada: cambiar SESSION_DOMAIN o los orígenes permitidos por
 # nuestra cuenta puede desconectar clientes en producción, así que solo avisa.
@@ -379,15 +393,17 @@ fi
 step 5 "Revisando variables nuevas"
 sync_postgres_env
 ensure_agent_env
+ensure_declaracion_jurada_env
 check_domain_consistency
 migrate_legacy_app_version
-ok "Variables PostgreSQL, CodeRED Agent y n8n verificadas sin mostrar secretos."
+ok "Variables PostgreSQL, CodeRED Agent, n8n y Declaración Jurada verificadas sin mostrar secretos."
 
 step 6 "Construyendo imágenes"
 BUILD_SERVICES=()
 if [[ "$OLD_HEAD" != "$NEW_HEAD" ]]; then
     if changed '(^composer.lock$|^docker/php/Dockerfile$|^docker-compose.yml$|^compose.yml$|^app/|^bootstrap/|^config/|^routes/)'; then BUILD_SERVICES+=(app queue queue-ruc-backups scheduler); fi
     if changed '(^packages/codered-agent/|^docker-compose.yml$|^compose.yml$)'; then BUILD_SERVICES+=(codered-agent); fi
+    if changed '(^packages/shalom-declaracion-jurada/|^docker-compose.yml$|^compose.yml$)'; then BUILD_SERVICES+=(declaracion-jurada); fi
 fi
 if ((${#BUILD_SERVICES[@]})); then
     docker compose build "${BUILD_SERVICES[@]}"
@@ -467,6 +483,30 @@ fi
 step 10 "Ejecutando migraciones"
 docker compose exec -T app php artisan migrate --force
 ok "Todas las migraciones completadas (incluyendo Shalom y RUC Backup)"
+
+if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] && changed '^database/seeders/PermissionsSeeder\.php$'; then
+    docker compose exec -T app php artisan db:seed --class=PermissionsSeeder --force
+    ok "Permisos sincronizados (incluye declaracion-jurada.view)."
+fi
+
+# El ApiClient y el token dni:consultar de Declaración Jurada se emiten una
+# sola vez (el token solo se muestra en el momento de crearlo). Si
+# DECLARACION_JURADA_CODERED_API_TOKEN ya está en .env no se toca nada; si
+# falta, se emite aquí y se guarda automáticamente para que el contenedor
+# "declaracion-jurada" arranque con el bridge de consultas ya configurado.
+if [[ -z "$(get_env DECLARACION_JURADA_CODERED_API_TOKEN)" ]]; then
+    DJ_TOKEN_OUTPUT="$(docker compose exec -T app php artisan declaracion-jurada:setup 2>&1)"
+    DJ_TOKEN_VALUE="$(printf '%s\n' "$DJ_TOKEN_OUTPUT" | grep -E '^[0-9]+\|[A-Za-z0-9]+$' | head -1)"
+    if [[ -n "$DJ_TOKEN_VALUE" ]]; then
+        set_env DECLARACION_JURADA_CODERED_API_TOKEN "$DJ_TOKEN_VALUE"
+        docker compose up -d --force-recreate --no-deps declaracion-jurada
+        ok "Token dni:consultar emitido y guardado para Declaración Jurada (contenedor reiniciado para aplicarlo)."
+    else
+        warn "No se pudo emitir automáticamente el token de Declaración Jurada. Ejecute manualmente:"
+        warn "  docker compose exec -T app php artisan declaracion-jurada:setup"
+        warn "  y guarde el valor en DECLARACION_JURADA_CODERED_API_TOKEN dentro de .env"
+    fi
+fi
 
 # El sistema de IMPORTACIÓN RUC fue retirado (v3.0.0): el padrón se
 # administra solo con backup/restore. Se verifica que la migración
