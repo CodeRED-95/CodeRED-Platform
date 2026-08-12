@@ -6,6 +6,8 @@ use App\Models\Role;
 use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucBackupOperation;
+use App\Modules\Ruc\Models\RucRecord;
+use App\Modules\Ruc\Services\RucBackupService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Str;
@@ -33,9 +35,23 @@ class RestoreConcurrencyTest extends TestCase
     private function adminUser(): User
     {
         $user = User::factory()->create();
-        $user->roles()->attach(Role::query()->where('slug', 'super-admin')->firstOrFail());
+        $role = Role::query()->firstOrCreate(
+            ['slug' => 'super-admin'],
+            ['name' => 'Super Administrador', 'description' => 'Acceso total al sistema']
+        );
+        $user->roles()->attach($role);
 
         return $user;
+    }
+
+    private function realBackup(User $user): RucBackup
+    {
+        RucRecord::query()->create([
+            'ruc' => '20123456789',
+            'razon_social' => 'EMPRESA CONCURRENCIA S.A.C.',
+        ]);
+
+        return app(RucBackupService::class)->create($user);
     }
 
     public function test_restore_rejected_when_other_restore_pending(): void
@@ -111,8 +127,8 @@ class RestoreConcurrencyTest extends TestCase
             'finished_at' => now(),
         ]);
 
-        $backup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         $user = $this->adminUser();
+        $backup = $this->realBackup($user);
 
         $response = $this->actingAs($user)
             ->withSession(['_token' => 'test-token'])
@@ -123,10 +139,11 @@ class RestoreConcurrencyTest extends TestCase
         $response->assertRedirect(route('admin.ruc.backups'));
         $response->assertSessionHas('success');
 
-        // Se crearon 2 operaciones (primera completada + nueva pending)
+        // Se crearon 2 operaciones (primera completada + nueva completada en testing)
         $this->assertSame(2, RucBackupOperation::count());
-        $newOperation = RucBackupOperation::where('status', RucBackupOperation::STATUS_PENDING)->firstOrFail();
-        $this->assertSame(RucBackupOperation::STAGE_QUEUED, $newOperation->stage);
+        $newOperation = RucBackupOperation::query()->latest('id')->firstOrFail();
+        $this->assertSame(RucBackupOperation::STATUS_COMPLETED, $newOperation->status);
+        $this->assertSame(RucBackupOperation::STAGE_COMPLETED, $newOperation->stage);
     }
 
     public function test_restore_allowed_when_previous_restore_failed(): void
@@ -145,8 +162,8 @@ class RestoreConcurrencyTest extends TestCase
             'finished_at' => now(),
         ]);
 
-        $backup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         $user = $this->adminUser();
+        $backup = $this->realBackup($user);
 
         $response = $this->actingAs($user)
             ->withSession(['_token' => 'test-token'])
@@ -157,26 +174,36 @@ class RestoreConcurrencyTest extends TestCase
         $response->assertRedirect(route('admin.ruc.backups'));
         $response->assertSessionHas('success');
 
-        // Se crearon 2 operaciones (primera failed + nueva pending)
+        // Se crearon 2 operaciones (primera failed + nueva completada en testing)
         $this->assertSame(2, RucBackupOperation::count());
     }
 
     public function test_multiple_concurrent_restores_rejected(): void
     {
         // Simular 3 intentos simultáneos
-        $backup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         $user = $this->adminUser();
+        $backup = $this->realBackup($user);
 
-        // Primer intento: debe crear operación
+        RucBackupOperation::create([
+            'uuid' => (string) Str::uuid(),
+            'backup_id' => $backup->id,
+            'operation_type' => RucBackupOperation::TYPE_RESTORE,
+            'status' => RucBackupOperation::STATUS_RUNNING,
+            'stage' => RucBackupOperation::STAGE_RESTORING,
+            'progress' => 50,
+            'message' => 'En curso...',
+        ]);
+
+        // Primer intento: debe ser rechazado por la operación activa manual
         $response1 = $this->actingAs($user)
             ->withSession(['_token' => 'test-token'])
             ->withHeader('X-CSRF-TOKEN', 'test-token')
             ->post(route('admin.ruc.backups.restore', $backup->id));
         $response1->assertRedirect();
-        $response1->assertSessionHas('success');
+        $response1->assertSessionHas('error');
         $this->assertSame(1, RucBackupOperation::count());
 
-        // Segundo intento: debe ser rechazado (hay una operación activa)
+        // Segundo intento: debe seguir rechazado
         $response2 = $this->actingAs($user)
             ->withSession(['_token' => 'test-token'])
             ->withHeader('X-CSRF-TOKEN', 'test-token')
@@ -185,7 +212,7 @@ class RestoreConcurrencyTest extends TestCase
         $response2->assertSessionHas('error');
         $this->assertSame(1, RucBackupOperation::count());
 
-        // Tercer intento: debe ser rechazado
+        // Tercer intento: debe seguir rechazado
         $response3 = $this->actingAs($user)
             ->withSession(['_token' => 'test-token'])
             ->withHeader('X-CSRF-TOKEN', 'test-token')
@@ -236,8 +263,8 @@ class RestoreConcurrencyTest extends TestCase
             'message' => 'Cancelada',
         ]);
 
-        $backup = RucBackup::factory()->create(['status' => RucBackup::STATUS_COMPLETED]);
         $user = $this->adminUser();
+        $backup = $this->realBackup($user);
 
         $response = $this->actingAs($user)
             ->withSession(['_token' => 'test-token'])

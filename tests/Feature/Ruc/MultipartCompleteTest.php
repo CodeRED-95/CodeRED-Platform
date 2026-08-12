@@ -8,13 +8,14 @@ use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucBackupUpload;
 use App\Modules\Ruc\Services\RucBackupMultipartUploadService;
 use App\Modules\Ruc\Services\RucBackupService;
+use App\Modules\Ruc\Services\RucChunkedBackupService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
-use Symfony\Component\Process\Process;
 use Tests\TestCase;
+use ZipArchive;
 
 class MultipartCompleteTest extends TestCase
 {
@@ -151,21 +152,16 @@ class MultipartCompleteTest extends TestCase
     public function test_dump_of_another_table_is_rejected_at_assembly(): void
     {
         $user = $this->adminUser();
+        $backup = app(RucChunkedBackupService::class)->create($user);
+        $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.rucbackup';
+        copy($backup->absolutePath(), $tmpPath);
 
-        $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.dump';
-        $process = new Process([
-            'pg_dump',
-            '--host='.config('database.connections.pgsql.host'),
-            '--port='.config('database.connections.pgsql.port', 5432),
-            '--username='.config('database.connections.pgsql.username'),
-            '--table=users',
-            '--format=custom',
-            '--data-only',
-            '--file='.$tmpPath,
-            config('database.connections.pgsql.database'),
-        ]);
-        $process->setEnv(['PGPASSWORD' => config('database.connections.pgsql.password')]);
-        $process->mustRun();
+        $zip = new ZipArchive;
+        $zip->open($tmpPath);
+        $manifestZip = json_decode($zip->getFromName('manifest.json'), true);
+        $manifestZip['source_table'] = 'users';
+        $zip->addFromString('manifest.json', json_encode($manifestZip, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $zip->close();
 
         [$manifest, $chunks] = $this->splitRealDumpIntoManifest($tmpPath, 500, 'ruc_backup_other_table_test.dump');
         $countBefore = RucBackup::count();

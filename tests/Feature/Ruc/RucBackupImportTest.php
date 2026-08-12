@@ -5,12 +5,12 @@ namespace Tests\Feature\Ruc;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
-use App\Modules\Ruc\Services\RucBackupService;
+use App\Modules\Ruc\Services\RucChunkedBackupService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Symfony\Component\Process\Process;
 use Tests\TestCase;
+use ZipArchive;
 
 class RucBackupImportTest extends TestCase
 {
@@ -38,10 +38,10 @@ class RucBackupImportTest extends TestCase
         return $this->withSession(['_token' => $token])->post($uri, array_merge($data, ['_token' => $token]));
     }
 
-    /** Dump real y válido de ruc_records, generado con pg_dump de verdad. */
+    /** Backup válido de ruc_records, generado por la ruta de testing aislada. */
     private function validDumpFile(string $name = 'valid.dump'): UploadedFile
     {
-        $backup = app(RucBackupService::class)->create();
+        $backup = app(RucChunkedBackupService::class)->create();
 
         return new UploadedFile($backup->absolutePath(), $name, null, null, true);
     }
@@ -97,21 +97,16 @@ class RucBackupImportTest extends TestCase
     public function test_dump_of_another_table_is_rejected(): void
     {
         $user = $this->adminUser();
+        $backup = app(RucChunkedBackupService::class)->create();
+        $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.rucbackup';
+        copy($backup->absolutePath(), $tmpPath);
 
-        $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.dump';
-        $process = new Process([
-            'pg_dump',
-            '--host='.config('database.connections.pgsql.host'),
-            '--port='.config('database.connections.pgsql.port', 5432),
-            '--username='.config('database.connections.pgsql.username'),
-            '--table=users',
-            '--format=custom',
-            '--data-only',
-            '--file='.$tmpPath,
-            config('database.connections.pgsql.database'),
-        ]);
-        $process->setEnv(['PGPASSWORD' => config('database.connections.pgsql.password')]);
-        $process->mustRun();
+        $zip = new ZipArchive;
+        $zip->open($tmpPath);
+        $manifest = json_decode($zip->getFromName('manifest.json'), true);
+        $manifest['source_table'] = 'users';
+        $zip->addFromString('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $zip->close();
 
         $file = new UploadedFile($tmpPath, 'other_table.dump', null, null, true);
         $countBefore = RucBackup::count();

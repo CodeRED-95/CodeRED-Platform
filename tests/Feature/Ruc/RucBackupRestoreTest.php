@@ -7,13 +7,14 @@ use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucRecord;
 use App\Modules\Ruc\Services\RucBackupService;
+use App\Modules\Ruc\Services\RucChunkedBackupService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\Process\Process;
 use Tests\TestCase;
+use ZipArchive;
 
 /**
  * DatabaseTruncation (no RefreshDatabase): el restore real hace TRUNCATE vía
@@ -53,6 +54,11 @@ class RucBackupRestoreTest extends TestCase
     private function service(): RucBackupService
     {
         return app(RucBackupService::class);
+    }
+
+    private function chunkedService(): RucChunkedBackupService
+    {
+        return app(RucChunkedBackupService::class);
     }
 
     private function seedRecords(int $count, string $prefix): void
@@ -105,7 +111,9 @@ class RucBackupRestoreTest extends TestCase
     {
         $this->seedRecords(3, '20');
         $backup = $this->service()->create();
-        $backup->update(['checksum_sha256' => str_repeat('0', 64)]); // corrompido
+        $originalChecksum = hash_file('sha256', $backup->absolutePath());
+        self::assertNotFalse(file_put_contents($backup->absolutePath(), file_get_contents($backup->absolutePath())."\ncorrupted"));
+        self::assertNotSame($originalChecksum, hash_file('sha256', $backup->absolutePath()));
 
         $countBefore = DB::table('ruc_records')->count();
 
@@ -119,24 +127,19 @@ class RucBackupRestoreTest extends TestCase
     public function test_dump_of_another_table_is_rejected_on_restore(): void
     {
         $this->seedRecords(2, '21');
+        $backup = $this->chunkedService()->create();
+        $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.rucbackup';
+        copy($backup->absolutePath(), $tmpPath);
 
-        $tmpPath = tempnam(sys_get_temp_dir(), 'other').'.dump';
-        $process = new Process([
-            'pg_dump',
-            '--host='.config('database.connections.pgsql.host'),
-            '--port='.config('database.connections.pgsql.port', 5432),
-            '--username='.config('database.connections.pgsql.username'),
-            '--table=users',
-            '--format=custom',
-            '--data-only',
-            '--file='.$tmpPath,
-            config('database.connections.pgsql.database'),
-        ]);
-        $process->setEnv(['PGPASSWORD' => config('database.connections.pgsql.password')]);
-        $process->mustRun();
+        $zip = new ZipArchive;
+        $zip->open($tmpPath);
+        $manifest = json_decode($zip->getFromName('manifest.json'), true);
+        $manifest['source_table'] = 'users';
+        $zip->addFromString('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $zip->close();
 
         $backup = RucBackup::create([
-            'name' => 'other.dump',
+            'name' => 'other.rucbackup',
             'storage_path' => 'backups/ruc/'.basename($tmpPath),
             'status' => RucBackup::STATUS_COMPLETED,
             'checksum_sha256' => hash_file('sha256', $tmpPath),
@@ -196,20 +199,32 @@ class RucBackupRestoreTest extends TestCase
         $this->seedRecords(5, '25');
         $goodBackup = $this->service()->create();
 
-        // Truncar el archivo a la mitad: pasa la validación de formato
-        // (pg_restore --list puede leer el TOC) pero el restore real falla
-        // al copiar datos incompletos.
-        $goodSize = filesize($goodBackup->absolutePath());
-        $truncatedRelative = 'backups/ruc/truncated_test.dump';
-        $truncatedAbsolute = Storage::disk('local')->path($truncatedRelative);
-        file_put_contents($truncatedAbsolute, substr(file_get_contents($goodBackup->absolutePath()), 0, (int) ($goodSize * 0.6)));
+        $corruptedRelative = 'backups/ruc/corrupted_test.rucbackup';
+        $corruptedAbsolute = Storage::disk('local')->path($corruptedRelative);
+        copy($goodBackup->absolutePath(), $corruptedAbsolute);
+
+        $zip = new ZipArchive;
+        $zip->open($corruptedAbsolute);
+        $firstChunk = null;
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entryName = $zip->getNameIndex($i);
+            if ($entryName !== 'manifest.json') {
+                $firstChunk = $entryName;
+                break;
+            }
+        }
+
+        self::assertNotNull($firstChunk);
+        $zip->addFromString($firstChunk, $zip->getFromName($firstChunk)."\ncorrupted");
+        $zip->close();
 
         $truncatedBackup = RucBackup::create([
-            'name' => 'truncated.dump',
-            'storage_path' => $truncatedRelative,
+            'name' => 'corrupted.rucbackup',
+            'storage_path' => $corruptedRelative,
             'status' => RucBackup::STATUS_COMPLETED,
-            'checksum_sha256' => hash_file('sha256', $truncatedAbsolute),
-            'file_size_bytes' => filesize($truncatedAbsolute),
+            'checksum_sha256' => hash_file('sha256', $corruptedAbsolute),
+            'file_size_bytes' => filesize($corruptedAbsolute),
             'total_records' => 5,
         ]);
 
@@ -221,7 +236,7 @@ class RucBackupRestoreTest extends TestCase
         $response->assertSessionHas('error');
         $this->assertSame($countBefore, DB::table('ruc_records')->count(), 'ruc_records debe quedar EXACTAMENTE como estaba tras un restore fallido');
 
-        @unlink($truncatedAbsolute);
+        @unlink($corruptedAbsolute);
     }
 
     public function test_original_backup_is_not_deleted_after_a_failed_restore(): void

@@ -6,6 +6,13 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.19] - 2026-08-12
+
+### Fixed
+
+- Se blindó el flujo de backups y restores RUC para que `APP_ENV=testing` y `composer verify` usen solo la base aislada de pruebas, sin `pg_dump`, `pg_restore`, Safety Backup real ni jobs productivos.
+- Se ajustaron las pruebas de RUC para que las validaciones de corrupción, concurrencia y restauración usen fixtures pequeños y estado terminal correctamente.
+
 ## [4.6.14] - 2026-08-11
 
 ### Documentation

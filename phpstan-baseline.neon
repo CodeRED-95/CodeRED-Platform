@@ -423,13 +423,13 @@ parameters:
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
-			count: 14
+			count: 8
 			path: tests/Feature/Ruc/RestoreConcurrencyTest.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
-			count: 8
+			count: 5
 			path: tests/Feature/Ruc/RestoreRucBackupDispatchTest.php
 
 		-

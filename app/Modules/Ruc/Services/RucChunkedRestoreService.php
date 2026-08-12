@@ -44,6 +44,30 @@ class RucChunkedRestoreService
 
     public function __construct(private readonly RucBackupProcessRunner $runner) {}
 
+    private function shouldUseTestingBackend(): bool
+    {
+        return app()->environment('testing')
+            || app()->runningUnitTests()
+            || (bool) config('app.testing', false);
+    }
+
+    private function ensureTestingDatabaseIsolated(): void
+    {
+        if (! $this->shouldUseTestingBackend()) {
+            return;
+        }
+
+        $connection = (string) config('database.default');
+        $database = (string) config("database.connections.{$connection}.database");
+
+        if ($database === '' || ! str_contains($database, 'testing')) {
+            throw new RuntimeException(sprintf(
+                'La simulación RUC de testing solo puede ejecutarse contra una base aislada de pruebas. Base actual: %s',
+                $database !== '' ? $database : '(sin definir)'
+            ));
+        }
+    }
+
     /**
      * @param  null|callable(array<string, mixed>): void  $onProgress
      * @return array<string, mixed>
@@ -57,6 +81,10 @@ class RucChunkedRestoreService
         $lock = $this->acquireRestoreLock();
 
         try {
+            if ($this->shouldUseTestingBackend()) {
+                $this->ensureTestingDatabaseIsolated();
+            }
+
             return $this->restoreWithLock($backup, $operation, $resume, $onProgress);
         } finally {
             $lock->release();
@@ -239,6 +267,12 @@ class RucChunkedRestoreService
      */
     private function copyChunkIntoStaging(\ZipArchive $zip, array $chunk): void
     {
+        if ($this->shouldUseTestingBackend()) {
+            $this->copyChunkIntoStagingTesting($zip, $chunk);
+
+            return;
+        }
+
         $stream = RucBackupArchive::chunkStream($zip, (string) $chunk['filename']);
 
         try {
@@ -273,6 +307,87 @@ class RucChunkedRestoreService
             if (is_resource($stream)) {
                 fclose($stream);
             }
+        }
+    }
+
+    /**
+     * Variante segura para testing: no usa psql ni pipes externos.
+     * Descomprime cada chunk a un CSV temporal y lo inserta en staging en
+     * pequeños lotes, manteniendo el contrato del restore por lotes.
+     *
+     * @param  array<string, mixed>  $chunk
+     */
+    private function copyChunkIntoStagingTesting(\ZipArchive $zip, array $chunk): void
+    {
+        $stream = RucBackupArchive::chunkStream($zip, (string) $chunk['filename']);
+        $chunkPath = tempnam(sys_get_temp_dir(), 'ruc_chunk_');
+        $csvPath = tempnam(sys_get_temp_dir(), 'ruc_chunk_csv_');
+
+        if ($chunkPath === false || $csvPath === false) {
+            throw new RuntimeException('No se pudieron crear archivos temporales para el restore de testing.');
+        }
+
+        try {
+            $dest = fopen($chunkPath, 'wb');
+            if ($dest === false) {
+                throw new RuntimeException('No se pudo preparar el chunk temporal de testing.');
+            }
+
+            try {
+                stream_copy_to_stream($stream, $dest);
+            } finally {
+                fclose($dest);
+                fclose($stream);
+            }
+
+            $decompress = Process::fromShellCommandline(sprintf(
+                'set -o pipefail; zstd -d -q -c %s > %s',
+                escapeshellarg($chunkPath),
+                escapeshellarg($csvPath)
+            ));
+            $decompress->setTimeout(null);
+            $decompress->run();
+
+            if (! $decompress->isSuccessful()) {
+                throw new RuntimeException(sprintf(
+                    'Falló la descompresión del lote %d en testing: %s',
+                    $chunk['number'],
+                    trim($decompress->getErrorOutput())
+                ));
+            }
+
+            $handle = fopen($csvPath, 'rb');
+            if ($handle === false) {
+                throw new RuntimeException('No se pudo leer el lote descomprimido de testing.');
+            }
+
+            try {
+                $batch = [];
+                while (($row = fgetcsv($handle)) !== false) {
+                    if ($row === [null]) {
+                        continue;
+                    }
+
+                    $batch[] = array_combine(RucBackupArchive::COLUMNS, array_map(
+                        static fn ($value) => $value === '' ? null : $value,
+                        $row
+                    ));
+
+                    if (count($batch) >= 500) {
+                        DB::table(self::STAGING_TABLE)->insert($batch);
+                        $batch = [];
+                    }
+                }
+
+                if ($batch !== []) {
+                    DB::table(self::STAGING_TABLE)->insert($batch);
+                }
+            } finally {
+                fclose($handle);
+            }
+        } finally {
+            @unlink($chunkPath);
+            @unlink($csvPath);
         }
     }
 

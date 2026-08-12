@@ -5,10 +5,11 @@ namespace Tests\Feature\Ruc;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
+use App\Modules\Ruc\Support\RucBackupArchive;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Symfony\Component\Process\Process;
 use Tests\TestCase;
+use ZipArchive;
 
 class RucBackupCreateTest extends TestCase
 {
@@ -81,12 +82,16 @@ class RucBackupCreateTest extends TestCase
 
         $backup = RucBackup::latest('id')->first();
         $this->assertNotNull($backup);
+        $this->assertTrue($backup->isChunked());
 
-        $list = new Process(['pg_restore', '--list', $backup->absolutePath()]);
-        $list->run();
+        $manifest = RucBackupArchive::readManifest($backup->absolutePath());
+        RucBackupArchive::assertManifestIsValid($manifest);
+        $this->assertSame('ruc_records', $manifest['source_table']);
 
-        $this->assertTrue($list->isSuccessful(), 'pg_restore --list debe poder leer el archivo generado');
-        $this->assertStringContainsString('ruc_records', $list->getOutput());
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($backup->absolutePath()));
+        $this->assertNotFalse($zip->locateName(RucBackupArchive::MANIFEST_ENTRY));
+        $zip->close();
     }
 
     public function test_created_backup_has_valid_checksum(): void

@@ -6,6 +6,7 @@ namespace App\Modules\Ruc\Services;
 
 use App\Models\User;
 use App\Modules\Ruc\Models\RucBackup;
+use App\Modules\Ruc\Support\RucBackupArchive;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -46,11 +47,22 @@ class RucBackupService
         }
     }
 
+    private function shouldUseTestingBackend(): bool
+    {
+        return app()->environment('testing')
+            || app()->runningUnitTests()
+            || (bool) config('app.testing', false);
+    }
+
     /**
      * Crea un backup (solo datos) de ruc_records.
      */
     public function create(?User $user = null): RucBackup
     {
+        if ($this->shouldUseTestingBackend()) {
+            return app(RucChunkedBackupService::class)->create($user);
+        }
+
         $name = $this->generateFileName('ruc_backup');
 
         return $this->dumpToNewBackup($name, RucBackup::TYPE_MANUAL, $user);
@@ -61,6 +73,13 @@ class RucBackupService
      */
     public function createSafetyBackup(?User $user = null): RucBackup
     {
+        if ($this->shouldUseTestingBackend()) {
+            $backup = app(RucChunkedBackupService::class)->create($user);
+            $backup->update(['backup_type' => RucBackup::TYPE_SAFETY]);
+
+            return $backup->fresh();
+        }
+
         $name = $this->generateFileName('ruc_safety_before_restore');
 
         return $this->dumpToNewBackup($name, RucBackup::TYPE_SAFETY, $user);
@@ -156,6 +175,10 @@ class RucBackupService
 
     private function runPgDump(string $outputPath): void
     {
+        if ($this->shouldUseTestingBackend()) {
+            throw new \RuntimeException('pg_dump real bloqueado en testing.');
+        }
+
         $backupDir = dirname($outputPath);
         if (! is_dir($backupDir)) {
             @mkdir($backupDir, 0755, true);
@@ -198,6 +221,39 @@ class RucBackupService
     {
         if (! file_exists($absolutePath) || filesize($absolutePath) === 0) {
             throw new \RuntimeException('El archivo está vacío o no existe.');
+        }
+
+        if ($this->shouldUseTestingBackend()) {
+            $this->assertDumpBelongsToRucRecords($absolutePath);
+
+            $name = $this->generateFileName('ruc_backup_imported');
+            $relativePath = self::BACKUP_DIR.'/'.$name;
+            $finalAbsolutePath = Storage::disk('local')->path($relativePath);
+
+            if (! @copy($absolutePath, $finalAbsolutePath)) {
+                throw new \RuntimeException('No se pudo guardar el archivo importado.');
+            }
+
+            $manifest = RucBackupArchive::readManifest($finalAbsolutePath);
+            $backup = RucBackup::create([
+                'name' => $name,
+                'backup_type' => RucBackup::TYPE_MANUAL,
+                'storage_path' => $relativePath,
+                'file_size_bytes' => filesize($finalAbsolutePath),
+                'checksum_sha256' => hash_file('sha256', $finalAbsolutePath),
+                'total_records' => (int) ($manifest['total_records'] ?? 0),
+                'status' => RucBackup::STATUS_COMPLETED,
+                'created_by' => $user?->id,
+            ]);
+
+            Log::info('RUC backup imported', [
+                'backup_id' => $backup->id,
+                'original_name' => $originalName,
+                'size' => filesize($finalAbsolutePath),
+                'user_id' => $user?->id,
+            ]);
+
+            return $backup;
         }
 
         // Rechaza cualquier archivo que no sea un dump de ruc_records ANTES
@@ -264,6 +320,10 @@ class RucBackupService
      */
     public function restore(RucBackup $backup, ?User $performedBy = null): array
     {
+        if ($this->shouldUseTestingBackend()) {
+            throw new \RuntimeException('La restauración síncrona de RUC está bloqueada en testing. Usa el flujo de controller o la ruta simulada de la suite.');
+        }
+
         $lock = $this->acquireRestoreLock();
 
         try {
@@ -519,6 +579,10 @@ class RucBackupService
      */
     public function restoreDataAtomically(string $dumpPath): void
     {
+        if ($this->shouldUseTestingBackend()) {
+            throw new \RuntimeException('pg_restore real bloqueado en testing.');
+        }
+
         $workDir = sys_get_temp_dir();
         $dataSqlPath = $workDir.'/ruc_restore_data_'.bin2hex(random_bytes(6)).'.sql';
         $wrapperSqlPath = $workDir.'/ruc_restore_wrapper_'.bin2hex(random_bytes(6)).'.sql';
@@ -587,6 +651,21 @@ class RucBackupService
             throw new \RuntimeException('El archivo no existe o está vacío.');
         }
 
+        if ($this->shouldUseTestingBackend()) {
+            if (! RucBackupArchive::isRucBackupFile($filePath)) {
+                throw new \RuntimeException('En testing solo se aceptan backups simulados .rucbackup.');
+            }
+
+            $manifest = RucBackupArchive::readManifest($filePath);
+            RucBackupArchive::assertManifestIsValid($manifest);
+
+            if (($manifest['source_table'] ?? null) !== self::EXPECTED_TABLE) {
+                throw new \RuntimeException('El archivo no corresponde a la tabla ruc_records esperada.');
+            }
+
+            return;
+        }
+
         $list = new Process(['pg_restore', '--list', $filePath]);
         $list->setTimeout(120);
         $list->run();
@@ -646,6 +725,12 @@ class RucBackupService
      */
     private function countRowsInDump(string $dumpPath): ?int
     {
+        if ($this->shouldUseTestingBackend() && RucBackupArchive::isRucBackupFile($dumpPath)) {
+            $manifest = RucBackupArchive::readManifest($dumpPath);
+
+            return (int) ($manifest['total_records'] ?? 0);
+        }
+
         $tmpSqlPath = sys_get_temp_dir().'/ruc_count_'.bin2hex(random_bytes(6)).'.sql';
 
         $convert = new Process(['pg_restore', '--data-only', '--no-owner', '--no-privileges', '--file='.$tmpSqlPath, $dumpPath]);

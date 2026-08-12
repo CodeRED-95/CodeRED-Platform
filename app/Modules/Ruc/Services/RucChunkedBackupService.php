@@ -42,6 +42,30 @@ class RucChunkedBackupService
 
     public function __construct(private readonly RucBackupProcessRunner $runner) {}
 
+    private function shouldUseTestingBackend(): bool
+    {
+        return app()->environment('testing')
+            || app()->runningUnitTests()
+            || (bool) config('app.testing', false);
+    }
+
+    private function ensureTestingDatabaseIsolated(): void
+    {
+        if (! $this->shouldUseTestingBackend()) {
+            return;
+        }
+
+        $connection = (string) config('database.default');
+        $database = (string) config("database.connections.{$connection}.database");
+
+        if ($database === '' || ! str_contains($database, 'testing')) {
+            throw new RuntimeException(sprintf(
+                'La simulación RUC de testing solo puede ejecutarse contra una base aislada de pruebas. Base actual: %s',
+                $database !== '' ? $database : '(sin definir)'
+            ));
+        }
+    }
+
     /**
      * @param  null|callable(array<string, mixed>): void  $onProgress
      */
@@ -65,7 +89,12 @@ class RucChunkedBackupService
         $workDir = $this->makeWorkDir();
 
         try {
-            $result = $this->buildArchive($absolutePath, $workDir, $batchSize, $onProgress);
+            if ($this->shouldUseTestingBackend()) {
+                $this->ensureTestingDatabaseIsolated();
+                $result = $this->buildArchiveTesting($absolutePath, $workDir, $batchSize, $onProgress);
+            } else {
+                $result = $this->buildArchive($absolutePath, $workDir, $batchSize, $onProgress);
+            }
 
             $backup->update([
                 'file_size_bytes' => filesize($absolutePath),
@@ -206,6 +235,167 @@ class RucChunkedBackupService
             }
         } catch (\Throwable $e) {
             @$zip->close();
+            throw $e;
+        } finally {
+            foreach ($chunkFiles as $file) {
+                @unlink($file);
+            }
+        }
+
+        return ['total_records' => $recordsWritten, 'total_batches' => count($chunks)];
+    }
+
+    /**
+     * Variante segura para testing:
+     * no ejecuta pg_dump, pero conserva el mismo contenedor .rucbackup para
+     * que las pruebas sigan validando formato, manifest y checksum sin tocar
+     * el flujo productivo.
+     *
+     * @param  null|callable(array<string, mixed>): void  $onProgress
+     * @return array{total_records: int, total_batches: int}
+     */
+    private function buildArchiveTesting(string $archivePath, string $workDir, int $batchSize, ?callable $onProgress): array
+    {
+        $totalRecords = (int) DB::table(self::TABLE)->count();
+        $totalBatches = $totalRecords === 0 ? 0 : (int) ceil($totalRecords / $batchSize);
+
+        $zip = new ZipArchive;
+        if ($zip->open($archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new RuntimeException("No se pudo crear el archivo de backup en {$archivePath}.");
+        }
+
+        $chunks = [];
+        $chunkFiles = [];
+        $recordsWritten = 0;
+        $startedAt = microtime(true);
+
+        try {
+            $batchNumber = 0;
+            DB::table(self::TABLE)
+                ->orderBy('id')
+                ->select(RucBackupArchive::COLUMNS)
+                ->chunkById($batchSize, function ($rows) use (
+                    &$batchNumber,
+                    &$recordsWritten,
+                    &$chunks,
+                    &$chunkFiles,
+                    $zip,
+                    $workDir,
+                    $startedAt,
+                    $totalBatches,
+                    $totalRecords,
+                    $onProgress
+                ): void {
+                    $batchNumber++;
+                    $csvPath = $workDir.'/chunk_'.$batchNumber.'.csv';
+                    $chunkPath = $workDir.'/chunk_'.$batchNumber.'.csv.zst';
+
+                    $handle = fopen($csvPath, 'wb');
+                    if ($handle === false) {
+                        throw new RuntimeException("No se pudo crear el chunk temporal {$csvPath}.");
+                    }
+
+                    $firstId = null;
+                    $lastId = null;
+                    $rowsWritten = 0;
+
+                    try {
+                        foreach ($rows as $row) {
+                            $values = [];
+                            foreach (RucBackupArchive::COLUMNS as $column) {
+                                $values[] = $row->{$column} ?? null;
+                            }
+                            fputcsv($handle, $values);
+                            $firstId ??= (int) $row->id;
+                            $lastId = (int) $row->id;
+                            $rowsWritten++;
+                        }
+                    } finally {
+                        fclose($handle);
+                    }
+
+                    if ($rowsWritten === 0) {
+                        @unlink($csvPath);
+
+                        return;
+                    }
+
+                    $level = (int) config('ruc.backup.chunked.zstd_level', 3);
+                    $threads = (int) config('ruc.backup.chunked.zstd_threads', 0);
+                    $compress = Process::fromShellCommandline(sprintf(
+                        'set -o pipefail; zstd -q -T%d -%d -o %s < %s',
+                        $threads,
+                        $level,
+                        escapeshellarg($chunkPath),
+                        escapeshellarg($csvPath)
+                    ));
+                    $compress->setTimeout(null);
+                    $this->runner->run($compress);
+
+                    if (! $compress->isSuccessful()) {
+                        throw new RuntimeException('Falló la compresión del lote de testing: '.trim($compress->getErrorOutput()));
+                    }
+
+                    $entryName = RucBackupArchive::chunkEntryName($batchNumber);
+                    $chunks[] = [
+                        'number' => $batchNumber,
+                        'filename' => $entryName,
+                        'records' => $rowsWritten,
+                        'first_id' => $firstId ?? 0,
+                        'last_id' => $lastId ?? 0,
+                        'uncompressed_size' => filesize($csvPath),
+                        'compressed_size' => filesize($chunkPath),
+                        'sha256' => hash_file('sha256', $chunkPath),
+                    ];
+
+                    $zip->addFile($chunkPath, $entryName);
+                    $zip->setCompressionName($entryName, ZipArchive::CM_STORE);
+                    $chunkFiles[] = $csvPath;
+                    $chunkFiles[] = $chunkPath;
+
+                    $recordsWritten += $rowsWritten;
+
+                    if ($onProgress !== null) {
+                        $elapsed = max(0.001, microtime(true) - $startedAt);
+                        $onProgress([
+                            'batch' => $batchNumber,
+                            'total_batches' => $totalBatches,
+                            'records' => $recordsWritten,
+                            'total_records' => $totalRecords,
+                            'records_per_second' => (int) round($recordsWritten / $elapsed),
+                            'elapsed' => $elapsed,
+                        ]);
+                    }
+                });
+
+            $manifest = [
+                'format' => RucBackupArchive::FORMAT,
+                'format_version' => RucBackupArchive::FORMAT_VERSION,
+                'created_at' => now()->toIso8601String(),
+                'application_version' => (string) config('version.current'),
+                'schema_version' => $this->schemaVersion(),
+                'source_table' => self::TABLE,
+                'total_records' => $recordsWritten,
+                'batch_size' => $batchSize,
+                'total_batches' => count($chunks),
+                'columns' => RucBackupArchive::COLUMNS,
+                'compression' => RucBackupArchive::COMPRESSION,
+                'compression_level' => (int) config('ruc.backup.chunked.zstd_level', 3),
+                'chunks' => $chunks,
+                'chunks_sha256' => hash('sha256', implode('', array_column($chunks, 'sha256'))),
+            ];
+
+            $zip->addFromString(
+                RucBackupArchive::MANIFEST_ENTRY,
+                json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            );
+
+            if (! $zip->close()) {
+                throw new RuntimeException('No se pudo cerrar el archivo .rucbackup; puede haber quedado incompleto.');
+            }
+        } catch (\Throwable $e) {
+            @$zip->close();
+            @unlink($archivePath);
             throw $e;
         } finally {
             foreach ($chunkFiles as $file) {

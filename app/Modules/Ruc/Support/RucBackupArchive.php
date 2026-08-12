@@ -183,12 +183,14 @@ final class RucBackupArchive
             ));
         }
 
-        // Numeración: 1..N sin huecos ni repetidos. Un hueco significaría que
-        // el restore saltaría filas sin darse cuenta.
-        $numbers = array_map(static fn (array $c): int => (int) ($c['number'] ?? 0), $chunks);
-        sort($numbers);
-        if ($numbers !== range(1, count($chunks))) {
-            throw new RuntimeException('La numeración de chunks tiene huecos o duplicados. El backup está incompleto.');
+        // Numeración: 1..N sin huecos ni repetidos. Un backup vacío es
+        // válido y no debe fallar esta comprobación.
+        if ($chunks !== []) {
+            $numbers = array_map(static fn (array $c): int => (int) ($c['number'] ?? 0), $chunks);
+            sort($numbers);
+            if ($numbers !== range(1, count($chunks))) {
+                throw new RuntimeException('La numeración de chunks tiene huecos o duplicados. El backup está incompleto.');
+            }
         }
 
         $sumRecords = array_sum(array_map(static fn (array $c): int => (int) ($c['records'] ?? 0), $chunks));

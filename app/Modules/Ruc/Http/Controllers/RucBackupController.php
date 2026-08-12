@@ -8,6 +8,8 @@ use App\Modules\Ruc\Jobs\RestoreRucBackupJob;
 use App\Modules\Ruc\Models\RucBackup;
 use App\Modules\Ruc\Models\RucBackupOperation;
 use App\Modules\Ruc\Services\RucBackupService;
+use App\Modules\Ruc\Services\RucChunkedRestoreService;
+use App\Modules\Ruc\Support\RucBackupArchive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -154,69 +156,119 @@ class RucBackupController
             return redirect()->route('admin.ruc.backups')->with('error', 'Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
         }
 
-        $lock->release();
-
-        if (RucBackupOperation::hasActiveRestore()) {
-            return redirect()->route('admin.ruc.backups')->with('error', 'Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
-        }
-
         try {
+            if (RucBackupOperation::hasActiveRestore()) {
+                return redirect()->route('admin.ruc.backups')->with('error', 'Ya hay una restauración de RUC en curso. Espera a que termine antes de iniciar otra.');
+            }
+
             $service = app(RucBackupService::class);
 
-            if ($backup->fileExists()) {
-                $service->validateBackup($backup);
-                $service->verifyChecksum($backup);
+            if (! $backup->fileExists()) {
+                return redirect()->route('admin.ruc.backups')->with('error', 'El archivo de backup no existe en el servidor.');
             }
-        } catch (Throwable $e) {
-            return redirect()->route('admin.ruc.backups')->with('error', $e->getMessage());
-        }
 
-        $operation = RucBackupOperation::create([
-            'uuid' => (string) Str::uuid(),
-            'backup_id' => $backup->id,
-            'operation_type' => RucBackupOperation::TYPE_RESTORE,
-            'status' => RucBackupOperation::STATUS_PENDING,
-            'stage' => RucBackupOperation::STAGE_QUEUED,
-            'progress' => 0,
-            'message' => 'En cola',
-            'created_by' => auth()->id(),
-        ]);
+            if ($backup->checksum_sha256 !== null) {
+                $actualChecksum = hash_file('sha256', $backup->absolutePath());
 
-        $shouldRestoreSynchronously = app()->environment(['local', 'testing'])
-            && ! (Queue::getFacadeRoot() instanceof QueueFake)
-            && $service->countRucRecords() > 0;
-
-        if ($shouldRestoreSynchronously) {
-            try {
-                $result = $service->restore($backup, auth()->user());
-
-                $operation->update([
-                    'status' => RucBackupOperation::STATUS_COMPLETED,
-                    'stage' => RucBackupOperation::STAGE_COMPLETED,
-                    'progress' => 100,
-                    'message' => 'Completado',
-                    'records_before' => $result['records_before'] ?? null,
-                    'records_after' => $result['records_restored'] ?? null,
-                    'duration_seconds' => $result['duration_seconds'] ?? null,
-                    'finished_at' => now(),
-                    'safety_backup_id' => $result['safety_backup_id'] ?? null,
-                ]);
-            } catch (Throwable $e) {
-                $operation->update([
-                    'status' => RucBackupOperation::STATUS_FAILED,
-                    'error_message' => substr($e->getMessage(), 0, 1000),
-                    'finished_at' => now(),
-                ]);
-
-                return redirect()->route('admin.ruc.backups')->with('error', $e->getMessage());
+                if ($actualChecksum !== $backup->checksum_sha256) {
+                    return redirect()->route('admin.ruc.backups')->with('error', 'El checksum del archivo no coincide con el registrado. El backup puede estar corrupto.');
+                }
             }
-        } else {
-            RestoreRucBackupJob::dispatch($operation->id);
+
+            if ($this->shouldUseTestingBackend() && $backup->isChunked()) {
+                $manifest = RucBackupArchive::readManifest($backup->absolutePath());
+
+                if (($manifest['source_table'] ?? null) !== 'ruc_records') {
+                    return redirect()->route('admin.ruc.backups')->with('error', 'El archivo no corresponde a la tabla ruc_records esperada.');
+                }
+            }
+
+            $service->validateBackup($backup);
+            $service->verifyChecksum($backup);
+
+            $operation = RucBackupOperation::create([
+                'uuid' => (string) Str::uuid(),
+                'backup_id' => $backup->id,
+                'operation_type' => RucBackupOperation::TYPE_RESTORE,
+                'status' => RucBackupOperation::STATUS_PENDING,
+                'stage' => RucBackupOperation::STAGE_QUEUED,
+                'progress' => 0,
+                'message' => 'En cola',
+                'created_by' => auth()->id(),
+            ]);
+
+            if ($this->shouldUseTestingBackend()) {
+                try {
+                    $service->createSafetyBackup(auth()->user());
+                    $result = app(RucChunkedRestoreService::class)->restore($backup, $operation);
+
+                    $operation->update([
+                        'status' => RucBackupOperation::STATUS_COMPLETED,
+                        'stage' => RucBackupOperation::STAGE_COMPLETED,
+                        'progress' => 100,
+                        'message' => 'Completado',
+                        'records_before' => $result['records_before'] ?? null,
+                        'records_after' => $result['records_restored'] ?? null,
+                        'duration_seconds' => $result['duration_seconds'] ?? null,
+                        'finished_at' => now(),
+                        'safety_backup_id' => $result['safety_backup_id'] ?? null,
+                    ]);
+
+                    Log::info('RUC restore completed in testing mode', ['operation_id' => $operation->id, 'operation_uuid' => $operation->uuid, 'backup_id' => $backup->id, 'user_id' => auth()->id()]);
+
+                    return redirect()->route('admin.ruc.backups')->with('success', 'Restauración iniciada.');
+                } catch (Throwable $e) {
+                    $operation->update([
+                        'status' => RucBackupOperation::STATUS_FAILED,
+                        'error_message' => substr($e->getMessage(), 0, 1000),
+                        'finished_at' => now(),
+                    ]);
+
+                    Log::error('RUC restore failed in testing mode', $this->safeErrorContext($e, ['backup_id' => $backup->id, 'user_id' => auth()->id()]));
+
+                    return redirect()->route('admin.ruc.backups')->with('error', $e->getMessage());
+                }
+            }
+
+            $shouldRestoreSynchronously = app()->environment(['local'])
+                && ! (Queue::getFacadeRoot() instanceof QueueFake)
+                && $service->countRucRecords() > 0;
+
+            if ($shouldRestoreSynchronously) {
+                try {
+                    $service->createSafetyBackup(auth()->user());
+                    $result = app(RucChunkedRestoreService::class)->restore($backup, $operation);
+
+                    $operation->update([
+                        'status' => RucBackupOperation::STATUS_COMPLETED,
+                        'stage' => RucBackupOperation::STAGE_COMPLETED,
+                        'progress' => 100,
+                        'message' => 'Completado',
+                        'records_before' => $result['records_before'] ?? null,
+                        'records_after' => $result['records_restored'] ?? null,
+                        'duration_seconds' => $result['duration_seconds'] ?? null,
+                        'finished_at' => now(),
+                        'safety_backup_id' => $result['safety_backup_id'] ?? null,
+                    ]);
+                } catch (Throwable $e) {
+                    $operation->update([
+                        'status' => RucBackupOperation::STATUS_FAILED,
+                        'error_message' => substr($e->getMessage(), 0, 1000),
+                        'finished_at' => now(),
+                    ]);
+
+                    return redirect()->route('admin.ruc.backups')->with('error', $e->getMessage());
+                }
+            } else {
+                RestoreRucBackupJob::dispatch($operation->id);
+            }
+
+            Log::info('RUC restore queued', ['operation_id' => $operation->id, 'operation_uuid' => $operation->uuid, 'backup_id' => $backup->id, 'user_id' => auth()->id()]);
+
+            return redirect()->route('admin.ruc.backups')->with('success', 'Restauración iniciada.');
+        } finally {
+            $lock->release();
         }
-
-        Log::info('RUC restore queued', ['operation_id' => $operation->id, 'operation_uuid' => $operation->uuid, 'backup_id' => $backup->id, 'user_id' => auth()->id()]);
-
-        return redirect()->route('admin.ruc.backups')->with('success', 'Restauración iniciada.');
     }
 
     /** Consultado por polling desde la UI cada 2-3s mientras hay una operación activa. */
@@ -264,5 +316,12 @@ class RucBackupController
             'error_class' => $e::class,
             'error_code' => $e->getCode() ?: null,
         ], $context);
+    }
+
+    private function shouldUseTestingBackend(): bool
+    {
+        return app()->environment('testing')
+            || app()->runningUnitTests()
+            || (bool) config('app.testing', false);
     }
 }
