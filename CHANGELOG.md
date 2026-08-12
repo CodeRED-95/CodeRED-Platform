@@ -6,6 +6,15 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.6.20] - 2026-08-12
+
+### Fixed
+
+- Se corrigió el layout responsive compartido de Login y Registro para que en desktop mantengan dos columnas reales, con panel promocional y formulario centrado sin colapsar debajo.
+- Login y Registro pasaron a usar un shell compartido de autenticación, evitando divergencias de ancho, breakpoint y alineación entre ambas pantallas.
+
+---
+
 ## [4.6.19] - 2026-08-12
 
 ### Fixed
