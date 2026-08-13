@@ -95,6 +95,11 @@ const App = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [agenciasRetryToken, setAgenciasRetryToken] = useState(0);
+  const [agenciasPage, setAgenciasPage] = useState(0);
+  const [agenciasHasMore, setAgenciasHasMore] = useState(false);
+  const [agenciasLoadingMore, setAgenciasLoadingMore] = useState(false);
+  const agenciasGenerationRef = useRef(0);
+  const agenciasSentinelRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState('');
@@ -129,27 +134,36 @@ const App = () => {
   // agencias:consultar) con debounce, en vez de cargar miles de agencias en
   // el cliente y filtrar ahí. Solo se consulta mientras el modal está
   // abierto, para no disparar peticiones innecesarias en cada tecleo del
-  // resto del formulario.
+  // resto del formulario. Esta primera página SIEMPRE reemplaza el listado
+  // (nueva búsqueda / apertura / reintento); loadMoreAgencias, más abajo,
+  // AGREGA páginas siguientes vía scroll infinito dentro del propio modal.
   useEffect(() => {
     if (!isModalOpen) return undefined;
+    const generation = ++agenciasGenerationRef.current;
     const controller = new AbortController();
     setAgenciasLoading(true);
+    setAgenciasHasMore(false);
     const timer = window.setTimeout(async () => {
       try {
         const url = new URL('/api/agencias', window.location.origin);
         if (searchTerm.trim()) url.searchParams.set('search', searchTerm.trim());
+        url.searchParams.set('page', '1');
         const response = await fetch(url, { signal: controller.signal });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.message || 'No se pudo obtener el listado de agencias.');
+        if (agenciasGenerationRef.current !== generation) return;
         setAgencias(Array.isArray(payload.data) ? payload.data : []);
+        setAgenciasPage(1);
+        setAgenciasHasMore(Boolean(payload.meta && payload.meta.currentPage < payload.meta.lastPage));
         setAgenciasFetchError(null);
       } catch (error) {
         if (error.name === 'AbortError') return;
+        if (agenciasGenerationRef.current !== generation) return;
         console.error('Error cargando agencias:', error);
         setAgenciasFetchError('No se pudo obtener el listado de agencias de CodeRED Platform. Inténtalo nuevamente.');
         setAgencias([]);
       } finally {
-        if (!controller.signal.aborted) setAgenciasLoading(false);
+        if (!controller.signal.aborted && agenciasGenerationRef.current === generation) setAgenciasLoading(false);
       }
     }, AGENCIAS_SEARCH_DEBOUNCE_MS);
 
@@ -158,6 +172,47 @@ const App = () => {
       controller.abort();
     };
   }, [isModalOpen, searchTerm, agenciasRetryToken]);
+
+  // Scroll infinito: agrega la siguiente página al final del listado ya
+  // cargado, sin tocar el resto del modal (sin paginador visual). Usa la
+  // "generación" de la búsqueda activa para descartar una respuesta tardía
+  // si mientras tanto el usuario ya escribió otra búsqueda o cerró el modal.
+  const loadMoreAgencias = useCallback(async () => {
+    if (agenciasLoading || agenciasLoadingMore || !agenciasHasMore) return;
+    const generation = agenciasGenerationRef.current;
+    setAgenciasLoadingMore(true);
+    try {
+      const url = new URL('/api/agencias', window.location.origin);
+      if (searchTerm.trim()) url.searchParams.set('search', searchTerm.trim());
+      url.searchParams.set('page', String(agenciasPage + 1));
+      const response = await fetch(url);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || 'No se pudo obtener el listado de agencias.');
+      if (agenciasGenerationRef.current !== generation) return;
+      setAgencias(prev => [...prev, ...(Array.isArray(payload.data) ? payload.data : [])]);
+      setAgenciasPage(prev => prev + 1);
+      setAgenciasHasMore(Boolean(payload.meta && payload.meta.currentPage < payload.meta.lastPage));
+    } catch (error) {
+      // Una falla al cargar más no invalida lo ya mostrado: se deja de
+      // intentar automáticamente (agenciasHasMore queda como estaba) y el
+      // usuario puede seguir usando las sedes ya visibles o refinar la
+      // búsqueda; no se muestra el error de pantalla completa por esto.
+      console.error('Error cargando más agencias:', error);
+    } finally {
+      if (agenciasGenerationRef.current === generation) setAgenciasLoadingMore(false);
+    }
+  }, [agenciasLoading, agenciasLoadingMore, agenciasHasMore, agenciasPage, searchTerm]);
+
+  useEffect(() => {
+    if (!isModalOpen) return undefined;
+    const sentinel = agenciasSentinelRef.current;
+    if (!sentinel) return undefined;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) loadMoreAgencias();
+    }, { root: sentinel.closest('.overflow-y-auto'), rootMargin: '200px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [isModalOpen, loadMoreAgencias]);
 
   useEffect(() => {
     fetch('/api/auth/session')
@@ -723,6 +778,7 @@ const App = () => {
                   </button>
                 </div>
               ) : agencias.length > 0 ? (
+                <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-2">
                   {agencias.map((agencia) => {
                     const displayLabel = [
@@ -758,6 +814,16 @@ const App = () => {
                     );
                   })}
                 </div>
+                {/* Scroll infinito: sin paginador visible, solo un centinela
+                    invisible que dispara la carga de la página siguiente al
+                    entrar al viewport del propio contenedor con scroll. */}
+                <div ref={agenciasSentinelRef} className="h-px" aria-hidden="true" />
+                {agenciasLoadingMore && (
+                  <div className="py-4 text-center text-slate-500 dark:text-slate-300 text-xs" role="status">
+                    Cargando más sedes...
+                  </div>
+                )}
+                </>
               ) : (
                 <div className="p-8 text-center text-slate-400 text-sm">
                   No se encontraron sedes con ese nombre.

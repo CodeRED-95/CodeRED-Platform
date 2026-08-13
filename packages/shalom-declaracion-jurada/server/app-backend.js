@@ -743,12 +743,23 @@ export const createAppBackend = (env) => {
       }
       const items = payload.data.map(agencia => ({
         agencyId: agencia.internal_id,
+        code: agencia.code,
         agencia: agencia.agencia,
         agenciaAnterior: agencia.agencia_anterior || null,
         departamento: agencia.departamento,
         provincia: agencia.provincia,
         distrito: agencia.distrito,
-        direccion: agencia.direccion
+        direccion: agencia.direccion,
+        estado: agencia.estado,
+        // "category"/"co" del pedido: en el modelo real de CodeRED
+        // (app/Modules/Agencies/Models/Agency.php) son
+        // classification_category e is_operations_center. Se exponen solo
+        // como datos informativos — no existe ninguna regla de negocio
+        // actual en CodeRED que los use para decidir si una agencia puede
+        // seleccionarse en esta declaración (ver informe final), así que no
+        // se usan para filtrar aquí tampoco.
+        categoria: agencia.classification_category,
+        centroOperaciones: Boolean(agencia.centro_operaciones)
       }))
       return json(response, 200, {
         data: items,

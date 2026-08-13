@@ -144,15 +144,19 @@ const mockCoderedAgenciasSuccess = ({ expectUrl } = {}) => {
         data: [
           {
             internal_id: 42,
+            code: 'AGE-CTR',
             agencia: 'AGENCIA CENTRAL',
             agencia_anterior: null,
             departamento: 'LIMA',
             provincia: 'LIMA',
             distrito: 'LIMA',
-            direccion: 'AV. SIEMPRE VIVA 123'
+            direccion: 'AV. SIEMPRE VIVA 123',
+            estado: 'Activa',
+            classification_category: 'MICRO',
+            centro_operaciones: false
           }
         ],
-        meta: { current_page: 1, last_page: 1, total: 1 }
+        meta: { current_page: 1, last_page: 2, total: 61 }
       })
     }
   }
@@ -175,19 +179,39 @@ test('GET /api/agencias con sesión reenvía la búsqueda a CodeRED y mapea los 
   assert.equal(response.status, 200)
   assert.deepEqual(response.json.data, [{
     agencyId: 42,
+    code: 'AGE-CTR',
     agencia: 'AGENCIA CENTRAL',
     agenciaAnterior: null,
     departamento: 'LIMA',
     provincia: 'LIMA',
     distrito: 'LIMA',
-    direccion: 'AV. SIEMPRE VIVA 123'
+    direccion: 'AV. SIEMPRE VIVA 123',
+    estado: 'Activa',
+    categoria: 'MICRO',
+    centroOperaciones: false
   }])
-  assert.equal(response.json.meta.total, 1)
+  assert.equal(response.json.meta.total, 61)
+  assert.equal(response.json.meta.currentPage, 1)
+  assert.equal(response.json.meta.lastPage, 2)
 
   const upstream = new URL(capturedUrl.toString())
   assert.equal(upstream.pathname, '/api/v1/agencias')
   assert.equal(upstream.searchParams.get('agencia'), 'central')
   assert.equal(upstream.searchParams.get('estado'), 'active')
+  assert.equal(upstream.searchParams.get('page'), '1')
+})
+
+test('GET /api/agencias?page=2 reenvía la página solicitada a CodeRED (scroll infinito)', async () => {
+  const loginResponse = await loginWithSession(6)
+  const cookie = cookieFrom(loginResponse)
+
+  let capturedUrl
+  mockCoderedAgenciasSuccess({ expectUrl: url => { capturedUrl = url } })
+
+  const response = await call({ method: 'GET', url: '/api/agencias?page=2', headers: { cookie } })
+  assert.equal(response.status, 200)
+  const upstream = new URL(capturedUrl.toString())
+  assert.equal(upstream.searchParams.get('page'), '2')
 })
 
 test('GET /api/agencias sin término de búsqueda no manda el parámetro "agencia"', async () => {

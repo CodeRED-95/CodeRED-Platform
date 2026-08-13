@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.12.0] - 2026-08-12
+
+### ℹ️ Nota
+
+- Scroll infinito en el selector de sedes, campos adicionales de agencia y cobertura de tests dedicada para /api/v1/agencias
+
+---
+
 ## [4.11.0] - 2026-08-12
 
 ### ℹ️ Nota
