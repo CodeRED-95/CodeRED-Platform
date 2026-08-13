@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\ApiClient;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Services\ApiTokens\ApiTokenGenerator;
 use Illuminate\Console\Command;
 
@@ -10,7 +12,7 @@ class DeclaracionJuradaSetupCommand extends Command
 {
     protected $signature = 'declaracion-jurada:setup {--reissue : Fuerza un token nuevo aunque las abilities ya coincidan}';
 
-    protected $description = 'Crea (si falta) el ApiClient de Declaración Jurada Shalom y garantiza que su token tenga las abilities necesarias (dni:consultar, agencias:consultar)';
+    protected $description = 'Garantiza el acceso RBAC (permiso declaracion-jurada.view en el rol viewer) y el ApiClient/token de Declaración Jurada Shalom';
 
     /**
      * Abilities que el bridge Node de Declaración Jurada necesita hoy. Si se
@@ -21,8 +23,18 @@ class DeclaracionJuradaSetupCommand extends Command
      */
     private const ABILITIES = ['dni:consultar', 'agencias:consultar'];
 
+    /**
+     * Roles de CodeRED que deben tener acceso de lectura a Declaración
+     * Jurada por defecto (permiso declaracion-jurada.view), sin asignación
+     * manual por usuario. super-admin ya lo tiene siempre vía el bypass de
+     * User::hasPermission() — no hace falta listarlo aquí.
+     */
+    private const ROLES_WITH_VIEW_ACCESS = ['viewer'];
+
     public function handle(ApiTokenGenerator $generator): int
     {
+        $this->ensureRoleAccess();
+
         $client = ApiClient::query()->firstOrCreate(
             ['name' => 'Declaración Jurada Shalom'],
             [
@@ -69,5 +81,43 @@ class DeclaracionJuradaSetupCommand extends Command
         sort($expectedSorted);
 
         return $current === $expectedSorted;
+    }
+
+    /**
+     * Garantiza que declaracion-jurada.view exista y que los roles de
+     * ROLES_WITH_VIEW_ACCESS lo tengan — sin tocar el resto de sus
+     * permisos. A diferencia de PermissionsSeeder (que usa sync() y por lo
+     * tanto reemplaza la lista completa de permisos del rol), aquí se usa
+     * syncWithoutDetaching(): es aditivo, así que ejecutar este comando no
+     * puede quitarle a viewer ningún permiso que ya tuviera por otra vía.
+     * Es la misma garantía tanto en una instalación existente como en una
+     * nueva, y corre en cada `declaracion-jurada:setup` (idempotente: no
+     * duplica filas en permission_role ni permissions).
+     */
+    private function ensureRoleAccess(): void
+    {
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'declaracion-jurada.view'],
+            ['name' => 'Ver Declaración Jurada']
+        );
+
+        foreach (self::ROLES_WITH_VIEW_ACCESS as $roleSlug) {
+            $role = Role::query()->where('slug', $roleSlug)->first();
+
+            if ($role === null) {
+                $this->warn("Rol '{$roleSlug}' no existe todavía; se omite la asignación de declaracion-jurada.view (correrá en el próximo intento).");
+
+                continue;
+            }
+
+            if ($role->permissions()->where('permissions.id', $permission->id)->exists()) {
+                $this->info("El rol '{$roleSlug}' ya tiene declaracion-jurada.view.");
+
+                continue;
+            }
+
+            $role->permissions()->syncWithoutDetaching([$permission->id]);
+            $this->info("Permiso declaracion-jurada.view asignado al rol '{$roleSlug}'.");
+        }
     }
 }

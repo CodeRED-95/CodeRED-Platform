@@ -28,7 +28,7 @@ class RoleMatrixTest extends TestCase
     {
         $this->assertSame(['editor', 'super-admin', 'viewer'], Role::query()->orderBy('slug')->pluck('slug')->all());
         $this->assertSame(['agencies.create', 'agencies.manage_status', 'agencies.map', 'agencies.update', 'agencies.view', 'dashboard.view'], $this->permissions('editor'));
-        $this->assertSame(['agencies.map', 'agencies.view', 'shalom-recordar.sync', 'shalom-recordar.view-own'], $this->permissions('viewer'));
+        $this->assertSame(['agencies.map', 'agencies.view', 'declaracion-jurada.view', 'shalom-recordar.sync', 'shalom-recordar.view-own'], $this->permissions('viewer'));
         $this->assertSame(Permission::query()->count(), count($this->permissions('super-admin')));
     }
 

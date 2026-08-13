@@ -494,14 +494,17 @@ if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] && changed '^database/seeders/PermissionsSee
     ok "Permisos sincronizados (incluye declaracion-jurada.view)."
 fi
 
-# El ApiClient y el token de Declaración Jurada (abilities dni:consultar +
-# agencias:consultar) se ejecutan en CADA despliegue, no solo cuando falta
-# el .env: el comando en sí es idempotente (ver
-# DeclaracionJuradaSetupCommand::ABILITIES) y solo emite un token NUEVO si
-# no existe uno activo o si sus abilities quedaron desactualizadas (por
-# ejemplo, instalaciones previas a la integración de agencias, que solo
-# tenían dni:consultar). Si el token ya tiene las abilities correctas, el
-# comando no imprime ningún token y este bloque no toca nada.
+# declaracion-jurada:setup ahora también garantiza el acceso RBAC (permiso
+# declaracion-jurada.view asignado al rol viewer, sin quitarle ningún otro
+# permiso — ver DeclaracionJuradaSetupCommand::ensureRoleAccess) además del
+# ApiClient y el token (abilities dni:consultar + agencias:consultar). Se
+# ejecuta en CADA despliegue, no solo cuando falta el .env: el comando en sí
+# es idempotente (ver DeclaracionJuradaSetupCommand::ABILITIES) y solo emite
+# un token NUEVO si no existe uno activo o si sus abilities quedaron
+# desactualizadas (por ejemplo, instalaciones previas a la integración de
+# agencias, que solo tenían dni:consultar). Si el token ya tiene las
+# abilities correctas, el comando no imprime ningún token y este bloque no
+# toca nada — pero la parte de RBAC ya corrió de todas formas.
 DJ_TOKEN_OUTPUT="$(docker compose exec -T app php artisan declaracion-jurada:setup 2>&1)"
 DJ_TOKEN_VALUE="$(printf '%s\n' "$DJ_TOKEN_OUTPUT" | grep -E '^[0-9]+\|[A-Za-z0-9]+$' | head -1)"
 if [[ -n "$DJ_TOKEN_VALUE" ]]; then

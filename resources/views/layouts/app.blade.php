@@ -72,7 +72,12 @@
                             'Identidad' => [
                                 ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tools.dni.test')],
                                 ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('settings.dni.view')],
-                                ['label' => 'Declaración Jurada', 'url' => config('services.declaracion_jurada.url'), 'icon' => '⇗', 'can' => ! $isViewerOnly && $menuUser->hasPermission('declaracion-jurada.view') && filled(config('services.declaracion_jurada.url'))],
+                                // Sin el filtro !$isViewerOnly que usan los demás enlaces de este
+                                // grupo: un viewer puro SÍ tiene declaracion-jurada.view por
+                                // defecto (ver PermissionsSeeder), así que el permiso ya es la
+                                // única condición — ocultarle el enlace además dejaría el acceso
+                                // otorgado sin ninguna forma de encontrarlo desde el panel.
+                                ['label' => 'Declaración Jurada', 'url' => config('services.declaracion_jurada.url'), 'icon' => '⇗', 'can' => $menuUser->hasPermission('declaracion-jurada.view') && filled(config('services.declaracion_jurada.url'))],
                             ],
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.test')],
@@ -262,7 +267,12 @@
                             'Identidad' => [
                                 ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tools.dni.test')],
                                 ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('settings.dni.view')],
-                                ['label' => 'Declaración Jurada', 'url' => config('services.declaracion_jurada.url'), 'icon' => '⇗', 'can' => ! $isViewerOnly && $menuUser->hasPermission('declaracion-jurada.view') && filled(config('services.declaracion_jurada.url'))],
+                                // Sin el filtro !$isViewerOnly que usan los demás enlaces de este
+                                // grupo: un viewer puro SÍ tiene declaracion-jurada.view por
+                                // defecto (ver PermissionsSeeder), así que el permiso ya es la
+                                // única condición — ocultarle el enlace además dejaría el acceso
+                                // otorgado sin ninguna forma de encontrarlo desde el panel.
+                                ['label' => 'Declaración Jurada', 'url' => config('services.declaracion_jurada.url'), 'icon' => '⇗', 'can' => $menuUser->hasPermission('declaracion-jurada.view') && filled(config('services.declaracion_jurada.url'))],
                             ],
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.test')],

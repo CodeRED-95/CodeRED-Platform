@@ -118,6 +118,10 @@ class SuperAdminAndViewerTest extends TestCase
         $this->assertTrue($user->hasPermission('agencies.view'));
         $this->assertTrue($user->hasPermission('agencies.map'));
         $this->assertTrue($user->hasPermission('shalom-recordar.view-own'));
+        // Todo usuario con rol viewer entra a Declaración Jurada Shalom sin
+        // asignación manual (ver DeclaracionJuradaSetupCommand y
+        // PermissionsSeeder) — pero no puede administrarla.
+        $this->assertTrue($user->hasPermission('declaracion-jurada.view'));
 
         // No puede nada administrativo:
         foreach ([
@@ -125,7 +129,7 @@ class SuperAdminAndViewerTest extends TestCase
             'agencies.backup.view', 'agencies.backup.restore',
             'users.view', 'users.create',
             'api-tokens.view', 'settings.dni.update',
-            'dashboard.view',
+            'dashboard.view', 'declaracion-jurada.manage',
         ] as $permission) {
             $this->assertFalse($user->hasPermission($permission), "viewer no debe tener {$permission}");
         }
@@ -151,5 +155,21 @@ class SuperAdminAndViewerTest extends TestCase
         $this->get(route('admin.api-tokens.index'))->assertForbidden();
         $this->get(route('admin.settings.ubigeos'))->assertForbidden();
         $this->get(route('dashboard'))->assertForbidden();
+    }
+
+    public function test_viewer_sees_declaracion_jurada_link_in_the_sidebar_but_not_other_admin_tools(): void
+    {
+        config(['services.declaracion_jurada.url' => 'https://declaracion.codered.test']);
+        $role = Role::query()->where('slug', 'viewer')->firstOrFail();
+        $user = User::factory()->create();
+        $user->roles()->attach($role);
+
+        $response = $this->actingAs($user)->get(route('admin.agencies.index'));
+
+        $response->assertOk()
+            ->assertSee('Declaración Jurada')
+            ->assertSee('https://declaracion.codered.test', false)
+            ->assertDontSee('Probar API DNI')
+            ->assertDontSee('Configuración DNI');
     }
 }

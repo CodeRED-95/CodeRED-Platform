@@ -127,7 +127,15 @@ test('contraseña incorrecta: login rechazado con 401', async () => {
   assert.equal(response.status, 401)
 })
 
-test('usuario CodeRED correcto y con permiso: login válido y crea sesión', async () => {
+// Cubre tanto "usuario con rol viewer" como cualquier otro rol con el
+// permiso: este backend nunca consulta el NOMBRE del rol (ver
+// fetchCoderedPermissions en app-backend.js), solo el booleano hasView que
+// ya resuelve CodeRED vía role_user -> permission_role -> permissions. Que
+// viewer tenga declaracion-jurada.view por defecto es responsabilidad de
+// PermissionsSeeder/declaracion-jurada:setup (ver
+// tests/Feature/DeclaracionJuradaSetupCommandTest.php en el repo raíz) — no
+// de este archivo, así que un mismo test cubre ambos casos indistintamente.
+test('usuario CodeRED correcto y con permiso (p. ej. por rol viewer): login válido y crea sesión', async () => {
   seedUser(1)
   fixturePermissions.set(1, { hasView: true })
   const response = await login(fixtureUsers.get(1).email, 'correct-password')

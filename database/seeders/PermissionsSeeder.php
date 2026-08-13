@@ -114,6 +114,11 @@ class PermissionsSeeder extends Seeder
                 'agencies.map',
                 'shalom-recordar.sync',
                 'shalom-recordar.view-own',
+                // Todo usuario CodeRED con rol viewer tiene acceso a
+                // Declaración Jurada Shalom por defecto (no se asigna
+                // .manage: eso sigue reservado a roles con permisos
+                // administrativos explícitos).
+                'declaracion-jurada.view',
             ]));
         });
     }

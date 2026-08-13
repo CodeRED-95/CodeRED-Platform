@@ -45,8 +45,13 @@ class AgenciasApiV1Test extends TestCase
 
     public function test_busqueda_por_nombre(): void
     {
-        Agency::factory()->create(['name' => 'Agencia Piura Centro', 'code' => 'PIU-001', 'status' => AgencyStatus::Active]);
-        Agency::factory()->create(['name' => 'Agencia Tacna', 'code' => 'TAC-001', 'status' => AgencyStatus::Active]);
+        // department se fija explícitamente en AMBAS agencias: el factory
+        // elige el departamento al azar entre un puñado de valores fijos
+        // que incluye literalmente "Piura" (ver AgencyFactory::definition),
+        // así que sin fijarlo la agencia "de control" podía coincidir por
+        // azar con el término buscado y romper el conteo esperado.
+        Agency::factory()->create(['name' => 'Agencia Piura Centro', 'code' => 'PIU-001', 'department' => 'Lima', 'status' => AgencyStatus::Active]);
+        Agency::factory()->create(['name' => 'Agencia Tacna', 'code' => 'TAC-001', 'department' => 'Lima', 'status' => AgencyStatus::Active]);
 
         $response = $this->withToken($this->token(['agencias:consultar']))
             ->getJson('/api/v1/agencias?agencia=Piura');
@@ -115,48 +120,56 @@ class AgenciasApiV1Test extends TestCase
 
     public function test_paginacion(): void
     {
-        Agency::factory()->count(5)->create(['status' => AgencyStatus::Active]);
+        // Se filtra por un marcador único de esta prueba (agencia=) para
+        // que el conteo por página no dependa de cuántas agencias existan
+        // en total en la base de pruebas — otros archivos de esta suite
+        // usan DatabaseTruncation (commits reales, no rollback) y pueden
+        // dejar agencias adicionales visibles aquí.
+        for ($i = 1; $i <= 5; $i++) {
+            Agency::factory()->create(['name' => "Paginacion Test Sede {$i}", 'status' => AgencyStatus::Active]);
+        }
 
         $response = $this->withToken($this->token(['agencias:consultar']))
-            ->getJson('/api/v1/agencias?per_page=2&page=2');
+            ->getJson('/api/v1/agencias?agencia=Paginacion+Test&per_page=2&page=2');
 
         $response->assertOk()->assertJsonCount(2, 'data')
             ->assertJsonPath('meta.current_page', 2)
-            ->assertJsonPath('meta.per_page', 2);
+            ->assertJsonPath('meta.per_page', 2)
+            ->assertJsonPath('meta.total', 5);
     }
 
     public function test_orden_por_nombre_ascendente(): void
     {
-        Agency::factory()->create(['name' => 'Zeta Sede', 'status' => AgencyStatus::Active]);
-        Agency::factory()->create(['name' => 'Alfa Sede', 'status' => AgencyStatus::Active]);
-        Agency::factory()->create(['name' => 'Beta Sede', 'status' => AgencyStatus::Active]);
+        Agency::factory()->create(['name' => 'Orden Test Zeta Sede', 'status' => AgencyStatus::Active]);
+        Agency::factory()->create(['name' => 'Orden Test Alfa Sede', 'status' => AgencyStatus::Active]);
+        Agency::factory()->create(['name' => 'Orden Test Beta Sede', 'status' => AgencyStatus::Active]);
 
         $response = $this->withToken($this->token(['agencias:consultar']))
-            ->getJson('/api/v1/agencias?sort=name&direction=asc&per_page=10');
+            ->getJson('/api/v1/agencias?agencia=Orden+Test&sort=name&direction=asc&per_page=10');
 
         $response->assertOk();
         $names = array_column($response->json('data'), 'agencia');
-        $this->assertSame(['Alfa Sede', 'Beta Sede', 'Zeta Sede'], $names);
+        $this->assertSame(['Orden Test Alfa Sede', 'Orden Test Beta Sede', 'Orden Test Zeta Sede'], $names);
     }
 
     public function test_excluye_agencias_no_seleccionables_al_filtrar_por_estado_active(): void
     {
-        $active = Agency::factory()->create(['name' => 'Sede Activa', 'status' => AgencyStatus::Active]);
-        Agency::factory()->create(['name' => 'Sede Inactiva', 'status' => AgencyStatus::Inactive]);
-        Agency::factory()->create(['name' => 'Sede Cerrada Temporalmente', 'status' => AgencyStatus::TemporarilyClosed]);
-        Agency::factory()->create(['name' => 'Sede En Revision', 'status' => AgencyStatus::UnderReview]);
+        $active = Agency::factory()->create(['name' => 'Exclusion Test Sede Activa', 'status' => AgencyStatus::Active]);
+        Agency::factory()->create(['name' => 'Exclusion Test Sede Inactiva', 'status' => AgencyStatus::Inactive]);
+        Agency::factory()->create(['name' => 'Exclusion Test Sede Cerrada Temporalmente', 'status' => AgencyStatus::TemporarilyClosed]);
+        Agency::factory()->create(['name' => 'Exclusion Test Sede En Revision', 'status' => AgencyStatus::UnderReview]);
         Agency::factory()->create([
-            'name' => 'Sede Trasladada',
+            'name' => 'Exclusion Test Sede Trasladada',
             'status' => AgencyStatus::Moved,
             'has_moved' => true,
             'moved_to_agency_id' => $active->id,
         ]);
 
         $response = $this->withToken($this->token(['agencias:consultar']))
-            ->getJson('/api/v1/agencias?estado=active&per_page=50');
+            ->getJson('/api/v1/agencias?agencia=Exclusion+Test&estado=active&per_page=50');
 
         $response->assertOk()->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.agencia', 'Sede Activa');
+            ->assertJsonPath('data.0.agencia', 'Exclusion Test Sede Activa');
     }
 
     /** @param list<string> $abilities */

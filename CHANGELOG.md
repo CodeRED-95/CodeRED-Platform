@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.12.1] - 2026-08-12
+
+### ℹ️ Nota
+
+- Otorga acceso automático a Declaración Jurada a todo usuario con rol viewer (permiso declaracion-jurada.view en el rol, no por usuario)
+
+---
+
 ## [4.12.0] - 2026-08-12
 
 ### ℹ️ Nota
