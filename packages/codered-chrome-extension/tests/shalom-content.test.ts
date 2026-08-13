@@ -406,13 +406,22 @@ describe('Shalom Control DOM integration', () => {
   it('injects on the authorized routes, with and without trailing slash', async () => {
     const supportedPaths = ['/listaordenservicio', '/listaordenservicio/', '/service-order', '/service-order/', '/ordenservicio/listar', '/ordenservicio/listar/'];
     for (const path of supportedPaths) {
-      const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div></body></html>', { url: `https://app.shalomcontrol.com${path}` });
+      const html = path.includes('service-order')
+        ? '<!doctype html><html><body><main class="mx-2 md:mx-5 lg:mx-10 xl:mx-auto xl:max-w-7xl flex flex-col md:h-screen service-order-module"><div class="flex lg:justify-between max-lg:flex-col py-3 lg:items-center gap-y-2 gap-x-20"><div class="flex gap-2 max-lg:flex-col flex-1"><div>Empresarial: ADM_TERMINAL</div></div><div class="flex items-center lg:gap-x-12 gap-x-4 justify-end"><div>AV. ARIAS ARAGUEZ</div><div class="flex items-center gap-x-2.5"><div>VICTOR SANTIAGO ARROYO BILBAO</div></div></div></div></main></body></html>'
+        : '<!doctype html><html><body><div class="mdl-layout__header-row"></div></body></html>';
+      const dom = new JSDOM(html, { url: `https://app.shalomcontrol.com${path}` });
       globalThis.window = dom.window as unknown as Window & typeof globalThis;
       globalThis.document = dom.window.document;
       globalThis.HTMLElement = dom.window.HTMLElement;
       const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
-      expect(await controller.mount()).toMatchObject({ success: true });
-      expect(document.getElementById('mi-buscador-contenedor')).not.toBeNull();
+      if (path.includes('service-order')) {
+        expect(await controller.mount()).toMatchObject({ success: true });
+        expect(document.querySelectorAll('#mi-buscador-contenedor')).toHaveLength(1);
+        expect(document.querySelector('#mi-buscador-contenedor')?.nextElementSibling).not.toBeNull();
+      } else {
+        expect(await controller.mount()).toMatchObject({ success: true });
+        expect(document.getElementById('mi-buscador-contenedor')).not.toBeNull();
+      }
     }
   });
 
@@ -502,7 +511,7 @@ describe('Shalom Control DOM integration', () => {
   });
 
   it('keeps service-order neutral and never selects a destination', async () => {
-    const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"><div class="mdl-layout-spacer"></div></div></body></html>', { url: 'https://app.shalomcontrol.com/service-order/' });
+    const dom = new JSDOM('<!doctype html><html><body><main class="mx-2 md:mx-5 lg:mx-10 xl:mx-auto xl:max-w-7xl flex flex-col md:h-screen service-order-module"><div class="flex lg:justify-between max-lg:flex-col py-3 lg:items-center gap-y-2 gap-x-20"><div class="flex gap-2 max-lg:flex-col flex-1"><div>Empresarial: ADM_TERMINAL</div></div><div class="flex items-center lg:gap-x-12 gap-x-4 justify-end"><div>AV. ARIAS ARAGUEZ</div><div class="flex items-center gap-x-2.5"><div>VICTOR SANTIAGO ARROYO BILBAO</div></div></div></div></main></body></html>', { url: 'https://app.shalomcontrol.com/service-order/' });
     globalThis.window = dom.window as unknown as Window & typeof globalThis;
     globalThis.document = dom.window.document;
     globalThis.MutationObserver = dom.window.MutationObserver;
@@ -527,7 +536,7 @@ describe('Shalom Control DOM integration', () => {
     expect(select.value).toBe('');
     expect(inputSpy).not.toHaveBeenCalled();
     expect(changeSpy).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain('Esta página de Shalom solo permite consultar agencias.');
+    expect(document.body.textContent).toContain('Modo neutral');
   });
 
   it('keeps technical failures as warnings with structured context', async () => {

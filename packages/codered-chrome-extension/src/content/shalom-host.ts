@@ -58,6 +58,12 @@ export function isNeutralShalomSearchPath(pathname: string | null | undefined): 
 
 export type ShalomPageMode = 'interactive' | 'neutral';
 
+export interface ShalomPageContext {
+  site: 'sysnewos' | 'shalom';
+  module: 'service-order' | 'legacy';
+  mode: ShalomPageMode;
+}
+
 export interface ShalomPageCapabilities {
   mode: ShalomPageMode;
   search: boolean;
@@ -84,6 +90,15 @@ export function getShalomPageCapabilities(pathname: string | null | undefined): 
     agencySelection: true,
     channelDetection: true,
   };
+}
+
+export function resolvePageContext(pathname: string | null | undefined): ShalomPageContext {
+  const normalized = normalizePathname(pathname);
+  if (normalized === '/service-order') {
+    return { site: 'sysnewos', module: 'service-order', mode: 'neutral' };
+  }
+
+  return { site: 'shalom', module: 'legacy', mode: 'interactive' };
 }
 
 export function hostnameMatchesAllowedDomain(hostname: string, allowedDomain: string): boolean {

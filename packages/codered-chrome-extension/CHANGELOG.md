@@ -44,6 +44,16 @@
 
 ## Unreleased
 
+## 2.3.7 - 2026-08-13
+
+### Changed
+
+- Sube la version de la extension para incluir la integracion neutral de `/service-order/` y su montaje robusto en SPA.
+
+### Fixed
+
+- Asegura que el buscador se inserte como componente unico antes del bloque de direccion en SYSNEWOS sin ejecutar `chosen`.
+
 ## 2.3.6 - 2026-08-13
 
 ### Added
