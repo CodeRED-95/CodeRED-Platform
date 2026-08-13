@@ -697,6 +697,76 @@ export const createAppBackend = (env) => {
     }
   }
 
+  // Agencias: CodeRED Platform es la única fuente de verdad (antes se leía
+  // un JSON estático publicado en un Gist de GitHub, completamente ajeno a
+  // CodeRED — ver App.jsx). Este proxy reutiliza el mismo ApiClient/token
+  // "Declaración Jurada Shalom" que ya existe para DNI (ability adicional
+  // agencias:consultar, ver declaracion-jurada:setup en el repo raíz), y
+  // reenvía búsqueda/paginación a GET /api/v1/agencias en vez de cargar
+  // miles de agencias de una sola vez. No requiere créditos: listar
+  // agencias para completar el formulario no es una consulta facturable.
+  // Solo se piden agencias con estado "active" (equivalente al scope
+  // publicVisible() de CodeRED: activas y no trasladadas).
+  const AGENCIAS_PAGE_SIZE = 60
+
+  const handleAgencias = async (request, response) => {
+    const session = await requireUser(request, response)
+    if (!session) return
+    if (!env.CODERED_API_TOKEN) {
+      return json(response, 503, { message: 'El listado de agencias aún no está configurado.' })
+    }
+
+    const incomingUrl = new URL(request.url, 'http://localhost')
+    const search = (incomingUrl.searchParams.get('search') || '').trim().slice(0, 150)
+    const page = Math.max(1, Number.parseInt(incomingUrl.searchParams.get('page'), 10) || 1)
+
+    const url = new URL('/api/v1/agencias', env.CODERED_API_URL)
+    url.searchParams.set('estado', 'active')
+    url.searchParams.set('per_page', String(AGENCIAS_PAGE_SIZE))
+    url.searchParams.set('sort', 'name')
+    url.searchParams.set('direction', 'asc')
+    url.searchParams.set('page', String(page))
+    if (search) url.searchParams.set('agencia', search)
+
+    try {
+      const upstream = await fetch(url, {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${env.CODERED_API_TOKEN}` },
+        // Listado de catálogo, no una consulta con proveedor externo detrás:
+        // si CodeRED no responde en este margen, se prefiere fallar rápido
+        // y dejar reintentar al usuario (ver mensaje de error abajo) antes
+        // que dejar el buscador de sedes colgado.
+        signal: AbortSignal.timeout(10000)
+      })
+      const payload = await upstream.json().catch(() => ({}))
+      if (!upstream.ok || payload?.success !== true || !Array.isArray(payload?.data)) {
+        throw new Error('upstream_error')
+      }
+      const items = payload.data.map(agencia => ({
+        agencyId: agencia.internal_id,
+        agencia: agencia.agencia,
+        agenciaAnterior: agencia.agencia_anterior || null,
+        departamento: agencia.departamento,
+        provincia: agencia.provincia,
+        distrito: agencia.distrito,
+        direccion: agencia.direccion
+      }))
+      return json(response, 200, {
+        data: items,
+        meta: {
+          currentPage: payload.meta?.current_page ?? page,
+          lastPage: payload.meta?.last_page ?? 1,
+          total: payload.meta?.total ?? items.length
+        }
+      })
+    } catch (error) {
+      // Nunca se usa silenciosamente un listado local desactualizado: si
+      // CodeRED no responde, se informa el error al frontend para que
+      // muestre un mensaje claro y permita reintentar.
+      console.error('Error consultando agencias en CodeRED:', error)
+      return json(response, 502, { message: 'No se pudo obtener el listado de agencias de CodeRED Platform. Inténtalo nuevamente.' })
+    }
+  }
+
   const handleCredits = async (request, response, pathname) => {
     const session = await requireUser(request, response)
     if (!session) return
@@ -927,6 +997,7 @@ export const createAppBackend = (env) => {
       }
       const dniMatch = pathname.match(/^\/api\/dni\/(\d{8})$/)
       if (dniMatch && request.method === 'GET') return await handleDni(request, response, dniMatch[1])
+      if (pathname === '/api/agencias' && request.method === 'GET') return await handleAgencias(request, response)
       if (pathname === '/api/store' || pathname.startsWith('/api/credit-requests')) {
         const handled = await handleCredits(request, response, pathname)
         if (handled !== false) return

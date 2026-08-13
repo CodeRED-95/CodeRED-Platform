@@ -8,6 +8,7 @@
 // directamente el documento generado en vez de una API HTTP.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { Buffer } from 'node:buffer'
 import { buildDeclaracionPdf } from '../src/pdf/buildDeclaracionPdf.js'
 
 const baseForm = () => ({

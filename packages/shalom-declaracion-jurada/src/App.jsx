@@ -31,6 +31,9 @@ const MIN_TABLE_ROWS = 3;
 // Espera tras la última tecla antes de regenerar la vista previa — evita
 // reconstruir el PDF en cada pulsación.
 const PREVIEW_DEBOUNCE_MS = 500;
+// Espera tras la última tecla antes de volver a buscar agencias en CodeRED
+// Platform — evita una petición por cada carácter tecleado.
+const AGENCIAS_SEARCH_DEBOUNCE_MS = 350;
 
 const createInitialForm = () => ({
   remitenteDni: '',
@@ -40,6 +43,11 @@ const createInitialForm = () => ({
   destinatarioDni: '',
   destinatarioTelefono: '',
   sedeDestino: '',
+  // Referencia estable a la agencia elegida en CodeRED Platform (internal_id
+  // de app/Modules/Agencies/Models/Agency.php) — sedeDestino es solo el
+  // texto que se imprime en el PDF; agencyId evita depender únicamente del
+  // texto para identificar cuál agencia fue realmente seleccionada.
+  agencyId: null,
   motivoEnvio: '',
   items: Array.from({ length: 3 }, () => ({ cantidad: '', descripcion: '' }))
 });
@@ -79,13 +87,14 @@ const App = () => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [agenciasFetchError, setAgenciasFetchError] = useState(null);
-  const [agenciasLoading, setAgenciasLoading] = useState(true);
+  const [agenciasLoading, setAgenciasLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [includeDniPhoto, setIncludeDniPhoto] = useState(false);
   const [dniPhoto, setDniPhoto] = useState(null);
   const [agencias, setAgencias] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [agenciasRetryToken, setAgenciasRetryToken] = useState(0);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState('');
@@ -113,39 +122,42 @@ const App = () => {
     }
   }, [darkMode]);
 
-  // Cargar lista de agencias desde el Gist
+  // Buscador de sedes: CodeRED Platform es la única fuente de verdad para
+  // agencias (antes se leía un JSON estático publicado en un Gist de
+  // GitHub, ajeno por completo a CodeRED). La búsqueda ocurre en el
+  // servidor (proxy /api/agencias -> CodeRED GET /api/v1/agencias, ability
+  // agencias:consultar) con debounce, en vez de cargar miles de agencias en
+  // el cliente y filtrar ahí. Solo se consulta mientras el modal está
+  // abierto, para no disparar peticiones innecesarias en cada tecleo del
+  // resto del formulario.
   useEffect(() => {
+    if (!isModalOpen) return undefined;
     const controller = new AbortController();
-
-    const fetchAgencias = async () => {
+    setAgenciasLoading(true);
+    const timer = window.setTimeout(async () => {
       try {
-        setAgenciasLoading(true);
-        const response = await fetch('https://gist.githubusercontent.com/CodeRED-95/acfb5aaccf90743075a8143511b48ae7/raw/agencias_terrestre.json', {
-          signal: controller.signal
-        });
-        if (!response.ok) {
-          throw new Error(`Error HTTP ${response.status}`);
-        }
-        const data = await response.json();
-        const normalizedAgencias = Array.isArray(data)
-          ? data.map(agencia => typeof agencia === 'string' ? { agencia } : agencia)
-              .filter(agencia => agencia && typeof agencia === 'object')
-          : [];
-        setAgencias(normalizedAgencias);
+        const url = new URL('/api/agencias', window.location.origin);
+        if (searchTerm.trim()) url.searchParams.set('search', searchTerm.trim());
+        const response = await fetch(url, { signal: controller.signal });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.message || 'No se pudo obtener el listado de agencias.');
+        setAgencias(Array.isArray(payload.data) ? payload.data : []);
         setAgenciasFetchError(null);
       } catch (error) {
         if (error.name === 'AbortError') return;
-        console.error("Error cargando agencias:", error);
-        setAgenciasFetchError("No se pudieron cargar las agencias. Verifica tu conexión e inténtalo nuevamente.");
+        console.error('Error cargando agencias:', error);
+        setAgenciasFetchError('No se pudo obtener el listado de agencias de CodeRED Platform. Inténtalo nuevamente.');
         setAgencias([]);
       } finally {
         if (!controller.signal.aborted) setAgenciasLoading(false);
       }
-    };
-    fetchAgencias();
+    }, AGENCIAS_SEARCH_DEBOUNCE_MS);
 
-    return () => controller.abort();
-  }, []);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [isModalOpen, searchTerm, agenciasRetryToken]);
 
   useEffect(() => {
     fetch('/api/auth/session')
@@ -274,20 +286,6 @@ const App = () => {
       )
     }));
   }, []);
-
-  const filteredAgencias = useMemo(() => {
-    return agencias.filter(agencia => {
-    if (!agencia) return false;
-    const searchData = [
-      agencia.agencia,
-      agencia.departamento,
-      agencia.provincia,
-      agencia.distrito,
-      agencia.direccion,
-    ].filter(Boolean).join(' ').toLowerCase(); // Unir todos los campos relevantes para la búsqueda
-    return searchData.includes(searchTerm.toLowerCase());
-  });
-  }, [agencias, searchTerm]);
 
   const addItem = useCallback(() => {
     setForm(prev => prev.items.length >= 10
@@ -714,12 +712,19 @@ const App = () => {
                   Cargando sedes...
                 </div>
               ) : agenciasFetchError ? (
-                <div className="p-8 text-center text-red-500 text-sm font-medium">
-                  {agenciasFetchError}
+                <div className="p-8 text-center space-y-3">
+                  <p className="text-red-500 text-sm font-medium">{agenciasFetchError}</p>
+                  <button
+                    type="button"
+                    onClick={() => setAgenciasRetryToken(token => token + 1)}
+                    className="px-4 py-2 rounded-lg text-xs font-bold uppercase bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                  >
+                    Reintentar
+                  </button>
                 </div>
-              ) : filteredAgencias.length > 0 ? (
+              ) : agencias.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-2">
-                  {filteredAgencias.map((agencia, idx) => {
+                  {agencias.map((agencia) => {
                     const displayLabel = [
                       agencia.departamento?.trim(),
                       agencia.provincia?.trim(),
@@ -729,7 +734,7 @@ const App = () => {
 
                     return (
                       <div
-                        key={idx}
+                        key={agencia.agencyId}
                         className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col justify-between hover:border-red-300 dark:hover:border-red-500 transition-all duration-200 group"
                       >
                         <div>
@@ -741,7 +746,7 @@ const App = () => {
                         </div>
                         <button
                           onClick={() => {
-                            setForm({ ...form, sedeDestino: displayLabel.toUpperCase() });
+                            setForm({ ...form, agencyId: agencia.agencyId, sedeDestino: displayLabel.toUpperCase() });
                             setIsModalOpen(false);
                             setSearchTerm('');
                           }}

@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.11.0] - 2026-08-12
+
+### ℹ️ Nota
+
+- Corrige proporciones/alineación del PDF de Declaración Jurada e integra agencias desde CodeRED Platform (antes un Gist externo)
+
+---
+
 ## [4.10.0] - 2026-08-12
 
 ### ℹ️ Nota

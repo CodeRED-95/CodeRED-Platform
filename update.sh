@@ -494,23 +494,24 @@ if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] && changed '^database/seeders/PermissionsSee
     ok "Permisos sincronizados (incluye declaracion-jurada.view)."
 fi
 
-# El ApiClient y el token dni:consultar de Declaración Jurada se emiten una
-# sola vez (el token solo se muestra en el momento de crearlo). Si
-# DECLARACION_JURADA_CODERED_API_TOKEN ya está en .env no se toca nada; si
-# falta, se emite aquí y se guarda automáticamente para que el contenedor
-# "declaracion-jurada" arranque con el bridge de consultas ya configurado.
-if [[ -z "$(get_env DECLARACION_JURADA_CODERED_API_TOKEN)" ]]; then
-    DJ_TOKEN_OUTPUT="$(docker compose exec -T app php artisan declaracion-jurada:setup 2>&1)"
-    DJ_TOKEN_VALUE="$(printf '%s\n' "$DJ_TOKEN_OUTPUT" | grep -E '^[0-9]+\|[A-Za-z0-9]+$' | head -1)"
-    if [[ -n "$DJ_TOKEN_VALUE" ]]; then
-        set_env DECLARACION_JURADA_CODERED_API_TOKEN "$DJ_TOKEN_VALUE"
-        docker compose up -d --force-recreate --no-deps declaracion-jurada
-        ok "Token dni:consultar emitido y guardado para Declaración Jurada (contenedor reiniciado para aplicarlo)."
-    else
-        warn "No se pudo emitir automáticamente el token de Declaración Jurada. Ejecute manualmente:"
-        warn "  docker compose exec -T app php artisan declaracion-jurada:setup"
-        warn "  y guarde el valor en DECLARACION_JURADA_CODERED_API_TOKEN dentro de .env"
-    fi
+# El ApiClient y el token de Declaración Jurada (abilities dni:consultar +
+# agencias:consultar) se ejecutan en CADA despliegue, no solo cuando falta
+# el .env: el comando en sí es idempotente (ver
+# DeclaracionJuradaSetupCommand::ABILITIES) y solo emite un token NUEVO si
+# no existe uno activo o si sus abilities quedaron desactualizadas (por
+# ejemplo, instalaciones previas a la integración de agencias, que solo
+# tenían dni:consultar). Si el token ya tiene las abilities correctas, el
+# comando no imprime ningún token y este bloque no toca nada.
+DJ_TOKEN_OUTPUT="$(docker compose exec -T app php artisan declaracion-jurada:setup 2>&1)"
+DJ_TOKEN_VALUE="$(printf '%s\n' "$DJ_TOKEN_OUTPUT" | grep -E '^[0-9]+\|[A-Za-z0-9]+$' | head -1)"
+if [[ -n "$DJ_TOKEN_VALUE" ]]; then
+    set_env DECLARACION_JURADA_CODERED_API_TOKEN "$DJ_TOKEN_VALUE"
+    docker compose up -d --force-recreate --no-deps declaracion-jurada
+    ok "Token de Declaración Jurada (dni:consultar, agencias:consultar) emitido y guardado (contenedor reiniciado para aplicarlo)."
+elif [[ -z "$(get_env DECLARACION_JURADA_CODERED_API_TOKEN)" ]]; then
+    warn "No se pudo emitir automáticamente el token de Declaración Jurada. Ejecute manualmente:"
+    warn "  docker compose exec -T app php artisan declaracion-jurada:setup"
+    warn "  y guarde el valor en DECLARACION_JURADA_CODERED_API_TOKEN dentro de .env"
 fi
 
 # El sistema de IMPORTACIÓN RUC fue retirado (v3.0.0): el padrón se
