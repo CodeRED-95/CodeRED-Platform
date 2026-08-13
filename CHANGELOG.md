@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.8.0] - 2026-08-12
+
+### ℹ️ Nota
+
+- Unificar autenticación de Declaración Jurada Shalom con CodeRED Platform: elimina registro/contraseña propios, login valida contra users de CodeRED (bcrypt + permiso declaracion-jurada.view/.manage), rol Postgres de solo lectura dedicado
+
+---
+
 ## [4.7.0] - 2026-08-12
 
 ### ℹ️ Nota

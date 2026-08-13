@@ -212,13 +212,18 @@ ensure_agent_env(){
 # ya presente. DECLARACION_JURADA_CODERED_API_TOKEN no se puede generar
 # aquí (requiere la base de datos y el contenedor app arriba) — se avisa al
 # final del paso si falta, con el comando exacto para emitirlo.
+# DECLARACION_JURADA_DB_PASSWORD sí se genera aquí: la migración
+# 2026_08_13_000001_create_declaracion_jurada_readonly_role la lee (vía
+# config/services.php) para crear/actualizar el rol Postgres de solo
+# lectura declaracion_jurada_ro en el siguiente `php artisan migrate`.
+# Ya no existe un admin local propio (login unificado con CodeRED
+# Platform), así que DECLARACION_JURADA_ADMIN_EMAIL/PASSWORD no se generan.
 ensure_declaracion_jurada_env(){
     [[ -n "$(get_env DECLARACION_JURADA_URL)" ]] || set_env DECLARACION_JURADA_URL "https://declaracion.$CODERED_DOMAIN"
-    [[ -n "$(get_env DECLARACION_JURADA_ADMIN_EMAIL)" ]] || set_env DECLARACION_JURADA_ADMIN_EMAIL "$(get_env MAIL_FROM_ADDRESS)"
     [[ -n "$(get_env DECLARACION_JURADA_COOKIE_SECURE)" ]] || set_env DECLARACION_JURADA_COOKIE_SECURE "true"
     [[ -n "$(get_env DECLARACION_JURADA_DNI_API_URL)" ]] || set_env DECLARACION_JURADA_DNI_API_URL "https://api.perudevs.com/api/v1/dni/simple"
-    if need_secret DECLARACION_JURADA_ADMIN_PASSWORD; then set_env DECLARACION_JURADA_ADMIN_PASSWORD "$(generate_secret)"; ok "Password admin de Declaración Jurada generado correctamente."; fi
     if need_secret DECLARACION_JURADA_ENCRYPTION_KEY; then set_env DECLARACION_JURADA_ENCRYPTION_KEY "$(generate_secret)"; ok "Clave de cifrado de Declaración Jurada generada correctamente."; fi
+    if need_secret DECLARACION_JURADA_DB_PASSWORD; then set_env DECLARACION_JURADA_DB_PASSWORD "$(generate_secret)"; ok "Password del rol Postgres de solo lectura de Declaración Jurada generado correctamente."; fi
 }
 
 # Verifica que la configuración de cookies/CSRF sea coherente con APP_URL.

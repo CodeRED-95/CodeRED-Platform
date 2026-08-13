@@ -1,14 +1,34 @@
 # Declaración Jurada Shalom
 
-Aplicación React con generación de PDF, autenticación, venta manual de consultas y autocompletado de nombres por DNI.
+Aplicación React con generación de PDF, venta manual de consultas y autocompletado de nombres por DNI.
 
 ## Integración con CodeRED Platform
 
-Este paquete vive dentro de `CodeRED-Platform/packages/` y, cuando se ejecuta como el
-servicio `declaracion-jurada` del `docker-compose.yml` raíz del monorepo, queda
-interconectado con la plataforma sin dejar de ser una aplicación separada
-(base de datos, sesiones y despliegue propios):
+Este paquete vive dentro de `CodeRED-Platform/packages/` y se ejecuta como el servicio
+`declaracion-jurada` del `docker-compose.yml` raíz del monorepo. Es una aplicación
+separada (despliegue, sesiones y datos de negocio propios en SQLite), pero **ya no
+tiene sistema de usuarios propio**: CodeRED Platform es la única fuente de identidad.
 
+- **Autenticación**: el login (`POST /api/auth/login`) valida el email y la contraseña
+  directamente contra la tabla `users` de CodeRED Platform (mismo hash bcrypt que usa
+  Laravel — nunca se copia ni se re-hashea), exige que la cuenta esté activa
+  (`status = 'active'`, sin `deleted_at`) y que tenga el permiso
+  `declaracion-jurada.view`. No existe registro, recuperación de contraseña ni
+  administración de usuarios propia: todo eso se hace en CodeRED Platform. La
+  identidad canónica de cada usuario es `users.id` de CodeRED (`codered_user_id` en
+  este paquete) — el email es solo informativo y puede cambiar sin romper el
+  historial de créditos/consultas.
+- **Permisos**: `declaracion-jurada.view` habilita el login; `declaracion-jurada.manage`
+  habilita el panel administrador de esta app (precios, métodos de pago, proveedor
+  DNI, Telegram, aprobar compras). Ambos son permisos normales de CodeRED Platform
+  (`database/seeders/PermissionsSeeder.php` en la raíz del monorepo) — no hay un RBAC
+  paralelo aquí.
+- **Conexión a la base de datos**: `CODERED_DB_HOST` (y el resto de `CODERED_DB_*`) son
+  **obligatorios** — la app falla al arrancar sin ellos. Usa un rol PostgreSQL de solo
+  lectura dedicado (`declaracion_jurada_ro`, creado por la migración
+  `2026_08_13_000001_create_declaracion_jurada_readonly_role` en la raíz del monorepo)
+  con `SELECT` únicamente sobre `users`, `roles`, `permissions`, `role_user` y
+  `permission_role` — no puede escribir ni acceder a ninguna otra tabla.
 - **Consultas DNI**: si `CODERED_API_TOKEN` está configurado, `GET /api/dni/{dni}`
   resuelve el nombre vía `GET {CODERED_API_URL}/api/v1/dni/{dni}` (token Sanctum con
   ability `dni:consultar`) en vez de llamar directamente al proveedor externo. El
@@ -16,29 +36,38 @@ interconectado con la plataforma sin dejar de ser una aplicación separada
   declaracion-jurada:setup` desde la raíz de CodeRED Platform. Sin esa variable, se
   usa el flujo original (`DNI_API_URL` + clave de proveedor configurada en el panel
   admin de esta app).
-- **Usuarios**: si `CODERED_DB_HOST` (y el resto de `CODERED_DB_*`) están configurados,
-  cada registro/login intenta enlazar (por email, de forma best-effort y solo lectura)
-  la cuenta con un usuario existente de la tabla `users` de CodeRED Platform. El
-  resultado se expone como `coderedLinked`/`coderedName` en la sesión del usuario.
 
 Ver `docker-compose.yml` (servicio `declaracion-jurada`) y `.env.example` de la raíz
 del monorepo para el resto del cableado (Nginx, volumen de datos, etc.).
 
+**Esta app ya no puede desplegarse de forma verdaderamente independiente**: necesita
+una CodeRED Platform accesible (Postgres para autenticar, opcionalmente su API para
+resolver DNIs). El servidor Node y el SQLite propio siguen siendo suyos — solo la
+identidad de usuario se delega.
+
 ## Configuración
 
 1. Copia `.env.example` como `.env.local`.
-2. Cambia `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `APP_ENCRYPTION_KEY`.
-3. Configura `RESEND_API_KEY` y `EMAIL_FROM` para enviar los códigos de verificación.
-4. Configura Telegram desde el panel administrador. También puedes usar `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en `.env.local`.
+2. Completa `CODERED_DB_HOST`/`CODERED_DB_PORT`/`CODERED_DB_DATABASE`/`CODERED_DB_USERNAME`/`CODERED_DB_PASSWORD`
+   apuntando a la base PostgreSQL de una instancia de CodeRED Platform.
+3. Cambia `APP_ENCRYPTION_KEY` (cifra la clave del proveedor DNI y el token de Telegram
+   guardados en el panel — no contraseñas de usuario).
+4. Configura Telegram desde el panel administrador (requiere `declaracion-jurada.manage`
+   en CodeRED). También puedes usar `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en `.env.local`.
 5. Ejecuta `npm install` y `npm run dev`.
-6. Ingresa con la cuenta administradora configurada.
+6. Ingresa con una cuenta de CodeRED Platform que tenga el permiso `declaracion-jurada.view`.
 
-La base SQLite se crea automáticamente en `.data/declaracion-jurada.db`.
+La base SQLite se crea automáticamente en `.data/declaracion-jurada.db` y solo guarda
+datos propios de esta app (créditos, paquetes, métodos de pago, sesiones locales,
+caché de permisos) — nunca contraseñas ni datos de identidad más allá de una copia
+informativa del email/nombre.
 
 ## Flujo de créditos
 
-1. El usuario verifica su correo con un código y completa el registro.
-2. El administrador configura la API global, los paquetes y los métodos de pago.
+1. El usuario inicia sesión con su cuenta de CodeRED Platform (debe tener el permiso
+   `declaracion-jurada.view`).
+2. El administrador (permiso `declaracion-jurada.manage`) configura la API de consulta
+   DNI, los paquetes y los métodos de pago.
 3. El usuario elige un paquete, un método de pago e ingresa su referencia.
 4. El usuario adjunta una captura PNG, JPG o WebP de hasta 5 MB. La solicitud y la imagen se envían al chat de Telegram y la imagen no se guarda en SQLite.
 5. El administrador comprueba el pago y aprueba o rechaza la solicitud.
@@ -49,61 +78,25 @@ Las consultas automáticas de remitente y destinatario se controlan por separado
 
 Los campos de documento admiten DNI de 8 dígitos y carnet de extranjería de hasta 9 dígitos. El autocompletado consume un punto únicamente para DNI de 8 dígitos; el nombre asociado a un C.E. se ingresa manualmente.
 
-## Verificación por correo
-
-El registro puede utilizar Mailgun o Resend para entregar el código de seis dígitos. Para Mailgun:
-
-1. Agrega tu dominio en [Mailgun](https://app.mailgun.com/mg/sending/domains) y copia en Cloudflare los registros DNS que Mailgun indique.
-2. Espera que el dominio aparezca como verificado y crea una API Key de envío.
-3. En el panel administrador abre **Correo**, selecciona **Mailgun** e ingresa la API Key, el dominio exacto y la región de tu cuenta.
-4. Configura un remitente del dominio verificado, por ejemplo `Declaración Jurada <registro@tudominio.com>`.
-
-Para utilizar Resend:
-
-1. Crea una cuenta en [Resend](https://resend.com/) y genera una API Key con permiso de envío.
-2. Agrega y verifica tu dominio en Resend siguiendo los registros DNS que te indique.
-3. En el panel administrador abre **Correo** e ingresa la API Key.
-4. Configura un remitente del dominio verificado, por ejemplo `Declaración Jurada <registro@tudominio.com>`.
-
-La API Key se cifra antes de guardarse. `EMAIL_PROVIDER`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAILGUN_REGION`, `RESEND_API_KEY` y `EMAIL_FROM` permanecen disponibles como configuración alternativa mediante variables de entorno.
-
-El mismo servicio de correo permite recuperar una contraseña desde **Olvidé mi contraseña**. El código de recuperación dura diez minutos, admite hasta cinco intentos y no puede reutilizarse como código de registro.
-
-## Acceso con Google
-
-1. Abre [Google Cloud Console](https://console.cloud.google.com/apis/credentials) y crea o selecciona un proyecto.
-2. Configura la pantalla de consentimiento de OAuth.
-3. Crea un cliente OAuth 2.0 de tipo **Aplicación web**.
-4. Agrega `http://localhost:5173` y la dirección HTTPS de producción en **Orígenes de JavaScript autorizados**.
-5. Copia el Client ID y guárdalo en **Panel administrador → Correo → Acceso con Google**.
-
-Esta integración utiliza Google Identity Services y valida el ID token en el servidor. No necesita guardar un Client Secret. También puede configurarse con `GOOGLE_CLIENT_ID` en el entorno.
-
 Los métodos de pago admiten una imagen PNG, JPG o WebP de hasta 5 MB, útil para códigos QR o instrucciones visuales. Al eliminar una compra aprobada se elimina únicamente el saldo restante de su lote; las consultas ya realizadas permanecen en el contador de uso.
 
-La clave de la API se cifra con AES-256-GCM usando `APP_ENCRYPTION_KEY` y nunca se envía al navegador.
+La clave del proveedor DNI se cifra con AES-256-GCM usando `APP_ENCRYPTION_KEY` y nunca se envía al navegador.
 
 ## Producción
 
-La aplicación incluye un servidor Node de producción. Después de ejecutar `npm run build`, se inicia con `npm start` y escucha el puerto indicado por `PORT`.
-
-### Opción recomendada: Railway
-
-1. Sube el proyecto a un repositorio privado de GitHub.
-2. En [Railway](https://railway.com/) crea un proyecto desde ese repositorio.
-3. Usa `npm ci && npm run build` como comando de construcción y `npm start` como comando de inicio.
-4. Agrega un volumen persistente y móntalo en `/data`.
-5. Configura `DATABASE_PATH=/data/declaracion-jurada.db`.
-6. Agrega las variables de entorno indicadas abajo y despliega el servicio.
-7. Genera un dominio de Railway o conecta tu dominio propio. Railway termina HTTPS por ti.
-
-También puedes usar un servicio Node con disco persistente como [Render](https://render.com/docs/disks), [Fly.io](https://fly.io/docs/volumes/) o un VPS. Vercel, Netlify y otros entornos serverless no son adecuados para esta versión mientras use SQLite local, porque el sistema de archivos puede ser efímero.
+Se despliega como el servicio `declaracion-jurada` del `docker-compose.yml` raíz de
+CodeRED Platform (ver ese archivo para el wiring completo). Después de
+`npm run build`, el servidor de producción se inicia con `npm start` y escucha el
+puerto indicado por `PORT`.
 
 ### Variables necesarias
 
 ```env
-ADMIN_EMAIL=tu-correo@dominio.com
-ADMIN_PASSWORD=una-clave-administradora-segura
+CODERED_DB_HOST=postgres
+CODERED_DB_PORT=5432
+CODERED_DB_DATABASE=codered
+CODERED_DB_USERNAME=declaracion_jurada_ro
+CODERED_DB_PASSWORD=...
 APP_ENCRYPTION_KEY=un-secreto-largo-y-aleatorio
 DATABASE_PATH=/data/declaracion-jurada.db
 COOKIE_SECURE=true
@@ -116,14 +109,14 @@ Puedes generar `APP_ENCRYPTION_KEY` con:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-No cambies esa clave después de guardar las credenciales de API, Telegram o correo: se utiliza para cifrarlas. La cuenta administradora se crea en la primera ejecución de una base nueva.
+No cambies esa clave después de guardar la clave del proveedor DNI o el token de
+Telegram: se usa para cifrarlas.
 
 ### Servicios externos
 
-- **Consulta DNI:** una clave activa del proveedor, configurada desde el panel administrador.
+- **CodeRED Platform:** obligatorio — provee identidad de usuario y, opcionalmente, la API de consulta DNI.
+- **Consulta DNI (opcional, si no se usa el bridge de CodeRED):** una clave activa del proveedor, configurada desde el panel administrador.
 - **Telegram:** un bot creado con BotFather y el Chat ID donde recibirá comprobantes.
-- **Correo:** cuenta Resend, API Key, dominio verificado y dirección remitente.
-- **Dominio:** opcional, comprado en cualquier registrador y conectado al proveedor de alojamiento.
 
 ### Operación y seguridad
 
@@ -131,4 +124,18 @@ No cambies esa clave después de guardar las credenciales de API, Telegram o cor
 - Conserva la base en un volumen persistente y realiza respaldos periódicos.
 - No subas `.env.local`, `.data` ni claves al repositorio.
 - Mantén `COOKIE_SECURE=true` en producción y usa únicamente HTTPS.
-- Para varias instancias o crecimiento alto, el siguiente paso es migrar SQLite a PostgreSQL.
+- El rol PostgreSQL usado (`CODERED_DB_USERNAME`) debe ser de solo lectura y limitado
+  a `users`/`roles`/`permissions`/`role_user`/`permission_role` — nunca las
+  credenciales completas de la app CodeRED.
+
+## Pruebas
+
+```bash
+npm test
+```
+
+Ejecuta `test/auth.test.js` (Node's `node --test`, sin dependencias adicionales) con
+un doble en memoria de PostgreSQL: cubre login válido/inválido, permisos
+`declaracion-jurada.view`/`.manage`, cuentas desactivadas/eliminadas en CodeRED,
+cambio de contraseña/email, logout, rutas privadas sin sesión, intentos de inyección
+SQL y rate limiting.

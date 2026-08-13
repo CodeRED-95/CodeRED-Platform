@@ -15,6 +15,9 @@ return [
     // hace llamadas HTTP hacia ella.
     'declaracion_jurada' => [
         'url' => env('DECLARACION_JURADA_URL'),
+        // Password del rol Postgres de solo lectura `declaracion_jurada_ro`
+        // (ver database/migrations/2026_08_13_000001_create_declaracion_jurada_readonly_role.php).
+        'db_password' => env('DECLARACION_JURADA_DB_PASSWORD'),
     ],
 
     'n8n' => [

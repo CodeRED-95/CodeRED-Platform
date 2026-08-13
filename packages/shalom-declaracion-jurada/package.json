@@ -11,9 +11,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server/production.js"
+    "start": "node server/production.js",
+    "test": "node --experimental-test-module-mocks --test test/*.test.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.20.0",

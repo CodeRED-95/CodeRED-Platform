@@ -12,19 +12,19 @@ RUN npm run build
 
 # ---- Etapa 2: runtime de producción ----
 # server/app-backend.js y server/production.js usan sobre todo módulos
-# nativos de Node (incluido el built-in node:sqlite), salvo "pg" — el
-# cliente PostgreSQL usado para la interconectividad de solo lectura con la
-# base de CodeRED Platform (ver CODERED_DB_* en server/app-backend.js). Por
-# eso la imagen final no copia node_modules del builder (que incluye
-# React/Vite, innecesarios en runtime) y en su lugar instala únicamente
-# "pg" y sus dependencias.
+# nativos de Node (incluido el built-in node:sqlite), salvo "pg" (cliente
+# PostgreSQL, ver CODERED_DB_* en server/app-backend.js) y "bcryptjs"
+# (verifica el hash bcrypt de users.password de CodeRED Platform — pura
+# JS, sin necesidad de toolchain nativo en esta imagen Alpine). Por eso la
+# imagen final no copia node_modules del builder (que incluye React/Vite,
+# innecesarios en runtime) y en su lugar instala solo estas dos.
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
 COPY --from=builder /app/dist ./dist
 COPY server ./server
-RUN npm install pg@^8.13.1 --omit=dev --no-save --no-audit --no-fund
+RUN npm install pg@^8.13.1 bcryptjs@^3.0.2 --omit=dev --no-save --no-audit --no-fund
 
 RUN addgroup -S app \
  && adduser -S app -G app \

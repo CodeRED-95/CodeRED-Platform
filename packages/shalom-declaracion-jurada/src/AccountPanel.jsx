@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, KeyRound, Mail, ShoppingCart, Trash2, X } from 'lucide-react'
+import { Check, KeyRound, ShoppingCart, Trash2, X } from 'lucide-react'
 
 const fieldClass = 'rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400 dark:[color-scheme:dark]'
 
@@ -37,12 +37,16 @@ const AccountPanel = ({ user, onClose, onUserChange }) => {
   const [buying, setBuying] = useState(false)
   const [purchase, setPurchase] = useState({ packageId: '', paymentMethodId: '', reference: '' })
   const [receipt, setReceipt] = useState(null)
-  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' })
+  const [coderedUrl, setCoderedUrl] = useState('')
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    fetch('/api/config').then(response => response.json()).then(payload => setCoderedUrl(payload.coderedUrl || '')).catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     try {
-      if (user.role === 'admin') {
+      if (user.canManage) {
         const [userData, requestData, configData] = await Promise.all([
           api(`/api/admin/users?page=${userPage}`), api('/api/admin/credit-requests'), api('/api/admin/config')
         ])
@@ -57,7 +61,7 @@ const AccountPanel = ({ user, onClose, onUserChange }) => {
         onUserChange(requestData.user)
       }
     } catch (error) { setMessage(error.message) }
-  }, [onUserChange, user.role, userPage])
+  }, [onUserChange, user.canManage, userPage])
 
   useEffect(() => {
     const timer = window.setTimeout(load, 0)
@@ -91,11 +95,11 @@ const AccountPanel = ({ user, onClose, onUserChange }) => {
 
   return <div className="fixed inset-0 z-[200] overflow-auto bg-slate-950/70 p-4 backdrop-blur-sm">
     <div className="mx-auto max-w-6xl rounded-2xl bg-white p-6 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100">
-      <div className="flex items-start justify-between"><div><h2 className="text-xl font-black">{user.role === 'admin' ? 'Panel administrador' : 'Mi cuenta'}</h2><p className="text-sm text-slate-500 dark:text-slate-400">{user.email}</p></div><button onClick={onClose} className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Cerrar"><X /></button></div>
+      <div className="flex items-start justify-between"><div><h2 className="text-xl font-black">{user.canManage ? 'Panel administrador' : 'Mi cuenta'}</h2><p className="text-sm text-slate-500 dark:text-slate-400">{user.email}</p></div><button onClick={onClose} className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Cerrar"><X /></button></div>
       {message && <p className="my-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">{message}</p>}
-      <details className="mt-4 rounded-xl border p-3 dark:border-slate-700"><summary className="cursor-pointer text-sm font-bold">Cambiar contraseña</summary><div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><input type="password" value={passwords.currentPassword} onChange={event => setPasswords(previous => ({ ...previous, currentPassword: event.target.value }))} placeholder="Contraseña actual" className={`p-2 ${fieldClass}`}/><input type="password" minLength="8" value={passwords.newPassword} onChange={event => setPasswords(previous => ({ ...previous, newPassword: event.target.value }))} placeholder="Nueva contraseña" className={`p-2 ${fieldClass}`}/><button onClick={() => act(async () => { await sendJson('/api/auth/change-password', 'POST', passwords); setPasswords({ currentPassword: '', newPassword: '' }) }, 'Contraseña actualizada.')} className="rounded-lg bg-red-600 px-4 py-2 font-bold text-white">Actualizar</button></div></details>
+      {coderedUrl && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Tu cuenta, contraseña y permisos se administran en <a href={`${coderedUrl}/profile`} target="_blank" rel="noopener noreferrer" className="font-bold text-red-600 hover:underline">CodeRED Platform</a>.</p>}
 
-      {user.role !== 'admin' ? <>
+      {!user.canManage ? <>
         <div className="my-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat value={user.credits} label="Consultas disponibles" color="emerald" />
           <Stat value={user.queriesUsed} label="Consultas utilizadas" color="blue" />
@@ -138,13 +142,6 @@ const AdminContent = ({ users, requests, config, act, pagination, onPageChange }
   const [apiKey, setApiKey] = useState('')
   const [telegramBotToken, setTelegramBotToken] = useState('')
   const [telegramChatId, setTelegramChatId] = useState('')
-  const [resendApiKey, setResendApiKey] = useState('')
-  const [emailProvider, setEmailProvider] = useState(config.emailProvider || 'mailgun')
-  const [mailgunApiKey, setMailgunApiKey] = useState('')
-  const [mailgunDomain, setMailgunDomain] = useState(config.mailgunDomain || '')
-  const [mailgunRegion, setMailgunRegion] = useState(config.mailgunRegion || 'us')
-  const [emailFrom, setEmailFrom] = useState('')
-  const [googleClientId, setGoogleClientId] = useState('')
   const [packageForm, setPackageForm] = useState({ name: '', credits: 50, price: 10, validityDays: 30 })
   const [methodForm, setMethodForm] = useState({ name: '', instructions: '', imageData: '', imageName: '' })
   const selectMethodImage = async event => {
@@ -155,15 +152,14 @@ const AdminContent = ({ users, requests, config, act, pagination, onPageChange }
       window.alert(error.message)
     }
   }
-  const tabs = [['settings', 'Configuración'], ['email', 'Correo'], ['users', `Usuarios (${pagination.total})`], ['catalog', 'Planes y pagos'], ['purchases', 'Compras']]
+  const tabs = [['settings', 'Configuración'], ['users', `Usuarios (${pagination.total})`], ['catalog', 'Planes y pagos'], ['purchases', 'Compras']]
   return <div className="mt-6">
     <nav className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200 pb-2 dark:border-slate-700">{tabs.map(([value, label]) => <button key={value} onClick={() => setTab(value)} className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-bold ${tab === value ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}>{label}</button>)}</nav>
     {tab === 'settings' && <div className="space-y-8">
-      <section><h3 className="mb-3 text-lg font-black">API de consulta DNI</h3><div className="flex gap-2"><div className="relative flex-1"><KeyRound className="absolute left-3 top-3 text-slate-400" size={18}/><input type="password" value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder={config.hasApiKey ? 'API configurada; escribe para reemplazarla' : 'Clave API'} className={`w-full py-3 pl-10 ${fieldClass}`}/></div><button onClick={() => act(() => sendJson('/api/admin/config', 'PATCH', { apiKey }), 'API guardada.')} className="rounded-lg bg-red-600 px-5 font-bold text-white">Guardar</button></div></section>
+      <section><h3 className="mb-3 text-lg font-black">API de consulta DNI</h3><div className="flex gap-2"><div className="relative flex-1"><KeyRound className="absolute left-3 top-3 text-slate-400" size={18}/><input type="password" value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder={config.hasApiKey ? 'API configurada; escribe para reemplazarla' : 'Clave API'} className={`w-full py-3 pl-10 ${fieldClass}`}/></div><button onClick={() => act(() => sendJson('/api/admin/config', 'PATCH', { apiKey }), 'API guardada.')} className="rounded-lg bg-red-600 px-5 font-bold text-white">Guardar</button></div>{config.coderedDniBridge && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Actualmente las consultas se resuelven vía la API de CodeRED Platform; esta clave solo se usa como respaldo si esa integración no está disponible.</p>}</section>
       <section><h3 className="mb-3 text-lg font-black">Notificaciones de Telegram</h3><div className="grid gap-2 md:grid-cols-[1fr_220px_auto]"><input type="password" value={telegramBotToken} onChange={event => setTelegramBotToken(event.target.value)} placeholder={config.telegramConfigured ? 'Bot configurado; escribe para reemplazar el token' : 'Token del bot'} className={`p-3 ${fieldClass}`}/><input value={telegramChatId} onChange={event => setTelegramChatId(event.target.value)} placeholder={config.telegramChatId ? `Chat actual: ${config.telegramChatId}` : 'Chat ID'} className={`p-3 ${fieldClass}`}/><button onClick={() => act(() => sendJson('/api/admin/config', 'PATCH', { telegramBotToken, ...(telegramChatId.trim() && { telegramChatId }) }), 'Telegram guardado.')} className="rounded-lg bg-red-600 px-5 py-3 font-bold text-white">Guardar</button></div><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">El bot debe pertenecer al chat indicado para poder enviar los comprobantes.</p></section>
     </div>}
-    {tab === 'email' && <section className="space-y-5"><div><h3 className="flex items-center gap-2 text-lg font-black"><Mail size={19}/> Verificación por correo</h3><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Estado: {config.emailConfigured ? `Configurado con ${config.emailProvider === 'mailgun' ? 'Mailgun' : 'Resend'}` : 'Pendiente de configuración'}</p></div><div className="grid gap-3"><select value={emailProvider} onChange={event => setEmailProvider(event.target.value)} className={`p-3 ${fieldClass}`}><option value="mailgun">Mailgun</option><option value="resend">Resend</option></select>{emailProvider === 'mailgun' ? <><input type="password" value={mailgunApiKey} onChange={event => setMailgunApiKey(event.target.value)} placeholder={config.emailProvider === 'mailgun' && config.emailConfigured ? 'API Key configurada; escribe para reemplazarla' : 'API Key privada de Mailgun'} className={`p-3 ${fieldClass}`}/><input value={mailgunDomain} onChange={event => setMailgunDomain(event.target.value)} placeholder="Dominio de envío, por ejemplo mg.tudominio.com" className={`p-3 ${fieldClass}`}/><select value={mailgunRegion} onChange={event => setMailgunRegion(event.target.value)} className={`p-3 ${fieldClass}`}><option value="us">Región Estados Unidos</option><option value="eu">Región Europa</option></select></> : <input type="password" value={resendApiKey} onChange={event => setResendApiKey(event.target.value)} placeholder={config.emailProvider === 'resend' && config.emailConfigured ? 'API Key configurada; escribe para reemplazarla' : 'API Key de Resend'} className={`p-3 ${fieldClass}`}/>}<input value={emailFrom} onChange={event => setEmailFrom(event.target.value)} placeholder={config.emailFrom ? `Remitente actual: ${config.emailFrom}` : 'Declaración Jurada <registro@tu-dominio.com>'} className={`p-3 ${fieldClass}`}/><button onClick={() => act(() => sendJson('/api/admin/config', 'PATCH', { emailProvider, resendApiKey, mailgunApiKey, mailgunDomain, mailgunRegion, ...(emailFrom.trim() && { emailFrom }) }), 'Correo guardado.')} className="justify-self-start rounded-lg bg-red-600 px-5 py-3 font-bold text-white">Guardar correo</button></div><div className="rounded-xl bg-slate-100 p-4 text-sm leading-relaxed dark:bg-slate-800"><b>Configurar Mailgun</b><p className="mt-2">1. Agrega y verifica tu dominio de envío en Mailgun copiando sus registros DNS a Cloudflare.</p><p>2. Usa una API Key privada con permiso de envío y el dominio exacto mostrado por Mailgun.</p><p>3. Selecciona la región de tu cuenta: Estados Unidos o Europa.</p><p>4. El remitente debe pertenecer al dominio verificado. La clave se cifra antes de almacenarse.</p></div><div className="border-t pt-5 dark:border-slate-700"><h3 className="text-lg font-black">Acceso con Google</h3><p className="mb-3 text-sm text-slate-500 dark:text-slate-400">Crea un cliente OAuth 2.0 de tipo Aplicación web y registra el dominio de esta web como origen autorizado.</p><div className="flex gap-2"><input value={googleClientId} onChange={event => setGoogleClientId(event.target.value)} placeholder={config.googleClientId ? `Client ID actual: ${config.googleClientId}` : 'Client ID de Google'} className={`min-w-0 flex-1 p-3 ${fieldClass}`}/><button disabled={!googleClientId.trim()} onClick={() => act(() => sendJson('/api/admin/config', 'PATCH', { googleClientId }), 'Acceso con Google guardado.')} className="rounded-lg bg-red-600 px-5 font-bold text-white disabled:opacity-40">Guardar</button></div></div></section>}
-    {tab === 'users' && <section><h3 className="mb-3 text-lg font-black">Usuarios y consultas</h3><div className="space-y-3">{users.map(target => <AdminUser key={target.id} user={target} onAdd={values => act(() => sendJson(`/api/admin/users/${target.id}`, 'PATCH', values), 'Lote de consultas agregado.')} onRemove={values => act(() => sendJson(`/api/admin/users/${target.id}`, 'PATCH', values), 'Consultas retiradas.')}/>)}</div><Pagination {...pagination} onChange={onPageChange}/></section>}
+    {tab === 'users' && <section><h3 className="mb-3 text-lg font-black">Usuarios y consultas</h3><div className="space-y-3">{users.map(target => <AdminUser key={target.coderedUserId} user={target} onAdd={values => act(() => sendJson(`/api/admin/users/${target.coderedUserId}`, 'PATCH', values), 'Lote de consultas agregado.')} onRemove={values => act(() => sendJson(`/api/admin/users/${target.coderedUserId}`, 'PATCH', values), 'Consultas retiradas.')}/>)}</div><Pagination {...pagination} onChange={onPageChange}/></section>}
     {tab === 'catalog' && <div className="space-y-8">
       <section><h3 className="mb-3 text-lg font-black">Paquetes y precios</h3><div className="grid gap-2 md:grid-cols-5"><input placeholder="Nombre" value={packageForm.name} onChange={e=>setPackageForm({...packageForm,name:e.target.value})} className={`p-2 ${fieldClass}`}/><input type="number" value={packageForm.credits} onChange={e=>setPackageForm({...packageForm,credits:Number(e.target.value)})} className={`p-2 ${fieldClass}`}/><input type="number" step="0.01" value={packageForm.price} onChange={e=>setPackageForm({...packageForm,price:Number(e.target.value)})} className={`p-2 ${fieldClass}`}/><input type="number" value={packageForm.validityDays} onChange={e=>setPackageForm({...packageForm,validityDays:Number(e.target.value)})} className={`p-2 ${fieldClass}`}/><button onClick={()=>act(()=>sendJson('/api/admin/packages','POST',packageForm),'Paquete creado.')} className="rounded bg-slate-900 p-2 font-bold text-white dark:bg-red-600">Agregar</button></div><Catalog items={config.packages} type="packages" act={act}/></section>
       <section><h3 className="mb-3 text-lg font-black">Métodos de pago</h3><div className="grid gap-2 md:grid-cols-[180px_1fr_220px_auto]"><input placeholder="Yape, Plin, transferencia..." value={methodForm.name} onChange={e=>setMethodForm({...methodForm,name:e.target.value})} className={`p-2 ${fieldClass}`}/><textarea placeholder="Número, banco e instrucciones" value={methodForm.instructions} onChange={e=>setMethodForm({...methodForm,instructions:e.target.value})} className={`p-2 ${fieldClass}`}/><div><input type="file" accept="image/png,image/jpeg,image/webp" onChange={selectMethodImage} className={`w-full p-2 text-xs ${fieldClass}`}/>{methodForm.imageData && <img src={methodForm.imageData} alt="Vista previa del método" className="mt-2 h-20 w-full rounded object-contain"/>}</div><button onClick={()=>act(()=>sendJson('/api/admin/payment-methods','POST',methodForm),'Método creado.')} className="rounded bg-slate-900 p-2 font-bold text-white dark:bg-red-600">Agregar</button></div><Catalog items={config.methods} type="payment-methods" act={act}/></section>

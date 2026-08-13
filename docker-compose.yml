@@ -219,21 +219,36 @@ services:
     restart: unless-stopped
     environment:
       PORT: 3000
-      ADMIN_EMAIL: ${DECLARACION_JURADA_ADMIN_EMAIL:-}
-      ADMIN_PASSWORD: ${DECLARACION_JURADA_ADMIN_PASSWORD:-}
+      # Cifra la clave del proveedor DNI y credenciales de Telegram/correo
+      # guardadas en el panel (config propia de Declaración Jurada, no
+      # identidad de usuario). Ya no existe un admin local propio: el
+      # acceso y el rol administrador se resuelven contra CodeRED Platform
+      # (declaracion-jurada.view / declaracion-jurada.manage).
       APP_ENCRYPTION_KEY: ${DECLARACION_JURADA_ENCRYPTION_KEY:-}
       DATABASE_PATH: /app/.data/declaracion-jurada.db
       COOKIE_SECURE: ${DECLARACION_JURADA_COOKIE_SECURE:-true}
       DNI_API_URL: ${DECLARACION_JURADA_DNI_API_URL:-https://api.perudevs.com/api/v1/dni/simple}
       # Interconectividad con CodeRED Platform (ver docker/nginx/default.conf
-      # y CLAUDE.md para el resto de la infraestructura compartida):
-      CODERED_API_URL: ${APP_URL}
+      # y CLAUDE.md para el resto de la infraestructura compartida). Usa el
+      # nombre del servicio "nginx" en la red interna de Docker, NO
+      # ${APP_URL} (público): resolver ese dominio saldría por el Cloudflare
+      # Tunnel y volvería a entrar por el mismo túnel, duplicando latencia
+      # y arriesgando timeouts — comprobado en producción con un 499/502.
+      CODERED_API_URL: http://nginx
       CODERED_API_TOKEN: ${DECLARACION_JURADA_CODERED_API_TOKEN:-}
+      # URL pública (para el navegador, a diferencia de CODERED_API_URL que
+      # es interna a Docker): usada solo para el enlace "Administra tu
+      # cuenta en CodeRED Platform" del frontend.
+      CODERED_PUBLIC_URL: ${APP_URL}
       CODERED_DB_HOST: ${DB_HOST:-postgres}
       CODERED_DB_PORT: ${DB_PORT:-5432}
       CODERED_DB_DATABASE: ${DB_DATABASE}
-      CODERED_DB_USERNAME: ${DB_USERNAME}
-      CODERED_DB_PASSWORD: ${DB_PASSWORD}
+      # Rol de solo lectura dedicado (creado por la migración
+      # 2026_08_13_000001_create_declaracion_jurada_readonly_role), NO las
+      # credenciales completas de la app: solo puede hacer SELECT sobre
+      # users/roles/permissions/role_user/permission_role.
+      CODERED_DB_USERNAME: declaracion_jurada_ro
+      CODERED_DB_PASSWORD: ${DECLARACION_JURADA_DB_PASSWORD}
     volumes:
       - declaracion-jurada-data:/app/.data
     expose:
