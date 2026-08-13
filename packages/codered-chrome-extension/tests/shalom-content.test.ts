@@ -228,7 +228,7 @@ describe('Shalom Control DOM integration', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(panel.style.left).toBe('auto');
     expect(panel.style.right).toBe('0px');
-    expect(panel.style.transform).toBe('translateX(96px)');
+    expect(panel.style.transform).toBe('translateX(146px)');
   });
 
   it('corrects right viewport overflow and recalculates on resize without duplicate listeners', async () => {
@@ -247,13 +247,13 @@ describe('Shalom Control DOM integration', () => {
     await new Promise((resolve) => setTimeout(resolve, 180));
     positionResultsPanel(container, panel);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(panel.style.transform).toBe('translateX(-316px)');
+    expect(panel.style.transform).toBe('translateX(-266px)');
     expect(addEventSpy.mock.calls.filter(([type]) => type === 'resize')).toHaveLength(1);
 
     panel.style.transform = 'none';
     window.dispatchEvent(new Event('resize'));
     await new Promise((resolve) => setTimeout(resolve, 130));
-    expect(panel.style.transform).toBe('translateX(-316px)');
+    expect(panel.style.transform).toBe('translateX(-266px)');
   });
 
   it('keeps responsive panel columns at desktop, tablet, and mobile breakpoints', async () => {

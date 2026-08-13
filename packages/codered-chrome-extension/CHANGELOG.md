@@ -44,6 +44,12 @@
 
 ## Unreleased
 
+## 2.3.8 - 2026-08-13
+
+### Changed
+
+- Desplaza ligeramente hacia la derecha el panel de resultados para mejorar el encuadre visual en `service-order`.
+
 ## 2.3.7 - 2026-08-13
 
 ### Changed

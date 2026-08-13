@@ -22,6 +22,7 @@ const RESULTS_PANEL_CLASS = 'codered-results-panel';
 const RESULTS_GRID_CLASS = 'codered-results-grid';
 const CHANNEL_BADGE_CLASS = 'codered-channel-badge';
 const MESSAGE_CLASS = 'codered-search-message';
+const RESULTS_PANEL_DESKTOP_SHIFT_PX = 50;
 const DEFAULT_ALLOWED_DOMAINS = ['shalomcontrol.com'];
 const CATALOG_STORAGE_KEYS = new Set(['agencies', 'agencyCache', 'catalog', 'catalogVersion', 'syncMetadata', 'codered_agency_catalog', 'codered_catalog_version', 'codered_sync_metadata', 'codered_last_sync_at', 'codered_last_sync_status']);
 const HISTORY_PATCH_FLAG = '__coderedShalomHistoryPatched__';
@@ -696,7 +697,8 @@ export function positionResultsPanel(container: HTMLElement | null, panel: HTMLE
     let correction = 0;
     if (rect.left < viewportPadding) correction += viewportPadding - rect.left;
     if (rect.right > window.innerWidth - viewportPadding) correction -= rect.right - (window.innerWidth - viewportPadding);
-    panel.style.transform = correction === 0 ? 'none' : `translateX(${correction}px)`;
+    const shift = correction + RESULTS_PANEL_DESKTOP_SHIFT_PX;
+    panel.style.transform = shift === 0 ? 'none' : `translateX(${shift}px)`;
   });
 }
 
