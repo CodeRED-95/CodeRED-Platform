@@ -1,26 +1,36 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { 
-  Trash2, 
-  Download, 
-  Search, 
-  User, 
-  MapPin, 
-  Package, 
+import {
+  Trash2,
+  Download,
+  Search,
+  User,
+  MapPin,
+  Package,
   ShieldCheck,
   X,
   Sun,
   Moon,
   Image as ImageIcon,
   Layout,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
+  ExternalLink,
+  Eye,
   LogOut,
   Settings,
-  CircleHelp
+  CircleHelp,
+  AlertTriangle
 } from 'lucide-react';
 import AuthScreen from './AuthScreen.jsx';
 import AccountPanel from './AccountPanel.jsx';
+import { buildDeclaracionPdf } from './pdf/buildDeclaracionPdf.js';
+
+// Mínimo de filas en blanco en la tabla "DECLARO ENVIAR LO SIGUIENTE" —
+// antes era 10 fijo (una tabla casi vacía incluso con 1-2 bienes reales);
+// 3 coincide con las filas iniciales del formulario y evita el vacío
+// excesivo sin dejar de dar espacio para completar a mano si hace falta.
+const MIN_TABLE_ROWS = 3;
+// Espera tras la última tecla antes de regenerar la vista previa — evita
+// reconstruir el PDF en cada pulsación.
+const PREVIEW_DEBOUNCE_MS = 500;
 
 const createInitialForm = () => ({
   remitenteDni: '',
@@ -76,19 +86,21 @@ const App = () => {
   const [agencias, setAgencias] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [previewZoom, setPreviewZoom] = useState(1);
-  const [isPreviewDragging, setIsPreviewDragging] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [previewError, setPreviewError] = useState('');
+  const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
   const [dniLookupStatus, setDniLookupStatus] = useState({
     remitente: { status: 'idle', message: '' },
     destinatario: { status: 'idle', message: '' }
   });
   const [dniLookupEnabled, setDniLookupEnabled] = useState({ remitente: false, destinatario: false });
-  const previewViewportRef = useRef(null);
-  const previewDragRef = useRef(null);
+  const previewUrlRef = useRef(null);
+  const isGeneratingRef = useRef(false);
   const [form, setForm] = useState(createInitialForm);
-  const isLandscape = includeDniPhoto;
   const documentItems = useMemo(() => Array.from(
-    { length: Math.max(10, form.items.length) },
+    { length: Math.max(MIN_TABLE_ROWS, form.items.length) },
     (_, index) => form.items[index] || { cantidad: '', descripcion: '' }
   ), [form.items]);
 
@@ -294,42 +306,40 @@ const App = () => {
     setIncludeDniPhoto(val);
   }, []);
 
-  const handlePreviewPointerDown = useCallback((event) => {
-    if (event.button !== 0) return;
-    const viewport = previewViewportRef.current;
-    if (!viewport) return;
+  // Vista previa = el mismo PDF que se descarga. Se reconstruye (con
+  // debounce) cada vez que cambian los datos que afectan al documento, en
+  // vez de mantener una maqueta HTML aparte que podía desincronizarse del
+  // archivo real.
+  useEffect(() => {
+    let cancelled = false;
+    setPreviewLoading(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const doc = await buildDeclaracionPdf({ form, documentItems, includeDniPhoto, dniPhoto });
+        if (cancelled) return;
+        const blobUrl = doc.output('bloburl').toString();
+        if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = blobUrl;
+        setPreviewUrl(blobUrl);
+        setPreviewError('');
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Error al generar la vista previa:', error);
+        setPreviewError('No se pudo generar la vista previa. Verifica los datos ingresados.');
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    }, PREVIEW_DEBOUNCE_MS);
 
-    event.preventDefault();
-    previewDragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      scrollLeft: viewport.scrollLeft,
-      scrollTop: viewport.scrollTop
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
     };
-    viewport.setPointerCapture(event.pointerId);
-    setIsPreviewDragging(true);
-  }, []);
+  }, [form, documentItems, includeDniPhoto, dniPhoto]);
 
-  const handlePreviewPointerMove = useCallback((event) => {
-    const viewport = previewViewportRef.current;
-    const drag = previewDragRef.current;
-    if (!viewport || !drag || drag.pointerId !== event.pointerId) return;
-
-    viewport.scrollLeft = drag.scrollLeft - (event.clientX - drag.startX);
-    viewport.scrollTop = drag.scrollTop - (event.clientY - drag.startY);
-  }, []);
-
-  const stopPreviewDragging = useCallback((event) => {
-    const viewport = previewViewportRef.current;
-    const drag = previewDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-
-    if (viewport?.hasPointerCapture(event.pointerId)) {
-      viewport.releasePointerCapture(event.pointerId);
-    }
-    previewDragRef.current = null;
-    setIsPreviewDragging(false);
+  // Revoca el último blob URL al desmontar, para no dejar memoria retenida.
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
   }, []);
 
   const logout = useCallback(async () => {
@@ -339,260 +349,21 @@ const App = () => {
   }, []);
 
   const generarPDF = useCallback(async () => {
+    if (isGeneratingRef.current) return;
+    isGeneratingRef.current = true;
     setLoading(true);
+    setDownloadError('');
     try {
-      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable')
-      ]);
-      const doc = new jsPDF({
-        orientation: isLandscape ? 'l' : 'p',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const layoutScale = isLandscape ? 0.84 : 1;
-      const margin = isLandscape ? 10 : 12;
-
-      // Calcular anchos basados en si es horizontal y si lleva foto
-      const colWidth = isLandscape ? (pageWidth / 2) - (margin * 2) : pageWidth - (margin * 2);
-
-      const writeFullyJustifiedText = (text, x, y, width, lineHeightFactor = 1.2) => {
-        const lines = doc.splitTextToSize(text, width);
-        const lineHeight = doc.getFontSize() * 0.3528 * lineHeightFactor;
-
-        lines.forEach((line, index) => {
-          const words = line.trim().split(/\s+/);
-          const wordsWidth = words.reduce((total, word) => total + doc.getTextWidth(word), 0);
-          const wordGap = words.length > 1 ? Math.max(0, (width - wordsWidth) / (words.length - 1)) : 0;
-          let cursorX = x;
-
-          words.forEach(word => {
-            doc.text(word, cursorX, y + (index * lineHeight));
-            cursorX += doc.getTextWidth(word) + wordGap;
-          });
-        });
-
-        return lines;
-      };
-
-      const writeFullyJustifiedSegments = (segments, x, y, width, lineHeightFactor = 1.2) => {
-        const tokens = segments.flatMap(({ text, style }) =>
-          text.trim().split(/\s+/).map(token => ({ text: token, style }))
-        );
-        const lines = [];
-        let currentLine = [];
-        let currentWidth = 0;
-        doc.setFont('helvetica', 'normal');
-        const minimumSpace = doc.getTextWidth(' ');
-
-        tokens.forEach(token => {
-          doc.setFont('helvetica', token.style);
-          const tokenWidth = doc.getTextWidth(token.text);
-          const nextWidth = currentWidth + (currentLine.length ? minimumSpace : 0) + tokenWidth;
-
-          if (currentLine.length && nextWidth > width) {
-            lines.push(currentLine);
-            currentLine = [];
-            currentWidth = 0;
-          }
-
-          currentLine.push({ ...token, width: tokenWidth });
-          currentWidth += (currentLine.length > 1 ? minimumSpace : 0) + tokenWidth;
-        });
-
-        if (currentLine.length) lines.push(currentLine);
-
-        const lineHeight = doc.getFontSize() * 0.3528 * lineHeightFactor;
-        lines.forEach((line, lineIndex) => {
-          const wordsWidth = line.reduce((total, token) => total + token.width, 0);
-          const wordGap = line.length > 1
-            ? Math.max(0, (width - wordsWidth) / (line.length - 1))
-            : 0;
-          let cursorX = x;
-
-          line.forEach(token => {
-            doc.setFont('helvetica', token.style);
-            doc.text(token.text, cursorX, y + (lineIndex * lineHeight));
-            cursorX += token.width + wordGap;
-          });
-        });
-
-        doc.setFont('helvetica', 'normal');
-        return lines;
-      };
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5 * layoutScale);
-      const title = 'DECLARACIÓN JURADA SIMPLE PARA TRASLADO DE BIENES - USO PERSONAL';
-      const titleCenterX = margin + (colWidth / 2);
-      const titleY = isLandscape ? 11 : 13;
-      doc.text(title, titleCenterX, titleY, { align: 'center' });
-      doc.line(titleCenterX - (doc.getTextWidth(title) / 2), titleY + 0.7, titleCenterX + (doc.getTextWidth(title) / 2), titleY + 0.7);
-
-      let currentY = isLandscape ? 16 : 20;
-
-      // Sección 1: Remitente
-      doc.setFontSize(9.5 * layoutScale);
-      doc.setFont("helvetica", "normal");
-      const introRemitente = "Por el presente documento de carácter, de declaración jurada YO";
-      writeFullyJustifiedText(introRemitente, margin, currentY, colWidth);
-      currentY += 6 * layoutScale;
-
-      doc.setFont("helvetica", "bold");
-      const nombreRemitente = (form.remitenteNombre || '____________________________________________________').toUpperCase();
-      doc.text(nombreRemitente, titleCenterX, currentY, { align: 'center', maxWidth: colWidth });
-      doc.line(margin, currentY + 1, margin + colWidth, currentY + 1);
-      currentY += 6 * layoutScale;
-
-      writeFullyJustifiedSegments([
-        { text: 'identificado con documento de identificación ', style: 'normal' },
-        { text: '(DNI, CARNET DE EXTRANJERÍA)', style: 'bold' },
-        { text: ` ${form.remitenteDni || '____________________'}`, style: 'normal' }
-      ], margin, currentY, colWidth, 1.1);
-      currentY += 6 * layoutScale;
-      doc.setFont('helvetica', 'normal');
-      doc.text('con Teléfono', margin, currentY);
-      doc.text(form.remitenteTelefono || '', margin + 28, currentY);
-      doc.line(margin + 27, currentY + 1, margin + 78, currentY + 1);
-      currentY += 11 * layoutScale;
-
-      // Sección 2: Destinatario
-      doc.setFont("helvetica", "bold");
-      doc.text("DECLARO BAJO JURAMENTO", margin, currentY);
-      currentY += 9 * layoutScale;
-
-      doc.setFont("helvetica", "normal");
-      const date = new Date();
-      const formattedDate = date.toLocaleDateString('es-PE', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
-      const destIntroLines = writeFullyJustifiedSegments([
-        { text: `Fecha ${formattedDate} autorizo el traslado de mis bienes a través de la `, style: 'normal' },
-        { text: 'EMPRESA DE TRANSPORTE SHALOM EMPRESARIAL S.A.C con RUC: 20512528458', style: 'bold' },
-        { text: ', para el', style: 'normal' }
-      ], margin, currentY, colWidth, 1.15);
-      currentY += ((destIntroLines.length * 5) + 2) * layoutScale;
-
-      doc.setFont("helvetica", "bold");
-      const nombreDest = (form.destinatarioNombre || '____________________________________________________').toUpperCase();
-      const srTexto = `Señor(a): ${nombreDest}`;
-      doc.text(srTexto, margin, currentY);
-      const srPrefixWidth = doc.getTextWidth("Señor(a): ");
-      const destNameWidth = doc.getTextWidth(nombreDest);
-      doc.line(margin + srPrefixWidth, currentY + 0.5, margin + srPrefixWidth + destNameWidth, currentY + 0.5);
-      currentY += 6 * layoutScale;
-
-      doc.setFont("helvetica", "normal");
-      doc.text('con DNI N°', margin, currentY);
-      doc.text(form.destinatarioDni || '', margin + 28, currentY);
-      doc.line(margin + 26, currentY + 1, margin + (colWidth * 0.5), currentY + 1);
-      const recipientMidX = margin + (colWidth * 0.55);
-      doc.text('con teléfono', recipientMidX, currentY);
-      doc.text(form.destinatarioTelefono || '', recipientMidX + (28 * layoutScale), currentY);
-      doc.line(recipientMidX + (26 * layoutScale), currentY + 1, margin + colWidth, currentY + 1);
-      currentY += 6 * layoutScale;
-      doc.text('y para la oficina de', margin, currentY);
-      doc.setFont('helvetica', 'bold');
-      doc.text((form.sedeDestino || '').toUpperCase(), margin + 42, currentY, { maxWidth: colWidth - 42 });
-      doc.line(margin + 40, currentY + 1, margin + colWidth, currentY + 1);
-      currentY += 11 * layoutScale;
-
-      // Sección 3: Tabla de Contenido
-      doc.setFont("helvetica", "bold");
-      doc.text("DECLARO ENVIAR LO SIGUIENTE:", margin, currentY - 2);
-      
-      autoTable(doc, {
-        startY: currentY,
-        margin: { left: margin },
-        tableWidth: colWidth,
-        head: [['CANT.', 'DESCRIPCIÓN DE LOS BIENES']],
-        body: [
-          ...documentItems.map(i => [i.cantidad, i.descripcion]),
-          ['', `MOTIVO DEL ENVÍO: ${(form.motivoEnvio || '').toUpperCase()}`]
-        ],
-        theme: 'grid',
-        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontSize: 8.5 * layoutScale, fontStyle: 'bold', halign: 'center', cellPadding: layoutScale },
-        styles: { fontSize: 8 * layoutScale, cellPadding: layoutScale, minCellHeight: 5.2 * layoutScale, textColor: [0, 0, 0], valign: 'middle', lineColor: [0, 0, 0], lineWidth: 0.2 },
-        columnStyles: { 0: { cellWidth: 27 * layoutScale, halign: 'center' } },
-        didParseCell: data => {
-          if (data.section === 'body' && data.row.index === documentItems.length) data.cell.styles.fontStyle = 'bold';
-        }
-      });
-
-      let finalY = doc.lastAutoTable.finalY + (7 * layoutScale);
-
-      // Declaración Jurada (Texto Legal)
-      doc.setFontSize(8.5 * layoutScale);
-      doc.setFont("helvetica", "normal");
-      const legalText = 'Así mismo, declaro bajo juramento que los presentes datos obedecen a la verdad, sometiéndome a las sanciones administrativas, civiles y penales que correspondan en caso de falsedad de los mismos, de acuerdo con lo regulado por la';
-      const legalLines = writeFullyJustifiedText(legalText, margin, finalY, colWidth, 1.15);
-      finalY += ((legalLines.length * 4) + 1) * layoutScale;
-      doc.setFont('helvetica', 'bold');
-      doc.text('Ley N° 27444 - Ley del Procedimiento Administrativo General.', margin, finalY);
-      finalY += 6 * layoutScale;
-      doc.setFont('helvetica', 'normal');
-      const conformityText = 'Para mayor constancia y validez en cumplimiento de lo indicado, en señal de conformidad firmo esta declaración y coloco mi huella digital para los fines pertinentes.';
-      const conformityLines = writeFullyJustifiedText(conformityText, margin, finalY, colWidth, 1.15);
-      finalY += ((conformityLines.length * 4) + 8) * layoutScale;
-
-      // SECCIÓN DE FIRMA Y HUELLA (Dinámica para evitar solapamiento)
-      let signatureY = finalY + (7 * layoutScale);
-
-      doc.setFontSize(8.5 * layoutScale);
-      doc.setFont("helvetica", "normal");
-      doc.line(margin + (colWidth * 0.4), signatureY, margin + (colWidth * 0.55), signatureY);
-      doc.text(String(date.getDate()).padStart(2, '0'), margin + (colWidth * 0.475), signatureY - 1, { align: 'center' });
-      doc.text('de', margin + (colWidth * 0.61), signatureY);
-      doc.line(margin + (colWidth * 0.69), signatureY, margin + (colWidth * 0.83), signatureY);
-      doc.text(date.toLocaleString('es-PE', { month: 'long' }), margin + (colWidth * 0.76), signatureY - 1, { align: 'center' });
-      doc.text(`del ${date.getFullYear()}`, margin + (colWidth * 0.86), signatureY);
-
-      const labels = ['Firma:', 'Nombres:', 'N° Documento:'];
-      labels.forEach((label, index) => {
-        const y = signatureY + ((18 + (index * 7)) * layoutScale);
-        doc.text(label, margin, y);
-        const value = index === 1 ? form.remitenteNombre : index === 2 ? form.remitenteDni : '';
-        doc.text((value || '').toUpperCase(), margin + (28 * layoutScale), y - 1, { maxWidth: colWidth * 0.5 });
-        doc.line(margin + (27 * layoutScale), y + 1, margin + (colWidth * 0.6), y + 1);
-      });
-
-      const huellaWidth = 30 * layoutScale;
-      const huellaHeight = 35 * layoutScale;
-      const huellaX = margin + colWidth - huellaWidth - (5 * layoutScale);
-      doc.rect(huellaX, signatureY + (7 * layoutScale), huellaWidth, huellaHeight);
-
-      // --- INCLUSIÓN DE FOTO DNI ---
-      if (includeDniPhoto) {
-        if (dniPhoto) {
-          try {
-            const imgProps = doc.getImageProperties(dniPhoto);
-            const photoAreaX = pageWidth / 2 + 8;
-            const maxImgW = pageWidth / 2 - 16;
-            const maxImgH = pageHeight - 24;
-            const scale = Math.min(maxImgW / imgProps.width, maxImgH / imgProps.height);
-            const imgW = imgProps.width * scale;
-            const imgH = imgProps.height * scale;
-            const imgX = photoAreaX + ((maxImgW - imgW) / 2);
-            const imgY = (pageHeight - imgH) / 2;
-            doc.addImage(dniPhoto, imgProps.fileType, imgX, imgY, imgW, imgH);
-          } catch (e) { console.error("Error al añadir imagen", e); }
-        }
-      }
-
+      const doc = await buildDeclaracionPdf({ form, documentItems, includeDniPhoto, dniPhoto });
       doc.save(`DJ_SHALOM_${form.remitenteDni || 'MANUAL'}.pdf`);
     } catch (error) {
-      console.error("Error al generar el PDF:", error);
-      alert("Ocurrió un error al generar el PDF. Por favor, revisa la consola para más detalles.");
+      console.error('Error al generar el PDF:', error);
+      setDownloadError('Ocurrió un error al generar el documento. Verifica los datos e intenta nuevamente.');
     } finally {
       setLoading(false);
+      isGeneratingRef.current = false;
     }
-  }, [form, documentItems, includeDniPhoto, isLandscape, dniPhoto]);
+  }, [form, documentItems, includeDniPhoto, dniPhoto]);
 
   if (sessionLoading) {
     return <div className="min-h-screen grid place-items-center bg-slate-950 text-white font-bold">Cargando...</div>;
@@ -617,6 +388,15 @@ const App = () => {
             </div>
           </div>
           <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setIsMobilePreviewOpen(true)}
+              className="flex items-center gap-1.5 px-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-xs font-bold lg:hidden"
+              title="Vista previa"
+              aria-label="Ver vista previa del documento"
+            >
+              <Eye size={16} />
+            </button>
             <button
               type="button"
               onClick={() => setIsAccountOpen(true)}
@@ -786,7 +566,13 @@ const App = () => {
           </section>
         </main>
 
-        <footer className="p-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 transition-colors">
+        <footer className="p-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 transition-colors space-y-2">
+          {downloadError && (
+            <div className="flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-medium p-2.5" role="alert">
+              <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+              <span>{downloadError}</span>
+            </div>
+          )}
           <button type="button" onClick={generarPDF} disabled={loading} className="w-full bg-[#e31837] text-white py-4 rounded-xl font-black flex items-center justify-center gap-3 shadow-lg shadow-red-200 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed">
             {loading ? <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" /> : <Download size={20} />}
             {loading ? 'GENERANDO...' : 'GENERAR PDF OFICIAL'}
@@ -794,149 +580,103 @@ const App = () => {
         </footer>
       </aside>
 
-      {/* PREVISUALIZACIÓN EN TIEMPO REAL (DERECHA) */}
-      <section className="relative flex-1 bg-slate-200/30 dark:bg-slate-950 hidden lg:block overflow-hidden h-screen transition-colors">
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 p-1.5 shadow-lg backdrop-blur">
+      {/* PREVISUALIZACIÓN REAL DEL PDF (DERECHA) */}
+      <section className="relative flex-1 bg-slate-200/30 dark:bg-slate-950 hidden lg:flex lg:flex-col overflow-hidden h-screen transition-colors">
+        <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur">
+          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+            <Eye size={16} />
+            <span className="text-xs font-bold uppercase tracking-wide">Vista previa del PDF</span>
+          </div>
           <button
             type="button"
-            onClick={() => setPreviewZoom(value => Math.max(0.5, Number((value - 0.1).toFixed(1))))}
-            disabled={previewZoom <= 0.5}
-            className="p-2 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Alejar"
-            aria-label="Alejar vista previa"
+            onClick={() => previewUrl && window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+            disabled={!previewUrl}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="Abrir en una pestaña nueva"
           >
-            <ZoomOut size={17} />
-          </button>
-          <span className="w-12 text-center text-xs font-bold text-slate-700 dark:text-slate-200" aria-live="polite">
-            {Math.round(previewZoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => setPreviewZoom(1)}
-            className="p-2 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-            title="Restablecer zoom"
-            aria-label="Restablecer zoom al 100%"
-          >
-            <RotateCcw size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreviewZoom(value => Math.min(1.6, Number((value + 0.1).toFixed(1))))}
-            disabled={previewZoom >= 1.6}
-            className="p-2 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Acercar"
-            aria-label="Acercar vista previa"
-          >
-            <ZoomIn size={17} />
+            <ExternalLink size={14} /> Ampliar en pestaña nueva
           </button>
         </div>
 
-        <div
-          ref={previewViewportRef}
-          onPointerDown={handlePreviewPointerDown}
-          onPointerMove={handlePreviewPointerMove}
-          onPointerUp={stopPreviewDragging}
-          onPointerCancel={stopPreviewDragging}
-          className={`absolute inset-0 overflow-auto p-8 select-none ${isPreviewDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-          style={{ touchAction: 'none' }}
-        >
-        <div
-          className={`bg-white shadow-2xl flex shrink-0 mx-auto my-8 transition-all relative origin-top border border-slate-200 text-black ${includeDniPhoto ? 'w-[842px] min-h-[595px] flex-row p-4 scale-[0.78] xl:scale-[0.9]' : 'w-[595px] min-h-[842px] flex-col px-5 py-4 scale-[0.82] xl:scale-[0.96]'}`}
-          style={{ zoom: previewZoom }}
-        > {/* Contenedor del documento */}
-          <div className={includeDniPhoto ? 'w-1/2 overflow-hidden' : 'w-full'}>
-          <div className="flex flex-col origin-top-left" style={includeDniPhoto ? { width: '119.05%', transform: 'scale(0.84)' } : undefined}>
-          {/* Header Preview */}
-          <div className="flex justify-center items-center mb-1">
-            <div className="text-center">
-              <h3 className="font-bold text-[12px] uppercase text-black leading-tight underline">DECLARACIÓN JURADA SIMPLE PARA TRASLADO DE BIENES - USO PERSONAL</h3>
+        <div className="relative flex-1 overflow-hidden">
+          {previewError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-8 text-center">
+              <AlertTriangle size={28} className="text-red-500" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{previewError}</p>
             </div>
-          </div>
+          ) : previewUrl ? (
+            <iframe
+              key={previewUrl}
+              src={previewUrl}
+              title="Vista previa de la Declaración Jurada"
+              className="absolute inset-0 w-full h-full border-0 bg-slate-100 dark:bg-slate-900"
+            />
+          ) : null}
 
-          {/* Content Preview */}
-          <div className="space-y-3 text-[10px] leading-[1.15] text-black flex-1">
-            <div>
-              <p className="fully-justified">Por el presente documento de Carácter, de declaración jurada YO</p>
-              <p className="h-4 border-b border-black text-center font-bold uppercase">{form.remitenteNombre}</p>
-              <p className="fully-justified mt-1">
-                identificado con documento de identificación <span className="font-bold">(DNI, CARNET DE EXTRANJERÍA)</span>
-                <span className="inline-block min-w-36 border-b border-black text-center font-bold">{form.remitenteDni}</span>
-              </p>
-              <p>con Teléfono <span className="inline-block min-w-36 border-b border-black text-center">{form.remitenteTelefono}</span></p>
-            </div>
-
-            <div>
-              <p className="font-bold text-[11px] mb-3">DECLARO BAJO JURAMENTO</p>
-              <p className="fully-justified">
-                Fecha <span className="inline-block w-28 border-b border-black text-center font-bold">{new Date().toLocaleDateString('es-PE')}</span> autorizo el traslado de mis bienes a través de la
-                <span className="font-bold"> EMPRESA DE TRANSPORTE SHALOM EMPRESARIAL S.A.C con RUC: 20512528458</span>, para el
-              </p>
-              <p>Señor(a) <span className="inline-block w-[82%] border-b border-black text-center font-bold uppercase">{form.destinatarioNombre}</span></p>
-              <div className="flex gap-5">
-                <p className="flex-1">con DNI N° <span className="inline-block w-[65%] border-b border-black text-center">{form.destinatarioDni}</span></p>
-                <p className="flex-1">con teléfono <span className="inline-block w-[65%] border-b border-black text-center">{form.destinatarioTelefono}</span></p>
-              </div>
-              <p>y para la oficina de <span className="inline-block w-[78%] border-b border-black text-center font-bold uppercase">{form.sedeDestino}</span></p>
-            </div>
-
-            <p className="font-bold text-[11px]">DECLARO ENVIAR LO SIGUIENTE:</p>
-            <table className="w-full border-collapse border border-black text-[9px]">
-              <thead>
-                <tr>
-                  <th className="border border-black px-1 h-5 w-[76px]">CANTIDAD</th>
-                  <th className="border border-black px-1 h-5">DESCRIPCIÓN</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documentItems.map((item, index) => (
-                  <tr key={index}>
-                    <td className="border border-black px-1 text-center h-4">{item.cantidad}</td>
-                    <td className="border border-black px-1 h-4">{item.descripcion}</td>
-                  </tr>
-                ))}
-                <tr>
-                  <td className="border border-black h-5"></td>
-                  <td className="border border-black px-1 h-5 font-bold">MOTIVO DEL ENVÍO: {form.motivoEnvio}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div className="space-y-3 text-[9px]">
-              <p className="fully-justified">
-                Así mismo, declaro bajo juramento que los presentes datos obedecen a la verdad, sometiéndome a las sanciones administrativas, civiles y penales que correspondan en caso de falsedad de los mismos, de acuerdo con lo regulado por la <span className="font-bold">Ley N° 27444 - Ley del Procedimiento Administrativo General.</span>
-              </p>
-              <p className="fully-justified">
-                Para mayor constancia y validez en cumplimiento de lo indicado, en señal de conformidad firmo esta declaración y coloco mi huella digital para los fines pertinentes.
-              </p>
-            </div>
-
-            <div className="flex justify-center items-end gap-3 pt-2 text-[9px]">
-              <span className="inline-block w-20 border-b border-black text-center">{String(new Date().getDate()).padStart(2, '0')}</span>
-              <span>de</span>
-              <span className="inline-block w-20 border-b border-black text-center">{new Date().toLocaleString('es-PE', { month: 'long' })}</span>
-              <span>del {new Date().getFullYear()}</span>
-            </div>
-
-            <div className="flex justify-between items-end pt-1 text-[9px]">
-              <div className="w-[55%] space-y-1.5">
-                <p>Firma: <span className="inline-block w-[78%] border-b border-black"></span></p>
-                <p>Nombres: <span className="inline-block w-[72%] border-b border-black text-center uppercase">{form.remitenteNombre}</span></p>
-                <p>N° Documento: <span className="inline-block w-[61%] border-b border-black text-center">{form.remitenteDni}</span></p>
-              </div>
-              <div className="w-[86px] h-[100px] border border-black"></div>
-            </div>
-          </div>
-          </div>
-          </div>
-
-          {includeDniPhoto && (
-            <div className="w-1/2 flex items-center justify-center overflow-hidden">
-              {dniPhoto && <img src={dniPhoto} className="max-w-full max-h-[92%] object-contain" alt="DNI adjunto" />}
+          {previewLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/70 dark:bg-slate-950/70 backdrop-blur-sm">
+              <div className="w-8 h-8 border-3 border-slate-300 dark:border-slate-700 border-t-[#e31837] rounded-full animate-spin" />
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Generando vista previa...</p>
             </div>
           )}
         </div>
-        </div>
       </section>
+
+      {/* VISTA PREVIA MÓVIL/TABLET (MODAL) */}
+      {isMobilePreviewOpen && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-slate-900/60 backdrop-blur-sm lg:hidden animate-in fade-in duration-200">
+          <div className="flex-shrink-0 flex items-center justify-between gap-2 px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+              <Eye size={16} />
+              <span className="text-xs font-bold uppercase tracking-wide">Vista previa</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => previewUrl && window.open(previewUrl, '_blank', 'noopener,noreferrer')}
+                disabled={!previewUrl}
+                className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Abrir en una pestaña nueva"
+                aria-label="Abrir vista previa en una pestaña nueva"
+              >
+                <ExternalLink size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMobilePreviewOpen(false)}
+                className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                title="Cerrar"
+                aria-label="Cerrar vista previa"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative flex-1 bg-white dark:bg-slate-950 overflow-hidden">
+            {previewError ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-8 text-center">
+                <AlertTriangle size={28} className="text-red-500" />
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{previewError}</p>
+              </div>
+            ) : previewUrl ? (
+              <iframe
+                key={previewUrl}
+                src={previewUrl}
+                title="Vista previa de la Declaración Jurada"
+                className="absolute inset-0 w-full h-full border-0 bg-slate-100 dark:bg-slate-900"
+              />
+            ) : null}
+
+            {previewLoading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/70 dark:bg-slate-950/70 backdrop-blur-sm">
+                <div className="w-8 h-8 border-3 border-slate-300 dark:border-slate-700 border-t-[#e31837] rounded-full animate-spin" />
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Generando vista previa...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* MODAL BUSCADOR DE SEDES */}
       {isModalOpen && (

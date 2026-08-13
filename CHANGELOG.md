@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.10.0] - 2026-08-12
+
+### ℹ️ Nota
+
+- Rediseño de generación y previsualización de PDF en Declaración Jurada Shalom
+
+---
+
 ## [4.9.0] - 2026-08-12
 
 ### ℹ️ Nota
