@@ -21,9 +21,19 @@ class AuditApiRequest
         $dniAudit = json_decode((string) ($request->route('_dni_audit') ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
         $rucAudit = json_decode((string) ($request->route('_ruc_audit') ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
         $serviceAudit = $service === 'ruc' ? $rucAudit : $dniAudit;
+        $delegatedUser = $request->attributes->get('delegated_user');
+        // Id de correlación opcional (p. ej. X-Request-Id de Declaración
+        // Jurada): permite detectar reintentos del mismo request lógico —
+        // ver ResolveDelegatedUser y el bridge DNI en
+        // packages/shalom-declaracion-jurada/server/app-backend.js.
+        $requestId = mb_substr((string) $request->header('X-Request-Id', ''), 0, 64) ?: null;
+        $isDuplicate = $requestId !== null && ApiRequestLog::query()->where('request_id', $requestId)->exists();
         ApiRequestLog::query()->create([
             'api_client_id' => $owner instanceof ApiClient ? $owner->getKey() : null,
             'token_id' => $token instanceof PersonalAccessToken ? $token->getKey() : null,
+            'delegated_user_id' => $delegatedUser?->getKey(),
+            'request_id' => $requestId,
+            'is_duplicate_request' => $isDuplicate,
             'request_type' => (string) $request->attributes->get('request_type', ApiRequestType::Api->value),
             'service' => $service,
             'endpoint' => '/'.$request->path(),

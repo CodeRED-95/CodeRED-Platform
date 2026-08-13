@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureApiVersion;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsurePrivateApiCaching;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\ResolveDelegatedUser;
 use App\Http\Middleware\SetApplicationLocale;
 use App\Http\Middleware\VerifyIntegrationRequest;
 use App\Http\Middleware\VerifyN8nRequest;
@@ -46,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.token.expiration' => EnsureApiTokenNotExpired::class,
             'api.token-owner-active' => EnsureApiTokenOwnerIsActive::class,
             'api.private-cache' => EnsurePrivateApiCaching::class,
+            'api.delegate-user' => ResolveDelegatedUser::class,
             'integration.hmac' => VerifyIntegrationRequest::class,
             'n8n.hmac' => VerifyN8nRequest::class,
             'abilities' => CheckAbilities::class,

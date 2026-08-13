@@ -164,12 +164,19 @@
         </div>
         <div class="mt-5 overflow-x-auto">
             <table class="w-full text-left text-sm">
-                <thead class="text-[color:var(--color-text-muted)]"><tr><th class="p-3">Fecha</th><th class="p-3">Cliente / token</th><th class="p-3">Servicio</th><th class="p-3">HTTP</th><th class="p-3">Duración</th></tr></thead>
+                <thead class="text-[color:var(--color-text-muted)]"><tr><th class="p-3">Fecha</th><th class="p-3">Cliente / token</th><th class="p-3">Usuario delegado</th><th class="p-3">Servicio</th><th class="p-3">HTTP</th><th class="p-3">Duración</th></tr></thead>
                 <tbody class="divide-y divide-white/5">
                     @forelse ($logs as $log)
-                        <tr><td class="p-3">{{ $log->created_at?->format('d/m/Y H:i:s') }}</td><td class="p-3">{{ $log->client?->name ?? 'Usuario heredado' }} · {{ $log->token?->name ?? '#'.$log->token_id }}</td><td class="p-3">{{ ucfirst($log->service) }}</td><td class="p-3"><x-ui.badge :tone="$log->status_code < 400 ? 'success' : 'danger'">{{ $log->status_code }}</x-ui.badge></td><td class="p-3">{{ $log->response_time_ms }} ms</td></tr>
+                        <tr>
+                            <td class="p-3">{{ $log->created_at?->format('d/m/Y H:i:s') }}</td>
+                            <td class="p-3">{{ $log->client?->name ?? 'Usuario heredado' }} · {{ $log->token?->name ?? '#'.$log->token_id }}</td>
+                            <td class="p-3">{{ $log->delegatedUser ? $log->delegatedUser->name.' ('.$log->delegatedUser->email.')' : '—' }}{{ $log->is_duplicate_request ? ' · duplicado' : '' }}</td>
+                            <td class="p-3">{{ ucfirst($log->service) }}</td>
+                            <td class="p-3"><x-ui.badge :tone="$log->status_code < 400 ? 'success' : 'danger'">{{ $log->status_code }}</x-ui.badge></td>
+                            <td class="p-3">{{ $log->response_time_ms }} ms</td>
+                        </tr>
                     @empty
-                        <tr><td colspan="5" class="p-8 text-center text-[color:var(--color-text-muted)]">Todavía no hay consumo registrado.</td></tr>
+                        <tr><td colspan="6" class="p-8 text-center text-[color:var(--color-text-muted)]">Todavía no hay consumo registrado.</td></tr>
                     @endforelse
                 </tbody>
             </table>

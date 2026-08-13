@@ -6,10 +6,11 @@
 // por email, lookup por id, permisos declaracion-jurada.view/.manage).
 import { test, mock, before, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
+import { Buffer } from 'node:buffer'
 import bcrypt from 'bcryptjs'
 
 /** @type {Map<number, {id:number,name:string,email:string,password:string,status:string,deleted_at:string|null}>} */

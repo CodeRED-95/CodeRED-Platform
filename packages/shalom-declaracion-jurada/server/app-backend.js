@@ -1,4 +1,4 @@
-import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, createCipheriv, createDecipheriv } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -212,6 +212,19 @@ export const createAppBackend = (env) => {
       }
     }
   }
+
+  // Las columnas legacy (user_id/resolved_by, referenciando la vieja tabla
+  // `users` local) llegaron con NOT NULL desde el esquema anterior. Una
+  // vez remapeados los datos a codered_user_id/resolved_by_codered_user_id
+  // arriba, dejarlas en pie con esa restricción rompe cualquier INSERT
+  // nuevo (p. ej. otorgar créditos a un usuario que nunca tuvo cuenta
+  // local) — hay que soltarlas, no solo dejar de usarlas.
+  const dropColumnIfExists = (table, column) => {
+    if (columnExists(table, column)) db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`)
+  }
+  dropColumnIfExists('credit_batches', 'user_id')
+  dropColumnIfExists('credit_requests', 'user_id')
+  dropColumnIfExists('credit_requests', 'resolved_by')
 
   // --- Identidad: CodeRED Platform es la única fuente de usuarios ---------
   // Pool dedicado con el rol de solo lectura `declaracion_jurada_ro` (ver
@@ -548,7 +561,7 @@ export const createAppBackend = (env) => {
   // consultas DNI en CodeRED, y evita mantener una clave de proveedor
   // duplicada. Si no está configurado, se conserva el flujo original
   // (perudevs_api_key propio) para instalaciones independientes.
-  const queryDniViaCodered = async dni => {
+  const queryDniViaCodered = async (dni, { coderedUserId, requestId }) => {
     const url = new URL(`/api/v1/dni/${dni}`, env.CODERED_API_URL)
     // 15s: cubre holgadamente una consulta DNI exitosa (normalmente
     // sub-segundo). Si CodeRED tarda más — típicamente porque su proveedor
@@ -556,14 +569,35 @@ export const createAppBackend = (env) => {
     // ~20s) — se corta aquí para devolver un error rápido y limpio al
     // cliente en vez de dejar la conexión pública abierta más de 20s.
     const upstream = await fetch(url, {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${env.CODERED_API_TOKEN}` },
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${env.CODERED_API_TOKEN}`,
+        // Identidad delegada: el token sigue siendo el único crédito de
+        // autenticación (ApiClient "Declaración Jurada Shalom"); este
+        // header solo le dice a CodeRED a qué usuario final atribuir la
+        // consulta en api_request_logs. CodeRED valida por su cuenta que
+        // este ApiClient esté autorizado a delegar y que el usuario exista,
+        // esté activo y tenga declaracion-jurada.view (ver
+        // App\Http\Middleware\ResolveDelegatedUser) — nunca confía
+        // ciegamente en este valor.
+        'X-CodeRED-User-Id': String(coderedUserId),
+        // Id de correlación por intento: permite que CodeRED detecte
+        // reintentos del mismo request lógico en api_request_logs
+        // (is_duplicate_request), aunque la deduplicación real de crédito
+        // ocurre aquí mismo (ver dniIdempotencyCache más abajo).
+        'X-Request-Id': requestId
+      },
       signal: AbortSignal.timeout(15000)
     })
     const payload = await upstream.json().catch(() => ({}))
-    if (!upstream.ok || !payload?.success || !payload?.nombre_completo) {
+    // GET /api/v1/dni/{dni} de CodeRED envuelve los campos en "data"
+    // (Laravel JsonResource) — success/meta quedan a nivel superior. Ver
+    // App\Http\Resources\Api\V1\DniResource.
+    const nombreCompleto = payload?.data?.nombre_completo
+    if (!upstream.ok || !payload?.success || !nombreCompleto) {
       throw new Error(payload?.message || 'No se encontró información para el DNI ingresado.')
     }
-    return payload.nombre_completo
+    return nombreCompleto
   }
 
   const queryDniViaProvider = async dni => {
@@ -587,6 +621,24 @@ export const createAppBackend = (env) => {
     return nombreCompleto
   }
 
+  // Idempotencia de consultas DNI: un mismo X-Request-Id reintentado (doble
+  // click, timeout del cliente, retry de red/Nginx) dentro de esta ventana
+  // devuelve la MISMA respuesta ya calculada sin volver a descontar
+  // créditos. Solo se cachean éxitos: un intento fallido no dejó ningún
+  // efecto permanente (el crédito reservado se devuelve siempre, ver más
+  // abajo), así que reintentarlo de verdad es seguro y preferible. Clave
+  // por usuario+requestId para que un id reutilizado por otro usuario no
+  // reutilice la respuesta ajena.
+  const DNI_IDEMPOTENCY_WINDOW_MS = 120_000
+  const dniIdempotencyCache = new Map()
+  const pruneDniIdempotencyCache = () => {
+    const now = Date.now()
+    for (const [key, entry] of dniIdempotencyCache) {
+      if (entry.expiresAt <= now) dniIdempotencyCache.delete(key)
+    }
+    if (dniIdempotencyCache.size > 5000) dniIdempotencyCache.clear()
+  }
+
   const handleDni = async (request, response, dni) => {
     const session = await requireUser(request, response)
     if (!session) return
@@ -595,6 +647,20 @@ export const createAppBackend = (env) => {
     if (!useCodered && !setting('perudevs_api_key')) {
       return json(response, 503, { message: 'El servicio de consulta aún no está configurado.' })
     }
+
+    const clientRequestId = String(request.headers['x-request-id'] || '').trim().slice(0, 64)
+    const idempotencyKey = clientRequestId ? `${userId}:${clientRequestId}` : null
+    if (idempotencyKey) {
+      pruneDniIdempotencyCache()
+      const cached = dniIdempotencyCache.get(idempotencyKey)
+      if (cached) return json(response, 200, cached.body)
+    }
+    // Id reenviado a CodeRED para trazabilidad incluso si el cliente no
+    // mandó uno propio (cada intento real recibe un id nuevo en ese caso,
+    // así que nunca dedupe entre sí — solo el caché local de arriba,
+    // ligado al request-id explícito del cliente, evita el doble descuento).
+    const upstreamRequestId = clientRequestId || randomUUID()
+
     const now = new Date().toISOString()
     let reservedBatch
     db.exec('BEGIN IMMEDIATE')
@@ -616,10 +682,14 @@ export const createAppBackend = (env) => {
     }
 
     try {
-      const nombreCompleto = useCodered ? await queryDniViaCodered(dni) : await queryDniViaProvider(dni)
+      const nombreCompleto = useCodered
+        ? await queryDniViaCodered(dni, { coderedUserId: userId, requestId: upstreamRequestId })
+        : await queryDniViaProvider(dni)
       db.prepare('UPDATE users SET queries_used = queries_used + 1 WHERE codered_user_id = ?').run(userId)
       const updatedUser = userPayload(userId)
-      return json(response, 200, { nombreCompleto, ...updatedUser })
+      const body = { nombreCompleto, ...updatedUser }
+      if (idempotencyKey) dniIdempotencyCache.set(idempotencyKey, { body, expiresAt: Date.now() + DNI_IDEMPOTENCY_WINDOW_MS })
+      return json(response, 200, body)
     } catch (error) {
       db.prepare('UPDATE credit_batches SET credits_remaining = credits_remaining + 1 WHERE id = ?').run(reservedBatch.id)
       syncUserCredits(userId)

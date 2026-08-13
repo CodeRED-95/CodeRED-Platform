@@ -85,7 +85,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/agencias', [AgencyCatalogController::class, 'index'])->name('agencias.index');
             Route::get('/agencias/{id}', [AgencyCatalogController::class, 'showById'])->name('agencias.show');
         });
-        Route::middleware(['throttle:api-dni', 'api.audit:dni', 'abilities:dni:consultar'])->group(function (): void {
+        Route::middleware(['throttle:api-dni', 'api.audit:dni', 'api.delegate-user', 'abilities:dni:consultar'])->group(function (): void {
             Route::get('/dni/{dni}', DniApiController::class)->name('dni.show');
         });
         Route::get('/ruc/buscar', RucSearchApiController::class)->middleware(['throttle:ruc-search', 'api.audit:ruc', 'abilities:ruc:buscar'])->name('ruc.search');

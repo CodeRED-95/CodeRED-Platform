@@ -269,7 +269,7 @@ class Index extends Component
             ->when($this->status === 'expiring', fn (Builder $query) => $query->whereBetween('expires_at', [now(), now()->addDays(7)]));
         $tokens = $query->latest()->paginate(15);
 
-        $logs = ApiRequestLog::query()->with(['client', 'token'])
+        $logs = ApiRequestLog::query()->with(['client', 'token', 'delegatedUser'])
             ->when($this->logService !== '', fn (Builder $query) => $query->where('service', $this->logService))
             ->when($this->logStatus !== '' && ctype_digit($this->logStatus), fn (Builder $query) => $query->where('status_code', (int) $this->logStatus))
             ->when($this->logClientId > 0, fn (Builder $query) => $query->where('api_client_id', $this->logClientId))

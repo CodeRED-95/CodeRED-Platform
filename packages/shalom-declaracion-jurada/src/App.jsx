@@ -160,7 +160,12 @@ const App = () => {
       }));
 
       try {
-        const response = await fetch(`/api/dni/${dni}`, { signal: controller.signal });
+        // Id estable por intento: si el navegador o un proxy intermedio
+        // reintenta esta misma solicitud a nivel de transporte, el backend
+        // reconoce el X-Request-Id repetido y no vuelve a descontar una
+        // consulta (ver dniIdempotencyCache en server/app-backend.js).
+        const requestId = crypto.randomUUID();
+        const response = await fetch(`/api/dni/${dni}`, { signal: controller.signal, headers: { 'X-Request-Id': requestId } });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.message || 'No se encontró el DNI.');
 

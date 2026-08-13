@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.9.0] - 2026-08-12
+
+### ℹ️ Nota
+
+- Atribuir cada consulta DNI de Declaración Jurada al usuario CodeRED que la originó (delegación segura ApiClient->usuario, X-CodeRED-User-Id validado server-side), idempotencia por X-Request-Id y fix de bug real: el bridge nunca había leído correctamente una respuesta exitosa de CodeRED (payload.data.nombre_completo)
+
+---
+
 ## [4.8.0] - 2026-08-12
 
 ### ℹ️ Nota
