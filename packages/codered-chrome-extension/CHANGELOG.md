@@ -44,6 +44,21 @@
 
 ## Unreleased
 
+## 2.3.6 - 2026-08-13
+
+### Added
+
+- Compatibilidad con `https://sysnewos.shalomcontrol.com/service-order/` en modo neutral, sin selección automática ni efectos secundarios sobre la orden.
+
+### Changed
+
+- El buscador conserva el comportamiento existente en las rutas Shalom ya soportadas y separa explícitamente el modo neutral del interactivo.
+
+### Fixed
+
+- La inserción del buscador se reubica frente al bloque de dirección en `service-order` incluso durante re-renders de SPA.
+- Se evita que `chosen` o cualquier clic sobre resultados modifique el formulario en la nueva pantalla neutral.
+
 ## 2.2.0 - 2026-08-02
 
 - Alinea la versión de la extensión con CodeRED Platform 2.2.0.

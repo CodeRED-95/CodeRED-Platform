@@ -1,6 +1,6 @@
 {
   "name": "@codered/chrome-extension",
-  "version": "2.3.5",
+  "version": "2.3.6",
   "private": true,
   "type": "module",
   "description": "Buscador Shalom Control para Google Chrome.",

@@ -101,11 +101,14 @@ describe('supported Shalom paths', () => {
   it('identifies listaordenservicio as a neutral search path', () => {
     expect(isNeutralShalomSearchPath('/listaordenservicio')).toBe(true);
     expect(isNeutralShalomSearchPath('/listaordenservicio/')).toBe(true);
+    expect(isNeutralShalomSearchPath('/service-order')).toBe(true);
+    expect(isNeutralShalomSearchPath('/service-order/')).toBe(true);
     expect(isNeutralShalomSearchPath('/ordenservicio/listar')).toBe(false);
   });
 
   it('marks listaordenservicio as consultation-only without destination selection', () => {
     expect(getShalomPageCapabilities('/listaordenservicio')).toMatchObject({
+      mode: 'neutral',
       search: true,
       neutralChannel: true,
       agencySelection: false,
@@ -131,6 +134,10 @@ describe('manifest injection scope', () => {
       'https://*.shalomcontrol.com/listaordenservicio/',
       'https://*.shalomcontrol.com/listaordenservicio?*',
       'https://*.shalomcontrol.com/listaordenservicio/?*',
+      'https://*.shalomcontrol.com/service-order',
+      'https://*.shalomcontrol.com/service-order/',
+      'https://*.shalomcontrol.com/service-order?*',
+      'https://*.shalomcontrol.com/service-order/?*',
       'https://*.shalomcontrol.com/ordenservicio/listar',
       'https://*.shalomcontrol.com/ordenservicio/listar/',
       'https://*.shalomcontrol.com/ordenservicio/listar?*',
@@ -380,8 +387,8 @@ describe('Shalom Control DOM integration', () => {
     expect(document.getElementById('mi-buscador-contenedor')).toBeNull();
   });
 
-  it('does not inject on a Shalom host outside the two authorized routes', async () => {
-    const unsupportedPaths = ['/', '/inicio', '/ordenservicio', '/listaordenservicio/otra', '/ordenservicio/listar/otra'];
+  it('does not inject on a Shalom host outside the authorized routes', async () => {
+    const unsupportedPaths = ['/', '/inicio', '/ordenservicio', '/listaordenservicio/otra', '/service-order/otra', '/ordenservicio/listar/otra'];
     for (const path of unsupportedPaths) {
       const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div></body></html>', { url: `https://app.shalomcontrol.com${path}` });
       globalThis.window = dom.window as unknown as Window & typeof globalThis;
@@ -396,8 +403,8 @@ describe('Shalom Control DOM integration', () => {
     }
   });
 
-  it('injects on both authorized routes, with and without trailing slash', async () => {
-    const supportedPaths = ['/listaordenservicio', '/listaordenservicio/', '/ordenservicio/listar', '/ordenservicio/listar/'];
+  it('injects on the authorized routes, with and without trailing slash', async () => {
+    const supportedPaths = ['/listaordenservicio', '/listaordenservicio/', '/service-order', '/service-order/', '/ordenservicio/listar', '/ordenservicio/listar/'];
     for (const path of supportedPaths) {
       const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div></body></html>', { url: `https://app.shalomcontrol.com${path}` });
       globalThis.window = dom.window as unknown as Window & typeof globalThis;
@@ -492,6 +499,35 @@ describe('Shalom Control DOM integration', () => {
 
     expect(selectAgencyInDestination(document, terrestrialAgency, 'AUTO')).toMatchObject({ success: true });
     expect(['t', 'a']).toContain(select.value);
+  });
+
+  it('keeps service-order neutral and never selects a destination', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"><div class="mdl-layout-spacer"></div></div></body></html>', { url: 'https://app.shalomcontrol.com/service-order/' });
+    globalThis.window = dom.window as unknown as Window & typeof globalThis;
+    globalThis.document = dom.window.document;
+    globalThis.MutationObserver = dom.window.MutationObserver;
+    globalThis.HTMLElement = dom.window.HTMLElement;
+    globalThis.HTMLSelectElement = dom.window.HTMLSelectElement;
+    globalThis.Event = dom.window.Event;
+    document.body.insertAdjacentHTML('beforeend', '<section><select id="x_osProDestino"><option value="">Seleccione</option><option value="t">1001 - CHICLAYO HUB - TERRESTRE</option></select></section>');
+    const select = document.querySelector('select')!;
+    const inputSpy = vi.fn();
+    const changeSpy = vi.fn();
+    select.addEventListener('input', inputSpy);
+    select.addEventListener('change', changeSpy);
+
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    document.querySelector<HTMLButtonElement>('.codered-agency-card')?.click();
+
+    expect(select.value).toBe('');
+    expect(inputSpy).not.toHaveBeenCalled();
+    expect(changeSpy).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('Esta página de Shalom solo permite consultar agencias.');
   });
 
   it('keeps technical failures as warnings with structured context', async () => {

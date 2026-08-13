@@ -23,6 +23,7 @@ const CHANNEL_BADGE_CLASS = 'codered-channel-badge';
 const MESSAGE_CLASS = 'codered-search-message';
 const DEFAULT_ALLOWED_DOMAINS = ['shalomcontrol.com'];
 const CATALOG_STORAGE_KEYS = new Set(['agencies', 'agencyCache', 'catalog', 'catalogVersion', 'syncMetadata', 'codered_agency_catalog', 'codered_catalog_version', 'codered_sync_metadata', 'codered_last_sync_at', 'codered_last_sync_status']);
+const HISTORY_PATCH_FLAG = '__coderedShalomHistoryPatched__';
 
 export interface ContentControllerDependencies {
   requestCatalog?: () => Promise<Agency[]>;
@@ -50,6 +51,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
   let injectionDebounceTimer: number | null = null;
   let storageListenerBound = false;
   let resizeListenerBound = false;
+  let routeObserverBound = false;
   const emittedLogs = new Set<string>();
 
   async function initializeContentScript(): Promise<void> {
@@ -67,6 +69,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     const result = injectSearchIfPossible();
     console.log('[CodeRED Shalom] Resultado de inyección', { reason: result.reason });
     startInjectionObserver();
+    startRouteObserver();
     listenForCatalogChanges();
   }
 
@@ -103,6 +106,12 @@ export function createShalomContentController(dependencies: ContentControllerDep
   }
 
   function findInjectionTarget(): InjectionTarget | null {
+    if (isNeutralShalomSearchPath(window.location.pathname)) {
+      const serviceOrderTarget = findServiceOrderInsertionTarget();
+      if (serviceOrderTarget) {
+        return serviceOrderTarget;
+      }
+    }
     console.log('[CodeRED Shalom] Buscando punto de inyección');
     const selectors = ['.mdl-layout__header-row', 'header .mdl-layout__header-row', '.mdl-layout__header', 'header', '[role="banner"]', '.navbar', '.topbar', '.header'];
     for (const selector of selectors) {
@@ -115,6 +124,52 @@ export function createShalomContentController(dependencies: ContentControllerDep
     }
     console.log('[CodeRED Shalom] Target todavía no disponible');
     return null;
+  }
+
+  function findServiceOrderInsertionTarget(): InjectionTarget | null {
+    const candidates = Array.from(document.querySelectorAll('main, header, [role="main"], body > div, body > section'))
+      .filter((element): element is HTMLElement => element instanceof HTMLElement);
+
+    for (const candidate of candidates) {
+      const insertionPoint = findServiceOrderBlock(candidate);
+      if (insertionPoint) {
+        console.log('[CodeRED Shalom] Target service-order encontrado');
+        return insertionPoint;
+      }
+    }
+
+    return null;
+  }
+
+  function findServiceOrderBlock(root: HTMLElement): InjectionTarget | null {
+    const elements = Array.from(root.querySelectorAll('*')).filter((element): element is HTMLElement => element instanceof HTMLElement);
+    for (const element of elements) {
+      if (!isElementVisible(element)) continue;
+      if (!containsMeaningfulDirectTextBlock(element)) continue;
+      if (!isLikelyServiceOrderAnchor(element)) continue;
+      return { element, selector: describeElement(element) };
+    }
+    return null;
+  }
+
+  function containsMeaningfulDirectTextBlock(element: HTMLElement): boolean {
+    const directTextChildren = Array.from(element.childNodes).filter((node) => node.nodeType === 1 && (node.textContent ?? '').trim().length > 0);
+    return directTextChildren.length > 0;
+  }
+
+  function isLikelyServiceOrderAnchor(element: HTMLElement): boolean {
+    const text = (element.textContent ?? '').trim();
+    if (!text) return false;
+    const childDivs = Array.from(element.children).filter((child) => child.tagName === 'DIV');
+    if (childDivs.length === 0) return false;
+    return childDivs.some((child) => (child.textContent ?? '').trim().length > 0);
+  }
+
+  function describeElement(element: HTMLElement): string {
+    const tag = element.tagName.toLowerCase();
+    const id = element.id ? `#${element.id}` : '';
+    const classes = element.classList.length ? `.${Array.from(element.classList).join('.')}` : '';
+    return `${tag}${id}${classes}`;
   }
 
   function createSearchContainer(): HTMLElement {
@@ -167,6 +222,54 @@ export function createShalomContentController(dependencies: ContentControllerDep
     }, { signal: abortController.signal });
   }
 
+  function startRouteObserver(): void {
+    if (routeObserverBound) return;
+    routeObserverBound = true;
+    patchHistoryApi();
+
+    window.addEventListener('popstate', handleRouteChange, { passive: true });
+    window.addEventListener('hashchange', handleRouteChange, { passive: true });
+    document.addEventListener('visibilitychange', handleRouteChange, { passive: true });
+  }
+
+  function patchHistoryApi(): void {
+    const win = window as Window & { [HISTORY_PATCH_FLAG]?: boolean };
+    if (win[HISTORY_PATCH_FLAG]) return;
+    win[HISTORY_PATCH_FLAG] = true;
+    const originalPushState = history.pushState.bind(history);
+    const originalReplaceState = history.replaceState.bind(history);
+    history.pushState = (...args) => {
+      const result = originalPushState(...args);
+      queueRouteRefresh();
+      return result;
+    };
+    history.replaceState = (...args) => {
+      const result = originalReplaceState(...args);
+      queueRouteRefresh();
+      return result;
+    };
+  }
+
+  let routeRefreshTimer: number | null = null;
+
+  function queueRouteRefresh(): void {
+    if (routeRefreshTimer) window.clearTimeout(routeRefreshTimer);
+    routeRefreshTimer = window.setTimeout(() => {
+      routeRefreshTimer = null;
+      handleRouteChange();
+    }, 50);
+  }
+
+  function handleRouteChange(): void {
+    if (!isSupportedShalomPage()) return;
+    const container = document.getElementById(CONTAINER_ID);
+    if (container && !container.isConnected) {
+      container.remove();
+    }
+    const result = injectSearchIfPossible();
+    if (result.element) positionOpenPanel(result.element);
+  }
+
   function injectSearchIfPossible(): InjectionResult {
     if (!document.body) return { success: false, reason: 'body-not-ready' };
     if (!isSupportedShalomPage()) return { success: false, reason: 'unsupported-page' };
@@ -203,6 +306,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
         injectionDebounceTimer = null;
         bindChannelButtons(document, handleChannelChange);
         void refreshChannelDetection();
+        void handleRouteChange();
         const existing = document.getElementById(CONTAINER_ID);
         if (!existing?.isConnected) console.log('[CodeRED Shalom] El header cambió; reinyectando');
         const result = injectSearchIfPossible();
@@ -322,8 +426,8 @@ export function createShalomContentController(dependencies: ContentControllerDep
       if (message) message.textContent = 'No fue posible determinar el canal activo de Shalom todavía.';
       return;
     }
-    if (capabilities.neutralChannel) {
-      if (message) message.textContent = 'Canal no identificado. Buscando en todas las agencias.';
+    if (capabilities.mode === 'neutral') {
+      if (message) message.textContent = 'Esta página de Shalom solo permite consultar agencias.';
       return;
     }
     const selected = selectAgencyInDestination(document, agency, requestedChannel);
@@ -576,10 +680,10 @@ function closeResults(container: HTMLElement): void {
   }
 
   function activeChannelText(root: ParentNode): string {
-  const channel = detectActiveShalomChannelState(root).channel;
-  if (!channel) return isNeutralShalomSearchPath(window.location.pathname) ? '🌐 Canal neutral' : '⌛ Canal pendiente';
-  return channel === 'AEREO' ? '✈️ Aéreo' : '🚚 Terrestre';
-}
+    const channel = detectActiveShalomChannelState(root).channel;
+    if (!channel) return isNeutralShalomSearchPath(window.location.pathname) ? '🌐 Modo neutral' : '⌛ Canal pendiente';
+    return channel === 'AEREO' ? '✈️ Aéreo' : '🚚 Terrestre';
+  }
 
 function channelLabel(channel: Exclude<ShalomChannel, 'AUTO'>): string {
   return channel === 'AEREO' ? 'Aéreo' : 'Terrestre';

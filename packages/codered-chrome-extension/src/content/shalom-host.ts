@@ -1,22 +1,22 @@
 /**
  * Alcance de inyección del Buscador Shalom Control.
  *
- * La extensión SOLO debe ejecutarse y mostrar su interfaz en dos rutas
+ * La extensión SOLO debe ejecutarse y mostrar su interfaz en tres rutas
  * concretas de cualquier subdominio de shalomcontrol.com:
  *
  *   https://<sub>.shalomcontrol.com/listaordenservicio
  *   https://<sub>.shalomcontrol.com/ordenservicio/listar
+ *   https://<sub>.shalomcontrol.com/service-order/
  *
  * `content_scripts.matches` del manifest ya restringe la inyección, pero NO es
  * la única protección: estas funciones se evalúan también en runtime, porque
- * los patrones del manifest son de grano grueso (no distinguen
- * `/ordenservicio/listar` de `/ordenservicio/listar/otra`) y una navegación SPA
- * puede cambiar la ruta sin recargar el content script.
+ * los patrones del manifest son de grano grueso y una navegación SPA puede
+ * cambiar la ruta sin recargar el content script.
  */
 const SUPPORTED_DOMAIN = 'shalomcontrol.com';
 
 /** Rutas exactas donde la extensión puede activarse (barra final opcional). */
-export const SUPPORTED_PATHS = ['/listaordenservicio', '/ordenservicio/listar'] as const;
+export const SUPPORTED_PATHS = ['/listaordenservicio', '/ordenservicio/listar', '/service-order'] as const;
 
 /**
  * `true` solo si el hostname es un subdominio de shalomcontrol.com, es decir
@@ -53,10 +53,13 @@ export function isSupportedShalomLocation(
 }
 
 export function isNeutralShalomSearchPath(pathname: string | null | undefined): boolean {
-  return normalizePathname(pathname) === '/listaordenservicio';
+  return ['/listaordenservicio', '/service-order'].includes(normalizePathname(pathname));
 }
 
+export type ShalomPageMode = 'interactive' | 'neutral';
+
 export interface ShalomPageCapabilities {
+  mode: ShalomPageMode;
   search: boolean;
   neutralChannel: boolean;
   agencySelection: boolean;
@@ -66,6 +69,7 @@ export interface ShalomPageCapabilities {
 export function getShalomPageCapabilities(pathname: string | null | undefined): ShalomPageCapabilities {
   if (isNeutralShalomSearchPath(pathname)) {
     return {
+      mode: 'neutral',
       search: true,
       neutralChannel: true,
       agencySelection: false,
@@ -74,6 +78,7 @@ export function getShalomPageCapabilities(pathname: string | null | undefined): 
   }
 
   return {
+    mode: 'interactive',
     search: true,
     neutralChannel: false,
     agencySelection: true,
