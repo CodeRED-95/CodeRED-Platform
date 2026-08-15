@@ -20,6 +20,8 @@ tags:
     description: Metadatos del catálogo; requiere agencies:read.
   - name: Perfil
     description: Identidad del token; requiere profile:read.
+  - name: Mobile
+    description: Autenticación y estado de CodeRED Mobile.
 servers:
   - url: /api/v1
 paths:
@@ -73,6 +75,42 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /mobile/login:
+    post:
+      tags: [Mobile]
+      summary: Iniciar sesión móvil
+      description: Genera un token Sanctum con ability mobile y devuelve usuario, roles y permisos vigentes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, example: usuario@dominio.com }
+                password: { type: string, example: password }
+                device_name: { type: string, example: Android Samsung }
+      responses:
+        '200': { description: Sesión móvil creada }
+        '422': { description: Credenciales incorrectas o validación fallida }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /mobile/me:
+    get:
+      tags: [Mobile]
+      summary: Obtener usuario móvil autenticado
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Usuario autenticado }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /mobile/logout:
+    post:
+      tags: [Mobile]
+      summary: Cerrar sesión móvil
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Token revocado }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
   /dni/{dni}:
     get:
       tags: [DNI]

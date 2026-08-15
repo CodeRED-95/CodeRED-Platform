@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Integrations\IntegrationDiscoveryController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTelegramPersonalCodeController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
+use App\Http\Controllers\Api\V1\Mobile\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\V1\ShalomRecordarAuthController;
 use App\Http\Controllers\Api\V1\SystemVersionController;
 use App\Http\Controllers\Api\V1\TokenRequestController as PublicTokenRequestController;
@@ -60,6 +61,14 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/auth/login', [ShalomRecordarAuthController::class, 'login'])
             ->middleware(['throttle:shalom-recordar'])
             ->name('auth.login');
+    });
+    Route::prefix('mobile')->name('mobile.')->group(function (): void {
+        Route::post('/login', [MobileAuthController::class, 'login'])->middleware('throttle:api-mobile')->name('login');
+
+        Route::middleware(['auth:sanctum', 'api.token-owner-active', 'throttle:api-mobile'])->group(function (): void {
+            Route::get('/me', [MobileAuthController::class, 'me'])->name('me');
+            Route::post('/logout', [MobileAuthController::class, 'logout'])->name('logout');
+        });
     });
     Route::middleware(['auth:sanctum', 'api.token-owner-active', 'api.private-cache'])->group(function (): void {
         Route::prefix('shalom-recordar')->name('shalom-recordar.')->group(function (): void {

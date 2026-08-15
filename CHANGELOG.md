@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.13.0] - 2026-08-14
+
+### ℹ️ Nota
+
+- Agregar API móvil para CodeRED Mobile
+
+---
+
 ## [4.12.1] - 2026-08-12
 
 ### ℹ️ Nota

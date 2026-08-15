@@ -165,6 +165,7 @@ Las variables `DEV_ADMIN_*` se leen exclusivamente desde `config/codered.php` du
 | `API_DOCS_ENABLED` | Habilita documentación interna |
 | `API_DOCS_REQUIRE_AUTH` | Reserva documental para autenticados |
 | `API_RATE_LIMIT_PER_MINUTE` | Límite por token |
+| `API_MOBILE_RATE_LIMIT_PER_MINUTE` | Límite por token para CodeRED Mobile |
 | `API_ALLOWED_ORIGINS` | Orígenes CORS explícitos separados por coma |
 | `API_DEFAULT_TOKEN_EXPIRATION_DAYS` | Expiración propuesta en panel |
 | `API_MAX_PER_PAGE` | Máximo de paginación |

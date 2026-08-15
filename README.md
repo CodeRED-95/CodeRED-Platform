@@ -23,7 +23,7 @@ workflows.
   rate limiting y auditoría.
 - **Integraciones** — n8n vía CodeRED Agent (Pairing, Discovery, Heartbeat,
   Challenge/Response, Capability Registry) y extensiones de navegador.
-- **API REST v1** documentada en `/docs` (agencias, RUC, DNI, Shalom Recordar).
+- **API REST v1** documentada en `/docs` (agencias, RUC, DNI, Shalom Recordar y CodeRED Mobile).
 
 ---
 

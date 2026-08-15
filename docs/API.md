@@ -2,6 +2,45 @@
 
 La API de integración vive bajo `/api/v1`, usa tokens personales de Laravel Sanctum y es de solo lectura. El contrato canónico es [OpenAPI 3](openapi.yaml) y la guía operativa está en [docs/api](api/README.md).
 
+## CodeRED Mobile API
+
+La capa móvil vive bajo `/api/v1/mobile` y reutiliza Sanctum, usuarios, roles y permisos existentes. Los tokens móviles usan ability `mobile` para identificar el cliente, pero los permisos reales siguen saliendo del RBAC del sistema.
+
+| Método | Ruta | Protección |
+|---|---|---|
+| POST | `/api/v1/mobile/login` | Público, rate limit móvil |
+| GET | `/api/v1/mobile/me` | `auth:sanctum` |
+| POST | `/api/v1/mobile/logout` | `auth:sanctum` |
+
+Ejemplo de login:
+
+```json
+{
+  "email": "usuario@dominio.com",
+  "password": "password"
+}
+```
+
+Respuesta:
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": 1,
+      "name": "Usuario",
+      "email": "usuario@dominio.com"
+    },
+    "roles": ["admin"],
+    "permissions": ["ruc.consultar", "dni.consultar"],
+    "token": "TOKEN_SANCTUM"
+  }
+}
+```
+
+`GET /api/v1/mobile/me` devuelve el mismo bloque `user`, `roles` y `permissions` sin exponer el token. `POST /api/v1/mobile/logout` revoca únicamente el token Bearer actual.
+
 ## Endpoints
 
 | Método | Ruta | Ability |
