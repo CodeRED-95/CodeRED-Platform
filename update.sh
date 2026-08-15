@@ -617,6 +617,25 @@ docker compose exec -T app chown -R www:www "$RUC_BACKUP_DIR"
 docker compose exec -T app chmod -R 775 "$RUC_BACKUP_DIR"
 ok "Directorio de backups RUC listo: $RUC_BACKUP_DIR (backups existentes preservados)"
 
+# Las declaraciones juradas se guardan en el disco privado. El directorio debe
+# pertenecer a www para que el worker PHP pueda escribirlo: si lo crea root
+# (por ejemplo al ejecutar tests dentro del contenedor) la generación del PDF
+# falla. mkdir -p es no destructivo y preserva los documentos ya emitidos.
+DECLARATIONS_DIR="$(docker compose exec -T app php -r '
+require "vendor/autoload.php";
+$app = require "bootstrap/app.php";
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo Illuminate\Support\Facades\Storage::disk("local")->path("declarations");
+' 2>/dev/null)"
+if [[ -n "$DECLARATIONS_DIR" ]]; then
+    docker compose exec -T app mkdir -p "$DECLARATIONS_DIR"
+    docker compose exec -T app chown -R www:www "$DECLARATIONS_DIR"
+    docker compose exec -T app chmod -R 775 "$DECLARATIONS_DIR"
+    ok "Directorio de declaraciones listo: $DECLARATIONS_DIR (documentos existentes preservados)"
+else
+    warn "No se pudo resolver el directorio de declaraciones; el PDF se regenerará bajo demanda."
+fi
+
 if docker compose exec -T app sh -c 'command -v pg_dump >/dev/null && command -v pg_restore >/dev/null && command -v psql >/dev/null'; then
     ok "pg_dump/pg_restore/psql disponibles en el contenedor app."
 else

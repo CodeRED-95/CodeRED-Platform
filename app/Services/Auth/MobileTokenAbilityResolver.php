@@ -17,6 +17,7 @@ class MobileTokenAbilityResolver
         'agencies.view' => ['agencias:consultar', 'agencies:read'],
         'dni-records.view' => ['dni:consultar'],
         'ruc.view' => ['ruc:consultar'],
+        'declaracion-jurada.view' => ['declaraciones:gestionar'],
     ];
 
     /**

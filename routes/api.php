@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AgenciesController;
 use App\Http\Controllers\Api\V1\AgencyCatalogController;
 use App\Http\Controllers\Api\V1\AgencyChangesController;
 use App\Http\Controllers\Api\V1\CatalogMetadataController;
+use App\Http\Controllers\Api\V1\DeclarationController;
 use App\Http\Controllers\Api\V1\DniApiController;
 use App\Http\Controllers\Api\V1\ExtensionChromeConfigController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -93,6 +94,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::middleware(['throttle:api-agencias', 'api.audit:agencias', 'abilities:agencias:consultar'])->group(function (): void {
             Route::get('/agencias', [AgencyCatalogController::class, 'index'])->name('agencias.index');
             Route::get('/agencias/{id}', [AgencyCatalogController::class, 'showById'])->name('agencias.show');
+        });
+        Route::middleware(['throttle:api-declaraciones', 'api.audit:declaraciones', 'abilities:declaraciones:gestionar'])->group(function (): void {
+            Route::get('/declarations', [DeclarationController::class, 'index'])->name('declarations.index');
+            Route::post('/declarations', [DeclarationController::class, 'store'])->name('declarations.store');
+            Route::get('/declarations/{id}', [DeclarationController::class, 'show'])->whereNumber('id')->name('declarations.show');
+            Route::get('/declarations/{id}/pdf', [DeclarationController::class, 'pdf'])->whereNumber('id')->name('declarations.pdf');
         });
         Route::middleware(['throttle:api-dni', 'api.audit:dni', 'api.delegate-user', 'abilities:dni:consultar'])->group(function (): void {
             Route::get('/dni/{dni}', DniApiController::class)->name('dni.show');

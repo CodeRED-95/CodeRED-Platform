@@ -54,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
             return $user->hasRole('super-admin') || $user->hasPermission($ability) ? true : null;
         });
         RateLimiter::for('api', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.rate_limit_per_minute'), 1), 'api'));
+        RateLimiter::for('api-declaraciones', fn (Request $request): Limit => $this->tokenLimit($request, 30, 'declaraciones'));
         RateLimiter::for('api-agencias', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.agency_rate_limit_per_minute'), 1), 'agencias'));
         RateLimiter::for('api-mobile', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.mobile_rate_limit_per_minute'), 1), 'mobile'));
         RateLimiter::for('api-dni', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('dni.rate_limit_per_minute'), 1), 'dni'));

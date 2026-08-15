@@ -51,6 +51,10 @@ Respuesta:
 | GET | `/api/v1/agencies/{code}` | `agencies:read` |
 | GET | `/api/v1/catalog/metadata` | `agencies:read` |
 | GET | `/api/v1/me` | `profile:read` |
+| GET | `/api/v1/declarations` | `declaraciones:gestionar` |
+| POST | `/api/v1/declarations` | `declaraciones:gestionar` |
+| GET | `/api/v1/declarations/{id}` | `declaraciones:gestionar` |
+| GET | `/api/v1/declarations/{id}/pdf` | `declaraciones:gestionar` |
 
 Los endpoints heredados `search`, `version` y `snapshot` se conservan temporalmente bajo autenticación y `agencies:read` para compatibilidad de transición.
 
@@ -85,3 +89,61 @@ El probador normaliza cada ruta con `buildApiPath`, que admite paths relativos o
 El Bearer Token de la guía se mantiene en un único store Alpine en memoria. La validación y todas las tarjetas reutilizan ese estado, construyen centralmente `Accept` y `Authorization`, y ejecutan las consultas protegidas con `credentials: omit` para probar el token real sin depender de la sesión web. Limpiar autorización borra token, abilities y usuario; recargar la página recrea el store vacío.
 
 La consola interpreta dinámicamente las abilities devueltas por `/api/v1/me`: `*` habilita acceso total y cada endpoint compara su única ability declarada antes de habilitar la ejecución. Si el token autentica pero no puede consultar su propia metadata, la UI no lo declara inválido ni inventa permisos; lo marca como no verificado y deja que el middleware de la ruta produzca el estado HTTP real. Editar el campo invalida inmediatamente la autorización anterior para evitar reutilizar abilities obsoletas.
+
+
+## Declaración Jurada
+
+La Declaración Jurada Shalom se crea y se firma en documento desde la propia API: el
+PDF oficial A4 lo genera el servidor con FPDF, no el cliente. Antes ese documento sólo
+existía dentro de `packages/shalom-declaracion-jurada`, construido en el navegador con
+jsPDF; ese paquete pasa a ser un cliente más y puede migrar a este endpoint.
+
+### Autorización
+
+Dos ejes, ambos obligatorios:
+
+- **Permiso RBAC**: `declaracion-jurada.view` habilita el módulo;
+  `declaracion-jurada.manage` permite además consultar declaraciones de otras personas.
+- **Ability Sanctum**: `declaraciones:gestionar`, que `MobileTokenAbilityResolver`
+  concede al emitir el token únicamente si el usuario tiene `declaracion-jurada.view`.
+
+Las rutas van con `throttle:api-declaraciones` (30/min por token) y `api.audit:declaraciones`.
+
+### `POST /api/v1/declarations`
+
+```json
+{
+  "remitente_dni": "12345678",
+  "remitente_nombre": "MARIA FERNANDEZ",
+  "remitente_telefono": "987654321",
+  "destinatario_dni": "87654321",
+  "destinatario_nombre": "JUAN PEREZ",
+  "destinatario_telefono": "912345678",
+  "agency_id": 521,
+  "motivo_envio": "Traslado de enseres",
+  "items": [{ "cantidad": "2", "descripcion": "Cajas de ropa" }]
+}
+```
+
+`agency_id` es la clave interna de la agencia y debe existir en el catálogo. El nombre de
+la sede lo fija el servidor desde ese catálogo y queda **congelado** en la declaración: si
+la agencia se renombra o se traslada después, el documento histórico no cambia. Los
+documentos aceptan 8 dígitos (DNI) o 9 (carné de extranjería), y hace falta al menos un bien.
+
+Responde `201` con `{ "success": true, "message": "...", "data": { ... } }`. Errores:
+`401` sin sesión, `403` sin permiso o sin ability, `422` con `errors` por campo, `429` por límite.
+
+### `GET /api/v1/declarations`
+
+Historial paginado. Un usuario normal ve sólo las suyas; con `declaracion-jurada.manage`
+ve todas. No devuelve el PDF, sólo `pdf_available`.
+
+### `GET /api/v1/declarations/{id}/pdf`
+
+Devuelve el documento con `Content-Type: application/pdf` y un nombre seguro
+(`declaracion-jurada-{documento}-{AAAAMMDD}.pdf`). El archivo vive en el disco privado y
+nunca se sirve por una URL pública ni predecible. Si el archivo se hubiera perdido, se
+regenera al vuelo: la fila de base de datos es la fuente de verdad.
+
+Una declaración sólo la descarga su autor, salvo que quien la pida tenga
+`declaracion-jurada.manage`.
