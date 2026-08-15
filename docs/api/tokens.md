@@ -8,4 +8,6 @@ Rotar crea una credencial equivalente y mantiene la anterior activa. Después de
 
 - `agencias:consultar`: únicamente `/api/v1/agencias`.
 - `dni:consultar`: únicamente `/api/v1/dni/{dni}`.
+- `ruc:consultar`: únicamente `/api/v1/ruc/{ruc}`.
+- `ruc:buscar`: únicamente `/api/v1/ruc/buscar`.
 - Ambas deben seleccionarse expresamente para un token combinado.

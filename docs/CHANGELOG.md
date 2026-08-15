@@ -429,3 +429,8 @@ Todas las versiones siguen `Keep a Changelog`.
 - Seguridad: el panel de solicitudes de token ahora revela contactos completos solo bajo permiso explícito y acción auditada.
 - Seguridad: al marcar una solicitud como entregada se eliminan los contactos cifrados completos y se conservan solo máscaras no reversibles.
 - UI: el listado y detalle inicial de solicitudes de token ya no renderizan correo, Telegram ni WhatsApp completos.
+## 2026-08-15
+
+- Se centralizó la derivación de abilities para tokens móviles en `MobileTokenAbilityResolver`.
+- El login móvil ahora emite `mobile` más abilities derivadas de permisos RBAC reales; los tokens antiguos no se alteran y deben renovarse con un nuevo login.
+- Se documentó el contrato móvil para RUC, DNI y Agencias.

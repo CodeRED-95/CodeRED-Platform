@@ -1,6 +1,6 @@
 # API RUC v1
 
-`GET /api/v1/ruc/{ruc}` requiere `ruc:consultar`. `GET /api/v1/ruc/buscar` requiere `ruc:buscar`. Un token DNI no obtiene acceso RUC implícitamente.
+`GET /api/v1/ruc/{ruc}` requiere `ruc:consultar`. `GET /api/v1/ruc/buscar` requiere `ruc:buscar`. Un token DNI no obtiene acceso RUC implícitamente. Los tokens móviles nuevos obtienen `ruc:consultar` solo si el usuario tiene el permiso RBAC `ruc.view`.
 
 ```bash
 curl -X GET "https://platform.codered.lat/api/v1/ruc/20123456789" \

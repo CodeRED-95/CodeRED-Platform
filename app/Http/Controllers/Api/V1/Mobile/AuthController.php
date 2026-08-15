@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Mobile\LoginRequest;
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\Auth\MobileTokenAbilityResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -17,7 +18,7 @@ use Laravel\Sanctum\TransientToken;
 
 class AuthController extends Controller
 {
-    public function login(LoginRequest $request): JsonResponse
+    public function login(LoginRequest $request, MobileTokenAbilityResolver $abilityResolver): JsonResponse
     {
         $user = $this->findUser((string) $request->input('email'));
 
@@ -36,7 +37,7 @@ class AuthController extends Controller
 
         $deviceName = trim((string) $request->input('device_name', ''));
         $tokenName = $deviceName !== '' ? 'codered-mobile - '.$deviceName : 'codered-mobile';
-        $abilities = ['mobile'];
+        $abilities = $abilityResolver->resolve($user);
         $tokenResult = $user->createToken($tokenName, $abilities);
 
         $user->forceFill([

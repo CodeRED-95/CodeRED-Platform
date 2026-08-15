@@ -4,7 +4,7 @@
 
 ## Consulta
 
-`GET /api/v1/dni/{dni}` requiere `dni:consultar`. El DNI es string de ocho dígitos, conserva ceros iniciales, la fecha usa `YYYY-MM-DD` y la edad se calcula dinámicamente.
+`GET /api/v1/dni/{dni}` requiere `dni:consultar`. El DNI es string de ocho dígitos, conserva ceros iniciales, la fecha usa `YYYY-MM-DD` y la edad se calcula dinámicamente. Los tokens móviles nuevos obtienen `dni:consultar` solo si el usuario tiene el permiso RBAC correspondiente.
 
 ### cURL
 
