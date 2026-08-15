@@ -829,6 +829,116 @@ export const createAppBackend = (env) => {
     return false
   }
 
+  // Declaración Jurada contra la API oficial de CodeRED Platform
+  // (POST/GET /api/v1/declarations, ability declaraciones:gestionar). El
+  // navegador nunca ve el token: viaja el técnico de este servidor, y
+  // X-CodeRED-User-Id atribuye la acción al usuario de la sesión local, que
+  // Platform vuelve a validar contra su propio permiso.
+  //
+  // Es la misma API que consume CodeRED Mobile: un solo emisor del PDF.
+  const DECLARATION_UNREACHABLE = 'No se pudo contactar con CodeRED Platform. Inténtalo nuevamente en unos segundos.'
+
+  // Un 5xx de la API puede traer detalle interno (traza, SQLSTATE) si la
+  // instancia corre con depuración activa; nunca se reenvía al navegador.
+  const declarationError = (status, payload, fallback) => {
+    if (status >= 500) return fallback
+    return typeof payload?.message === 'string' && payload.message !== '' ? payload.message : fallback
+  }
+
+  const handleDeclarations = async (request, response, pathname) => {
+    const session = await requireUser(request, response)
+    if (!session) return
+    if (!env.CODERED_API_TOKEN || !env.CODERED_API_URL) {
+      return json(response, 503, { message: 'La API oficial de declaraciones aún no está configurada.' })
+    }
+
+    const headers = {
+      Accept: 'application/json',
+      Authorization: `Bearer ${env.CODERED_API_TOKEN}`,
+      'X-CodeRED-User-Id': String(session.codered_user_id)
+    }
+
+    // Un timeout o una caída de red no son un error del usuario: se traducen
+    // a 504 con un mensaje accionable en vez de propagarse como 500 genérico.
+    const callApi = async (path, init = {}, timeoutMs = 15000) => {
+      try {
+        return await fetch(new URL(path, env.CODERED_API_URL), {
+          ...init,
+          headers,
+          signal: AbortSignal.timeout(timeoutMs)
+        })
+      } catch {
+        return null
+      }
+    }
+
+    if (pathname === '/api/declarations' && request.method === 'GET') {
+      const incomingUrl = new URL(request.url, 'http://localhost')
+      const page = Math.max(1, Number.parseInt(incomingUrl.searchParams.get('page') || '1', 10) || 1)
+      const perPage = Math.min(20, Math.max(1, Number.parseInt(incomingUrl.searchParams.get('per_page') || '10', 10) || 10))
+      const upstream = await callApi(`/api/v1/declarations?page=${page}&per_page=${perPage}`)
+      if (!upstream) return json(response, 504, { message: DECLARATION_UNREACHABLE })
+      const payload = await upstream.json().catch(() => ({}))
+      if (!upstream.ok) {
+        return json(response, upstream.status, {
+          message: declarationError(upstream.status, payload, 'No se pudo obtener el historial de declaraciones.')
+        })
+      }
+      return json(response, 200, payload)
+    }
+
+    if (pathname === '/api/declarations' && request.method === 'POST') {
+      const body = await readJson(request, 128_000)
+      const upstream = await callApi('/api/v1/declarations', {
+        method: 'POST',
+        body: JSON.stringify(body)
+      })
+      if (!upstream) return json(response, 504, { message: DECLARATION_UNREACHABLE })
+      const payload = await upstream.json().catch(() => ({}))
+      if (!upstream.ok) {
+        return json(response, upstream.status, {
+          message: declarationError(upstream.status, payload, 'No se pudo generar la declaración.')
+        })
+      }
+      return json(response, upstream.status, payload)
+    }
+
+    const showMatch = pathname.match(/^\/api\/declarations\/(\d+)$/)
+    if (showMatch && request.method === 'GET') {
+      const upstream = await callApi(`/api/v1/declarations/${showMatch[1]}`)
+      if (!upstream) return json(response, 504, { message: DECLARATION_UNREACHABLE })
+      const payload = await upstream.json().catch(() => ({}))
+      if (!upstream.ok) {
+        return json(response, upstream.status, {
+          message: declarationError(upstream.status, payload, 'No se pudo obtener la declaración.')
+        })
+      }
+      return json(response, 200, payload)
+    }
+
+    const pdfMatch = pathname.match(/^\/api\/declarations\/(\d+)\/pdf$/)
+    if (pdfMatch && request.method === 'GET') {
+      const upstream = await callApi(`/api/v1/declarations/${pdfMatch[1]}/pdf`, {}, 20000)
+      if (!upstream) return json(response, 504, { message: DECLARATION_UNREACHABLE })
+      if (!upstream.ok) {
+        const payload = await upstream.json().catch(() => ({}))
+        return json(response, upstream.status, {
+          message: declarationError(upstream.status, payload, 'No se pudo descargar el PDF.')
+        })
+      }
+      // El PDF se reenvía tal cual, sin escribirlo en disco: este servidor no
+      // guarda copias de documentos personales.
+      const contentType = upstream.headers.get('content-type') || 'application/pdf'
+      const disposition = upstream.headers.get('content-disposition') || 'attachment'
+      const buffer = Buffer.from(await upstream.arrayBuffer())
+      response.writeHead(200, { 'Content-Type': contentType, 'Content-Disposition': disposition, 'Cache-Control': 'no-store' })
+      response.end(buffer)
+      return true
+    }
+
+    return false
+  }
+
   const handleAdmin = async (request, response, pathname) => {
     const session = await requireUser(request, response, { manage: true })
     if (!session) return
@@ -1011,6 +1121,10 @@ export const createAppBackend = (env) => {
       if (pathname === '/api/agencias' && request.method === 'GET') return await handleAgencias(request, response)
       if (pathname === '/api/store' || pathname.startsWith('/api/credit-requests')) {
         const handled = await handleCredits(request, response, pathname)
+        if (handled !== false) return
+      }
+      if (pathname === '/api/declarations' || pathname.startsWith('/api/declarations/')) {
+        const handled = await handleDeclarations(request, response, pathname)
         if (handled !== false) return
       }
       if (pathname.startsWith('/api/admin/')) {

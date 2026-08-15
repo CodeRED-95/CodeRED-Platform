@@ -21,7 +21,16 @@ class DeclaracionJuradaSetupCommand extends Command
      * reemite el token automáticamente la próxima vez que se ejecute (lo
      * hace update.sh en cada despliegue) sin necesitar --reissue manual.
      */
-    private const ABILITIES = ['dni:consultar', 'agencias:consultar'];
+    private const ABILITIES = ['dni:consultar', 'agencias:consultar', 'declaraciones:gestionar'];
+
+    /**
+     * Permiso que ResolveDelegatedUser exige al usuario indicado en
+     * X-CodeRED-User-Id. El bridge Node autentica con su token técnico, pero
+     * cada declaración se atribuye —y se autoriza— contra el usuario real de
+     * CodeRED que tiene la sesión abierta en el paquete React, que es el mismo
+     * permiso que ya le habilita el login allí.
+     */
+    private const DELEGATION_PERMISSION = 'declaracion-jurada.view';
 
     /**
      * Roles de CodeRED que deben tener acceso de lectura a Declaración
@@ -38,10 +47,12 @@ class DeclaracionJuradaSetupCommand extends Command
         $client = ApiClient::query()->firstOrCreate(
             ['name' => 'Declaración Jurada Shalom'],
             [
-                'description' => 'Servicio Node/React independiente (packages/shalom-declaracion-jurada) que resuelve consultas DNI y agencias a través de la API de CodeRED Platform.',
+                'description' => 'Servicio Node/React independiente (packages/shalom-declaracion-jurada) que resuelve consultas DNI, agencias y declaraciones juradas a través de la API de CodeRED Platform.',
                 'active' => true,
             ]
         );
+
+        $this->ensureDelegation($client);
 
         $activeToken = $client->tokens()->whereNull('revoked_at')
             ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
@@ -81,6 +92,26 @@ class DeclaracionJuradaSetupCommand extends Command
         sort($expectedSorted);
 
         return $current === $expectedSorted;
+    }
+
+    /**
+     * Habilita la delegación de identidad en el ApiClient (firstOrCreate no
+     * actualiza instalaciones previas, creadas antes de que existieran estas
+     * columnas). Sin esto, ResolveDelegatedUser rechaza X-CodeRED-User-Id con
+     * 403 y todas las declaraciones del paquete React fallarían.
+     */
+    private function ensureDelegation(ApiClient $client): void
+    {
+        if ($client->canDelegateUsers() && $client->delegation_permission === self::DELEGATION_PERMISSION) {
+            return;
+        }
+
+        $client->forceFill([
+            'can_delegate_users' => true,
+            'delegation_permission' => self::DELEGATION_PERMISSION,
+        ])->save();
+
+        $this->info('Delegación de identidad habilitada (X-CodeRED-User-Id, exige '.self::DELEGATION_PERMISSION.').');
     }
 
     /**

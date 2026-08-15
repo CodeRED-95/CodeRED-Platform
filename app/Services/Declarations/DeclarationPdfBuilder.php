@@ -309,6 +309,7 @@ class DeclarationPdfBuilder
 
             if ($isLast || count($words) < 2) {
                 $this->text($x, $lineY, trim($line));
+
                 continue;
             }
 
@@ -444,6 +445,7 @@ class DeclarationPdfBuilder
             if ($current !== '' && $this->pdf->GetStringWidth($this->enc($candidate)) > $width) {
                 $lines[] = $current;
                 $current = $word;
+
                 continue;
             }
 

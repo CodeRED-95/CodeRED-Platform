@@ -1,11 +1,13 @@
 // Ejecutar con: node --experimental-test-module-mocks --test test/
 //
-// Cubre el módulo compartido de generación de PDF (src/pdf/buildDeclaracionPdf.js),
-// el mismo que usan tanto la descarga final como la vista previa en vivo. No
-// hay endpoint de servidor para este documento (todo es 100% cliente, sin
-// almacenamiento persistente — ver server/app-backend.js, que no tiene
-// ninguna ruta relacionada con "pdf"), así que estas pruebas verifican
-// directamente el documento generado en vez de una API HTTP.
+// Cubre src/pdf/buildDeclaracionPdf.js, que ya NO está en el camino de
+// producción: el PDF oficial lo emite CodeRED Platform y se descarga por
+// GET /api/declarations/{id}/pdf (ver test/declarations.test.js).
+//
+// Estas pruebas se mantienen porque ese módulo es la referencia de la que se
+// portó el generador del servidor (DeclarationPdfBuilder.php, FPDF): mientras
+// siga existiendo debe seguir produciendo el mismo documento, para poder
+// comparar fidelidad. Desaparecerán con él.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Buffer } from 'node:buffer'

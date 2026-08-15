@@ -497,7 +497,9 @@ fi
 # declaracion-jurada:setup ahora también garantiza el acceso RBAC (permiso
 # declaracion-jurada.view asignado al rol viewer, sin quitarle ningún otro
 # permiso — ver DeclaracionJuradaSetupCommand::ensureRoleAccess) además del
-# ApiClient y el token (abilities dni:consultar + agencias:consultar). Se
+# ApiClient, su delegación de identidad (X-CodeRED-User-Id, necesaria para
+# que el paquete React atribuya cada declaración a su autor) y el token
+# (abilities dni:consultar + agencias:consultar + declaraciones:gestionar). Se
 # ejecuta en CADA despliegue, no solo cuando falta el .env: el comando en sí
 # es idempotente (ver DeclaracionJuradaSetupCommand::ABILITIES) y solo emite
 # un token NUEVO si no existe uno activo o si sus abilities quedaron
@@ -510,7 +512,7 @@ DJ_TOKEN_VALUE="$(printf '%s\n' "$DJ_TOKEN_OUTPUT" | grep -E '^[0-9]+\|[A-Za-z0-
 if [[ -n "$DJ_TOKEN_VALUE" ]]; then
     set_env DECLARACION_JURADA_CODERED_API_TOKEN "$DJ_TOKEN_VALUE"
     docker compose up -d --force-recreate --no-deps declaracion-jurada
-    ok "Token de Declaración Jurada (dni:consultar, agencias:consultar) emitido y guardado (contenedor reiniciado para aplicarlo)."
+    ok "Token de Declaración Jurada (dni:consultar, agencias:consultar, declaraciones:gestionar) emitido y guardado (contenedor reiniciado para aplicarlo)."
 elif [[ -z "$(get_env DECLARACION_JURADA_CODERED_API_TOKEN)" ]]; then
     warn "No se pudo emitir automáticamente el token de Declaración Jurada. Ejecute manualmente:"
     warn "  docker compose exec -T app php artisan declaracion-jurada:setup"

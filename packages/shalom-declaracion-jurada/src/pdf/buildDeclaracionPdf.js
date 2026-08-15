@@ -1,3 +1,18 @@
+// OBSOLETO — no lo usa la aplicación. Ver README, «Declaraciones juradas: una
+// sola API, dos clientes».
+//
+// El documento oficial lo emite ahora CodeRED Platform
+// (app/Services/Declarations/DeclarationPdfBuilder.php, FPDF), de modo que la
+// app React y CodeRED Mobile descargan exactamente el mismo archivo en vez de
+// tener cada cliente su propia plantilla. Ningún módulo importa ya esta
+// función y no aparece en el bundle de producción.
+//
+// Se conserva a propósito, con sus pruebas: es el original del que se portó el
+// generador del servidor —mismas coordenadas y métricas Helvetica— y sirve
+// para comparar fidelidad. Se eliminará, junto con las dependencias
+// jspdf/jspdf-autotable, cuando el PDF del servidor lleve una versión completa
+// en producción.
+//
 // Generación del PDF de Declaración Jurada (traslado de bienes Shalom).
 //
 // Extraído de App.jsx a un módulo independiente para que la vista previa y

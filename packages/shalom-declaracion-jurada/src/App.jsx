@@ -17,20 +17,30 @@ import {
   LogOut,
   Settings,
   CircleHelp,
-  AlertTriangle
+  AlertTriangle,
+  History,
+  FileText,
+  Share2,
+  RefreshCw
 } from 'lucide-react';
 import AuthScreen from './AuthScreen.jsx';
 import AccountPanel from './AccountPanel.jsx';
-import { buildDeclaracionPdf } from './pdf/buildDeclaracionPdf.js';
 
 // Mínimo de filas en blanco en la tabla "DECLARO ENVIAR LO SIGUIENTE" —
 // antes era 10 fijo (una tabla casi vacía incluso con 1-2 bienes reales);
 // 3 coincide con las filas iniciales del formulario y evita el vacío
 // excesivo sin dejar de dar espacio para completar a mano si hace falta.
 const MIN_TABLE_ROWS = 3;
-// Espera tras la última tecla antes de regenerar la vista previa — evita
-// reconstruir el PDF en cada pulsación.
-const PREVIEW_DEBOUNCE_MS = 500;
+// El PDF nunca se guarda en el navegador: se abre siempre contra la ruta
+// autenticada del servidor, que a su vez lo pide a CodeRED Platform.
+const declarationPdfPath = id => `/api/declarations/${id}/pdf`;
+
+const formatDeclarationDate = value => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
+};
 // Espera tras la última tecla antes de volver a buscar agencias en CodeRED
 // Platform — evita una petición por cada carácter tecleado.
 const AGENCIAS_SEARCH_DEBOUNCE_MS = 350;
@@ -101,16 +111,21 @@ const App = () => {
   const agenciasGenerationRef = useRef(0);
   const agenciasSentinelRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [previewLoading, setPreviewLoading] = useState(true);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
   const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
   const [downloadError, setDownloadError] = useState('');
+  const [declarations, setDeclarations] = useState([]);
+  const [declarationsLoading, setDeclarationsLoading] = useState(false);
+  const [declarationsError, setDeclarationsError] = useState('');
+  const [declarationsPage, setDeclarationsPage] = useState(1);
+  const [declarationsHasMore, setDeclarationsHasMore] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [dniLookupStatus, setDniLookupStatus] = useState({
     remitente: { status: 'idle', message: '' },
     destinatario: { status: 'idle', message: '' }
   });
   const [dniLookupEnabled, setDniLookupEnabled] = useState({ remitente: false, destinatario: false });
-  const previewUrlRef = useRef(null);
   const isGeneratingRef = useRef(false);
   const [form, setForm] = useState(createInitialForm);
   const documentItems = useMemo(() => Array.from(
@@ -220,6 +235,57 @@ const App = () => {
       .then(payload => setCurrentUser(payload.user))
       .catch(() => setCurrentUser(null))
       .finally(() => setSessionLoading(false));
+  }, []);
+
+  // El backend de este paquete ya traduce cada fallo de la API oficial a un
+  // mensaje en español; aquí solo se decide qué hacer con él. Nunca se muestra
+  // el error crudo del navegador ni el cuerpo técnico de la respuesta.
+  const readApiError = useCallback(async (response, fallback) => {
+    if (response.status === 401) {
+      setCurrentUser(null);
+      return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+    }
+    const payload = await response.json().catch(() => ({}));
+    return typeof payload.message === 'string' && payload.message !== '' ? payload.message : fallback;
+  }, []);
+
+  const loadDeclarations = useCallback(async (page = 1) => {
+    setDeclarationsLoading(true);
+    setDeclarationsError('');
+    try {
+      const response = await fetch(`/api/declarations?page=${page}&per_page=10`);
+      if (!response.ok) {
+        setDeclarationsError(await readApiError(response, 'No se pudo obtener el historial.'));
+        return;
+      }
+      const payload = await response.json().catch(() => ({}));
+      const rows = Array.isArray(payload.data) ? payload.data : [];
+      setDeclarations(prev => page === 1 ? rows : [...prev, ...rows]);
+      setDeclarationsPage(page);
+      setDeclarationsHasMore(Boolean(payload.meta && payload.meta.current_page < payload.meta.last_page));
+    } catch {
+      // Fallo de red del propio navegador (sin conexión, servidor caído).
+      setDeclarationsError('No hay conexión con el servidor. Verifica tu red e inténtalo nuevamente.');
+    } finally {
+      setDeclarationsLoading(false);
+    }
+  }, [readApiError]);
+
+  const openDeclarationPdf = useCallback(id => {
+    window.open(declarationPdfPath(id), '_blank', 'noopener,noreferrer');
+  }, []);
+
+  // navigator.share necesita una URL absoluta; donde no exista (escritorio,
+  // navegadores sin Web Share) se abre el PDF, que es la acción equivalente.
+  const shareDeclarationPdf = useCallback(declaration => {
+    const url = new URL(declarationPdfPath(declaration.id), window.location.origin).toString();
+    if (typeof navigator.share !== 'function') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    navigator
+      .share({ title: `Declaración Jurada ${declaration.codigo ?? ''}`.trim(), url })
+      .catch(() => {});
   }, []);
 
   const scheduleDniLookup = useCallback((dni, dniField, nameField, statusKey, enabled) => {
@@ -359,64 +425,64 @@ const App = () => {
     setIncludeDniPhoto(val);
   }, []);
 
-  // Vista previa = el mismo PDF que se descarga. Se reconstruye (con
-  // debounce) cada vez que cambian los datos que afectan al documento, en
-  // vez de mantener una maqueta HTML aparte que podía desincronizarse del
-  // archivo real.
-  useEffect(() => {
-    let cancelled = false;
-    setPreviewLoading(true);
-    const timer = window.setTimeout(async () => {
-      try {
-        const doc = await buildDeclaracionPdf({ form, documentItems, includeDniPhoto, dniPhoto });
-        if (cancelled) return;
-        const blobUrl = doc.output('bloburl').toString();
-        if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-        previewUrlRef.current = blobUrl;
-        setPreviewUrl(blobUrl);
-        setPreviewError('');
-      } catch (error) {
-        if (cancelled) return;
-        console.error('Error al generar la vista previa:', error);
-        setPreviewError('No se pudo generar la vista previa. Verifica los datos ingresados.');
-      } finally {
-        if (!cancelled) setPreviewLoading(false);
-      }
-    }, PREVIEW_DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [form, documentItems, includeDniPhoto, dniPhoto]);
-
-  // Revoca el último blob URL al desmontar, para no dejar memoria retenida.
-  useEffect(() => () => {
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-  }, []);
-
   const logout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     setCurrentUser(null);
     setIsAccountOpen(false);
   }, []);
 
+  // El PDF ya no se compone en el navegador: se pide a CodeRED Platform, que es
+  // el único que emite el documento oficial. Aquí solo se envían los datos del
+  // formulario y se muestra el archivo que devuelve.
   const generarPDF = useCallback(async () => {
     if (isGeneratingRef.current) return;
     isGeneratingRef.current = true;
     setLoading(true);
+    setPreviewLoading(true);
+    setPreviewError('');
     setDownloadError('');
     try {
-      const doc = await buildDeclaracionPdf({ form, documentItems, includeDniPhoto, dniPhoto });
-      doc.save(`DJ_SHALOM_${form.remitenteDni || 'MANUAL'}.pdf`);
-    } catch (error) {
-      console.error('Error al generar el PDF:', error);
-      setDownloadError('Ocurrió un error al generar el documento. Verifica los datos e intenta nuevamente.');
+      const response = await fetch('/api/declarations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          remitente_dni: form.remitenteDni,
+          remitente_nombre: form.remitenteNombre,
+          remitente_telefono: form.remitenteTelefono || null,
+          destinatario_dni: form.destinatarioDni,
+          destinatario_nombre: form.destinatarioNombre,
+          destinatario_telefono: form.destinatarioTelefono || null,
+          agency_id: form.agencyId,
+          sede_destino: form.sedeDestino,
+          motivo_envio: form.motivoEnvio || null,
+          items: documentItems.filter(item => item.descripcion.trim() !== '').map(item => ({
+            cantidad: item.cantidad || null,
+            descripcion: item.descripcion,
+          })),
+        }),
+      });
+      if (!response.ok) {
+        setDownloadError(await readApiError(response, 'No se pudo generar la declaración.'));
+        return;
+      }
+      const payload = await response.json().catch(() => ({}));
+      const declarationId = payload?.data?.id;
+      if (!declarationId) {
+        setDownloadError('El servidor aceptó la declaración pero no devolvió el documento. Revisa "Mis declaraciones".');
+        return;
+      }
+      const pdfUrl = `/api/declarations/${declarationId}/pdf`;
+      setPreviewUrl(pdfUrl);
+      await loadDeclarations(1);
+      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      setDownloadError('No hay conexión con el servidor. Verifica tu red e inténtalo nuevamente.');
     } finally {
+      setPreviewLoading(false);
       setLoading(false);
       isGeneratingRef.current = false;
     }
-  }, [form, documentItems, includeDniPhoto, dniPhoto]);
+  }, [form, documentItems, loadDeclarations, readApiError]);
 
   if (sessionLoading) {
     return <div className="min-h-screen grid place-items-center bg-slate-950 text-white font-bold">Cargando...</div>;
@@ -449,6 +515,15 @@ const App = () => {
               aria-label="Ver vista previa del documento"
             >
               <Eye size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsHistoryOpen(true); loadDeclarations(1); }}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              title="Mis declaraciones"
+              aria-label="Ver mis declaraciones"
+            >
+              <History size={18} />
             </button>
             <button
               type="button"
@@ -638,16 +713,16 @@ const App = () => {
         <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur">
           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
             <Eye size={16} />
-            <span className="text-xs font-bold uppercase tracking-wide">Vista previa del PDF</span>
+            <span className="text-xs font-bold uppercase tracking-wide">PDF oficial del servidor</span>
           </div>
           <button
             type="button"
             onClick={() => previewUrl && window.open(previewUrl, '_blank', 'noopener,noreferrer')}
             disabled={!previewUrl}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title="Abrir en una pestaña nueva"
+            title="Abrir PDF oficial en una pestaña nueva"
           >
-            <ExternalLink size={14} /> Ampliar en pestaña nueva
+            <ExternalLink size={14} /> Abrir PDF oficial
           </button>
         </div>
 
@@ -661,19 +736,141 @@ const App = () => {
             <iframe
               key={previewUrl}
               src={previewUrl}
-              title="Vista previa de la Declaración Jurada"
+              title="PDF oficial de la Declaración Jurada"
               className="absolute inset-0 w-full h-full border-0 bg-slate-100 dark:bg-slate-900"
             />
-          ) : null}
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center">
+              <FileText size={32} className="text-slate-400 dark:text-slate-600" />
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Aquí aparecerá el PDF oficial</p>
+              <p className="max-w-xs text-xs text-slate-500 dark:text-slate-400">
+                Completa el formulario y pulsa «Generar PDF oficial». El documento lo emite CodeRED Platform.
+              </p>
+            </div>
+          )}
 
           {previewLoading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/70 dark:bg-slate-950/70 backdrop-blur-sm">
               <div className="w-8 h-8 border-3 border-slate-300 dark:border-slate-700 border-t-[#e31837] rounded-full animate-spin" />
-              <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Generando vista previa...</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Esperando PDF oficial...</p>
             </div>
           )}
         </div>
       </section>
+
+      {/* MIS DECLARACIONES — historial servido por CodeRED Platform. No hay
+          copia local: cada apertura y cada "Cargar más" pide su página. */}
+      {isHistoryOpen && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="mt-auto flex h-[85vh] flex-col rounded-t-2xl bg-white dark:bg-slate-900 sm:m-auto sm:h-[80vh] sm:w-[min(560px,calc(100vw-2rem))] sm:rounded-2xl">
+            <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <History size={18} className="text-[#e31837]" />
+                <div>
+                  <h2 className="text-sm font-black tracking-tight text-slate-900 dark:text-white">Mis declaraciones</h2>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    CodeRED Platform
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => loadDeclarations(1)}
+                  disabled={declarationsLoading}
+                  className="rounded-lg bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  title="Actualizar"
+                  aria-label="Actualizar historial"
+                >
+                  <RefreshCw size={16} className={declarationsLoading ? 'animate-spin' : ''} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="rounded-lg bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  title="Cerrar"
+                  aria-label="Cerrar historial"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {declarationsError ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                  <AlertTriangle size={28} className="text-red-500" />
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{declarationsError}</p>
+                </div>
+              ) : declarationsLoading && declarations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-3 border-slate-300 border-t-[#e31837] dark:border-slate-700" />
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Cargando historial...</p>
+                </div>
+              ) : declarations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                  <FileText size={28} className="text-slate-400 dark:text-slate-600" />
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Todavía no tienes declaraciones</p>
+                  <p className="max-w-xs text-xs text-slate-500 dark:text-slate-400">
+                    Las que generes aparecerán aquí, listas para volver a descargar.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {declarations.map(declaration => (
+                    <article
+                      key={declaration.id}
+                      className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-800"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                            {declaration.codigo} · {formatDeclarationDate(declaration.creada_en)}
+                          </p>
+                          <p className="truncate text-sm font-black text-slate-900 dark:text-white">
+                            {declaration.remitente_nombre}
+                          </p>
+                          <p className="truncate text-xs text-slate-600 dark:text-slate-300">
+                            <MapPin size={11} className="mr-1 inline" />
+                            {declaration.sede_destino}
+                          </p>
+                        </div>
+                        <div className="flex flex-shrink-0 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openDeclarationPdf(declaration.id)}
+                            className="flex items-center gap-1.5 rounded-lg bg-[#e31837] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-white transition-transform active:scale-95"
+                          >
+                            <Eye size={13} /> PDF
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => shareDeclarationPdf(declaration)}
+                            className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-700 transition-transform active:scale-95 dark:bg-slate-700 dark:text-slate-100"
+                          >
+                            <Share2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+
+                  {declarationsHasMore && (
+                    <button
+                      type="button"
+                      onClick={() => loadDeclarations(declarationsPage + 1)}
+                      disabled={declarationsLoading}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-3 text-xs font-black uppercase tracking-wide text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      {declarationsLoading ? 'Cargando...' : 'Cargar más'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* VISTA PREVIA MÓVIL/TABLET (MODAL) */}
       {isMobilePreviewOpen && (

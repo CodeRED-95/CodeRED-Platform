@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Modules\Agencies\Models\Agency;
@@ -16,7 +18,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Declaration extends Model
 {
-    /** @use HasFactory<\Database\Factories\DeclarationFactory> */
     use HasFactory;
 
     protected $fillable = [

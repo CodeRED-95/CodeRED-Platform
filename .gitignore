@@ -42,4 +42,6 @@ codered-agent-data/
 *.cache
 /storage/app/private/backups/
 /storage/app/private/imports/
+# Declaraciones juradas emitidas: documentos personales de usuarios reales.
+/storage/app/private/declarations/
 /storage/app/private/livewire-tmp/

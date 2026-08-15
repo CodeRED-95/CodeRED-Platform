@@ -170,10 +170,18 @@ class DeclarationController
     /**
      * Comprueba el permiso RBAC además de la ability del token, que ya validó el
      * middleware. Son dos ejes distintos y ambos deben cumplirse.
+     *
+     * Una declaración siempre pertenece a una persona, nunca a un servicio: por
+     * eso, cuando quien autentica es un ApiClient que delega identidad (el
+     * bridge Node de packages/shalom-declaracion-jurada, vía X-CodeRED-User-Id),
+     * el actor efectivo es el usuario delegado que ResolveDelegatedUser ya
+     * validó —existe, está activo y tiene el permiso de delegación—. Sin esa
+     * cabecera, un token de servicio no tiene ningún historial propio que
+     * consultar y la petición se rechaza.
      */
     private function authorizeUser(Request $request): User|JsonResponse
     {
-        $user = $request->user();
+        $user = $request->attributes->get('delegated_user') ?? $request->user();
 
         if (! $user instanceof User) {
             return $this->deny('No autenticado.', Response::HTTP_UNAUTHORIZED);

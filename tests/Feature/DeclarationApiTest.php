@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ApiClient;
 use App\Models\Declaration;
 use App\Models\Permission;
 use App\Models\Role;
@@ -225,5 +226,106 @@ class DeclarationApiTest extends TestCase
         $this->postJson('/api/v1/declarations', $this->payload($this->agency()))->assertCreated();
 
         $this->assertCount(2, $this->getJson('/api/v1/declarations')->json('data'));
+    }
+
+    // --- Delegación de identidad -------------------------------------------
+    //
+    // El paquete React (packages/shalom-declaracion-jurada) no tiene tokens de
+    // usuario: autentica con su token técnico y declara a quién pertenece la
+    // acción con X-CodeRED-User-Id. Es la misma API que consume CodeRED Mobile,
+    // pero la declaración debe quedar a nombre de la persona, no del servicio.
+
+    public function test_un_cliente_delegante_crea_la_declaracion_a_nombre_del_usuario(): void
+    {
+        $user = $this->userWithPermission(self::PERMISSION);
+        $token = $this->delegatingClient()->createToken('Bridge', [self::ABILITY])->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->withHeaders(['X-CodeRED-User-Id' => (string) $user->getKey()])
+            ->postJson('/api/v1/declarations', $this->payload($this->agency()));
+
+        $response->assertCreated();
+
+        $declaration = Declaration::query()->findOrFail($response->json('data.id'));
+        $this->assertSame($user->getKey(), $declaration->user_id);
+    }
+
+    public function test_sin_la_cabecera_de_delegacion_el_token_tecnico_no_tiene_historial(): void
+    {
+        $token = $this->delegatingClient()->createToken('Bridge', [self::ABILITY])->plainTextToken;
+
+        // Aquí no hay ningún usuario autenticado —ese es justo el escenario—,
+        // así que created_by se fija a mano en vez de heredarlo de la sesión.
+        $autor = $this->userWithPermission(self::PERMISSION);
+        $agency = Agency::factory()->create([
+            'created_by' => $autor->getKey(),
+            'updated_by' => $autor->getKey(),
+        ]);
+
+        // Un servicio no es una persona: sin usuario delegado no hay nada que
+        // consultar ni a quién atribuir la declaración.
+        $this->withToken($token)->getJson('/api/v1/declarations')->assertUnauthorized();
+        $this->withToken($token)
+            ->postJson('/api/v1/declarations', $this->payload($agency))
+            ->assertUnauthorized();
+    }
+
+    public function test_el_usuario_delegado_sin_permiso_es_rechazado(): void
+    {
+        $user = User::factory()->create(['status' => 'active']);
+        $token = $this->delegatingClient()->createToken('Bridge', [self::ABILITY])->plainTextToken;
+
+        $this->withToken($token)
+            ->withHeaders(['X-CodeRED-User-Id' => (string) $user->getKey()])
+            ->postJson('/api/v1/declarations', $this->payload($this->agency()))
+            ->assertForbidden();
+    }
+
+    public function test_la_delegacion_solo_alcanza_el_historial_del_usuario_delegado(): void
+    {
+        // La declaración ajena se siembra directamente: el guard cachea al
+        // usuario de la primera petición autenticada del test, así que una
+        // llamada HTTP previa impediría evaluar después el token del cliente.
+        $ajeno = $this->userWithPermission(self::PERMISSION);
+        Declaration::query()->create([
+            'user_id' => $ajeno->getKey(),
+            'agency_id' => $this->agency()->getKey(),
+            'remitente_dni' => '55555555',
+            'remitente_nombre' => 'PERSONA AJENA',
+            'destinatario_dni' => '87654321',
+            'destinatario_nombre' => 'JUAN PEREZ',
+            'sede_destino' => 'LIMA',
+        ]);
+
+        $propio = $this->userWithPermission(self::PERMISSION);
+        $token = $this->delegatingClient()->createToken('Bridge', [self::ABILITY])->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->withHeaders(['X-CodeRED-User-Id' => (string) $propio->getKey()])
+            ->getJson('/api/v1/declarations');
+
+        $response->assertOk();
+        $this->assertCount(0, $response->json('data'));
+    }
+
+    public function test_un_cliente_sin_delegacion_habilitada_no_puede_suplantar(): void
+    {
+        $user = $this->userWithPermission(self::PERMISSION);
+        $client = ApiClient::factory()->create(['can_delegate_users' => false]);
+        $token = $client->createToken('Bridge', [self::ABILITY])->plainTextToken;
+
+        $this->withToken($token)
+            ->withHeaders(['X-CodeRED-User-Id' => (string) $user->getKey()])
+            ->postJson('/api/v1/declarations', $this->payload($this->agency()))
+            ->assertForbidden();
+    }
+
+    private function delegatingClient(): ApiClient
+    {
+        return ApiClient::factory()->create([
+            'name' => 'Declaración Jurada Shalom',
+            'can_delegate_users' => true,
+            'delegation_permission' => self::PERMISSION,
+        ]);
     }
 }

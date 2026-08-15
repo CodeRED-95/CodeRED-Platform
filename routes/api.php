@@ -95,7 +95,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/agencias', [AgencyCatalogController::class, 'index'])->name('agencias.index');
             Route::get('/agencias/{id}', [AgencyCatalogController::class, 'showById'])->name('agencias.show');
         });
-        Route::middleware(['throttle:api-declaraciones', 'api.audit:declaraciones', 'abilities:declaraciones:gestionar'])->group(function (): void {
+        // api.delegate-user permite que el bridge Node de Declaración Jurada
+        // (packages/shalom-declaracion-jurada) actúe en nombre del usuario que
+        // tiene la sesión abierta allí, con su propio token técnico. Sin él, el
+        // paquete React no tendría forma de atribuir cada declaración a su autor.
+        Route::middleware(['throttle:api-declaraciones', 'api.audit:declaraciones', 'api.delegate-user', 'abilities:declaraciones:gestionar'])->group(function (): void {
             Route::get('/declarations', [DeclarationController::class, 'index'])->name('declarations.index');
             Route::post('/declarations', [DeclarationController::class, 'store'])->name('declarations.store');
             Route::get('/declarations/{id}', [DeclarationController::class, 'show'])->whereNumber('id')->name('declarations.show');

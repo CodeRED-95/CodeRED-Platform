@@ -28,7 +28,7 @@ class DeclaracionJuradaSetupCommandTest extends TestCase
 
         $client = ApiClient::query()->where('name', 'Declaración Jurada Shalom')->firstOrFail();
         $token = $client->tokens()->whereNull('revoked_at')->firstOrFail();
-        $this->assertEqualsCanonicalizing(['dni:consultar', 'agencias:consultar'], $token->abilities);
+        $this->assertEqualsCanonicalizing(['dni:consultar', 'agencias:consultar', 'declaraciones:gestionar'], $token->abilities);
     }
 
     public function test_running_again_with_correct_abilities_is_a_noop(): void
@@ -61,7 +61,7 @@ class DeclaracionJuradaSetupCommandTest extends TestCase
 
         $this->assertNotNull($oldToken->accessToken->fresh()->revoked_at);
         $newToken = $client->tokens()->whereNull('revoked_at')->firstOrFail();
-        $this->assertEqualsCanonicalizing(['dni:consultar', 'agencias:consultar'], $newToken->abilities);
+        $this->assertEqualsCanonicalizing(['dni:consultar', 'agencias:consultar', 'declaraciones:gestionar'], $newToken->abilities);
     }
 
     public function test_reissue_flag_forces_a_new_token_even_if_abilities_already_match(): void
@@ -75,6 +75,35 @@ class DeclaracionJuradaSetupCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
         $newToken = $client->tokens()->whereNull('revoked_at')->firstOrFail();
         $this->assertNotSame($firstTokenId, $newToken->id);
+    }
+
+    public function test_setup_enables_user_delegation_for_the_bridge(): void
+    {
+        Artisan::call('declaracion-jurada:setup');
+
+        $client = ApiClient::query()->where('name', 'Declaración Jurada Shalom')->firstOrFail();
+
+        // Sin esto, ResolveDelegatedUser rechaza X-CodeRED-User-Id y ninguna
+        // declaración del paquete React podría atribuirse a su autor.
+        $this->assertTrue($client->canDelegateUsers());
+        $this->assertSame('declaracion-jurada.view', $client->delegation_permission);
+    }
+
+    public function test_setup_repairs_an_existing_client_without_delegation(): void
+    {
+        // Instalación anterior a la integración de declaraciones: el cliente ya
+        // existe, así que firstOrCreate no lo tocaría.
+        ApiClient::factory()->create([
+            'name' => 'Declaración Jurada Shalom',
+            'can_delegate_users' => false,
+            'delegation_permission' => null,
+        ]);
+
+        Artisan::call('declaracion-jurada:setup');
+
+        $client = ApiClient::query()->where('name', 'Declaración Jurada Shalom')->firstOrFail();
+        $this->assertTrue($client->canDelegateUsers());
+        $this->assertSame('declaracion-jurada.view', $client->delegation_permission);
     }
 
     public function test_setup_creates_the_permission_and_assigns_it_to_the_viewer_role(): void

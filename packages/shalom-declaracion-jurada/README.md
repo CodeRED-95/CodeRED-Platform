@@ -1,6 +1,8 @@
 # Declaración Jurada Shalom
 
-Aplicación React con generación de PDF, venta manual de consultas y autocompletado de nombres por DNI.
+Aplicación React para emitir declaraciones juradas de traslado, con venta manual de
+consultas y autocompletado de nombres por DNI. **El PDF lo emite CodeRED Platform**,
+no el navegador.
 
 ## Integración con CodeRED Platform
 
@@ -44,6 +46,41 @@ del monorepo para el resto del cableado (Nginx, volumen de datos, etc.).
 una CodeRED Platform accesible (Postgres para autenticar, opcionalmente su API para
 resolver DNIs). El servidor Node y el SQLite propio siguen siendo suyos — solo la
 identidad de usuario se delega.
+
+## Declaraciones juradas: una sola API, dos clientes
+
+El documento oficial ya no se compone en el navegador. Tanto esta app como CodeRED
+Mobile llaman a la **misma** API de CodeRED Platform, que persiste la declaración y
+genera el PDF A4 en el servidor:
+
+| Ruta de este paquete | API oficial de CodeRED Platform |
+| --- | --- |
+| `POST /api/declarations` | `POST /api/v1/declarations` |
+| `GET /api/declarations?page=&per_page=` | `GET /api/v1/declarations` |
+| `GET /api/declarations/{id}` | `GET /api/v1/declarations/{id}` |
+| `GET /api/declarations/{id}/pdf` | `GET /api/v1/declarations/{id}/pdf` |
+
+- **El navegador nunca ve un token de la API.** El servidor Node añade el token
+  técnico (`DECLARACION_JURADA_CODERED_API_TOKEN`, ability `declaraciones:gestionar`)
+  y el header `X-CodeRED-User-Id` con el usuario de la sesión local. CodeRED
+  Platform vuelve a validar ese usuario contra `declaracion-jurada.view`
+  (`ResolveDelegatedUser` + `ApiClient::delegation_permission`), así que la
+  autorización real ocurre en Platform y cada declaración queda atribuida a su
+  autor, no al cliente técnico. No hay token Sanctum en `localStorage` ni
+  credenciales de servicio en el frontend.
+- **El historial es el del servidor.** Esta app no guarda declaraciones ni PDFs: el
+  listado se pide paginado y el PDF se reenvía tal cual, con `Cache-Control:
+  no-store` y sin escribirlo en disco.
+- **Los errores se traducen.** 401 devuelve a la pantalla de login; 403, 422 y 429
+  conservan el mensaje de Platform; un 5xx o una caída de red se resuelven con un
+  aviso genérico, nunca con trazas ni `SQLSTATE`.
+
+`src/pdf/buildDeclaracionPdf.js` (jsPDF) queda como **referencia obsoleta**: ya no lo
+importa la aplicación y no aparece en el bundle de producción. Se conserva —con sus
+pruebas— porque es el original del que se portó el generador del servidor
+(`app/Services/Declarations/DeclarationPdfBuilder.php`, FPDF), y sirve para comparar
+fidelidad. Se eliminará, junto con las dependencias `jspdf`/`jspdf-autotable`, una vez
+que el PDF del servidor lleve una versión completa en producción.
 
 ## Configuración
 

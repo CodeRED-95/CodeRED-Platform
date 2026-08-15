@@ -109,6 +109,30 @@ Dos ejes, ambos obligatorios:
 
 Las rutas van con `throttle:api-declaraciones` (30/min por token) y `api.audit:declaraciones`.
 
+#### Dos clientes, un solo emisor del PDF
+
+Consumen esta misma API la app **CodeRED Mobile** y el paquete **Shalom Declaración
+Jurada** (`packages/shalom-declaracion-jurada`). Ninguno compone el documento: el PDF A4
+lo genera siempre el servidor, de modo que ambos descargan un archivo idéntico.
+
+Se diferencian sólo en cómo autentican:
+
+| Cliente | Credencial | Usuario efectivo |
+| --- | --- | --- |
+| CodeRED Mobile | token personal del usuario | el dueño del token |
+| Shalom Declaración Jurada | token técnico del `ApiClient` | el de `X-CodeRED-User-Id` |
+
+El paquete React no maneja tokens en el navegador: su servidor Node añade el token
+técnico y la cabecera `X-CodeRED-User-Id` con el usuario que tiene la sesión abierta
+allí. Estas rutas llevan `api.delegate-user`, así que `ResolveDelegatedUser` valida ese
+usuario —debe existir, estar activo y tener el `delegation_permission` del cliente— y
+`DeclarationController` lo toma como actor: la declaración queda a nombre de la persona,
+no del servicio, y el historial que ve es el suyo.
+
+Un token técnico **sin** esa cabecera recibe `401`: un servicio no tiene declaraciones
+propias. Un cliente sin `can_delegate_users` que envíe la cabecera recibe `403`.
+
+
 ### `POST /api/v1/declarations`
 
 ```json
