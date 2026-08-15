@@ -1,0 +1,4 @@
+# El ZIP de cada versión se produce con `git archive` desde HEAD. Sin esta
+# regla, el paquete de 4.14.0 incluiría el ZIP de 4.13.0 —y ése ya incluye los
+# suyos—, así que cada release arrastraría el peso de todas las anteriores.
+/release export-ignore

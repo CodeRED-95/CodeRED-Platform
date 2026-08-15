@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.14.0] - 2026-08-15
+
+### ℹ️ Nota
+
+- API oficial de Declaración Jurada con el PDF A4 generado en el servidor: CodeRED Mobile y el paquete Shalom Declaración Jurada consumen la misma API y descargan un documento idéntico (el paquete React deja de componerlo con jsPDF)
+
+---
+
 ## [4.13.0] - 2026-08-14
 
 ### ℹ️ Nota
