@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Admin\ApiTokenRequests;
 
+use App\Actions\ApiTokenRequests\ApproveTokenRequestAction;
 use App\Actions\ApiTokenRequests\ConfirmTokenDeliveryAction;
 use App\Actions\ApiTokenRequests\MarkTokenRequestAsDeliveredAction;
+use App\Actions\ApiTokenRequests\RejectTokenRequestAction;
 use App\Actions\ApiTokenRequests\RevealTokenAction;
 use App\Actions\ApiTokenRequests\ShowProtectedDataAction;
 use App\Enums\ApiTokenRequestDeliveryStatus;
@@ -11,13 +13,13 @@ use App\Enums\ApiTokenRequestStatus;
 use App\Enums\ApiTokenRequestType;
 use App\Enums\ApiTokenType;
 use App\Events\TokenRequestCreated;
+use App\Exceptions\TokenRequestTransitionException;
 use App\Jobs\NotifyN8nTokenRequestStatus;
 use App\Models\ApiToken;
 use App\Models\ApiTokenRequest;
 use App\Models\ApiTokenRequestEvent;
 use App\Models\User;
 use App\Services\ApiTokens\ApiTokenGenerator;
-use App\Services\ApiTokens\TelegramRequesterLinker;
 use App\Services\ApiTokens\TokenVaultService;
 use App\Services\Integrations\N8nTelegramTokenSettings;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -198,7 +200,7 @@ class Index extends Component
         $this->event($request, 'viewed', 'Solicitud visualizada.');
     }
 
-    public function approve(N8nTelegramTokenSettings $settings, ApiTokenGenerator $generator, TokenVaultService $vault): void
+    public function approve(N8nTelegramTokenSettings $settings, ApiTokenGenerator $generator, TokenVaultService $vault, ApproveTokenRequestAction $action): void
     {
         Gate::authorize('api-token-requests.approve');
 
@@ -208,6 +210,7 @@ class Index extends Component
 
             return;
         }
+
         $data = $this->validate([
             'approvalTokenName' => ['required', 'string', 'max:100'],
             'approvalTokenType' => ['required', 'string', Rule::in(ApiTokenType::values())],
@@ -216,78 +219,21 @@ class Index extends Component
             'adminNote' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $current = ApiTokenRequest::query()->findOrFail($this->selectedId);
-        if ($current->status !== ApiTokenRequestStatus::Pending) {
-            $this->event($current, 'invalid_transition', 'Intento invalido de aprobar una solicitud no pendiente.', ['status' => $current->statusValue()]);
-            abort(422, 'La solicitud ya fue procesada.');
+        // La emisión vive en ApproveTokenRequestAction: la comparte con la API
+        // de administración móvil para que aprobar signifique lo mismo en los
+        // dos frontales.
+        try {
+            $action->execute(
+                requestId: (int) $this->selectedId,
+                tokenName: $data['approvalTokenName'],
+                tokenType: ApiTokenType::from($data['approvalTokenType']),
+                tokenExpiresInDays: (int) $data['tokenExpiresInDays'],
+                ownerUserId: (int) $data['approvalUserId'],
+                actorId: auth()->id(),
+            );
+        } catch (TokenRequestTransitionException $exception) {
+            abort(422, $exception->getMessage());
         }
-
-        DB::transaction(function () use ($data, $settings, $generator, $vault): void {
-            $request = ApiTokenRequest::query()->whereKey($this->selectedId)->lockForUpdate()->firstOrFail();
-
-            if ($request->status !== ApiTokenRequestStatus::Pending) {
-                abort(422, 'La solicitud ya fue procesada.');
-            }
-
-            $requestedAt = $request->requestedAt();
-            if ($requestedAt?->lt(now()->subMinutes((int) $settings->get('approval_timeout_minutes', 1440)))) {
-                $this->event($request, 'invalid_transition', 'Intento invalido de aprobar una solicitud vencida.', ['status' => $request->statusValue()]);
-                abort(422, 'La solicitud ya venció.');
-            }
-
-            $tokenType = ApiTokenType::from($data['approvalTokenType']);
-            $abilities = $tokenType->abilities();
-            $user = User::query()->active()->findOrFail($data['approvalUserId']);
-            $tokenExpiresInDays = (int) $data['tokenExpiresInDays'];
-            $expiresAt = $generator->expiresAt($tokenExpiresInDays);
-            $created = $generator->create($user, trim($data['approvalTokenName']), $abilities, $tokenExpiresInDays);
-
-            /** @var ApiToken $token */
-            $token = ApiToken::query()->findOrFail($created->accessToken->id);
-            $token->forceFill([
-                'description' => 'Token aprobado desde solicitud '.$request->request_uuid,
-                'created_by' => auth()->id(),
-            ])->save();
-
-            app(TelegramRequesterLinker::class)->linkFromRequest($request, $user);
-
-            $request->forceFill([
-                'requested_token_name' => trim($data['approvalTokenName']),
-                'requested_abilities' => $abilities,
-                'token_expires_in_days' => $tokenExpiresInDays,
-                'token_type' => $tokenType->value,
-                'status' => ApiTokenRequestStatus::Approved,
-                'reviewed_by' => auth()->id(),
-                'reviewed_at' => now(),
-                'approved_at' => now(),
-                'personal_access_token_id' => $token->id,
-                'token_ciphertext' => $vault->encrypt($created->plainTextToken),
-                'token_hash' => hash('sha256', $created->plainTextToken),
-                'token_last_four' => substr($created->plainTextToken, -4),
-                'delivery_status' => ApiTokenRequestDeliveryStatus::Pending,
-            ])->save();
-
-            $this->event($request, 'token_type_selected', 'Tipo de token seleccionado.', [
-                'token_type' => $tokenType->value,
-                'abilities' => $abilities,
-            ]);
-
-            if ($request->requested_token_type !== null && $request->requested_token_type !== $tokenType->value) {
-                $this->event($request, 'token_type_changed', 'El administrador aprobó un tipo distinto al solicitado.', [
-                    'requested_token_type' => $request->requested_token_type,
-                    'token_type' => $tokenType->value,
-                ]);
-            }
-
-            $this->event($request, 'approved', 'Solicitud aprobada.', [
-                'token_type' => $tokenType->value,
-                'abilities' => $abilities,
-                'token_expires_in_days' => $tokenExpiresInDays,
-                'expires_at' => $expiresAt->toIso8601String(),
-            ]);
-            $this->event($request, 'token_generated', 'Token Sanctum generado sin exponer valor plano.', ['token_type' => $tokenType->value]);
-            NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.approved');
-        });
 
         $this->dispatch('toast', type: 'success', message: 'Solicitud aprobada. El token no se muestra en el panel.');
     }
@@ -397,32 +343,17 @@ class Index extends Component
         $this->dispatch('toast', type: 'success', message: 'Rotación aprobada. El token anterior fue revocado y el reemplazo espera entrega.');
     }
 
-    public function reject(): void
+    public function reject(RejectTokenRequestAction $action): void
     {
         Gate::authorize('api-token-requests.reject');
         $data = $this->validate(['rejectionReason' => ['nullable', 'string', 'max:1000']]);
-        $request = ApiTokenRequest::query()->findOrFail($this->selectedId);
 
-        if ($request->status !== ApiTokenRequestStatus::Pending) {
-            $this->event($request, 'invalid_transition', 'Intento invalido de rechazar una solicitud no pendiente.', ['status' => $request->statusValue()]);
-            abort(422, 'La solicitud ya fue procesada.');
+        try {
+            $action->execute((int) $this->selectedId, $data['rejectionReason'] ?? null, auth()->id());
+        } catch (TokenRequestTransitionException $exception) {
+            abort(422, $exception->getMessage());
         }
 
-        $reason = trim((string) ($data['rejectionReason'] ?? ''));
-        $request->forceFill([
-            'status' => ApiTokenRequestStatus::Rejected,
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
-            'rejected_at' => now(),
-            'rejection_reason' => $reason === '' ? null : $reason,
-            'delivery_status' => ApiTokenRequestDeliveryStatus::NotAvailable,
-            'token_ciphertext' => null,
-        ])->save();
-        $this->event($request, 'rejected', 'Solicitud rechazada.');
-        if ($reason !== '') {
-            $this->event($request, 'rejection_reason_recorded', 'Motivo del rechazo registrado.', ['reason' => $reason]);
-        }
-        NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.rejected');
         $this->dispatch('toast', type: 'success', message: 'Solicitud rechazada.');
     }
 

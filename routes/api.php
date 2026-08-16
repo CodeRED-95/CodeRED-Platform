@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\AdminTokenController;
+use App\Http\Controllers\Api\V1\Admin\AdminTokenRequestController;
+use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\AgenciesController;
 use App\Http\Controllers\Api\V1\AgencyCatalogController;
 use App\Http\Controllers\Api\V1\AgencyChangesController;
@@ -106,6 +109,33 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/declarations/{id}', [DeclarationController::class, 'show'])->whereNumber('id')->name('declarations.show');
             Route::get('/declarations/{id}/pdf', [DeclarationController::class, 'pdf'])->whereNumber('id')->name('declarations.pdf');
         });
+        // Administración desde CodeRED Mobile. Cada área tiene su ability y,
+        // dentro, cada acción su permiso RBAC: tener `admin:tokens` no basta
+        // para revocar, hace falta además `api-tokens.revoke-any`.
+        //
+        // Reutilizan el sistema real de la plataforma —Sanctum sobre
+        // personal_access_tokens, y las acciones compartidas con el panel web
+        // para aprobar y rechazar—, así que la auditoría y la emisión ocurren
+        // en un único sitio.
+        Route::prefix('admin')->name('admin.')->middleware(['throttle:api-admin', 'api.audit:admin'])->group(function (): void {
+            Route::middleware(['abilities:admin:tokens'])->group(function (): void {
+                Route::get('/tokens', [AdminTokenController::class, 'index'])->name('tokens.index');
+                Route::get('/tokens/types', [AdminTokenController::class, 'types'])->name('tokens.types');
+                Route::post('/tokens', [AdminTokenController::class, 'store'])->name('tokens.store');
+                Route::delete('/tokens/{id}', [AdminTokenController::class, 'destroy'])->whereNumber('id')->name('tokens.destroy');
+            });
+            Route::middleware(['abilities:admin:solicitudes'])->group(function (): void {
+                Route::get('/token-requests', [AdminTokenRequestController::class, 'index'])->name('token-requests.index');
+                Route::get('/token-requests/{id}', [AdminTokenRequestController::class, 'show'])->whereNumber('id')->name('token-requests.show');
+                Route::post('/token-requests/{id}/approve', [AdminTokenRequestController::class, 'approve'])->whereNumber('id')->name('token-requests.approve');
+                Route::post('/token-requests/{id}/reject', [AdminTokenRequestController::class, 'reject'])->whereNumber('id')->name('token-requests.reject');
+            });
+            Route::middleware(['abilities:admin:usuarios'])->group(function (): void {
+                Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+                Route::get('/users/{id}', [AdminUserController::class, 'show'])->whereNumber('id')->name('users.show');
+            });
+        });
+
         // Centro de notificaciones de CodeRED Mobile. La ability `mobile` la
         // lleva todo token emitido por el login movil, asi que no hace falta un
         // permiso RBAC nuevo: cada quien lee lo suyo y nada mas. Los tokens

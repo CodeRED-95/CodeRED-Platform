@@ -18,6 +18,14 @@ class MobileTokenAbilityResolver
         'dni-records.view' => ['dni:consultar'],
         'ruc.view' => ['ruc:consultar'],
         'declaracion-jurada.view' => ['declaraciones:gestionar'],
+        // Áreas de administración. La ability abre el área; el permiso concreto
+        // de cada acción (crear, revocar, aprobar, rechazar) lo comprueba el
+        // controlador contra la base en cada petición, porque un token emitido
+        // ayer podría conservar la ability después de que a la persona le
+        // retiraran el permiso.
+        'api-tokens.view-any' => ['admin:tokens'],
+        'api-token-requests.view' => ['admin:solicitudes'],
+        'users.view' => ['admin:usuarios'],
     ];
 
     /**

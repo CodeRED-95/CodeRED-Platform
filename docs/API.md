@@ -59,6 +59,15 @@ Respuesta:
 | GET | `/api/v1/notifications/unread-count` | `mobile` |
 | POST | `/api/v1/notifications/{id}/read` | `mobile` |
 | POST | `/api/v1/notifications/read-all` | `mobile` |
+| GET · POST | `/api/v1/admin/tokens` | `admin:tokens` |
+| GET | `/api/v1/admin/tokens/types` | `admin:tokens` |
+| DELETE | `/api/v1/admin/tokens/{id}` | `admin:tokens` |
+| GET | `/api/v1/admin/token-requests` | `admin:solicitudes` |
+| GET | `/api/v1/admin/token-requests/{id}` | `admin:solicitudes` |
+| POST | `/api/v1/admin/token-requests/{id}/approve` | `admin:solicitudes` |
+| POST | `/api/v1/admin/token-requests/{id}/reject` | `admin:solicitudes` |
+| GET | `/api/v1/admin/users` | `admin:usuarios` |
+| GET | `/api/v1/admin/users/{id}` | `admin:usuarios` |
 
 Los endpoints heredados `search`, `version` y `snapshot` se conservan temporalmente bajo autenticación y `agencies:read` para compatibilidad de transición.
 
@@ -248,5 +257,84 @@ Las solicitudes de token de Telegram (`token.request.*`) **no** generan notifica
 quien las solicita no es un usuario de CodeRED —`api_token_requests` identifica al
 solicitante por Telegram y correo, sin `user_id`—, así que no hay a quién notificar en la
 app.
+
+---
+
+## Administración móvil
+
+Permite a CodeRED Mobile administrar tokens, solicitudes de token y usuarios. **No es
+un sistema nuevo**: los tokens siguen siendo Sanctum sobre `personal_access_tokens`, y
+aprobar o rechazar una solicitud usa las mismas acciones que el panel web
+(`App\Actions\ApiTokenRequests\{Approve,Reject}TokenRequestAction`), extraídas de
+`App\Livewire\Admin\ApiTokenRequests\Index` para que ambos frontales compartan una
+sola implementación.
+
+### Los dos ejes
+
+| | |
+| --- | --- |
+| **Ability** | abre el área: `admin:tokens`, `admin:solicitudes`, `admin:usuarios` |
+| **Permiso RBAC** | habilita la acción concreta, y se comprueba en cada petición |
+
+`MobileTokenAbilityResolver` concede cada ability sólo si el usuario tiene el permiso de
+**lectura** del área (`api-tokens.view-any`, `api-token-requests.view`, `users.view`).
+Dentro, el controlador exige el permiso de la acción: `api-tokens.create-for-users` para
+emitir, `api-tokens.revoke-any` para revocar, `api-token-requests.approve` y `.reject`
+para decidir.
+
+Tener la ability **no basta**: un token emitido ayer la conserva aunque a la persona le
+hayan retirado el permiso después, así que el permiso se consulta contra la base cada
+vez. Un token técnico (`ApiClient`) que llegara con la ability recibe `401`: la
+administración es de personas, con nombre y responsabilidad.
+
+Las rutas van con `throttle:api-admin` (30/min) y `api.audit:admin`.
+
+### Tokens
+
+`GET /api/v1/admin/tokens` lista con `search` y `estado=activo`. **Nunca devuelve el
+valor de un token**: la columna guarda un hash SHA-256 del que no se puede volver al
+original, así que no existe nada que mostrar.
+
+`GET /api/v1/admin/tokens/types` devuelve los tipos de `ApiTokenType` con las abilities
+que concede cada uno y los límites de vigencia. **Las abilities no son texto libre**: las
+decide el tipo, igual que en el panel, así que ningún cliente puede pedir una combinación
+arbitraria.
+
+`POST /api/v1/admin/tokens` recibe `nombre`, `tipo`, `vigencia_dias` y `usuario_id`.
+Responde `201` con el valor plano **una sola vez**, junto al aviso de que no se podrá
+volver a ver. Ese valor no se registra en ningún log.
+
+`DELETE /api/v1/admin/tokens/{id}` marca `revoked_at` sin borrar la fila: la auditoría de
+peticiones pasadas debe seguir sabiendo a qué token apuntaban. Revocar dos veces da `422`.
+
+### Solicitudes de token
+
+`GET /api/v1/admin/token-requests` filtra por `estado` (los valores reales de
+`ApiTokenRequestStatus`) y busca por `search` sobre el código de seguimiento y la
+aplicación. El nombre del solicitante está cifrado en columna y no se puede filtrar por
+SQL, así que no se ofrece esa búsqueda.
+
+El detalle expone lo necesario para decidir —solicitante, propósito, tipo pedido,
+abilities pedidas, canal— y **el contacto de entrega siempre enmascarado**: verlo completo
+exige `api-token-requests.view-delivery-contact` y ocurre en el panel web, que registra
+esa revelación como un evento aparte. Tampoco se exponen `token_ciphertext`, `token_hash`
+ni `token_last_four`.
+
+`approve` recibe `nombre_token`, `tipo_token`, `vigencia_dias` y `usuario_id`. La emisión,
+el cifrado en la bóveda, los eventos de auditoría y el aviso a n8n ocurren **en el
+servidor**. El token aprobado **no vuelve en la respuesta**: se entrega por el canal
+acordado. `reject` acepta un `motivo` opcional que queda registrado como evento propio.
+
+Una solicitud ya resuelta responde `422` con el motivo.
+
+### Usuarios
+
+`GET /api/v1/admin/users` pagina y busca por nombre o correo, con sus roles. El recurso no
+serializa `password`, `remember_token` ni identificadores de Telegram.
+
+Esta versión es de **sólo lectura** a propósito: crear, editar o cambiar el estado de una
+persona son acciones con salvaguardas (un administrador no puede desactivarse a sí mismo
+ni quedarse sin rol) que hoy viven en el panel web. Exponerlas por API exigiría replicar
+esas protecciones, no sólo el endpoint.
 
 ---

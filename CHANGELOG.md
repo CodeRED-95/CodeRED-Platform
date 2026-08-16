@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.16.0] - 2026-08-16
+
+### ℹ️ Nota
+
+- API de administración para CodeRED Mobile: tokens, solicitudes de token y usuarios, con ability por área y permiso RBAC por acción. Aprobar y rechazar comparten implementación con el panel web
+
+---
+
 ## [4.15.0] - 2026-08-16
 
 ### ℹ️ Nota
