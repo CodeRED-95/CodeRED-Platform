@@ -59,6 +59,27 @@ class DeclarationController
         return $response;
     }
 
+    /**
+     * Ubicación completa de la agencia, tal como debe leerse en el documento.
+     *
+     * Se arma con las columnas del catálogo —departamento, provincia, distrito
+     * y nombre— y se omite en silencio lo que falte, para que una agencia sin
+     * distrito no acabe imprimiendo separadores vacíos.
+     */
+    private static function sedeFor(Agency $agency): string
+    {
+        $partes = array_filter([
+            $agency->department,
+            $agency->province,
+            $agency->district,
+            $agency->name,
+        ], static fn (?string $parte): bool => is_string($parte) && trim($parte) !== '');
+
+        $sede = implode(' / ', array_map(static fn (string $parte): string => trim($parte), $partes));
+
+        return mb_substr($sede, 0, 255);
+    }
+
     public function store(StoreDeclarationRequest $request, DeclarationPdfBuilder $builder): JsonResponse
     {
         $user = $this->authorizeUser($request);
@@ -79,17 +100,22 @@ class DeclarationController
                 'remitente_dni' => $data['remitente_dni'],
                 'remitente_nombre' => $data['remitente_nombre'],
                 'remitente_telefono' => $data['remitente_telefono'] ?? null,
-                'destinatario_dni' => $data['destinatario_dni'],
-                'destinatario_nombre' => $data['destinatario_nombre'],
+                'destinatario_dni' => $data['destinatario_dni'] ?? null,
+                'destinatario_nombre' => $data['destinatario_nombre'] ?? null,
                 'destinatario_telefono' => $data['destinatario_telefono'] ?? null,
-                // El nombre lo fija el servidor desde el catálogo, no el cliente:
-                // queda congelado para que el documento no cambie si la agencia
+                // La sede la fija el servidor desde el catálogo, no el cliente:
+                // queda congelada para que el documento no cambie si la agencia
                 // se renombra o se traslada más adelante.
-                'sede_destino' => trim((string) $agency->name),
+                //
+                // Es la ubicación completa, no sólo el nombre. "AV EJERCITO" no
+                // dice dónde recoger el paquete; "PIURA / PIURA / CASTILLA / AV
+                // TACNA" sí. Se compone de las columnas estructuradas de la
+                // agencia, nunca troceando texto.
+                'sede_destino' => self::sedeFor($agency),
                 'motivo_envio' => $data['motivo_envio'] ?? null,
             ]);
 
-            foreach (array_values($data['items']) as $position => $item) {
+            foreach (array_values($data['items'] ?? []) as $position => $item) {
                 $declaration->items()->create([
                     'cantidad' => $item['cantidad'] ?? null,
                     'descripcion' => $item['descripcion'],
@@ -101,6 +127,24 @@ class DeclarationController
         });
 
         $declaration->load('items');
+
+        // La foto se guarda en el disco privado, junto al PDF, y no en el
+        // cuerpo de la declaracion: es un dato sensible que solo sirve para
+        // componer el documento. Se conserva porque el endpoint de descarga
+        // regenera el PDF cuando falta, y sin ella no se podria reconstruir la
+        // version apaisada.
+        if ($request->hasFile('foto_dni')) {
+            $foto = $request->file('foto_dni');
+            $ruta = $foto->storeAs(
+                sprintf('declarations/%d', $declaration->getKey()),
+                'dni.'.$foto->getClientOriginalExtension(),
+                self::DISK
+            );
+
+            if (is_string($ruta) && $ruta !== '') {
+                $declaration->forceFill(['foto_dni_path' => $ruta])->save();
+            }
+        }
 
         // Si el PDF no se puede escribir, la declaración sigue siendo válida: queda
         // sin archivo y el endpoint de descarga lo regenera cuando se pida.

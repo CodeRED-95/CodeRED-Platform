@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Declarations;
 
 use App\Models\Declaration;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Generación del PDF oficial de Declaración Jurada.
@@ -29,6 +30,9 @@ class DeclarationPdfBuilder
 
     private const MARGIN = 12.0;
 
+    /** Filas de la tabla de bienes en el formato oficial. Fijas. */
+    private const ITEM_ROWS = 3;
+
     private DeclarationPdfDocument $pdf;
 
     /** FPDF no expone su tamaño de fuente, así que se lleva aquí. */
@@ -38,7 +42,43 @@ class DeclarationPdfBuilder
 
     private float $titleCenterX;
 
+    public function __construct(private readonly DeclarationLandscapeComposer $landscape) {}
+
+    /**
+     * Documento oficial de la declaración.
+     *
+     * Siempre se dibuja en vertical. Cuando la declaración lleva foto del DNI,
+     * esa misma página se coloca escalada dentro de una hoja apaisada junto a
+     * la imagen: el documento no se redibuja en ningún caso, así que su
+     * contenido es identico con foto y sin ella.
+     */
     public function build(Declaration $declaration): string
+    {
+        $portrait = $this->buildPortrait($declaration);
+        $photo = $this->photoPathFor($declaration);
+
+        return $photo === null ? $portrait : $this->landscape->compose($portrait, $photo);
+    }
+
+    /**
+     * Ruta absoluta de la foto, o null si no hay o el archivo ya no está.
+     * Un archivo que falta no puede impedir emitir el documento: se emite
+     * vertical, que es el formato base.
+     */
+    private function photoPathFor(Declaration $declaration): ?string
+    {
+        $relative = $declaration->foto_dni_path;
+
+        if (! is_string($relative) || $relative === '') {
+            return null;
+        }
+
+        $disk = Storage::disk('local');
+
+        return $disk->exists($relative) ? $disk->path($relative) : null;
+    }
+
+    private function buildPortrait(Declaration $declaration): string
     {
         $this->pdf = new DeclarationPdfDocument('P', 'mm', 'A4');
         $this->pdf->generatedAt = now()->format('d/m/Y H:i');
@@ -108,7 +148,7 @@ class DeclarationPdfBuilder
         $yoWidth = $this->pdf->GetStringWidth($this->enc('YO'));
 
         $this->font('B', 10.3);
-        $this->textCenter($this->titleCenterX, $currentY, mb_strtoupper($declaration->remitente_nombre));
+        $this->textCenter($this->titleCenterX, $currentY, mb_strtoupper((string) $declaration->remitente_nombre));
         $this->pdf->Line(self::MARGIN + $yoWidth + 3, $currentY + 1.4, self::MARGIN + $this->colWidth, $currentY + 1.4);
         $currentY += 7.5;
 
@@ -146,7 +186,7 @@ class DeclarationPdfBuilder
         $srPrefixWidth = $this->pdf->GetStringWidth($this->enc('Señor(a):'));
 
         $this->font('B', 10.3);
-        $this->textCenter($this->titleCenterX, $currentY, mb_strtoupper($declaration->destinatario_nombre));
+        $this->textCenter($this->titleCenterX, $currentY, mb_strtoupper((string) $declaration->destinatario_nombre));
         $this->pdf->Line(self::MARGIN + $srPrefixWidth + 3, $currentY + 1.4, self::MARGIN + $this->colWidth, $currentY + 1.4);
         $currentY += 7.5;
 
@@ -157,7 +197,7 @@ class DeclarationPdfBuilder
 
         $this->labeledField(
             'y para la oficina de',
-            mb_strtoupper($declaration->sede_destino),
+            mb_strtoupper((string) $declaration->sede_destino),
             self::MARGIN,
             $currentY,
             lineEndX: self::MARGIN + $this->colWidth,
@@ -191,10 +231,18 @@ class DeclarationPdfBuilder
         $this->pdf->SetTextColor(0, 0, 0);
         $this->font('', 8.8);
 
-        foreach ($declaration->items as $item) {
+        // La tabla siempre tiene tres filas, tenga bienes o no. Es asi en el
+        // formato impreso: quien rellena el documento a mano necesita el hueco,
+        // y una tabla que encoge segun lo declarado deja de parecer el mismo
+        // papel. Las que sobran van en blanco.
+        $items = $declaration->items->take(self::ITEM_ROWS);
+
+        for ($row = 0; $row < self::ITEM_ROWS; $row++) {
+            $item = $items[$row] ?? null;
+
             $this->pdf->SetX(self::MARGIN);
-            $this->pdf->Cell($quantityWidth, $rowHeight, $this->enc((string) $item->cantidad), 1, 0, 'C');
-            $this->pdf->Cell($descriptionWidth, $rowHeight, $this->enc($item->descripcion), 1, 1, 'L');
+            $this->pdf->Cell($quantityWidth, $rowHeight, $this->enc((string) ($item->cantidad ?? '')), 1, 0, 'C');
+            $this->pdf->Cell($descriptionWidth, $rowHeight, $this->enc((string) ($item->descripcion ?? '')), 1, 1, 'L');
         }
 
         // Última fila en negrita con el motivo, igual que el didParseCell original.
@@ -265,7 +313,7 @@ class DeclarationPdfBuilder
         $labelValueX = self::MARGIN + 30;
         $labelValueMaxWidth = $huellaX - $labelValueX - 6;
 
-        $values = ['', mb_strtoupper($declaration->remitente_nombre), mb_strtoupper($declaration->remitente_dni)];
+        $values = ['', mb_strtoupper((string) $declaration->remitente_nombre), mb_strtoupper((string) $declaration->remitente_dni)];
 
         foreach (['Firma:', 'Nombres:', 'N° Documento:'] as $index => $label) {
             $y = $signatureY + (20 + ($index * 8));

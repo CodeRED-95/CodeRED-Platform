@@ -33,6 +33,7 @@ class Declaration extends Model
         'motivo_envio',
         'pdf_path',
         'pdf_generated_at',
+        'foto_dni_path',
     ];
 
     protected function casts(): array

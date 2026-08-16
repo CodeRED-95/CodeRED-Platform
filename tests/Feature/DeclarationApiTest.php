@@ -101,7 +101,16 @@ class DeclarationApiTest extends TestCase
         $this->postJson('/api/v1/declarations', $this->payload($agency, ['sede_destino' => 'SEDE INVENTADA']))
             ->assertCreated();
 
-        $this->assertSame(trim((string) $agency->name), Declaration::query()->firstOrFail()->sede_destino);
+        // Desde 4.19.0 la sede congelada es la ubicacion completa, no solo el
+        // nombre: "AV TACNA" no dice donde recoger el envio.
+        $esperada = implode(' / ', array_filter([
+            $agency->department,
+            $agency->province,
+            $agency->district,
+            $agency->name,
+        ]));
+
+        $this->assertSame($esperada, Declaration::query()->firstOrFail()->sede_destino);
     }
 
     public function test_el_snapshot_sobrevive_al_renombrado_de_la_agencia(): void
@@ -157,7 +166,11 @@ class DeclarationApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors('remitente_dni');
 
-        $this->postJson('/api/v1/declarations', $this->payload($agency, ['items' => []]))
+        // Desde 4.19.0 los bienes son opcionales, asi que una lista vacia es
+        // valida. Lo que sigue siendo invalido es pasarse de tres.
+        $this->postJson('/api/v1/declarations', $this->payload($agency, [
+            'items' => array_fill(0, 4, ['cantidad' => '1', 'descripcion' => 'Bien']),
+        ]))
             ->assertStatus(422)
             ->assertJsonValidationErrors('items');
     }

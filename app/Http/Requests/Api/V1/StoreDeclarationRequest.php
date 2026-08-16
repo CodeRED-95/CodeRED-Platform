@@ -25,8 +25,11 @@ class StoreDeclarationRequest extends FormRequest
             'remitente_nombre' => ['required', 'string', 'max:150'],
             'remitente_telefono' => ['nullable', 'string', 'max:30'],
 
-            'destinatario_dni' => ['required', 'regex:/^\d{8,9}$/'],
-            'destinatario_nombre' => ['required', 'string', 'max:150'],
+            // El destinatario es opcional en su totalidad: quien envia un
+            // paquete no siempre sabe quien lo va a recoger, y el formato
+            // oficial admite esos campos en blanco.
+            'destinatario_dni' => ['nullable', 'regex:/^\d{8,9}$/'],
+            'destinatario_nombre' => ['nullable', 'string', 'max:150'],
             'destinatario_telefono' => ['nullable', 'string', 'max:30'],
 
             // La agencia debe existir en el catálogo real; el nombre que envíe el
@@ -36,9 +39,15 @@ class StoreDeclarationRequest extends FormRequest
 
             'motivo_envio' => ['nullable', 'string', 'max:255'],
 
-            'items' => ['required', 'array', 'min:1', 'max:40'],
+            // Los bienes tambien son opcionales, y como maximo tres: son las
+            // filas que tiene la tabla del formato oficial.
+            'items' => ['nullable', 'array', 'max:3'],
             'items.*.cantidad' => ['nullable', 'string', 'max:20'],
             'items.*.descripcion' => ['required', 'string', 'max:255'],
+
+            // Foto del DNI. Su presencia es lo que decide la orientacion del
+            // documento: sin ella A4 vertical, con ella A4 horizontal.
+            'foto_dni' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
         ];
     }
 
@@ -46,10 +55,9 @@ class StoreDeclarationRequest extends FormRequest
     {
         return [
             'remitente_dni.regex' => 'El documento del remitente debe tener 8 o 9 dígitos.',
-            'destinatario_dni.regex' => 'El documento del destinatario debe tener 8 o 9 dígitos.',
             'agency_id.exists' => 'La agencia seleccionada no existe.',
-            'items.required' => 'Declara al menos un bien.',
-            'items.min' => 'Declara al menos un bien.',
+            'items.max' => 'El formato oficial admite como máximo tres bienes.',
+            'foto_dni.image' => 'La foto del DNI debe ser una imagen.',
         ];
     }
 }

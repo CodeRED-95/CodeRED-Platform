@@ -6,6 +6,20 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.19.0] - 2026-08-16
+
+### ✨ Nuevo
+
+- La declaración jurada admite foto del DNI: al adjuntarla el documento se emite en A4 apaisado, con la declaración a la izquierda y la foto a la derecha. El generador FPDF sigue siendo la única fuente: la página vertical se coloca escalada mediante FPDI, sin redibujar nada
+- La tabla de bienes conserva siempre sus tres filas, tenga bienes o no, como el formato impreso
+
+### 🐛 Corregido
+
+- La sede que se imprime era sólo el nombre de la agencia ("AV TACNA"), que no dice dónde recoger el envío. Ahora es la ubicación completa desde el catálogo: "PIURA / PIURA / CASTILLA / AV TACNA"
+- Destinatario, motivo y bienes pasan a ser opcionales: el formato oficial admite esos campos en blanco y la base de datos lo impedía
+
+---
+
 ## [4.18.1] - 2026-08-16
 
 ### 🐛 Corregido
