@@ -84,3 +84,36 @@ eso seria peor que no tener nada: daria una garantia falsa. Un healthcheck util
 exigiria que el worker publicase un latido propio, y eso es codigo de
 aplicacion, no configuracion de Docker. Mientras no exista, el estado real se
 mira en los logs y en la profundidad de las colas.
+
+## Recrear un contenedor no debe romper nginx
+
+nginx resuelve los destinos de `proxy_pass` y `fastcgi_pass` **una sola vez**,
+al arrancar sus workers, cuando el destino es un nombre literal. Si el
+contenedor de destino se recrea y Docker le asigna otra IP, nginx sigue hablando
+con la anterior y responde 502 hasta que alguien lo recarga a mano.
+
+Ocurrio el 16/08/2026 con `declaracion.codered.lat` despues de recrear
+contenedores: el contenedor estaba sano y servia en su puerto, pero nginx
+apuntaba a una IP que ya no era suya.
+
+Por eso los destinos van ahora en variables, con el DNS interno de Docker:
+
+```nginx
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+set $declaracion_upstream http://declaracion-jurada:3000;
+proxy_pass $declaracion_upstream;
+```
+
+Con el destino en una variable, nginx consulta el DNS en cada peticion y respeta
+el TTL, asi que un contenedor recreado se recoge solo.
+
+Si aun asi aparece un 502, el diagnostico son dos ordenes:
+
+```bash
+docker compose logs --tail=20 nginx | grep upstream    # a que IP intenta ir
+docker inspect $(docker compose ps -q <servicio>) --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
+```
+
+Si no coinciden y el destino sigue siendo un literal, `nginx -s reload` lo
+arregla en el momento.

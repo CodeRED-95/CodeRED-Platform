@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.20.1] - 2026-08-16
+
+### 🐛 Corregido
+
+- `declaracion.codered.lat` devolvia 502: nginx resolvia el contenedor destino una sola vez al arrancar y seguia apuntando a la IP que tenia antes de recrearse. Ahora los destinos van en variables y se resuelven por el DNS de Docker en cada peticion, de modo que recrear un contenedor deja de romper el proxy
+
+---
+
 ## [4.20.0] - 2026-08-16
 
 ### ✨ Nuevo
