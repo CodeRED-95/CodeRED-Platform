@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.14 - 2026-08-16
+
+- Refina la pantalla de bloqueo/desbloqueo de Service Order con un modal más claro, visualmente más limpio y alineado con el mockup de referencia.
+- Añade bloques de advertencia e información para el desbloqueo fuera de horario sin alterar la lógica de horario ni la sincronización.
+- Mantiene el alcance exclusivo para `https://sysnewos.shalomcontrol.com/service-order`.
+
 ## 2.3.13 - 2026-08-16
 
 - Rediseña la pantalla de bloqueo de Service Order con una tarjeta clara y profesional, más alineada con la estética actual de ShalomControl.

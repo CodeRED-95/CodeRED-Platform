@@ -160,6 +160,7 @@ export function createServiceOrderLockController(deps: {
     const reason = state.reason === 'schedule+manual' ? 'Horario + bloqueo manual' : state.reason === 'manual' ? 'Bloqueo manual' : 'Fuera del horario permitido';
     return `
       <div class="codered-service-order-lock-card">
+        <button class="codered-service-order-lock-close" type="button" aria-label="Cerrar aviso" title="Cerrar aviso" disabled>×</button>
         <div class="codered-service-order-lock-hero">
           <div class="codered-service-order-lock-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -174,12 +175,26 @@ export function createServiceOrderLockController(deps: {
           </div>
         </div>
 
+        <div class="codered-service-order-lock-callout codered-service-order-lock-callout--warning">
+          <strong>Estás a punto de desbloquear el módulo fuera del horario permitido (08:00 h – 20:05 h).</strong>
+          <span>Esta acción puede afectar procesos y métricas del sistema. Úsalo solo si es estrictamente necesario.</span>
+        </div>
+
+        <div class="codered-service-order-lock-callout codered-service-order-lock-callout--info">
+          <strong>Podrás continuar a partir de las 08:00 h o desactivar manualmente esta opción cuando ya no la necesites.</strong>
+        </div>
+
         <dl class="codered-service-order-lock-details">
           <div><dt>Estado</dt><dd class="codered-service-order-lock-pill">BLOQUEADO</dd></div>
           <div><dt>Motivo</dt><dd>${escapeHtml(reason)}</dd></div>
           <div><dt>Horario permitido</dt><dd>08:00 h - 20:05 h</dd></div>
           <div><dt>Disponible nuevamente en</dt><dd id="codered-service-order-lock-countdown" class="codered-service-order-lock-countdown">${state.remainingLabel}</dd></div>
         </dl>
+
+        <div class="codered-service-order-lock-footnote">
+          <span class="codered-service-order-lock-footnote-icon" aria-hidden="true">i</span>
+          <p>El sistema seguirá bloqueado automáticamente si coincide con el horario restringido.</p>
+        </div>
       </div>
     `;
   }
@@ -222,6 +237,21 @@ export function createServiceOrderLockController(deps: {
         padding: 28px 28px 24px;
         color: #1f2937;
         position: relative;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #64748b;
+        font-size: 26px;
+        line-height: 1;
+        cursor: default;
       }
 
       #${OVERLAY_ID} .codered-service-order-lock-card::before {
@@ -296,8 +326,8 @@ export function createServiceOrderLockController(deps: {
       }
 
       #${OVERLAY_ID} .codered-service-order-lock-details {
-        margin: 24px 0 0;
-        padding: 20px 0 0;
+        margin: 20px 0 0;
+        padding: 18px 0 0;
         border-top: 1px solid #eef2f7;
         display: grid;
         gap: 14px;
@@ -340,6 +370,78 @@ export function createServiceOrderLockController(deps: {
       #${OVERLAY_ID} .codered-service-order-lock-countdown {
         color: #2563eb;
         font-size: 16px;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-callout {
+        margin-top: 14px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        padding: 12px 14px;
+        display: grid;
+        gap: 4px;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-callout strong,
+      #${OVERLAY_ID} .codered-service-order-lock-callout span {
+        display: block;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-callout--warning {
+        border-color: #f6d59f;
+        background: #fff7ed;
+        color: #9a3412;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-callout--warning strong {
+        font-size: 14px;
+        color: #9a3412;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-callout--warning span {
+        font-size: 13px;
+        color: #dc2626;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-callout--info {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #2563eb;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-callout--info strong {
+        font-size: 13px;
+        color: #2563eb;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-footnote {
+        margin-top: 16px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #eef2ff;
+        color: #4f46e5;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-footnote-icon {
+        display: inline-grid;
+        place-items: center;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      #${OVERLAY_ID} .codered-service-order-lock-footnote p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.45;
+        color: #4338ca;
       }
 
       @media (max-width: 560px) {
