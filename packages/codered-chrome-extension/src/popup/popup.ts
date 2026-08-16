@@ -251,7 +251,7 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
     elements.lockCurrent.textContent = manualLocked
       ? 'Bloqueado manualmente.'
       : forcedUnlockActive
-        ? 'Service Order está operando fuera del horario permitido mediante un desbloqueo forzoso.'
+        ? 'Operando fuera del horario permitido.'
         : locked
           ? 'Bloqueado por horario.'
           : 'Todo funciona normalmente.';
@@ -268,11 +268,9 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
     elements.lockStatus.querySelector('p')!.textContent = locked
       ? manualLocked
         ? 'Bloqueo manual activo.'
-        : scheduleState.reason === 'schedule'
-          ? `Disponible nuevamente a las ${formatServiceOrderTime(scheduleState.nextAllowedAt)}.`
-          : 'Fuera del horario permitido.'
+        : 'Bloqueado por horario.'
       : forcedUnlockActive
-        ? 'Service Order está operando fuera del horario permitido mediante un desbloqueo forzoso.'
+        ? 'Excepción de horario activa.'
       : 'Todo funciona normalmente.';
     elements.lockActionLabel.textContent = locked ? 'Desbloquear manualmente' : 'Bloquear manualmente';
     elements.forceAction.textContent = forcedUnlockActive ? 'Finalizar desbloqueo forzoso' : 'Desbloquear forzosamente';
@@ -338,9 +336,17 @@ function wireForcedUnlockModal(elements: PopupElements): void {
   elements.forceConfirm.addEventListener('click', () => {
     void (async () => {
       elements.forceFeedback.textContent = 'Aplicando excepción...';
-      await chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_FORCED_UNLOCK_SET', active: true });
-      close();
-      await renderServiceOrderLock(elements);
+      try {
+        const response = await chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_FORCED_UNLOCK_SET', active: true }) as { success?: boolean; message?: string };
+        if (response?.success === false) {
+          elements.forceFeedback.textContent = response.message ?? 'No fue posible aplicar la excepción.';
+          return;
+        }
+        close();
+        await renderServiceOrderLock(elements);
+      } catch {
+        elements.forceFeedback.textContent = 'No fue posible aplicar la excepción.';
+      }
     })();
   });
 
@@ -374,17 +380,6 @@ function formatServiceOrderNextChange(date: Date): string {
   const normalizedWeekday = weekday ? capitalize(weekday) : 'Hoy';
   const normalizedPeriod = dayPeriod || 'p. m.';
   return `${normalizedWeekday}, ${hour}:${minute} ${normalizedPeriod}`;
-}
-
-function formatServiceOrderTime(date: Date | null): string {
-  if (!date) return '08:00 h';
-  const formatter = new Intl.DateTimeFormat('es-PE', {
-    timeZone: 'America/Lima',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  return `${formatter.format(date)} h`;
 }
 
 function capitalize(value: string): string {

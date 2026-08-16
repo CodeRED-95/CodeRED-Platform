@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getRestrictedPeriodId, getServiceOrderScheduleState, isWithinAllowedServiceOrderWindow } from '../src/shared/lima-time';
+import { getNextAllowedServiceOrderDate, getRestrictedPeriodId, getServiceOrderScheduleState, isWithinAllowedServiceOrderWindow } from '../src/shared/lima-time';
 import { resolvePageContext, isNeutralShalomSearchPath } from '../src/content/shalom-host';
 
 describe('service order schedule', () => {
@@ -33,6 +33,10 @@ describe('service order schedule', () => {
     expect(getRestrictedPeriodId(new Date('2026-08-17T02:00:00.000Z'))).toBe('2026-08-16');
     expect(getRestrictedPeriodId(new Date('2026-08-17T01:05:00.000Z'))).toBe('2026-08-16');
     expect(getRestrictedPeriodId(new Date('2026-08-16T13:00:00.000Z'))).toBe(null);
+  });
+
+  it('moves the next allowed date to 08:00 the following day at the exact 20:05 boundary', () => {
+    expect(getNextAllowedServiceOrderDate(new Date('2026-08-17T01:05:00.000Z')).toISOString()).toBe('2026-08-17T13:00:00.000Z');
   });
 });
 

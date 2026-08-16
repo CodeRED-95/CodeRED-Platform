@@ -21,6 +21,7 @@ export interface ServiceOrderScheduleState {
 
 const ALLOWED_START_MINUTES = 8 * 60;
 const ALLOWED_END_MINUTES = 20 * 60 + 5;
+const LIMA_UTC_OFFSET_MINUTES = -5 * 60;
 
 export function getLimaTimeParts(date: Date = new Date()): LimaTimeParts {
   const formatter = new Intl.DateTimeFormat('en-GB', {
@@ -74,10 +75,8 @@ export function getRestrictedPeriodId(date: Date = new Date()): string | null {
   const currentMinutes = parts.hour * 60 + parts.minute;
   if (currentMinutes >= ALLOWED_START_MINUTES && currentMinutes < ALLOWED_END_MINUTES) return null;
 
-  const normalized = new Date(date.getTime());
-  if (currentMinutes < ALLOWED_START_MINUTES) normalized.setDate(normalized.getDate() - 1);
-  const periodParts = getLimaTimeParts(normalized);
-  return `${periodParts.year}-${String(periodParts.month).padStart(2, '0')}-${String(periodParts.day).padStart(2, '0')}`;
+  const normalized = buildCivilDate(parts.year, parts.month, parts.day, currentMinutes < ALLOWED_START_MINUTES ? -1 : 0);
+  return formatCivilDate(normalized);
 }
 
 export function isRestrictedPeriodActive(date: Date = new Date()): boolean {
@@ -87,20 +86,11 @@ export function isRestrictedPeriodActive(date: Date = new Date()): boolean {
 export function getNextAllowedServiceOrderDate(date: Date = new Date()): Date {
   const parts = getLimaTimeParts(date);
   const minutes = parts.hour * 60 + parts.minute;
-  const next = new Date(date.getTime());
   if (minutes < ALLOWED_START_MINUTES) {
-    next.setHours(8, 0, 0, 0);
-    return next;
+    return localLimaToUtcDate(parts.year, parts.month, parts.day, 8, 0, 0, 0);
   }
 
-  if (minutes > ALLOWED_END_MINUTES || (minutes === ALLOWED_END_MINUTES && parts.second > 0)) {
-    next.setDate(next.getDate() + 1);
-    next.setHours(8, 0, 0, 0);
-    return next;
-  }
-
-  next.setHours(parts.hour, parts.minute, parts.second, 0);
-  return next;
+  return localLimaToUtcDate(parts.year, parts.month, parts.day + 1, 8, 0, 0, 0);
 }
 
 export function formatRemainingDuration(ms: number): string {
@@ -109,4 +99,16 @@ export function formatRemainingDuration(ms: number): string {
   const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
   const seconds = String(totalSeconds % 60).padStart(2, '0');
   return `${hours}:${minutes}:${seconds}`;
+}
+
+function localLimaToUtcDate(year: number, month: number, day: number, hour: number, minute: number, second: number, millisecond: number): Date {
+  return new Date(Date.UTC(year, month - 1, day, hour - LIMA_UTC_OFFSET_MINUTES / 60, minute, second, millisecond));
+}
+
+function buildCivilDate(year: number, month: number, day: number, dayOffset: number): Date {
+  return new Date(Date.UTC(year, month - 1, day + dayOffset, 12, 0, 0, 0));
+}
+
+function formatCivilDate(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
