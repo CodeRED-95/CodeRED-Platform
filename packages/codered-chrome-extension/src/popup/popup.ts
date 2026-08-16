@@ -17,6 +17,12 @@ type StateResponse = {
 type ServiceOrderLockResponse = {
   success?: boolean;
   locked?: boolean;
+  forcedUnlock?: {
+    active: boolean;
+    createdAt: string;
+    expiresAt: string;
+    restrictedPeriodId: string;
+  } | null;
 };
 
 type PopupElements = {
@@ -43,6 +49,13 @@ type PopupElements = {
   lockStatus: HTMLElement;
   lockToggle: HTMLInputElement;
   lockMessage: HTMLElement;
+  forceAction: HTMLButtonElement;
+  forceModal: HTMLElement;
+  forceConfirmation: HTMLInputElement;
+  forceAck: HTMLInputElement;
+  forceCancel: HTMLButtonElement;
+  forceConfirm: HTMLButtonElement;
+  forceFeedback: HTMLElement;
 };
 
 type ConnectionState = { label: string; tone: 'success' | 'warning' | 'missing' | 'error' };
@@ -64,6 +77,7 @@ async function initPopup(): Promise<void> {
     else void requestToken();
   });
   elements.requestAnother.addEventListener('click', () => void requestToken());
+  wireForcedUnlockModal(elements);
 
   chrome.storage.onChanged.addListener(() => {
     void renderState(elements);
@@ -96,6 +110,17 @@ async function initPopup(): Promise<void> {
       await renderServiceOrderLock(elements);
     }
   });
+
+  elements.forceAction.addEventListener('click', async () => {
+    const state = await readServiceOrderLockState();
+    if (state?.forcedUnlock?.active) {
+      if (window.confirm('¿Deseas finalizar el desbloqueo forzoso?')) {
+        await chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_FORCED_UNLOCK_SET', active: false });
+        await renderServiceOrderLock(elements);
+      }
+      return;
+    }
+  });
 }
 
 function getElements(): PopupElements {
@@ -123,6 +148,13 @@ function getElements(): PopupElements {
     lockStatus: requireElement('#service-order-lock-status'),
     lockToggle: requireElement<HTMLInputElement>('#service-order-lock-toggle'),
     lockMessage: requireElement('#service-order-lock-message'),
+    forceAction: requireElement<HTMLButtonElement>('#service-order-force-action'),
+    forceModal: requireElement('#forced-unlock-modal'),
+    forceConfirmation: requireElement<HTMLInputElement>('#forced-unlock-confirmation'),
+    forceAck: requireElement<HTMLInputElement>('#forced-unlock-ack'),
+    forceCancel: requireElement<HTMLButtonElement>('#forced-unlock-cancel'),
+    forceConfirm: requireElement<HTMLButtonElement>('#forced-unlock-confirm'),
+    forceFeedback: requireElement('#forced-unlock-feedback'),
   };
 }
 
@@ -199,37 +231,55 @@ function applyReadError(elements: PopupElements): void {
 
 async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_LOCK_GET' }) as ServiceOrderLockResponse;
-    const manualLocked = Boolean(response.locked);
+    const response = await readServiceOrderLockState();
+    const manualLocked = Boolean(response?.locked);
+    const forcedUnlock = response?.forcedUnlock?.active ? response.forcedUnlock : null;
     const scheduleState = getServiceOrderScheduleState(new Date(), manualLocked);
-    const locked = scheduleState.locked;
+    const scheduleLocked = scheduleState.lockedBySchedule;
+    const forcedUnlockActive = Boolean(forcedUnlock && scheduleLocked);
+    const locked = manualLocked || (scheduleLocked && !forcedUnlockActive);
     const nextChange = scheduleState.nextAllowedAt ? formatServiceOrderNextChange(scheduleState.nextAllowedAt) : 'Hoy, 8:05 p. m.';
     elements.lockToggle.checked = manualLocked;
-    elements.lockState.textContent = locked ? 'BLOQUEADO' : 'DESBLOQUEADO';
-    elements.lockState.dataset.tone = locked ? 'warning' : 'success';
-    elements.lockCurrent.textContent = locked
-      ? scheduleState.reason === 'manual'
-        ? 'Bloqueado manualmente.'
-        : 'Bloqueado por horario.'
-      : 'Todo funciona normalmente.';
-    elements.lockReason.textContent = scheduleState.reason === 'schedule+manual'
-      ? 'Horario + bloqueo manual'
-      : scheduleState.reason === 'schedule'
-        ? 'Fuera del horario permitido'
-        : scheduleState.reason === 'manual'
-          ? 'Bloqueo manual'
+    elements.lockState.textContent = manualLocked
+      ? 'BLOQUEADO MANUALMENTE'
+      : forcedUnlockActive
+        ? 'DESBLOQUEADO (FORZOSO)'
+        : locked
+          ? 'BLOQUEADO'
+          : 'DESBLOQUEADO';
+    elements.lockState.dataset.tone = manualLocked || locked ? 'warning' : forcedUnlockActive ? 'warning' : 'success';
+    elements.lockCurrent.textContent = manualLocked
+      ? 'Bloqueado manualmente.'
+      : forcedUnlockActive
+        ? 'Service Order está operando fuera del horario permitido mediante un desbloqueo forzoso.'
+        : locked
+          ? 'Bloqueado por horario.'
+          : 'Todo funciona normalmente.';
+    elements.lockReason.textContent = manualLocked
+      ? 'Bloqueo manual'
+      : forcedUnlockActive
+        ? 'Excepción manual fuera del horario'
+        : scheduleState.reason === 'schedule'
+          ? 'Fuera del horario permitido'
           : 'Funcionamiento normal';
     elements.lockAvailable.textContent = nextChange;
     elements.lockDescription.textContent = 'El horario automático sigue el horario de Lima, Perú (GMT-5).';
-    elements.lockStatus.dataset.tone = locked ? 'warning' : 'success';
+    elements.lockStatus.dataset.tone = manualLocked || locked || forcedUnlockActive ? 'warning' : 'success';
     elements.lockStatus.querySelector('p')!.textContent = locked
-      ? scheduleState.reason === 'schedule'
-        ? `Disponible nuevamente a las ${formatServiceOrderTime(scheduleState.nextAllowedAt)}.`
-        : 'Bloqueo manual activo.'
+      ? manualLocked
+        ? 'Bloqueo manual activo.'
+        : scheduleState.reason === 'schedule'
+          ? `Disponible nuevamente a las ${formatServiceOrderTime(scheduleState.nextAllowedAt)}.`
+          : 'Fuera del horario permitido.'
+      : forcedUnlockActive
+        ? 'Service Order está operando fuera del horario permitido mediante un desbloqueo forzoso.'
       : 'Todo funciona normalmente.';
     elements.lockActionLabel.textContent = locked ? 'Desbloquear manualmente' : 'Bloquear manualmente';
+    elements.forceAction.textContent = forcedUnlockActive ? 'Finalizar desbloqueo forzoso' : 'Desbloquear forzosamente';
+    elements.forceAction.hidden = manualLocked || (!scheduleLocked && !forcedUnlockActive);
     elements.lockMessage.textContent = '';
     elements.lockToggle.disabled = false;
+    elements.forceFeedback.textContent = '';
     return;
   } catch {
     elements.lockState.textContent = 'DESCONOCIDO';
@@ -242,6 +292,71 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
     elements.lockMessage.textContent = 'No fue posible leer el estado del bloqueo.';
     elements.lockToggle.disabled = false;
   }
+}
+
+async function readServiceOrderLockState(): Promise<ServiceOrderLockResponse | null> {
+  try {
+    const [lockState, forcedState] = await Promise.all([
+      chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_LOCK_GET' }) as Promise<ServiceOrderLockResponse>,
+      chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_FORCED_UNLOCK_GET' }) as Promise<ServiceOrderLockResponse>,
+    ]);
+    return {
+      success: lockState?.success ?? forcedState?.success,
+      locked: lockState?.locked,
+      forcedUnlock: forcedState?.forcedUnlock ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function wireForcedUnlockModal(elements: PopupElements): void {
+  const sync = () => {
+    const ready = elements.forceConfirmation.value.trim().toUpperCase() === 'DESBLOQUEAR' && elements.forceAck.checked;
+    elements.forceConfirm.disabled = !ready;
+  };
+
+  const open = () => {
+    elements.forceModal.hidden = false;
+    elements.forceModal.setAttribute('aria-hidden', 'false');
+    elements.forceConfirmation.value = '';
+    elements.forceAck.checked = false;
+    elements.forceConfirm.disabled = true;
+    elements.forceFeedback.textContent = '';
+    window.setTimeout(() => elements.forceConfirmation.focus(), 0);
+  };
+
+  const close = () => {
+    elements.forceModal.hidden = true;
+    elements.forceModal.setAttribute('aria-hidden', 'true');
+  };
+
+  elements.forceConfirmation.addEventListener('input', sync);
+  elements.forceAck.addEventListener('change', sync);
+  elements.forceCancel.addEventListener('click', close);
+  elements.forceModal.querySelector('.popup-modal__backdrop')?.addEventListener('click', close);
+  elements.forceConfirm.addEventListener('click', () => {
+    void (async () => {
+      elements.forceFeedback.textContent = 'Aplicando excepción...';
+      await chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_FORCED_UNLOCK_SET', active: true });
+      close();
+      await renderServiceOrderLock(elements);
+    })();
+  });
+
+  elements.forceAction.addEventListener('click', async () => {
+    const state = await readServiceOrderLockState();
+    const forcedActive = Boolean(state?.forcedUnlock?.active);
+    if (forcedActive) {
+      const confirmed = window.confirm('¿Deseas finalizar el desbloqueo forzoso?');
+      if (confirmed) {
+        await chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_FORCED_UNLOCK_SET', active: false });
+        await renderServiceOrderLock(elements);
+      }
+      return;
+    }
+    open();
+  });
 }
 
 function formatServiceOrderNextChange(date: Date): string {

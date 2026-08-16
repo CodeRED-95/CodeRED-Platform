@@ -1,17 +1,27 @@
 import { STORAGE_KEYS } from '../storage/storage-keys';
-import { formatRemainingDuration, getServiceOrderScheduleState } from '../shared/lima-time';
+import { formatRemainingDuration, getRestrictedPeriodId, getNextAllowedServiceOrderDate, getServiceOrderScheduleState } from '../shared/lima-time';
 
 const OVERLAY_ID = 'codered-service-order-lock-overlay';
 const STORAGE_EVENT_KEY = STORAGE_KEYS.SERVICE_ORDER_LOCK;
+const FORCED_UNLOCK_KEY = STORAGE_KEYS.SERVICE_ORDER_FORCED_UNLOCK;
 const LOCK_ATTRIBUTE = 'data-codered-service-order-locked';
 const TARGET_HOSTNAME = 'sysnewos.shalomcontrol.com';
 const TARGET_PATH = '/service-order';
+const FORCED_UNLOCK_LOG_KEY = 'codered_service_order_forced_unlock_log';
+
+export type ServiceOrderForcedUnlock = {
+  active: boolean;
+  createdAt: string;
+  expiresAt: string;
+  restrictedPeriodId: string;
+};
 
 export type ServiceOrderLockState = {
   visible: boolean;
   locked: boolean;
   lockedBySchedule: boolean;
   manualLocked: boolean;
+  forcedUnlockActive: boolean;
   reason: 'schedule' | 'manual' | 'schedule+manual' | 'unlocked' | 'outside-scope';
   remainingLabel: string;
 };
@@ -23,9 +33,11 @@ export function createServiceOrderLockController(deps: {
   setManualLock: (locked: boolean) => Promise<void>;
 }) {
   let manualLocked = false;
+  let forcedUnlock: ServiceOrderForcedUnlock | null = null;
   let initialized = false;
   let overlay: HTMLElement | null = null;
   let countdownTimer: number | null = null;
+  let stateTimer: number | null = null;
   let observer: MutationObserver | null = null;
   let routeTimer: number | null = null;
   let storageListenerBound = false;
@@ -36,8 +48,10 @@ export function createServiceOrderLockController(deps: {
     if (initialized) return;
     initialized = true;
     manualLocked = await deps.getManualLock();
+    forcedUnlock = await readForcedUnlock();
     bindStorageListener();
     bindRouteObservers();
+    startStateTimer();
     evaluateAndRender();
   }
 
@@ -47,8 +61,8 @@ export function createServiceOrderLockController(deps: {
     storageListenerBound = true;
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'local') return;
-      if (!(STORAGE_EVENT_KEY in changes)) return;
-      manualLocked = Boolean(changes[STORAGE_EVENT_KEY].newValue);
+      if (STORAGE_EVENT_KEY in changes) manualLocked = Boolean(changes[STORAGE_EVENT_KEY].newValue);
+      if (FORCED_UNLOCK_KEY in changes) forcedUnlock = normalizeForcedUnlock(changes[FORCED_UNLOCK_KEY].newValue);
       evaluateAndRender();
     });
   }
@@ -87,6 +101,15 @@ export function createServiceOrderLockController(deps: {
     }, 25);
   }
 
+  function startStateTimer(): void {
+    if (stateTimer) return;
+    stateTimer = window.setInterval(() => {
+      void refreshForcedUnlockIfNeeded().then(() => {
+        if (isTargetPage()) evaluateAndRender();
+      });
+    }, 1000);
+  }
+
   function isTargetPage(): boolean {
     return window.location.hostname.toLowerCase() === TARGET_HOSTNAME && normalizePath(window.location.pathname) === TARGET_PATH;
   }
@@ -97,23 +120,38 @@ export function createServiceOrderLockController(deps: {
 
   function evaluateState(): ServiceOrderLockState {
     const visible = isTargetPage();
-    const scheduleState = getServiceOrderScheduleState(new Date(), manualLocked);
+    const now = new Date();
+    const scheduleState = getServiceOrderScheduleState(now, manualLocked);
+    const forcedUnlockActive = isForcedUnlockValid(now);
+    const locked = manualLocked || (scheduleState.lockedBySchedule && !forcedUnlockActive);
+
     if (!visible) {
       return {
         visible: false,
         locked: false,
         lockedBySchedule: false,
         manualLocked: false,
+        forcedUnlockActive: false,
         reason: 'outside-scope',
         remainingLabel: '',
       };
     }
+
     return {
       visible: true,
-      locked: scheduleState.locked,
+      locked,
       lockedBySchedule: scheduleState.lockedBySchedule,
       manualLocked,
-      reason: scheduleState.reason,
+      forcedUnlockActive,
+      reason: manualLocked
+        ? scheduleState.lockedBySchedule && forcedUnlockActive
+          ? 'schedule+manual'
+          : 'manual'
+        : scheduleState.lockedBySchedule
+          ? forcedUnlockActive
+            ? 'unlocked'
+            : 'schedule'
+          : 'unlocked',
       remainingLabel: scheduleState.remainingLabel,
     };
   }
@@ -157,10 +195,9 @@ export function createServiceOrderLockController(deps: {
   }
 
   function overlayMarkup(state: ServiceOrderLockState): string {
-    const reason = state.reason === 'schedule+manual' ? 'Horario + bloqueo manual' : state.reason === 'manual' ? 'Bloqueo manual' : 'Fuera del horario permitido';
+    const reason = state.reason === 'schedule+manual' ? 'Horario + bloqueo manual' : 'Fuera del horario permitido';
     return `
       <div class="codered-service-order-lock-card">
-        <button class="codered-service-order-lock-close" type="button" aria-label="Cerrar aviso" title="Cerrar aviso" disabled>×</button>
         <div class="codered-service-order-lock-hero">
           <div class="codered-service-order-lock-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -175,26 +212,12 @@ export function createServiceOrderLockController(deps: {
           </div>
         </div>
 
-        <div class="codered-service-order-lock-callout codered-service-order-lock-callout--warning">
-          <strong>Estás a punto de desbloquear el módulo fuera del horario permitido (08:00 h – 20:05 h).</strong>
-          <span>Esta acción puede afectar procesos y métricas del sistema. Úsalo solo si es estrictamente necesario.</span>
-        </div>
-
-        <div class="codered-service-order-lock-callout codered-service-order-lock-callout--info">
-          <strong>Podrás continuar a partir de las 08:00 h o desactivar manualmente esta opción cuando ya no la necesites.</strong>
-        </div>
-
         <dl class="codered-service-order-lock-details">
           <div><dt>Estado</dt><dd class="codered-service-order-lock-pill">BLOQUEADO</dd></div>
           <div><dt>Motivo</dt><dd>${escapeHtml(reason)}</dd></div>
           <div><dt>Horario permitido</dt><dd>08:00 h - 20:05 h</dd></div>
           <div><dt>Disponible nuevamente en</dt><dd id="codered-service-order-lock-countdown" class="codered-service-order-lock-countdown">${state.remainingLabel}</dd></div>
         </dl>
-
-        <div class="codered-service-order-lock-footnote">
-          <span class="codered-service-order-lock-footnote-icon" aria-hidden="true">i</span>
-          <p>El sistema seguirá bloqueado automáticamente si coincide con el horario restringido.</p>
-        </div>
       </div>
     `;
   }
@@ -207,7 +230,7 @@ export function createServiceOrderLockController(deps: {
     element.style.bottom = '0';
     element.style.zIndex = '2147483647';
     element.style.background = 'rgba(255, 255, 255, 0.68)';
-    element.style.backdropFilter = 'blur(2px)';
+    element.style.backdropFilter = 'none';
     element.style.display = 'grid';
     element.style.placeItems = 'center';
     element.style.pointerEvents = 'auto';
@@ -224,10 +247,7 @@ export function createServiceOrderLockController(deps: {
     const style = document.createElement('style');
     style.id = 'codered-service-order-lock-styles';
     style.textContent = `
-      #${OVERLAY_ID} {
-        font-synthesis: none;
-      }
-
+      #${OVERLAY_ID} { font-synthesis: none; }
       #${OVERLAY_ID} .codered-service-order-lock-card {
         width: min(520px, calc(100vw - 48px));
         border-radius: 18px;
@@ -238,22 +258,6 @@ export function createServiceOrderLockController(deps: {
         color: #1f2937;
         position: relative;
       }
-
-      #${OVERLAY_ID} .codered-service-order-lock-close {
-        position: absolute;
-        top: 14px;
-        right: 14px;
-        width: 28px;
-        height: 28px;
-        border: 0;
-        border-radius: 999px;
-        background: transparent;
-        color: #64748b;
-        font-size: 26px;
-        line-height: 1;
-        cursor: default;
-      }
-
       #${OVERLAY_ID} .codered-service-order-lock-card::before {
         content: '';
         position: absolute;
@@ -263,214 +267,27 @@ export function createServiceOrderLockController(deps: {
         border-radius: 18px 18px 0 0;
         background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
       }
-
-      #${OVERLAY_ID} .codered-service-order-lock-hero {
-        display: grid;
-        grid-template-columns: 84px minmax(0, 1fr);
-        gap: 18px;
-        align-items: center;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-icon {
-        width: 84px;
-        height: 84px;
-        border-radius: 999px;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(180deg, #eaf2ff 0%, #dbeafe 100%);
-        color: #2563eb;
-        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-icon svg {
-        width: 36px;
-        height: 36px;
-        fill: currentColor;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-hero-copy {
-        min-width: 0;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-badge {
-        display: inline-flex;
-        align-items: center;
-        min-height: 28px;
-        padding: 0 12px;
-        border-radius: 999px;
-        background: #eff6ff;
-        color: #2563eb;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: .04em;
-        margin-bottom: 10px;
-      }
-
-      #${OVERLAY_ID} h2 {
-        margin: 0;
-        font-size: 22px;
-        line-height: 1.15;
-        color: #0f172a;
-      }
-
-      #${OVERLAY_ID} p {
-        margin: 10px 0 0;
-        font-size: 15px;
-        line-height: 1.5;
-        color: #475569;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-emphasis {
-        color: #2563eb;
-        font-weight: 700;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-details {
-        margin: 20px 0 0;
-        padding: 18px 0 0;
-        border-top: 1px solid #eef2f7;
-        display: grid;
-        gap: 14px;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-details > div {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
-        align-items: center;
-      }
-
-      #${OVERLAY_ID} dt {
-        margin: 0;
-        color: #475569;
-        font-size: 13px;
-        font-weight: 600;
-      }
-
-      #${OVERLAY_ID} dd {
-        margin: 0;
-        color: #0f172a;
-        font-size: 14px;
-        font-weight: 700;
-        text-align: right;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-pill {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 30px;
-        padding: 0 12px;
-        border-radius: 999px;
-        background: #fee2e2;
-        color: #dc2626;
-        box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.08);
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-countdown {
-        color: #2563eb;
-        font-size: 16px;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-callout {
-        margin-top: 14px;
-        border-radius: 12px;
-        border: 1px solid transparent;
-        padding: 12px 14px;
-        display: grid;
-        gap: 4px;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-callout strong,
-      #${OVERLAY_ID} .codered-service-order-lock-callout span {
-        display: block;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-callout--warning {
-        border-color: #f6d59f;
-        background: #fff7ed;
-        color: #9a3412;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-callout--warning strong {
-        font-size: 14px;
-        color: #9a3412;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-callout--warning span {
-        font-size: 13px;
-        color: #dc2626;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-callout--info {
-        border-color: #bfdbfe;
-        background: #eff6ff;
-        color: #2563eb;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-callout--info strong {
-        font-size: 13px;
-        color: #2563eb;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-footnote {
-        margin-top: 16px;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: #eef2ff;
-        color: #4f46e5;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-footnote-icon {
-        display: inline-grid;
-        place-items: center;
-        width: 18px;
-        height: 18px;
-        flex: 0 0 auto;
-        border-radius: 999px;
-        background: #2563eb;
-        color: #fff;
-        font-size: 12px;
-        font-weight: 700;
-      }
-
-      #${OVERLAY_ID} .codered-service-order-lock-footnote p {
-        margin: 0;
-        font-size: 13px;
-        line-height: 1.45;
-        color: #4338ca;
-      }
-
+      #${OVERLAY_ID} .codered-service-order-lock-hero { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 18px; align-items: center; }
+      #${OVERLAY_ID} .codered-service-order-lock-icon { width: 84px; height: 84px; border-radius: 999px; display: grid; place-items: center; background: linear-gradient(180deg, #eaf2ff 0%, #dbeafe 100%); color: #2563eb; box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12); }
+      #${OVERLAY_ID} .codered-service-order-lock-icon svg { width: 36px; height: 36px; fill: currentColor; }
+      #${OVERLAY_ID} .codered-service-order-lock-hero-copy { min-width: 0; }
+      #${OVERLAY_ID} .codered-service-order-lock-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 700; letter-spacing: .04em; margin-bottom: 10px; }
+      #${OVERLAY_ID} h2 { margin: 0; font-size: 22px; line-height: 1.15; color: #0f172a; }
+      #${OVERLAY_ID} p { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: #475569; }
+      #${OVERLAY_ID} .codered-service-order-lock-emphasis { color: #2563eb; font-weight: 700; }
+      #${OVERLAY_ID} .codered-service-order-lock-details { margin: 20px 0 0; padding: 18px 0 0; border-top: 1px solid #eef2f7; display: grid; gap: 14px; }
+      #${OVERLAY_ID} .codered-service-order-lock-details > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+      #${OVERLAY_ID} dt { margin: 0; color: #475569; font-size: 13px; font-weight: 600; }
+      #${OVERLAY_ID} dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 700; text-align: right; }
+      #${OVERLAY_ID} .codered-service-order-lock-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: #fee2e2; color: #dc2626; box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.08); }
+      #${OVERLAY_ID} .codered-service-order-lock-countdown { color: #2563eb; font-size: 16px; }
       @media (max-width: 560px) {
-        #${OVERLAY_ID} {
-          padding: 18px;
-        }
-
-        #${OVERLAY_ID} .codered-service-order-lock-card {
-          width: min(100%, 520px);
-          padding: 22px 18px 18px;
-        }
-
-        #${OVERLAY_ID} .codered-service-order-lock-hero {
-          grid-template-columns: 64px minmax(0, 1fr);
-          gap: 14px;
-        }
-
-        #${OVERLAY_ID} .codered-service-order-lock-icon {
-          width: 64px;
-          height: 64px;
-        }
-
-        #${OVERLAY_ID} h2 {
-          font-size: 20px;
-        }
-
-        #${OVERLAY_ID} p {
-          font-size: 14px;
-        }
+        #${OVERLAY_ID} { padding: 18px; }
+        #${OVERLAY_ID} .codered-service-order-lock-card { width: min(100%, 520px); padding: 22px 18px 18px; }
+        #${OVERLAY_ID} .codered-service-order-lock-hero { grid-template-columns: 64px minmax(0, 1fr); gap: 14px; }
+        #${OVERLAY_ID} .codered-service-order-lock-icon { width: 64px; height: 64px; }
+        #${OVERLAY_ID} h2 { font-size: 20px; }
+        #${OVERLAY_ID} p { font-size: 14px; }
       }
     `;
     document.head.appendChild(style);
@@ -495,12 +312,14 @@ export function createServiceOrderLockController(deps: {
   function startCountdown(): void {
     if (countdownTimer) return;
     countdownTimer = window.setInterval(() => {
-      const state = evaluateState();
-      if (!state.visible || !state.locked) {
-        evaluateAndRender();
-        return;
-      }
-      syncCountdownText(state);
+      void refreshForcedUnlockIfNeeded().then(() => {
+        const state = evaluateState();
+        if (!state.visible || !state.locked) {
+          evaluateAndRender();
+          return;
+        }
+        syncCountdownText(state);
+      });
     }, 1000);
   }
 
@@ -520,12 +339,83 @@ export function createServiceOrderLockController(deps: {
     overlayListenersBound = false;
   }
 
+  async function readForcedUnlock(): Promise<ServiceOrderForcedUnlock | null> {
+    if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.get !== 'function') return null;
+    const data = await chrome.storage.local.get([FORCED_UNLOCK_KEY]);
+    return normalizeForcedUnlock(data[FORCED_UNLOCK_KEY]);
+  }
+
+  function normalizeForcedUnlock(value: unknown): ServiceOrderForcedUnlock | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const candidate = value as Partial<ServiceOrderForcedUnlock>;
+    if (candidate.active !== true) return null;
+    if (typeof candidate.createdAt !== 'string' || typeof candidate.expiresAt !== 'string' || typeof candidate.restrictedPeriodId !== 'string') return null;
+    return candidate as ServiceOrderForcedUnlock;
+  }
+
+  function isForcedUnlockValid(now = new Date()): boolean {
+    if (!forcedUnlock?.active) return false;
+    const expiresAt = Date.parse(forcedUnlock.expiresAt);
+    const currentPeriodId = getRestrictedPeriodId(now);
+    if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime()) return false;
+    if (!currentPeriodId || forcedUnlock.restrictedPeriodId !== currentPeriodId) return false;
+    return true;
+  }
+
+  async function refreshForcedUnlockIfNeeded(): Promise<void> {
+    const current = await readForcedUnlock();
+    if (!current) {
+      forcedUnlock = null;
+      return;
+    }
+    const now = new Date();
+    const expiresAt = Date.parse(current.expiresAt);
+    const currentPeriodId = getRestrictedPeriodId(now);
+    if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime() || !currentPeriodId || currentPeriodId !== current.restrictedPeriodId) {
+      forcedUnlock = null;
+      if (typeof chrome !== 'undefined' && typeof chrome.storage?.local?.remove === 'function') {
+        await chrome.storage.local.remove([FORCED_UNLOCK_KEY]);
+        await logForcedUnlock('forced_unlock_expired', current);
+      }
+      return;
+    }
+    forcedUnlock = current;
+  }
+
+  async function setForcedUnlockActive(active: boolean): Promise<void> {
+    if (active) {
+      const now = new Date();
+      const nextAllowed = getNextAllowedServiceOrderDate(now);
+      const value: ServiceOrderForcedUnlock = {
+        active: true,
+        createdAt: now.toISOString(),
+        expiresAt: nextAllowed.toISOString(),
+        restrictedPeriodId: getRestrictedPeriodId(now) ?? '',
+      };
+      forcedUnlock = value;
+      await chrome.storage.local.set({ [FORCED_UNLOCK_KEY]: value });
+      await logForcedUnlock('forced_unlock_started', value);
+      return;
+    }
+    const current = await readForcedUnlock();
+    if (current) await logForcedUnlock('forced_unlock_ended', current);
+    forcedUnlock = null;
+    await chrome.storage.local.remove([FORCED_UNLOCK_KEY]);
+  }
+
+  async function logForcedUnlock(type: 'forced_unlock_started' | 'forced_unlock_ended' | 'forced_unlock_expired', forced: ServiceOrderForcedUnlock): Promise<void> {
+    if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.get !== 'function') return;
+    const data = await chrome.storage.local.get([FORCED_UNLOCK_LOG_KEY]);
+    const log = Array.isArray(data[FORCED_UNLOCK_LOG_KEY]) ? data[FORCED_UNLOCK_LOG_KEY] : [];
+    const entry = { type, at: new Date().toISOString(), createdAt: forced.createdAt, expiresAt: forced.expiresAt, restrictedPeriodId: forced.restrictedPeriodId };
+    await chrome.storage.local.set({ [FORCED_UNLOCK_LOG_KEY]: [...log, entry].slice(-50) });
+  }
+
   function blockEvent(event: Event): void {
     if (!overlay?.isConnected) return;
     if (event.target instanceof HTMLElement && event.target.closest(`#${OVERLAY_ID}`)) return;
     event.preventDefault();
     event.stopPropagation();
-    // Impide interacción accidental mientras el overlay está activo.
     if ('stopImmediatePropagation' in event) (event as Event & { stopImmediatePropagation: () => void }).stopImmediatePropagation();
   }
 
@@ -550,9 +440,12 @@ export function createServiceOrderLockController(deps: {
     getState,
     onStateChange,
     setManualLock,
+    setForcedUnlockActive,
     refresh: evaluateAndRender,
     destroy() {
       stopCountdown();
+      if (stateTimer) window.clearInterval(stateTimer);
+      stateTimer = null;
       observer?.disconnect();
       observer = null;
       removeOverlay();

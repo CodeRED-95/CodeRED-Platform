@@ -2,6 +2,14 @@ import type { Agency } from '../models/agency';
 import { type ExtensionConfiguration, type SyncMetadata } from '../models/configuration';
 import { maskToken } from '../utils/format';
 import { LEGACY_CATALOG_KEYS, LEGACY_SYNC_METADATA_KEYS, LEGACY_TOKEN_KEYS, STORAGE_KEYS } from './storage-keys';
+import { getRestrictedPeriodId } from '../shared/lima-time';
+
+export interface ServiceOrderForcedUnlock {
+  active: boolean;
+  createdAt: string;
+  expiresAt: string;
+  restrictedPeriodId: string;
+}
 
 type LocalData = Record<string, unknown>;
 
@@ -87,6 +95,36 @@ export class ChromeStorageService {
 
   async setServiceOrderLock(locked: boolean): Promise<void> {
     await chrome.storage.local.set({ [STORAGE_KEYS.SERVICE_ORDER_LOCK]: locked });
+  }
+
+  async getServiceOrderForcedUnlock(): Promise<ServiceOrderForcedUnlock | null> {
+    const data = await chrome.storage.local.get([STORAGE_KEYS.SERVICE_ORDER_FORCED_UNLOCK]);
+    const value = data[STORAGE_KEYS.SERVICE_ORDER_FORCED_UNLOCK];
+    if (!isRecord(value)) return null;
+    const active = value.active === true;
+    const createdAt = typeof value.createdAt === 'string' ? value.createdAt : '';
+    const expiresAt = typeof value.expiresAt === 'string' ? value.expiresAt : '';
+    const restrictedPeriodId = typeof value.restrictedPeriodId === 'string' ? value.restrictedPeriodId : '';
+    if (!active || !createdAt || !expiresAt || !restrictedPeriodId) return null;
+    return { active, createdAt, expiresAt, restrictedPeriodId };
+  }
+
+  async setServiceOrderForcedUnlock(value: ServiceOrderForcedUnlock | null): Promise<void> {
+    if (!value) {
+      await chrome.storage.local.remove([STORAGE_KEYS.SERVICE_ORDER_FORCED_UNLOCK]);
+      return;
+    }
+    await chrome.storage.local.set({ [STORAGE_KEYS.SERVICE_ORDER_FORCED_UNLOCK]: value });
+  }
+
+  async clearExpiredServiceOrderForcedUnlock(now = new Date()): Promise<void> {
+    const forcedUnlock = await this.getServiceOrderForcedUnlock();
+    if (!forcedUnlock) return;
+    const expiresAt = Date.parse(forcedUnlock.expiresAt);
+    const activePeriodId = getRestrictedPeriodId(now);
+    if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime() || !activePeriodId || forcedUnlock.restrictedPeriodId !== activePeriodId) {
+      await this.setServiceOrderForcedUnlock(null);
+    }
   }
 
   private async removeLegacyTokenKeys(): Promise<void> {

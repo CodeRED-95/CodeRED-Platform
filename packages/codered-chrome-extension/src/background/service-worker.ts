@@ -1,6 +1,7 @@
 import { CodeRedClient } from '../api/codered-client';
 import { searchAgencies } from '../search/agency-search';
 import { ChromeStorageService } from '../storage/storage-service';
+import { getNextAllowedServiceOrderDate, getRestrictedPeriodId } from '../shared/lima-time';
 import { getPlatformApiBaseUrl, getTokenRequestUrl } from '../models/configuration';
 import { isRuntimeRequest } from './messages';
 import { createSyncService } from './sync-service';
@@ -91,12 +92,44 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
   }
 
   if (message.type === 'SERVICE_ORDER_LOCK_GET') {
-    return { success: true, locked: await storage.getServiceOrderLock() };
+    await storage.clearExpiredServiceOrderForcedUnlock();
+    return { success: true, locked: await storage.getServiceOrderLock(), forcedUnlock: await storage.getServiceOrderForcedUnlock() };
   }
 
   if (message.type === 'SERVICE_ORDER_LOCK_SET') {
     await storage.setServiceOrderLock(message.locked);
     return { success: true, locked: message.locked };
+  }
+
+  if (message.type === 'SERVICE_ORDER_FORCED_UNLOCK_GET') {
+    await storage.clearExpiredServiceOrderForcedUnlock();
+    return { success: true, forcedUnlock: await storage.getServiceOrderForcedUnlock() };
+  }
+
+  if (message.type === 'SERVICE_ORDER_FORCED_UNLOCK_SET') {
+    const active = message.active;
+    if (active) {
+      const now = new Date();
+      const restrictedPeriodId = getRestrictedPeriodId(now);
+      if (!restrictedPeriodId) {
+        await storage.setServiceOrderForcedUnlock(null);
+        return { success: false, message: 'El horario permitido ya está activo.' };
+      }
+      const forcedUnlock = {
+        active: true,
+        createdAt: now.toISOString(),
+        expiresAt: getNextAllowedServiceOrderDate(now).toISOString(),
+        restrictedPeriodId,
+      };
+      await storage.setServiceOrderForcedUnlock(forcedUnlock);
+      await logForcedUnlock('forced_unlock_started', forcedUnlock);
+      return { success: true, forcedUnlock };
+    }
+
+    const forcedUnlock = await storage.getServiceOrderForcedUnlock();
+    if (forcedUnlock) await logForcedUnlock('forced_unlock_ended', forcedUnlock);
+    await storage.setServiceOrderForcedUnlock(null);
+    return { success: true };
   }
 
   if (message.type === 'OPEN_TOKEN_REQUEST') {
@@ -138,4 +171,12 @@ function publicConfiguration(configuration: Awaited<ReturnType<ChromeStorageServ
     tokenMasked: configuration.tokenMasked,
     syncIntervalHours: configuration.syncIntervalHours,
   };
+}
+
+async function logForcedUnlock(type: 'forced_unlock_started' | 'forced_unlock_ended' | 'forced_unlock_expired', forcedUnlock: { createdAt: string; expiresAt: string; restrictedPeriodId: string }) {
+  const key = 'codered_service_order_forced_unlock_log';
+  const entry = { type, at: new Date().toISOString(), createdAt: forcedUnlock.createdAt, expiresAt: forcedUnlock.expiresAt, restrictedPeriodId: forcedUnlock.restrictedPeriodId };
+  const data = await chrome.storage.local.get([key]);
+  const log = Array.isArray(data[key]) ? data[key] : [];
+  await chrome.storage.local.set({ [key]: [...log, entry].slice(-50) });
 }

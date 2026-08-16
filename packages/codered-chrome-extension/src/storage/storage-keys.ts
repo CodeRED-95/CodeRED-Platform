@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   LAST_SYNC_STATUS: 'codered_last_sync_status',
   SYNC_METADATA: 'codered_sync_metadata',
   SERVICE_ORDER_LOCK: 'codered_service_order_lock',
+  SERVICE_ORDER_FORCED_UNLOCK: 'codered_service_order_forced_unlock',
 } as const;
 
 export const LEGACY_TOKEN_KEYS = ['auth', 'token', 'apiToken', 'coderedToken', 'accessToken', 'platformToken', 'catalogToken'] as const;

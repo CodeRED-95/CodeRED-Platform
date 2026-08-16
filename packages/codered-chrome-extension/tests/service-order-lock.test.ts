@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getServiceOrderScheduleState, isWithinAllowedServiceOrderWindow } from '../src/shared/lima-time';
+import { getRestrictedPeriodId, getServiceOrderScheduleState, isWithinAllowedServiceOrderWindow } from '../src/shared/lima-time';
 import { resolvePageContext, isNeutralShalomSearchPath } from '../src/content/shalom-host';
 
 describe('service order schedule', () => {
@@ -27,6 +27,12 @@ describe('service order schedule', () => {
     const blocked = getServiceOrderScheduleState(new Date('2026-08-17T02:00:00.000Z'), false);
     expect(blocked.locked).toBe(true);
     expect(blocked.reason).toBe('schedule');
+  });
+
+  it('identifies the current restricted period around midnight correctly', () => {
+    expect(getRestrictedPeriodId(new Date('2026-08-17T02:00:00.000Z'))).toBe('2026-08-16');
+    expect(getRestrictedPeriodId(new Date('2026-08-17T01:05:00.000Z'))).toBe('2026-08-16');
+    expect(getRestrictedPeriodId(new Date('2026-08-16T13:00:00.000Z'))).toBe(null);
   });
 });
 

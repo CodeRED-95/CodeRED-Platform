@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.15 - 2026-08-16
+
+- Añade desbloqueo forzoso exclusivo desde el popup con confirmación explícita y persistencia por periodo restringido de Lima.
+- Mantiene la pantalla de bloqueo de ShalomControl libre de pistas sobre la excepción manual.
+- Conserva la prioridad del bloqueo manual y la sincronización inmediata entre popup y content script.
+
 ## 2.3.14 - 2026-08-16
 
 - Refina la pantalla de bloqueo/desbloqueo de Service Order con un modal más claro, visualmente más limpio y alineado con el mockup de referencia.

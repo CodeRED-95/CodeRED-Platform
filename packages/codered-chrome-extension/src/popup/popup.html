@@ -112,6 +112,9 @@
         </label>
 
         <p id="service-order-lock-message" class="message" role="status" aria-live="polite"></p>
+        <div class="service-order-exception-row">
+          <button id="service-order-force-action" class="button button--danger-ghost" type="button">Desbloquear forzosamente</button>
+        </div>
       </section>
 
       <footer class="popup-links" aria-label="Enlaces de ayuda">
@@ -121,6 +124,31 @@
         <span class="popup-links__divider" aria-hidden="true"></span>
         <button class="popup-link" type="button" id="popup-about" disabled>ⓘ Acerca de</button>
       </footer>
+
+      <div id="forced-unlock-modal" class="popup-modal" hidden aria-hidden="true">
+        <div class="popup-modal__backdrop"></div>
+        <div class="popup-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="forced-unlock-title">
+          <h3 id="forced-unlock-title">Desbloquear fuera del horario permitido</h3>
+          <p class="popup-modal__lead">Estás a punto de desbloquear el módulo Service Order fuera del horario permitido (08:00 h – 20:05 h).</p>
+          <div class="popup-modal__warning">
+            Esta acción permite operar fuera del horario establecido. Úsala solo si es estrictamente necesario.
+          </div>
+          <p class="popup-modal__note">El módulo permanecerá habilitado mediante una excepción manual hasta que finalice esta excepción o vuelva a aplicarse el bloqueo correspondiente.</p>
+          <label class="popup-modal__field">
+            <span>Para confirmar, escribe DESBLOQUEAR en el siguiente campo:</span>
+            <input id="forced-unlock-confirmation" type="text" inputmode="latin" autocomplete="off" spellcheck="false" placeholder="DESBLOQUEAR" />
+          </label>
+          <label class="popup-modal__checkbox">
+            <input id="forced-unlock-ack" type="checkbox" />
+            <span>Entiendo que estoy habilitando Service Order fuera del horario permitido.</span>
+          </label>
+          <div class="popup-modal__actions">
+            <button id="forced-unlock-cancel" class="button button--secondary" type="button">Cancelar</button>
+            <button id="forced-unlock-confirm" class="button button--danger" type="button" disabled>Desbloquear ahora</button>
+          </div>
+          <p id="forced-unlock-feedback" class="message" role="status" aria-live="polite"></p>
+        </div>
+      </div>
     </main>
   </body>
 </html>

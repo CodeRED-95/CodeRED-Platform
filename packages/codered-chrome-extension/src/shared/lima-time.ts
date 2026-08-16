@@ -16,6 +16,7 @@ export interface ServiceOrderScheduleState {
   nextAllowedAt: Date | null;
   remainingMs: number;
   remainingLabel: string;
+  restrictedPeriodId: string | null;
 }
 
 const ALLOWED_START_MINUTES = 8 * 60;
@@ -64,7 +65,23 @@ export function getServiceOrderScheduleState(date: Date = new Date(), manualLock
     nextAllowedAt,
     remainingMs,
     remainingLabel: formatRemainingDuration(remainingMs),
+    restrictedPeriodId: lockedBySchedule ? getRestrictedPeriodId(date) : null,
   };
+}
+
+export function getRestrictedPeriodId(date: Date = new Date()): string | null {
+  const parts = getLimaTimeParts(date);
+  const currentMinutes = parts.hour * 60 + parts.minute;
+  if (currentMinutes >= ALLOWED_START_MINUTES && currentMinutes < ALLOWED_END_MINUTES) return null;
+
+  const normalized = new Date(date.getTime());
+  if (currentMinutes < ALLOWED_START_MINUTES) normalized.setDate(normalized.getDate() - 1);
+  const periodParts = getLimaTimeParts(normalized);
+  return `${periodParts.year}-${String(periodParts.month).padStart(2, '0')}-${String(periodParts.day).padStart(2, '0')}`;
+}
+
+export function isRestrictedPeriodActive(date: Date = new Date()): boolean {
+  return !isWithinAllowedServiceOrderWindow(date);
 }
 
 export function getNextAllowedServiceOrderDate(date: Date = new Date()): Date {

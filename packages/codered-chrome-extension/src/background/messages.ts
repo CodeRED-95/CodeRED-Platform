@@ -13,7 +13,9 @@ export type RuntimeRequest =
   | { type: 'CONFIG_SAVE'; token: string }
   | { type: 'TOKEN_DELETE' }
   | { type: 'SERVICE_ORDER_LOCK_GET' }
-  | { type: 'SERVICE_ORDER_LOCK_SET'; locked: boolean };
+  | { type: 'SERVICE_ORDER_LOCK_SET'; locked: boolean }
+  | { type: 'SERVICE_ORDER_FORCED_UNLOCK_GET' }
+  | { type: 'SERVICE_ORDER_FORCED_UNLOCK_SET'; active: boolean };
 
 export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
   if (value === null || typeof value !== 'object') return false;
@@ -31,6 +33,7 @@ export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
     case 'CONFIG_GET':
     case 'API_TEST_CONNECTION':
     case 'SERVICE_ORDER_LOCK_GET':
+    case 'SERVICE_ORDER_FORCED_UNLOCK_GET':
       return true;
     case 'SEARCH_AGENCIES':
       return typeof message.query === 'string';
@@ -39,6 +42,8 @@ export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
       return typeof message.token === 'string';
     case 'SERVICE_ORDER_LOCK_SET':
       return typeof message.locked === 'boolean';
+    case 'SERVICE_ORDER_FORCED_UNLOCK_SET':
+      return typeof message.active === 'boolean';
     default:
       return false;
   }
