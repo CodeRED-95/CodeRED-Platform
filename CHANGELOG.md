@@ -6,6 +6,20 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.20.0] - 2026-08-16
+
+### ✨ Nuevo
+
+- Copia y recuperación de declaraciones juradas: `declarations:backup` y `declarations:restore`, con copia diaria programada. Hasta ahora el sistema de copias cubría RUC y agencias pero no las declaraciones, y una borrada por error no se podía recuperar
+- `validation:cleanup <uuid>` borra los registros de una validación E2E identificados por su ejecución. No acepta identificadores ni rangos, y sin `--force` sólo enumera
+
+### 🔒 Seguridad
+
+- `declarations` usa borrado reversible (`SoftDeletes`): es un documento legal y ningún camino futuro debe destruirlo sin vuelta atrás
+- Toda la suite aísla el disco `local` desde `Tests\TestCase`. Los tests que ejercitan endpoints reales escribían PDFs en `storage/app/private`; se encontraron quince directorios huérfanos con datos de prueba en producción
+
+---
+
 ## [4.19.0] - 2026-08-16
 
 ### ✨ Nuevo

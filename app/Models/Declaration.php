@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Modules\Agencies\Models\Agency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -19,6 +20,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Declaration extends Model
 {
     use HasFactory;
+
+    /**
+     * Borrado reversible. Una declaracion jurada es un documento legal: si
+     * algun dia existe un camino para borrarla, no debe destruirla.
+     * Ver docs/DECLARACIONES_SEGURIDAD.md.
+     */
+    use SoftDeletes;
 
     protected $fillable = [
         'user_id',
@@ -34,6 +42,7 @@ class Declaration extends Model
         'pdf_path',
         'pdf_generated_at',
         'foto_dni_path',
+        'validation_run',
     ];
 
     protected function casts(): array

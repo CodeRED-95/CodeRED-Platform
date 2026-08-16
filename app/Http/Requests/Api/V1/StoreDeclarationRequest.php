@@ -48,6 +48,13 @@ class StoreDeclarationRequest extends FormRequest
             // Foto del DNI. Su presencia es lo que decide la orientacion del
             // documento: sin ella A4 vertical, con ella A4 horizontal.
             'foto_dni' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
+
+            // Marca los registros creados por una validacion de extremo a
+            // extremo contra el entorno real, para que limpiarlos despues sea
+            // una operacion exacta -"borra lo de esta ejecucion"- y no una
+            // conjetura sobre rangos de identificadores. No influye en el
+            // documento. Ver docs/DECLARACIONES_SEGURIDAD.md.
+            'validation_run' => ['nullable', 'uuid'],
         ];
     }
 

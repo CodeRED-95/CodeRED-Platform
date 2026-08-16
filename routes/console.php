@@ -126,3 +126,8 @@ Schedule::command('agencies:prune-sync-changes')->dailyAt('02:30')->withoutOverl
 
 Schedule::command('tokens:expire-pending-requests')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('ruc:cleanup-backup-uploads')->hourly()->withoutOverlapping();
+
+// Copia diaria de las declaraciones juradas. Son pocas y ocupan poco, pero son
+// documentos legales y hasta el 16/08/2026 no habia forma de recuperar una
+// borrada por error. Ver docs/DECLARACIONES_SEGURIDAD.md.
+Schedule::command('declarations:backup')->dailyAt('03:15')->withoutOverlapping();

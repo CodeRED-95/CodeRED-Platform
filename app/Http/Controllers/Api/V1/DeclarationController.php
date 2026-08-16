@@ -113,6 +113,7 @@ class DeclarationController
                 // agencia, nunca troceando texto.
                 'sede_destino' => self::sedeFor($agency),
                 'motivo_envio' => $data['motivo_envio'] ?? null,
+                'validation_run' => $data['validation_run'] ?? null,
             ]);
 
             foreach (array_values($data['items'] ?? []) as $position => $item) {

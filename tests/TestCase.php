@@ -4,6 +4,7 @@ namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
@@ -24,8 +25,29 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         $this->guardTestDatabase();
+        $this->isolateLocalDisk();
         config(['app.testing' => true, 'app.env' => 'testing']);
         Http::preventStrayRequests();
+    }
+
+    /**
+     * La misma idea que guardTestDatabase, aplicada al disco.
+     *
+     * La base de datos estaba protegida; el almacenamiento no. Los tests que
+     * ejercitan endpoints reales —declaraciones, backups RUC, subidas
+     * multiparte— escribían de verdad en `storage/app/private`, y cada
+     * ejecucion de la suite dejaba alli documentos y volcados con
+     * identificadores de la base de pruebas. Se detecto al encontrar quince
+     * directorios de PDFs huerfanos en produccion.
+     *
+     * Falsear el disco aqui, para toda la suite, hace que eso sea imposible por
+     * construccion en vez de depender de que cada test se acuerde. Los tests que
+     * ya llaman a Storage::fake por su cuenta siguen funcionando: la segunda
+     * llamada simplemente vuelve a vaciar el disco falso.
+     */
+    private function isolateLocalDisk(): void
+    {
+        Storage::fake('local');
     }
 
     private function guardTestDatabase(): void
