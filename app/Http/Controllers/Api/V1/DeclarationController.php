@@ -7,6 +7,7 @@ use App\Http\Resources\Api\V1\DeclarationResource;
 use App\Models\Declaration;
 use App\Models\User;
 use App\Modules\Agencies\Models\Agency;
+use App\Notifications\DeclarationGenerated;
 use App\Services\Declarations\DeclarationPdfBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -117,6 +118,11 @@ class DeclarationController
                 'reason' => $exception->getMessage(),
             ]);
         }
+
+        // El aviso va en cola: el documento ya está emitido y el cliente no
+        // debe esperar por él. Si la cola estuviera caída, la declaración sigue
+        // siendo válida y visible en el historial.
+        $user->notify(new DeclarationGenerated($declaration));
 
         // Sin datos personales en el log: sólo quién y qué se creó.
         Log::info('declaration_created', [

@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.15.0] - 2026-08-16
+
+### ℹ️ Nota
+
+- Centro de notificaciones para CodeRED Mobile sobre Laravel Notifications (canal database): historial paginado, estado leído/no leído y aviso automático al generar una declaración jurada
+
+---
+
 ## [4.14.0] - 2026-08-15
 
 ### ℹ️ Nota

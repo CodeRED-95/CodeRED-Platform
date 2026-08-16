@@ -55,6 +55,10 @@ Respuesta:
 | POST | `/api/v1/declarations` | `declaraciones:gestionar` |
 | GET | `/api/v1/declarations/{id}` | `declaraciones:gestionar` |
 | GET | `/api/v1/declarations/{id}/pdf` | `declaraciones:gestionar` |
+| GET | `/api/v1/notifications` | `mobile` |
+| GET | `/api/v1/notifications/unread-count` | `mobile` |
+| POST | `/api/v1/notifications/{id}/read` | `mobile` |
+| POST | `/api/v1/notifications/read-all` | `mobile` |
 
 Los endpoints heredados `search`, `version` y `snapshot` se conservan temporalmente bajo autenticación y `agencies:read` para compatibilidad de transición.
 
@@ -171,3 +175,78 @@ regenera al vuelo: la fila de base de datos es la fuente de verdad.
 
 Una declaración sólo la descarga su autor, salvo que quien la pida tenga
 `declaracion-jurada.manage`.
+
+## Notificaciones
+
+Centro de notificaciones de CodeRED Mobile. Se apoya en el canal `database` de
+**Laravel Notifications** —tabla `notifications`, `read_at`, `markAsRead()`—, no en un
+almacén propio. El bus de eventos de plataforma (`App\Services\Events`, que entrega al
+agente y a n8n) es otra cosa: sin destinatario ni estado de lectura, y sigue igual.
+
+- **Ability Sanctum**: `mobile`, que lleva todo token emitido por el login móvil. No hace
+  falta un permiso RBAC nuevo porque una notificación no es un módulo: es correspondencia
+  personal. Los tokens técnicos (el bridge React, n8n) no tienen esa ability y reciben
+  `403`; si por algún camino la tuvieran, el controlador responde `401` porque un servicio
+  no tiene notificaciones propias.
+- **Aislamiento**: todas las consultas parten de `$user->notifications()`. Una notificación
+  ajena responde `404`, no `403`: confirmar que existe ya sería filtrar información.
+- Las rutas van con `throttle:api-mobile`.
+
+### `GET /api/v1/notifications`
+
+Historial paginado, más recientes primero. El bloque `meta` incluye `no_leidas`, para que
+la pantalla pinte el contador sin una segunda petición.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "9b1f…",
+      "tipo": "declaracion.generada",
+      "titulo": "Declaración generada",
+      "mensaje": "DJ-2026-000005 para 01 DE MAYO ya está disponible.",
+      "destino": "declaraciones",
+      "referencia_id": 5,
+      "leida": false,
+      "creada_en": "2026-08-16T09:12:44-05:00"
+    }
+  ],
+  "meta": { "current_page": 1, "last_page": 3, "total": 42, "no_leidas": 7 }
+}
+```
+
+`destino` es lo que la app usa para navegar al tocar la notificación; hoy sólo existe
+`declaraciones` (abre «Mis declaraciones») y `ninguno`. El cliente no conoce cada `tipo`:
+pinta `titulo` y `mensaje`, así que una notificación nueva que reutilice un destino
+existente no obliga a publicar una versión de la app.
+
+El contenido **nunca lleva documentos ni nombres de personas**: una notificación puede
+leerse en la pantalla de bloqueo.
+
+### `GET /api/v1/notifications/unread-count`
+
+Sólo el contador (`{ "data": { "no_leidas": 7 } }`). Lo consulta el Dashboard, que no
+necesita la lista.
+
+### `POST /api/v1/notifications/{id}/read` · `POST /api/v1/notifications/read-all`
+
+Marcan una o todas como leídas y devuelven el contador actualizado. `read-all` sólo
+alcanza las del usuario autenticado.
+
+### Notificaciones existentes
+
+| Tipo | Cuándo | Destinatario |
+| --- | --- | --- |
+| `declaracion.generada` | `POST /api/v1/declarations` emite el documento | el autor de la declaración |
+
+Se envía en cola (Redis, `ShouldQueue`): el PDF ya está emitido y el cliente no espera por
+el aviso. Si la cola estuviera caída, la declaración sigue siendo válida y visible en el
+historial.
+
+Las solicitudes de token de Telegram (`token.request.*`) **no** generan notificación móvil:
+quien las solicita no es un usuario de CodeRED —`api_token_requests` identifica al
+solicitante por Telegram y correo, sin `user_id`—, así que no hay a quién notificar en la
+app.
+
+---

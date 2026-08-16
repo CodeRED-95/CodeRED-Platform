@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\Integrations\N8nTelegramPersonalCodeController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\Mobile\AuthController as MobileAuthController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ShalomRecordarAuthController;
 use App\Http\Controllers\Api\V1\SystemVersionController;
 use App\Http\Controllers\Api\V1\TokenRequestController as PublicTokenRequestController;
@@ -104,6 +105,16 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/declarations', [DeclarationController::class, 'store'])->name('declarations.store');
             Route::get('/declarations/{id}', [DeclarationController::class, 'show'])->whereNumber('id')->name('declarations.show');
             Route::get('/declarations/{id}/pdf', [DeclarationController::class, 'pdf'])->whereNumber('id')->name('declarations.pdf');
+        });
+        // Centro de notificaciones de CodeRED Mobile. La ability `mobile` la
+        // lleva todo token emitido por el login movil, asi que no hace falta un
+        // permiso RBAC nuevo: cada quien lee lo suyo y nada mas. Los tokens
+        // tecnicos (bridge React, n8n) no la tienen y quedan fuera.
+        Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->prefix('notifications')->name('notifications.')->group(function (): void {
+            Route::get('/', [NotificationController::class, 'index'])->name('index');
+            Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
+            Route::post('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
+            Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('read');
         });
         Route::middleware(['throttle:api-dni', 'api.audit:dni', 'api.delegate-user', 'abilities:dni:consultar'])->group(function (): void {
             Route::get('/dni/{dni}', DniApiController::class)->name('dni.show');
