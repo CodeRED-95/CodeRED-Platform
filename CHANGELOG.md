@@ -6,6 +6,17 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.18.1] - 2026-08-16
+
+### 🐛 Corregido
+
+- Los workers de cola no atendian SIGTERM: sin la extension `pcntl` Laravel no instalaba manejador de senales y, corriendo ademas como PID 1, el kernel descartaba la senal. Cualquier `docker compose up -d` esperaba el `stop_grace_period` completo y dejaba `app` sin arrancar mientras tanto
+- `stop_grace_period` pasa de 2 h a 10 min en `queue` y de 25 h a 20 min en `queue-ruc-backups`, dimensionados sobre la duracion real del trabajo mas largo de cada cola
+- El scheduler usa `schedule:work` en lugar de un bucle de shell, que retenia la senal hasta terminar su `sleep 60`
+- `update.sh` levanta primero los servicios que sirven trafico y recrea los workers despues con `--no-deps`, para que la web no espere a un worker
+
+---
+
 ## [4.18.0] - 2026-08-16
 
 ### ✨ Nuevo

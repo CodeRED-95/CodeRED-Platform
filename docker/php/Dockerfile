@@ -22,7 +22,13 @@ RUN apk add --no-cache \
   && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS linux-headers \
   && pecl install redis \
   && docker-php-ext-enable redis \
-  && docker-php-ext-install pdo_pgsql mbstring intl zip opcache \
+  # pcntl: sin esta extension, Laravel no instala manejador de senales en
+  # queue:work (Worker::supportsAsyncSignals() comprueba extension_loaded).
+  # Como el worker corre ademas como PID 1, el kernel descarta el SIGTERM que
+  # no tiene manejador y el contenedor no para hasta agotar stop_grace_period.
+  # Queda desactivada en el pool de PHP-FPM: la web no necesita control de
+  # procesos (ver docker/php/fpm/www.conf).
+  && docker-php-ext-install pdo_pgsql mbstring intl zip opcache pcntl \
   && apk del .build-deps
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

@@ -253,6 +253,30 @@ ensure_firebase_env(){
     ok "Credencial de Firebase presente."
 }
 
+# Workers de cola de Laravel. Se listan aqui para poder recrearlos aparte del
+# resto: asi nginx y app vuelven cuanto antes y no esperan a que un worker
+# termine el trabajo que tenga entre manos.
+WORKER_SERVICES=(queue queue-ruc-backups scheduler)
+
+# Aviso cooperativo: marca en Redis el instante a partir del cual los workers
+# deben salir en cuanto acaben el trabajo actual. No sustituye a las senales de
+# Docker -por eso los workers llevan init y pcntl-, pero adelanta la parada
+# antes incluso de recrear el contenedor.
+#
+# Requiere que app y Redis esten arriba; si no lo estan, no es un error: solo
+# se pierde el adelanto y Docker hara su trabajo con SIGTERM.
+request_worker_restart(){
+    if ! docker compose ps --status running --services 2>/dev/null | grep -qx app; then
+        info "app no esta arriba todavia: se omite el aviso cooperativo a los workers."
+        return
+    fi
+    if docker compose exec -T app php artisan queue:restart >/dev/null 2>&1; then
+        ok "Aviso de reinicio enviado a los workers de cola."
+    else
+        warn "No se pudo enviar el aviso cooperativo a los workers (Redis?). Docker los parara con SIGTERM."
+    fi
+}
+
 # Verifica que la configuración de cookies/CSRF sea coherente con APP_URL.
 # NO reescribe nada: cambiar SESSION_DOMAIN o los orígenes permitidos por
 # nuestra cuenta puede desconectar clientes en producción, así que solo avisa.
@@ -453,8 +477,33 @@ else
 fi
 
 step 7 "Levantando servicios"
-docker compose up -d --remove-orphans
+# Los workers se recrean aparte y despues. Antes de esta separacion, un worker
+# que no atendia SIGTERM bloqueaba el `up -d` completo y dejaba a `app` en
+# estado Created -sin servir trafico- hasta agotar su stop_grace_period.
+request_worker_restart
+
+NON_WORKER_SERVICES=()
+while read -r svc; do
+    [[ -n "$svc" ]] || continue
+    skip=0
+    for w in "${WORKER_SERVICES[@]}"; do [[ "$svc" == "$w" ]] && skip=1; done
+    ((skip)) || NON_WORKER_SERVICES+=("$svc")
+done < <(docker compose config --services 2>/dev/null)
+
+if ((${#NON_WORKER_SERVICES[@]})); then
+    docker compose up -d --remove-orphans "${NON_WORKER_SERVICES[@]}"
+else
+    # Si por lo que sea no se pudo listar, no dejar el despliegue a medias.
+    docker compose up -d --remove-orphans
+fi
 wait_for_postgres
+
+# Ahora si los workers. Con init + pcntl esto tarda segundos salvo que haya un
+# trabajo largo real en curso, en cuyo caso se le deja terminar.
+# --no-deps es esencial: sin el, recrear un worker arrastra a `app` -del que
+# depende- y volveria a dejarlo parado mientras se espera al worker.
+docker compose up -d --no-deps "${WORKER_SERVICES[@]}"
+ok "Workers de cola recreados sin bloquear al resto de servicios." 
 
 # docker/postgres/codered.conf está montado read-only: `docker compose up -d`
 # NO reinicia postgres cuando solo cambia el contenido del archivo, así que un

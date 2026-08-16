@@ -107,7 +107,17 @@ services:
     restart: unless-stopped
     working_dir: /var/www/html
     command: [ "php", "artisan", "queue:work", "redis", "--queue=agency-imports,default", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768" ]
-    stop_grace_period: 2h
+    # init reemplaza a PHP como PID 1 y reenvia las senales al worker. Con la
+    # extension pcntl ya en la imagen, Laravel atiende SIGTERM: deja de tomar
+    # trabajos nuevos, termina el que tenga entre manos y sale.
+    init: true
+    # 10 minutos. El trabajo realista mas largo de estas colas es la
+    # sincronizacion Shalom, que declara un techo de 240 s y depende de un
+    # extractor HTTP externo con timeout de 180 s; la restauracion de agencias
+    # declara 3600 s por precaucion frente a Cloudflare, pero opera sobre 545
+    # filas y tarda segundos. Con las colas vacias -el caso habitual- el
+    # apagado es inmediato y este margen no se usa.
+    stop_grace_period: 10m
     volumes:
       - ./:/var/www/html
       # Credencial de Firebase, montada de solo lectura desde fuera del
@@ -139,7 +149,14 @@ services:
     restart: unless-stopped
     working_dir: /var/www/html
     command: [ "php", "artisan", "queue:work", "ruc-backups", "--queue=ruc-backups", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768" ]
-    stop_grace_period: 25h
+    init: true
+    # 20 minutos. Aqui el trabajo mas largo es la restauracion del padron
+    # completo: con las 18.3 M de filas actuales, docs-ruc/BACKUP_FORMAT.md
+    # proyecta ~3.5 min de COPY y ~5-6 min de indices -dominados por el GIN de
+    # razon_social-, unos 10 minutos en total. El doble deja margen para un
+    # padron mayor sin volver a las 25 horas anteriores, que no correspondian a
+    # ningun trabajo real.
+    stop_grace_period: 20m
     volumes:
       - ./:/var/www/html
     depends_on:
@@ -157,7 +174,16 @@ services:
     container_name: codered-scheduler
     restart: unless-stopped
     working_dir: /var/www/html
-    command: [ "sh", "-lc", "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done" ]
+    # schedule:work es el bucle propio de Laravel: hace lo mismo que el
+    # `while true; do schedule:run; sleep 60; done` anterior, pero es un proceso
+    # PHP que atiende senales. Medido: el bucle de shell agotaba los 30 s de
+    # gracia porque `sh` espera a que termine su `sleep 60` antes de reaccionar
+    # al SIGTERM; con schedule:work la parada es inmediata.
+    command: [ "php", "artisan", "schedule:work" ]
+    # init reenvia las senales y recoge los subprocesos que schedule:work lanza
+    # en cada minuto.
+    init: true
+    stop_grace_period: 30s
     volumes:
       - ./:/var/www/html
     depends_on:

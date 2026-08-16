@@ -192,3 +192,8 @@ Para errores específicos, consulta:
 
 **Última actualización**: 2026-08-07
 **Versión segura**: 2.2.0+
+
+## Workers de cola
+
+Como paran `queue`, `queue-ruc-backups` y `scheduler`, por que llevan `init` y
+`pcntl`, y de donde salen sus `stop_grace_period`: [docs/WORKERS.md](WORKERS.md).
