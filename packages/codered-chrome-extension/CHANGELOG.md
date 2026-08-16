@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.11 - 2026-08-16
+
+- Reordena el popup para que la nueva identidad visual conserve el ancho fijo de 360 px y permita scroll vertical interno sin cortar la tarjeta de Service Order.
+- Refina la jerarquía visual del popup con tarjetas más limpias, fondo con profundidad y acciones principales más legibles.
+- Conserva intacta la lógica funcional del token, la sincronización y el bloqueo horario/manual.
+
 ## 2.3.10 - 2026-08-16
 
 - Agrega bloqueo horario automático exclusivo para `https://sysnewos.shalomcontrol.com/service-order` entre 20:05 y 07:59:59 hora de Lima.

@@ -219,7 +219,7 @@ describe('extension version and simple popup', () => {
 
     expect(css).toMatch(/html,\s*body\s*\{[^}]*width: 360px;[^}]*min-width: 360px;[^}]*max-width: 360px;/s);
     expect(css).toContain('.popup {');
-    expect(css).toContain('padding: 16px');
+    expect(css).toContain('padding: 14px 14px 24px');
     expect(css).toContain('.actions {');
     expect(css).toContain('grid-template-columns: 1fr');
     expect(css).not.toContain('420px');
