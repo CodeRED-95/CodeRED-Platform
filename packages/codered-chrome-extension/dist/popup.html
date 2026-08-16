@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=360, initial-scale=1.0" />
+    <meta name="viewport" content="width=380, initial-scale=1.0" />
     <title>Buscador Shalom</title>
     <script type="module" src="./assets/popup.js"></script>
     <link rel="stylesheet" href="./assets/popup.css">
@@ -56,39 +56,55 @@
         <p id="message" class="message" role="status" aria-live="polite"></p>
       </section>
 
-      <footer class="popup-footer">
+      <div class="meta-row" aria-label="Estado de sincronización automática">
         <span>Sincronización automática</span>
         <strong id="sync-mode" data-tone="muted">Pausada</strong>
-      </footer>
+      </div>
 
       <section class="popup-card popup-card--lock" aria-label="Control de Service Order" aria-live="polite" aria-atomic="true">
         <div class="card-header">
           <div>
             <h2>Control de Service Order</h2>
-            <p id="service-order-lock-description" class="description">Cargando estado del bloqueo...</p>
+            <p id="service-order-lock-description" class="description">El horario automático sigue el horario de Lima, Perú (GMT-5).</p>
           </div>
           <span id="service-order-lock-state" class="pill" data-tone="muted">DESCONOCIDO</span>
         </div>
 
-        <dl class="status-list">
-          <div class="status-row">
-            <dt>Estado</dt>
-            <dd id="service-order-lock-current">DESCONOCIDO</dd>
+        <div class="lock-summary">
+          <div class="lock-grid">
+            <div class="lock-grid__top">
+              <div class="lock-grid__item">
+                <strong>Horario permitido</strong>
+                <span>08:00 h - 20:05 h</span>
+              </div>
+              <div class="lock-grid__item" style="text-align:right">
+                <strong>Próximo cambio</strong>
+                <span id="service-order-lock-available">Hoy, 8:05 p. m.</span>
+              </div>
+            </div>
+
+            <div class="lock-grid__split">
+              <div class="lock-grid__item">
+                <strong>Estado actual</strong>
+                <span id="service-order-lock-current">DESBLOQUEADO</span>
+              </div>
+              <div class="lock-grid__item">
+                <strong>Motivo</strong>
+                <span id="service-order-lock-reason">Todo funciona normalmente.</span>
+              </div>
+            </div>
           </div>
-          <div class="status-row">
-            <dt>Motivo</dt>
-            <dd id="service-order-lock-reason">Sin información</dd>
+
+          <div class="lock-status" id="service-order-lock-status" data-tone="success">
+            <strong>Estado actual</strong>
+            <p>Todo funciona normalmente.</p>
           </div>
-          <div class="status-row">
-            <dt>Disponible</dt>
-            <dd id="service-order-lock-available">08:00 h</dd>
-          </div>
-        </dl>
+        </div>
 
         <label class="switch-row" for="service-order-lock-toggle">
           <span>
             <strong id="service-order-lock-action-label">Bloquear manualmente</strong>
-            <small>Solo aplica el bloqueo manual. El horario automático siempre tiene prioridad.</small>
+            <small>Bloquear o desbloquear manualmente durante el horario permitido.</small>
           </span>
           <span class="switch">
             <input id="service-order-lock-toggle" type="checkbox" />
@@ -100,11 +116,11 @@
       </section>
 
       <footer class="popup-links" aria-label="Enlaces de ayuda">
-        <button class="popup-link" type="button" id="popup-help" disabled>Ayuda</button>
+        <button class="popup-link" type="button" id="popup-help" disabled>? Ayuda</button>
         <span class="popup-links__divider" aria-hidden="true"></span>
-        <button class="popup-link" type="button" id="popup-privacy" disabled>Privacidad</button>
+        <button class="popup-link" type="button" id="popup-privacy" disabled>🛡 Privacidad</button>
         <span class="popup-links__divider" aria-hidden="true"></span>
-        <button class="popup-link" type="button" id="popup-about" disabled>Acerca de</button>
+        <button class="popup-link" type="button" id="popup-about" disabled>ⓘ Acerca de</button>
       </footer>
     </main>
   </body>

@@ -13,7 +13,23 @@ await mkdir(join(dist, 'icons'), { recursive: true });
 await cp(join(root, 'icons'), join(dist, 'icons'), { recursive: true });
 
 for (const name of ['popup', 'options']) {
-  const from = join(dist, 'src', name, `${name}.html`);
+  const candidates = [
+    join(dist, 'src', name, `${name}.html`),
+    join(dist, `${name}.html`),
+  ];
+  let from = null;
+  for (const candidate of candidates) {
+    try {
+      await readFile(candidate, 'utf8');
+      from = candidate;
+      break;
+    } catch {
+      continue;
+    }
+  }
+  if (!from) {
+    throw new Error(`No se encontró el HTML compilado para ${name}.`);
+  }
   const to = join(dist, `${name}.html`);
   let html = await readFile(from, 'utf8');
   html = html

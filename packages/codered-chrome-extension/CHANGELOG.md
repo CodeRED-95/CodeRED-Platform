@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.12 - 2026-08-16
+
+- Reconstruye el popup desde cero con un contenedor vertical único de 380 px y scroll interno principal para evitar la franja horizontal en Chromium.
+- Aísla el CSS del popup y elimina las dependencias visuales problemáticas de iteraciones previas.
+- Conserva la lógica funcional del token, la sincronización y el control de Service Order.
+
 ## 2.3.11 - 2026-08-16
 
 - Reordena el popup para que la nueva identidad visual conserve el ancho fijo de 360 px y permita scroll vertical interno sin cortar la tarjeta de Service Order.

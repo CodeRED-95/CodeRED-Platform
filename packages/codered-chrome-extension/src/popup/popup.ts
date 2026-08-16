@@ -40,11 +40,14 @@ type PopupElements = {
   lockReason: HTMLElement;
   lockAvailable: HTMLElement;
   lockActionLabel: HTMLElement;
+  lockStatus: HTMLElement;
   lockToggle: HTMLInputElement;
   lockMessage: HTMLElement;
 };
 
 type ConnectionState = { label: string; tone: 'success' | 'warning' | 'missing' | 'error' };
+
+let serviceOrderLockTimer: number | null = null;
 
 if (typeof document !== 'undefined') {
   void initPopup();
@@ -69,6 +72,16 @@ async function initPopup(): Promise<void> {
 
   await renderState(elements);
   await renderServiceOrderLock(elements);
+  if (serviceOrderLockTimer !== null) window.clearInterval(serviceOrderLockTimer);
+  serviceOrderLockTimer = window.setInterval(() => {
+    void renderServiceOrderLock(elements);
+  }, 1000);
+
+  window.addEventListener('unload', () => {
+    if (serviceOrderLockTimer !== null) window.clearInterval(serviceOrderLockTimer);
+    serviceOrderLockTimer = null;
+  }, { once: true });
+
   elements.lockToggle.addEventListener('change', async () => {
     elements.lockToggle.disabled = true;
     elements.lockMessage.textContent = 'Actualizando bloqueo...';
@@ -107,6 +120,7 @@ function getElements(): PopupElements {
     lockReason: requireElement('#service-order-lock-reason'),
     lockAvailable: requireElement('#service-order-lock-available'),
     lockActionLabel: requireElement('#service-order-lock-action-label'),
+    lockStatus: requireElement('#service-order-lock-status'),
     lockToggle: requireElement<HTMLInputElement>('#service-order-lock-toggle'),
     lockMessage: requireElement('#service-order-lock-message'),
   };
@@ -189,10 +203,15 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
     const manualLocked = Boolean(response.locked);
     const scheduleState = getServiceOrderScheduleState(new Date(), manualLocked);
     const locked = scheduleState.locked;
+    const nextChange = scheduleState.nextAllowedAt ? formatServiceOrderNextChange(scheduleState.nextAllowedAt) : 'Hoy, 8:05 p. m.';
     elements.lockToggle.checked = manualLocked;
     elements.lockState.textContent = locked ? 'BLOQUEADO' : 'DESBLOQUEADO';
     elements.lockState.dataset.tone = locked ? 'warning' : 'success';
-    elements.lockCurrent.textContent = locked ? 'BLOQUEADO' : 'DESBLOQUEADO';
+    elements.lockCurrent.textContent = locked
+      ? scheduleState.reason === 'manual'
+        ? 'Bloqueado manualmente.'
+        : 'Bloqueado por horario.'
+      : 'Todo funciona normalmente.';
     elements.lockReason.textContent = scheduleState.reason === 'schedule+manual'
       ? 'Horario + bloqueo manual'
       : scheduleState.reason === 'schedule'
@@ -200,24 +219,61 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
         : scheduleState.reason === 'manual'
           ? 'Bloqueo manual'
           : 'Funcionamiento normal';
-    elements.lockAvailable.textContent = '08:00 h';
-    elements.lockDescription.textContent = locked
-      ? scheduleState.reason === 'manual'
-        ? 'El bloqueo manual está activo para esta pestaña.'
-        : scheduleState.reason === 'schedule+manual'
-          ? 'La página sigue bloqueada por horario y bloqueo manual.'
-          : 'Las operaciones están fuera del horario permitido.'
-      : 'El horario automático sigue siendo el único bloqueo fuera de horario.';
+    elements.lockAvailable.textContent = nextChange;
+    elements.lockDescription.textContent = 'El horario automático sigue el horario de Lima, Perú (GMT-5).';
+    elements.lockStatus.dataset.tone = locked ? 'warning' : 'success';
+    elements.lockStatus.querySelector('p')!.textContent = locked
+      ? scheduleState.reason === 'schedule'
+        ? `Disponible nuevamente a las ${formatServiceOrderTime(scheduleState.nextAllowedAt)}.`
+        : 'Bloqueo manual activo.'
+      : 'Todo funciona normalmente.';
     elements.lockActionLabel.textContent = locked ? 'Desbloquear manualmente' : 'Bloquear manualmente';
     elements.lockMessage.textContent = '';
+    elements.lockToggle.disabled = false;
+    return;
   } catch {
     elements.lockState.textContent = 'DESCONOCIDO';
     elements.lockState.dataset.tone = 'muted';
     elements.lockCurrent.textContent = 'DESCONOCIDO';
     elements.lockReason.textContent = 'No fue posible leer el bloqueo';
     elements.lockDescription.textContent = 'No fue posible leer el bloqueo manual.';
+    elements.lockStatus.dataset.tone = 'muted';
+    elements.lockStatus.querySelector('p')!.textContent = 'No fue posible leer el bloqueo.';
     elements.lockMessage.textContent = 'No fue posible leer el estado del bloqueo.';
+    elements.lockToggle.disabled = false;
   }
+}
+
+function formatServiceOrderNextChange(date: Date): string {
+  const formatter = new Intl.DateTimeFormat('es-PE', {
+    timeZone: 'America/Lima',
+    weekday: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  const parts = formatter.formatToParts(date);
+  const weekday = parts.find((part) => part.type === 'weekday')?.value ?? '';
+  const hour = parts.find((part) => part.type === 'hour')?.value ?? '';
+  const minute = parts.find((part) => part.type === 'minute')?.value ?? '';
+  const dayPeriod = parts.find((part) => part.type === 'dayPeriod')?.value ?? '';
+  const normalizedWeekday = weekday ? capitalize(weekday) : 'Hoy';
+  const normalizedPeriod = dayPeriod || 'p. m.';
+  return `${normalizedWeekday}, ${hour}:${minute} ${normalizedPeriod}`;
+}
+
+function formatServiceOrderTime(date: Date | null): string {
+  if (!date) return '08:00 h';
+  const formatter = new Intl.DateTimeFormat('es-PE', {
+    timeZone: 'America/Lima',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `${formatter.format(date)} h`;
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 async function testConnection(elements: PopupElements): Promise<void> {

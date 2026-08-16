@@ -197,14 +197,14 @@ describe('extension version and simple popup', () => {
     expect(html).not.toContain('¿Qué puedes hacer?');
     expect(html).not.toContain('Tus datos están protegidos');
     expect(html).not.toContain('popup-grid');
-    expect(css).toContain('width: 360px');
-    expect(css).toContain('min-width: 360px');
-    expect(css).toContain('max-width: 360px');
-    expect(css).toContain('max-height: calc(100vh - 24px)');
+    expect(css).toContain('width: 380px');
+    expect(css).toContain('min-width: 380px');
+    expect(css).toContain('max-width: 380px');
+    expect(css).toContain('max-height: 600px');
     expect(css).toContain('overflow-y: auto');
     expect(css).not.toContain('overflow: hidden');
     expect(css).not.toContain('overflow-x: auto');
-    expect(css).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .94fr)');
+    expect(css).not.toContain('width: 100vw');
     expect(script).toContain('EXTENSION_VERSION');
     expect(script).toContain('GET_STATE');
     expect(script).toContain('API_TEST_CONNECTION');
@@ -217,13 +217,12 @@ describe('extension version and simple popup', () => {
     const { readFileSync } = await import('node:fs');
     const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
 
-    expect(css).toMatch(/html,\s*body\s*\{[^}]*width: 360px;[^}]*min-width: 360px;[^}]*max-width: 360px;/s);
+    expect(css).toMatch(/html,\s*body\s*\{[^}]*width: 380px;[^}]*min-width: 380px;[^}]*max-width: 380px;/s);
     expect(css).toContain('.popup {');
-    expect(css).toContain('padding: 14px 14px 24px');
+    expect(css).toContain('padding: 14px;');
     expect(css).toContain('.actions {');
     expect(css).toContain('grid-template-columns: 1fr');
-    expect(css).not.toContain('420px');
-    expect(css).not.toContain('600px');
+    expect(css).not.toContain('100vw');
     expect(css).not.toContain('720px');
   });
 
