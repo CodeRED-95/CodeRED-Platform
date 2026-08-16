@@ -90,6 +90,15 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
     return { success: true };
   }
 
+  if (message.type === 'SERVICE_ORDER_LOCK_GET') {
+    return { success: true, locked: await storage.getServiceOrderLock() };
+  }
+
+  if (message.type === 'SERVICE_ORDER_LOCK_SET') {
+    await storage.setServiceOrderLock(message.locked);
+    return { success: true, locked: message.locked };
+  }
+
   if (message.type === 'OPEN_TOKEN_REQUEST') {
     await chrome.tabs.create({ url: getTokenRequestUrl() + '?source=shalom-extension&installation_name=Buscador%20Shalom%20Control' });
     return { success: true };

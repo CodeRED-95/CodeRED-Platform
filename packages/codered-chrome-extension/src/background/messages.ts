@@ -11,7 +11,9 @@ export type RuntimeRequest =
   | { type: 'API_TEST_CONNECTION' }
   | { type: 'CONFIG_GET' }
   | { type: 'CONFIG_SAVE'; token: string }
-  | { type: 'TOKEN_DELETE' };
+  | { type: 'TOKEN_DELETE' }
+  | { type: 'SERVICE_ORDER_LOCK_GET' }
+  | { type: 'SERVICE_ORDER_LOCK_SET'; locked: boolean };
 
 export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
   if (value === null || typeof value !== 'object') return false;
@@ -28,12 +30,15 @@ export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
     case 'CATALOG_STATUS':
     case 'CONFIG_GET':
     case 'API_TEST_CONNECTION':
+    case 'SERVICE_ORDER_LOCK_GET':
       return true;
     case 'SEARCH_AGENCIES':
       return typeof message.query === 'string';
     case 'SAVE_CONFIGURATION':
     case 'CONFIG_SAVE':
       return typeof message.token === 'string';
+    case 'SERVICE_ORDER_LOCK_SET':
+      return typeof message.locked === 'boolean';
     default:
       return false;
   }

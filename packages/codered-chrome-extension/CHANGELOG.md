@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.9 - 2026-08-16
+
+- Agrega bloqueo horario automático exclusivo para `https://sysnewos.shalomcontrol.com/service-order` entre 20:05 y 07:59:59 hora de Lima.
+- Introduce bloqueo manual persistente en el popup con sincronización inmediata hacia la pestaña abierta.
+- Mantiene el buscador existente sin cambios funcionales fuera de la nueva pantalla superpuesta de bloqueo.
+- Suma pruebas de horario Lima, URL exacta, prioridad del bloqueo horario y estado manual.
+
 ## 2.3.5 - 2026-08-10
 
 - Trata `https://*.shalomcontrol.com/listaordenservicio` como una ruta neutral cuando el canal no puede determinarse con evidencia suficiente.

@@ -137,6 +137,43 @@ h1 {
   background: var(--card);
 }
 
+.popup-card--lock {
+  margin-top: 12px;
+}
+
+.card-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: var(--font-status);
+}
+
+.card-header .description {
+  margin-top: 4px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: var(--font-version);
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.pill[data-tone="success"] { color: var(--green); border-color: color-mix(in srgb, var(--green) 50%, var(--border)); }
+.pill[data-tone="warning"] { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 50%, var(--border)); }
+.pill[data-tone="error"] { color: #fca5a5; border-color: color-mix(in srgb, #fca5a5 50%, var(--border)); }
+.pill[data-tone="muted"] { color: var(--muted); }
+
 .description {
   margin: 0;
   color: var(--muted);
@@ -250,6 +287,71 @@ button:disabled {
 
 .message[data-tone="success"] { color: var(--green); }
 .message[data-tone="error"] { color: #fca5a5; }
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  cursor: pointer;
+}
+
+.switch-row strong {
+  display: block;
+  font-size: var(--font-body);
+}
+
+.switch-row small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: var(--font-muted);
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.switch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+}
+
+.switch-track {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: #1f2937;
+  border: 1px solid var(--border);
+  position: relative;
+  transition: background .18s ease, border-color .18s ease;
+}
+
+.switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .18s ease;
+}
+
+.switch input:checked + .switch-track {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.switch input:checked + .switch-track::after {
+  transform: translateX(20px);
+}
 
 .popup-footer {
   display: grid;

@@ -1,5 +1,6 @@
 import './popup.css';
 import { EXTENSION_VERSION } from '../shared/version';
+import { getServiceOrderScheduleState } from '../shared/lima-time';
 import { getTokenRequestUrl } from '../models/configuration';
 
 // Derivado de getPlatformApiBaseUrl() para que el dominio viva en un solo
@@ -11,6 +12,11 @@ type StateResponse = {
   configuration?: { tokenMasked?: string | null };
   metadata?: { lastSyncedAt?: string | null; status?: string | null; message?: string | null };
   agencyCount?: number;
+};
+
+type ServiceOrderLockResponse = {
+  success?: boolean;
+  locked?: boolean;
 };
 
 type PopupElements = {
@@ -28,6 +34,14 @@ type PopupElements = {
   options: HTMLButtonElement;
   syncMode: HTMLElement;
   message: HTMLElement;
+  lockDescription: HTMLElement;
+  lockState: HTMLElement;
+  lockCurrent: HTMLElement;
+  lockReason: HTMLElement;
+  lockAvailable: HTMLElement;
+  lockActionLabel: HTMLElement;
+  lockToggle: HTMLInputElement;
+  lockMessage: HTMLElement;
 };
 
 type ConnectionState = { label: string; tone: 'success' | 'warning' | 'missing' | 'error' };
@@ -50,9 +64,25 @@ async function initPopup(): Promise<void> {
 
   chrome.storage.onChanged.addListener(() => {
     void renderState(elements);
+    void renderServiceOrderLock(elements);
   });
 
   await renderState(elements);
+  await renderServiceOrderLock(elements);
+  elements.lockToggle.addEventListener('change', async () => {
+    elements.lockToggle.disabled = true;
+    elements.lockMessage.textContent = 'Actualizando bloqueo...';
+    try {
+      await chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_LOCK_SET', locked: elements.lockToggle.checked });
+      elements.lockMessage.textContent = elements.lockToggle.checked ? 'Bloqueo manual activado.' : 'Bloqueo manual desactivado.';
+    } catch {
+      elements.lockMessage.textContent = 'No fue posible actualizar el bloqueo manual.';
+      elements.lockToggle.checked = !elements.lockToggle.checked;
+    } finally {
+      elements.lockToggle.disabled = false;
+      await renderServiceOrderLock(elements);
+    }
+  });
 }
 
 function getElements(): PopupElements {
@@ -71,6 +101,14 @@ function getElements(): PopupElements {
     options: requireElement<HTMLButtonElement>('#open-options'),
     syncMode: requireElement('#sync-mode'),
     message: requireElement('#message'),
+    lockDescription: requireElement('#service-order-lock-description'),
+    lockState: requireElement('#service-order-lock-state'),
+    lockCurrent: requireElement('#service-order-lock-current'),
+    lockReason: requireElement('#service-order-lock-reason'),
+    lockAvailable: requireElement('#service-order-lock-available'),
+    lockActionLabel: requireElement('#service-order-lock-action-label'),
+    lockToggle: requireElement<HTMLInputElement>('#service-order-lock-toggle'),
+    lockMessage: requireElement('#service-order-lock-message'),
   };
 }
 
@@ -143,6 +181,43 @@ function applyReadError(elements: PopupElements): void {
   elements.syncMode.dataset.tone = 'muted';
   elements.message.textContent = 'No fue posible leer el estado local.';
   elements.message.dataset.tone = 'error';
+}
+
+async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_LOCK_GET' }) as ServiceOrderLockResponse;
+    const manualLocked = Boolean(response.locked);
+    const scheduleState = getServiceOrderScheduleState(new Date(), manualLocked);
+    const locked = scheduleState.locked;
+    elements.lockToggle.checked = manualLocked;
+    elements.lockState.textContent = locked ? 'BLOQUEADO' : 'DESBLOQUEADO';
+    elements.lockState.dataset.tone = locked ? 'warning' : 'success';
+    elements.lockCurrent.textContent = locked ? 'BLOQUEADO' : 'DESBLOQUEADO';
+    elements.lockReason.textContent = scheduleState.reason === 'schedule+manual'
+      ? 'Horario + bloqueo manual'
+      : scheduleState.reason === 'schedule'
+        ? 'Fuera del horario permitido'
+        : scheduleState.reason === 'manual'
+          ? 'Bloqueo manual'
+          : 'Funcionamiento normal';
+    elements.lockAvailable.textContent = '08:00 h';
+    elements.lockDescription.textContent = locked
+      ? scheduleState.reason === 'manual'
+        ? 'El bloqueo manual está activo para esta pestaña.'
+        : scheduleState.reason === 'schedule+manual'
+          ? 'La página sigue bloqueada por horario y bloqueo manual.'
+          : 'Las operaciones están fuera del horario permitido.'
+      : 'El horario automático sigue siendo el único bloqueo fuera de horario.';
+    elements.lockActionLabel.textContent = locked ? 'Desbloquear manualmente' : 'Bloquear manualmente';
+    elements.lockMessage.textContent = '';
+  } catch {
+    elements.lockState.textContent = 'DESCONOCIDO';
+    elements.lockState.dataset.tone = 'muted';
+    elements.lockCurrent.textContent = 'DESCONOCIDO';
+    elements.lockReason.textContent = 'No fue posible leer el bloqueo';
+    elements.lockDescription.textContent = 'No fue posible leer el bloqueo manual.';
+    elements.lockMessage.textContent = 'No fue posible leer el estado del bloqueo.';
+  }
 }
 
 async function testConnection(elements: PopupElements): Promise<void> {

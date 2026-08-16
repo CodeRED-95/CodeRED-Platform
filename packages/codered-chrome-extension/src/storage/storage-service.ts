@@ -80,6 +80,15 @@ export class ChromeStorageService {
     });
   }
 
+  async getServiceOrderLock(): Promise<boolean> {
+    const data = await chrome.storage.local.get([STORAGE_KEYS.SERVICE_ORDER_LOCK]);
+    return data[STORAGE_KEYS.SERVICE_ORDER_LOCK] === true;
+  }
+
+  async setServiceOrderLock(locked: boolean): Promise<void> {
+    await chrome.storage.local.set({ [STORAGE_KEYS.SERVICE_ORDER_LOCK]: locked });
+  }
+
   private async removeLegacyTokenKeys(): Promise<void> {
     await chrome.storage.local.remove([...LEGACY_TOKEN_KEYS]);
   }

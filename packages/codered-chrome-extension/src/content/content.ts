@@ -7,6 +7,7 @@ import { searchAgencies } from '../search/agency-search';
 import { buildMapsUrl } from '../utils/format';
 import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agency-selector';
 import { bindChannelButtons, detectActiveShalomChannelState, type ShalomChannel } from './shalom-page-adapter';
+import { createServiceOrderLockController } from './service-order-lock';
 import {
   getShalomPageCapabilities,
   hostnameMatchesAllowedDomain,
@@ -57,6 +58,17 @@ export function createShalomContentController(dependencies: ContentControllerDep
   let storageListenerBound = false;
   let resizeListenerBound = false;
   let routeObserverBound = false;
+  const serviceOrderLock = createServiceOrderLockController({
+    getManualLock: async () => {
+      if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.get !== 'function') return false;
+      const data = await chrome.storage.local.get(['codered_service_order_lock']);
+      return data.codered_service_order_lock === true;
+    },
+    setManualLock: async (locked) => {
+      if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.set !== 'function') return;
+      await chrome.storage.local.set({ codered_service_order_lock: locked });
+    },
+  });
   const emittedLogs = new Set<string>();
 
   async function initializeContentScript(): Promise<void> {
@@ -71,6 +83,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     if (!isSupportedShalomPage()) return;
     await refreshChannelDetection(true);
     await cargarDatos();
+    await serviceOrderLock.initialize();
     const result = injectSearchIfPossible();
     console.log('[CodeRED Shalom] Resultado de inyección', { reason: result.reason });
     startInjectionObserver();
@@ -273,6 +286,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   function handleRouteChange(): void {
     if (!isSupportedShalomPage()) return;
+    serviceOrderLock.refresh();
     const container = document.getElementById(CONTAINER_ID);
     if (container && !container.isConnected) {
       container.remove();
