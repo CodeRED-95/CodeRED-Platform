@@ -8,6 +8,10 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
+      # Credencial de Firebase, montada de solo lectura desde fuera del
+      # repositorio. Nunca entra en la imagen ni se versiona: ver
+      # docs/FIREBASE_SETUP.md.
+      - ${FIREBASE_CREDENTIALS_HOST:-/home/codered/secrets/firebase-adminsdk.json}:/var/www/secrets/firebase-adminsdk.json:ro
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -106,6 +110,10 @@ services:
     stop_grace_period: 2h
     volumes:
       - ./:/var/www/html
+      # Credencial de Firebase, montada de solo lectura desde fuera del
+      # repositorio. Nunca entra en la imagen ni se versiona: ver
+      # docs/FIREBASE_SETUP.md.
+      - ${FIREBASE_CREDENTIALS_HOST:-/home/codered/secrets/firebase-adminsdk.json}:/var/www/secrets/firebase-adminsdk.json:ro
     depends_on:
       app:
         condition: service_started

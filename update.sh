@@ -226,6 +226,33 @@ ensure_declaracion_jurada_env(){
     if need_secret DECLARACION_JURADA_DB_PASSWORD; then set_env DECLARACION_JURADA_DB_PASSWORD "$(generate_secret)"; ok "Password del rol Postgres de solo lectura de Declaración Jurada generado correctamente."; fi
 }
 
+# Notificaciones push (Firebase Cloud Messaging). Como el resto de ensure_*,
+# solo rellena lo que falte y jamas sobrescribe un valor ya configurado.
+#
+# La credencial de servicio NO se genera aqui ni se versiona: la descarga un
+# operador de la consola de Firebase y la deja en el host. Si no esta, este
+# paso avisa y sigue: sin push la plataforma funciona igual, el historial de
+# notificaciones vive en la base de datos.
+ensure_firebase_env(){
+    local host_path
+    [[ -n "$(get_env FIREBASE_CREDENTIALS_HOST)" ]] || set_env FIREBASE_CREDENTIALS_HOST "/home/codered/secrets/firebase-adminsdk.json"
+    [[ -n "$(get_env FIREBASE_CREDENTIALS)" ]] || set_env FIREBASE_CREDENTIALS "/var/www/secrets/firebase-adminsdk.json"
+    [[ -n "$(get_env FIREBASE_PUSH_ENABLED)" ]] || set_env FIREBASE_PUSH_ENABLED "true"
+
+    host_path="$(get_env FIREBASE_CREDENTIALS_HOST)"
+    if [[ ! -f "$host_path" ]]; then
+        warn "No se encontro la credencial de Firebase en $host_path."
+        warn "Las notificaciones push quedaran desactivadas; el resto de la plataforma no se ve afectado."
+        warn "Procedimiento para instalarla: docs/FIREBASE_SETUP.md"
+        return
+    fi
+
+    # 600 = solo el propietario. El archivo permite enviar notificaciones a
+    # todos los usuarios de la app, asi que no se deja legible para el grupo.
+    chmod 600 "$host_path" 2>/dev/null || warn "No se pudieron ajustar los permisos de $host_path (revise a mano: chmod 600)."
+    ok "Credencial de Firebase presente."
+}
+
 # Verifica que la configuración de cookies/CSRF sea coherente con APP_URL.
 # NO reescribe nada: cambiar SESSION_DOMAIN o los orígenes permitidos por
 # nuestra cuenta puede desconectar clientes en producción, así que solo avisa.
@@ -399,6 +426,7 @@ step 5 "Revisando variables nuevas"
 sync_postgres_env
 ensure_agent_env
 ensure_declaracion_jurada_env
+ensure_firebase_env
 check_domain_consistency
 migrate_legacy_app_version
 ok "Variables PostgreSQL, CodeRED Agent, n8n y Declaración Jurada verificadas sin mostrar secretos."

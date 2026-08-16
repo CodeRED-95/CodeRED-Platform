@@ -6,6 +6,20 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.18.0] - 2026-08-16
+
+### ✨ Nuevo
+
+- Notificaciones push por Firebase Cloud Messaging: las notificaciones de la plataforma se entregan además al instante en CodeRED Mobile, con el historial en base de datos como fuente de verdad
+- Registro de dispositivos móviles (`POST`/`DELETE /api/v1/mobile/devices`) con el token cifrado en reposo y un índice único que impide que dos cuentas compartan un mismo dispositivo
+- `php artisan push:diagnose` para verificar credencial, conectividad y dispositivos sin enviar nada
+
+### ℹ️ Nota
+
+- La credencial de servicio de Firebase vive fuera del repositorio y se monta de sólo lectura en `app` y `queue`. Procedimiento e instalación en `docs/FIREBASE_SETUP.md`
+
+---
+
 ## [4.17.0] - 2026-08-16
 
 ### ℹ️ Nota

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\Integrations\N8nTelegramPersonalCodeController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\Mobile\AuthController as MobileAuthController;
+use App\Http\Controllers\Api\V1\MobileDeviceController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ShalomRecordarAuthController;
 use App\Http\Controllers\Api\V1\SystemVersionController;
@@ -147,6 +148,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         // lleva todo token emitido por el login movil, asi que no hace falta un
         // permiso RBAC nuevo: cada quien lee lo suyo y nada mas. Los tokens
         // tecnicos (bridge React, n8n) no la tienen y quedan fuera.
+        // Dispositivos que reciben push. Misma ability que el centro de
+        // notificaciones: un dispositivo es de una persona, y un token tecnico
+        // no tiene a quien avisar. El alta es un upsert por token y la baja
+        // parte siempre de los dispositivos del propio usuario.
+        Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->prefix('mobile/devices')->name('mobile.devices.')->group(function (): void {
+            Route::post('/', [MobileDeviceController::class, 'store'])->name('store');
+            Route::delete('/{id}', [MobileDeviceController::class, 'destroy'])->whereNumber('id')->name('destroy');
+        });
+
         Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->prefix('notifications')->name('notifications.')->group(function (): void {
             Route::get('/', [NotificationController::class, 'index'])->name('index');
             Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');

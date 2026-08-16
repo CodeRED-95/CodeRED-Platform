@@ -124,6 +124,17 @@ class User extends Authenticatable
         return $this->belongsTo(self::class, 'updated_by');
     }
 
+    /**
+     * Dispositivos que reciben las notificaciones push de esta persona.
+     *
+     * Se borran con el usuario (cascada en la migracion): una cuenta eliminada
+     * no puede dejar tokens vivos a los que se siga intentando enviar.
+     */
+    public function mobileDevices(): HasMany
+    {
+        return $this->hasMany(MobileDevice::class);
+    }
+
     public function shalomRecordarInstallations(): HasMany
     {
         return $this->hasMany(ShalomRecordarInstallation::class);

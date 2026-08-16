@@ -60,6 +60,8 @@ Respuesta:
 | POST | `/api/v1/notifications/{id}/read` | `mobile` |
 | POST | `/api/v1/notifications/read-all` | `mobile` |
 | GET | `/api/v1/activity` | `mobile` |
+| POST | `/api/v1/mobile/devices` | `mobile` |
+| DELETE | `/api/v1/mobile/devices/{id}` | `mobile` |
 | GET · POST | `/api/v1/admin/tokens` | `admin:tokens` |
 | GET | `/api/v1/admin/tokens/types` | `admin:tokens` |
 | DELETE | `/api/v1/admin/tokens/{id}` | `admin:tokens` |
@@ -365,5 +367,32 @@ Tres reglas que la definen:
   ni el DNI o RUC en claro.
 
 `limit` por defecto 5, acotado a 20.
+
+---
+
+## Dispositivos y notificaciones push
+
+`POST /api/v1/mobile/devices` registra el teléfono que debe recibir avisos
+inmediatos; `DELETE /api/v1/mobile/devices/{id}` lo da de baja. Ability `mobile`,
+la misma que el centro de notificaciones: un dispositivo pertenece a una persona
+y un token técnico no tiene a quién avisar.
+
+```json
+{ "push_token": "...", "platform": "android", "device_name": "Pixel 7", "app_version": "0.14.0" }
+```
+
+El alta es un **upsert por token**, no por usuario, y esa es la decisión que
+gobierna el resto. Un token identifica una instalación concreta de la app, así
+que sólo puede pertenecer a alguien a la vez: cuando reaparece bajo otra cuenta
+cambia de dueño. Eso resuelve el teléfono compartido cuyo cierre de sesión
+anterior no llegó a completarse por falta de red.
+
+La respuesta devuelve el identificador del registro y nunca el token. El cliente
+ya lo tiene —se lo dio Firebase— y devolverlo sólo pondría otra copia a viajar.
+
+La baja parte siempre de los dispositivos del propio usuario, así que un
+identificador ajeno da 404: el mismo que si no existiera.
+
+Arquitectura, credenciales y diagnóstico: `docs/FIREBASE_SETUP.md`.
 
 ---
