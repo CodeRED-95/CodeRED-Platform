@@ -200,9 +200,9 @@ describe('extension version and simple popup', () => {
     expect(css).toContain('width: 360px');
     expect(css).toContain('min-width: 360px');
     expect(css).toContain('max-width: 360px');
-    expect(css).toContain('max-height: 520px');
-    expect(css).toContain('overflow: hidden');
-    expect(css).not.toContain('overflow-y: auto');
+    expect(css).toContain('max-height: calc(100vh - 24px)');
+    expect(css).toContain('overflow-y: auto');
+    expect(css).not.toContain('overflow: hidden');
     expect(css).not.toContain('overflow-x: auto');
     expect(css).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(0, .94fr)');
     expect(script).toContain('EXTENSION_VERSION');

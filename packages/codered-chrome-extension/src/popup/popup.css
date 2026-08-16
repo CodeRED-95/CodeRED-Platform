@@ -25,13 +25,15 @@ body {
   max-width: 360px;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--bg);
   color: var(--text);
 }
 
 body {
-  max-height: 520px;
+  min-height: 0;
+  max-height: calc(100vh - 24px);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: var(--font-body);
   line-height: 1.35;
@@ -40,7 +42,8 @@ body {
 
 .popup {
   width: 100%;
-  padding: 16px;
+  min-height: 0;
+  padding: 16px 16px 20px;
 }
 
 .popup-header {
@@ -370,6 +373,10 @@ button:disabled {
 
 .popup-footer strong[data-tone="success"] { color: var(--green); }
 .popup-footer strong[data-tone="muted"] { color: var(--muted); }
+
+.popup > :last-child {
+  margin-bottom: 0;
+}
 
 @media (max-height: 460px) {
   .popup { padding: 12px; }

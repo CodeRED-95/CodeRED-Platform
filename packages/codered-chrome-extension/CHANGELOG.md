@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.3.9 - 2026-08-16
+## 2.3.10 - 2026-08-16
 
 - Agrega bloqueo horario automático exclusivo para `https://sysnewos.shalomcontrol.com/service-order` entre 20:05 y 07:59:59 hora de Lima.
 - Introduce bloqueo manual persistente en el popup con sincronización inmediata hacia la pestaña abierta.
