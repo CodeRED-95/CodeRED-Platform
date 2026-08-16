@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.13 - 2026-08-16
+
+- Rediseña la pantalla de bloqueo de Service Order con una tarjeta clara y profesional, más alineada con la estética actual de ShalomControl.
+- Suaviza el backdrop, mejora jerarquía, iconografía y énfasis del mensaje sin alterar la lógica de bloqueo ni la cuenta regresiva.
+- Mantiene el alcance exclusivo para `https://sysnewos.shalomcontrol.com/service-order`.
+
 ## 2.3.12 - 2026-08-16
 
 - Reconstruye el popup desde cero con un contenedor vertical único de 380 px y scroll interno principal para evitar la franja horizontal en Chromium.
