@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\ActivityController;
 use App\Http\Controllers\Api\V1\Admin\AdminTokenController;
 use App\Http\Controllers\Api\V1\Admin\AdminTokenRequestController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
@@ -134,6 +135,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
                 Route::get('/users/{id}', [AdminUserController::class, 'show'])->whereNumber('id')->name('users.show');
             });
+        });
+
+        // Actividad reciente del propio usuario. Reutiliza api_request_logs, la
+        // auditoría que ya existe: no hay registro nuevo ni escritura extra.
+        Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->group(function (): void {
+            Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
         });
 
         // Centro de notificaciones de CodeRED Mobile. La ability `mobile` la

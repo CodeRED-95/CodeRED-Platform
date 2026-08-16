@@ -59,6 +59,7 @@ Respuesta:
 | GET | `/api/v1/notifications/unread-count` | `mobile` |
 | POST | `/api/v1/notifications/{id}/read` | `mobile` |
 | POST | `/api/v1/notifications/read-all` | `mobile` |
+| GET | `/api/v1/activity` | `mobile` |
 | GET · POST | `/api/v1/admin/tokens` | `admin:tokens` |
 | GET | `/api/v1/admin/tokens/types` | `admin:tokens` |
 | DELETE | `/api/v1/admin/tokens/{id}` | `admin:tokens` |
@@ -336,5 +337,33 @@ Esta versión es de **sólo lectura** a propósito: crear, editar o cambiar el e
 persona son acciones con salvaguardas (un administrador no puede desactivarse a sí mismo
 ni quedarse sin rol) que hoy viven en el panel web. Exponerlas por API exigiría replicar
 esas protecciones, no sólo el endpoint.
+
+---
+
+## Actividad reciente
+
+`GET /api/v1/activity` devuelve los últimos movimientos del usuario autenticado, para
+la sección homónima del dashboard móvil. Ability `mobile`, `throttle:api-mobile`.
+
+**No crea ningún registro nuevo**: lee `api_request_logs`, la auditoría que ya escribe
+`AuditApiRequest` en cada llamada. La atribución sale del token —los tokens personales
+pertenecen a un usuario—, así que cada quien ve únicamente lo suyo.
+
+```json
+{ "success": true,
+  "data": [ { "servicio": "dni", "titulo": "Consulta DNI", "ocurrido_en": "2026-08-16T00:50:00-05:00" } ] }
+```
+
+Tres reglas que la definen:
+
+- **Sólo llamadas correctas** (2xx). Un 403 o un 500 son ruido para quien mira «qué hice
+  hoy», y ya se auditan aparte para diagnóstico.
+- **Filtrada por los permisos de hoy**: si a alguien le retiran `dni-records.view`, sus
+  consultas de DNI desaparecen de la lista. El resumen no puede delatar módulos a los
+  que ya no tiene acceso.
+- **Nunca el identificador consultado**: viaja el servicio y el momento, no el endpoint
+  ni el DNI o RUC en claro.
+
+`limit` por defecto 5, acotado a 20.
 
 ---

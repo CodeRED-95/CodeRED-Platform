@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.17.0] - 2026-08-16
+
+### ℹ️ Nota
+
+- Actividad reciente para CodeRED Mobile: expone las últimas acciones del propio usuario desde api_request_logs, filtradas por sus permisos vigentes y sin revelar el documento consultado
+
+---
+
 ## [4.16.0] - 2026-08-16
 
 ### ℹ️ Nota
