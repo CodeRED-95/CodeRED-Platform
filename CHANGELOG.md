@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.23.1] - 2026-08-17
+
+### ℹ️ Nota
+
+- Validacion integral del ecosistema de identidad
+
+---
+
 ## [4.23.0] - 2026-08-17
 
 ### ℹ️ Nota

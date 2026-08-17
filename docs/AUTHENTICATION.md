@@ -228,12 +228,33 @@ cambios** mientras los clientes publicados se actualizan. Emiten tokens de
 integración con abilities, como siempre, y las rutas los siguen aceptando por la
 rama de ability del middleware.
 
-Orden previsto de retirada:
+Orden de retirada:
 
-1. Platform expone `/auth/*` junto a `/mobile/*` — *hecho*.
-2. Administración de sesiones y de accesos por aplicación.
-3. Mobile migra a `/auth/*`.
-4. Desktop migra a `/auth/*`.
-5. Se retira `/mobile/*` cuando no queden clientes antiguos en uso.
+1. Platform expone `/auth/*` junto a `/mobile/*` — **hecho** (v4.22.0).
+2. Administración de sesiones y de accesos por aplicación — **hecho** (v4.23.0).
+3. Mobile migra a `/auth/*` — **hecho** (v0.17.0).
+4. Desktop migra a `/auth/*` — **hecho** (v1.3.0).
+5. Se retira `/mobile/*` cuando no queden clientes antiguos en uso — pendiente.
+
+El paso 5 no tiene fecha a propósito: mientras haya instalaciones de Mobile
+anteriores a 0.17.0 en manos de usuarios, retirar el contrato antiguo las dejaría
+sin acceso. Se comprueba mirando las versiones de cliente que aparecen en el
+inventario de sesiones.
+
+### Validación integral
+
+`scripts/e2e-auth-validation.php` ejercita el ecosistema completo contra la
+instancia real: una cuenta entrando en los tres clientes, permisos compartidos,
+retirada de permiso en caliente, rotación y reutilización de refresh, revocación
+remota, cuenta desactivada, acceso por aplicación y compatibilidad de los tokens
+de API. Crea un usuario temporal y lo elimina al terminar.
+
+```bash
+docker compose exec -T app php scripts/e2e-auth-validation.php
+```
+
+Llama a la API por el kernel HTTP interno en lugar de por la red pública: así
+recorre las mismas rutas, middleware y autorización que un cliente real sin
+depender de Cloudflare ni agotar el límite de intentos de login.
 
 Los tokens de API permanecen en todas las fases.
