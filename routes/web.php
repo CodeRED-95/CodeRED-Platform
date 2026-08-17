@@ -17,6 +17,7 @@ use App\Livewire\Admin\Agencies\ShalomSyncRun;
 use App\Livewire\Admin\Agencies\Show as AgencyShow;
 use App\Livewire\Admin\ApiDocumentation;
 use App\Livewire\Admin\ApiTokenRequests\Index as ApiTokenRequestsIndex;
+use App\Livewire\Admin\PermissionRequests\Index as PermissionRequestsIndex;
 use App\Livewire\Admin\ApiTokens\Index as ApiTokensIndex;
 use App\Livewire\Admin\ApiTools\DniTester;
 use App\Livewire\Admin\ApiTools\RucTester;
@@ -96,6 +97,7 @@ Route::middleware(EnsureApiDocumentationAccess::class)->group(function (): void 
 });
 Route::get('/admin/api-tokens', ApiTokensIndex::class)->middleware(['auth'])->name('admin.api-tokens.index');
 Route::get('/admin/security/token-requests', ApiTokenRequestsIndex::class)->middleware(['auth'])->name('admin.api-token-requests.index');
+Route::get('/admin/security/permission-requests', PermissionRequestsIndex::class)->middleware(['auth'])->name('admin.permission-requests.index');
 Route::get('/admin/api-tools/dni', DniTester::class)->middleware(['auth'])->name('admin.api-tools.dni');
 Route::get('/admin/api-tools/ruc', RucTester::class)->middleware(['auth', 'throttle:ruc-admin-test'])->name('admin.api-tools.ruc');
 Route::get('/admin/ruc', RucRecords::class)->middleware(['auth'])->name('admin.ruc.records');

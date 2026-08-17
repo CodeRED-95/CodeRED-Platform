@@ -87,6 +87,7 @@
                             'API' => [
                                 ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tokens.view-any')],
                                 ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-token-requests.view')],
+                                ['label' => 'Solicitudes de acceso', 'route' => 'admin.permission-requests.index', 'icon' => '◈', 'can' => ! $isViewerOnly && $menuUser->hasPermission('permission-requests.view')],
                                 ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => $menuUser->hasPermission('shalom-recordar.view')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
@@ -282,6 +283,7 @@
                             'API' => [
                                 ['label' => 'Tokens', 'route' => 'admin.api-tokens.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tokens.view-any')],
                                 ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-token-requests.view')],
+                                ['label' => 'Solicitudes de acceso', 'route' => 'admin.permission-requests.index', 'icon' => '◈', 'can' => ! $isViewerOnly && $menuUser->hasPermission('permission-requests.view')],
                                 ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => $menuUser->hasPermission('shalom-recordar.view')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
