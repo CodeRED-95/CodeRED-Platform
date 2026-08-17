@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.24.0] - 2026-08-17
+
+### ℹ️ Nota
+
+- Modulos de consulta administrables desde el panel web y la API movil
+
+---
+
 ## [4.23.1] - 2026-08-17
 
 ### ℹ️ Nota

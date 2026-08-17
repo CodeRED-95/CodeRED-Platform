@@ -62,13 +62,13 @@ class AdminAccessAndSessionsTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(AccessAndSessions::class, ['user' => $user])
-            ->call('toggleApplication', MobileAccess::DESKTOP_APP);
+            ->call('toggleAccess', MobileAccess::DESKTOP_APP);
 
         $this->assertTrue($user->fresh()->hasPermission('desktop.access'));
 
         Livewire::actingAs($admin)
             ->test(AccessAndSessions::class, ['user' => $user->fresh()])
-            ->call('toggleApplication', MobileAccess::DESKTOP_APP);
+            ->call('toggleAccess', MobileAccess::DESKTOP_APP);
 
         $this->assertFalse($user->fresh()->hasPermission('desktop.access'));
     }
@@ -80,8 +80,8 @@ class AdminAccessAndSessionsTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(AccessAndSessions::class, ['user' => $user])
-            ->call('toggleApplication', MobileAccess::DESKTOP_APP)
-            ->call('toggleApplication', MobileAccess::MOBILE_APP);
+            ->call('toggleAccess', MobileAccess::DESKTOP_APP)
+            ->call('toggleAccess', MobileAccess::MOBILE_APP);
 
         $user = $user->fresh();
         $desktop = $this->openSession($user, ClientApplication::Desktop);
@@ -89,7 +89,7 @@ class AdminAccessAndSessionsTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(AccessAndSessions::class, ['user' => $user])
-            ->call('toggleApplication', MobileAccess::DESKTOP_APP);
+            ->call('toggleAccess', MobileAccess::DESKTOP_APP);
 
         // Sólo cae la sesión de la aplicación cuyo acceso se retiró.
         $this->assertNotNull($desktop->fresh()->revoked_at);
@@ -160,6 +160,100 @@ class AdminAccessAndSessionsTest extends TestCase
             ->where('tokenable_id', $user->id)
             ->where('kind', 'integration')
             ->count());
+    }
+
+    public function test_conceder_y_retirar_un_modulo_de_consulta_desde_el_panel(): void
+    {
+        $admin = $this->admin();
+        $user = $this->member();
+
+        Permission::query()->firstOrCreate(['slug' => 'ruc.view'], ['name' => 'Ver padrón RUC']);
+
+        $this->assertFalse($user->hasPermission('ruc.view'));
+
+        Livewire::actingAs($admin)
+            ->test(AccessAndSessions::class, ['user' => $user])
+            ->call('toggleAccess', MobileAccess::RUC);
+
+        $this->assertTrue($user->fresh()->hasPermission('ruc.view'));
+
+        Livewire::actingAs($admin)
+            ->test(AccessAndSessions::class, ['user' => $user->fresh()])
+            ->call('toggleAccess', MobileAccess::RUC);
+
+        $this->assertFalse($user->fresh()->hasPermission('ruc.view'));
+    }
+
+    public function test_retirar_un_modulo_no_cierra_la_sesion(): void
+    {
+        // Un módulo retirado deja de autorizar esa consulta en la siguiente
+        // petición, pero la persona sigue dentro de la aplicación.
+        $admin = $this->admin();
+        $user = $this->member();
+        Permission::query()->firstOrCreate(['slug' => 'ruc.view'], ['name' => 'Ver padrón RUC']);
+
+        Livewire::actingAs($admin)
+            ->test(AccessAndSessions::class, ['user' => $user])
+            ->call('toggleAccess', MobileAccess::MOBILE_APP)
+            ->call('toggleAccess', MobileAccess::RUC);
+
+        $user = $user->fresh();
+        $sesion = $this->openSession($user, ClientApplication::Mobile);
+
+        Livewire::actingAs($admin)
+            ->test(AccessAndSessions::class, ['user' => $user])
+            ->call('toggleAccess', MobileAccess::RUC);
+
+        $this->assertFalse($user->fresh()->hasPermission('ruc.view'));
+        $this->assertNull($sesion->fresh()->revoked_at);
+    }
+
+    public function test_la_api_movil_concede_lo_mismo_que_el_panel(): void
+    {
+        // El panel web es la central, pero no la única puerta: administrar desde
+        // CodeRED Mobile tiene que producir exactamente el mismo efecto.
+        $admin = $this->admin();
+        $user = $this->member();
+        Permission::query()->firstOrCreate(['slug' => 'dni-records.view'], ['name' => 'Ver registros DNI']);
+
+        $token = $admin->createToken('mobile', ['admin:usuarios'])->plainTextToken;
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson("/api/v1/admin/users/{$user->id}/mobile-access/grant", ['permission' => 'dni-records.view'])
+            ->assertOk();
+
+        $this->assertTrue($user->fresh()->hasPermission('dni-records.view'));
+
+        // Y el acceso a una aplicación completa, que antes la API no aceptaba.
+        $this->app['auth']->forgetGuards();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson("/api/v1/admin/users/{$user->id}/mobile-access/grant", ['permission' => 'desktop.access'])
+            ->assertOk();
+
+        $this->assertTrue($user->fresh()->hasPermission('desktop.access'));
+    }
+
+    public function test_la_api_movil_tambien_cierra_las_sesiones_al_retirar_una_aplicacion(): void
+    {
+        $admin = $this->admin();
+        $user = $this->member();
+
+        Livewire::actingAs($admin)
+            ->test(AccessAndSessions::class, ['user' => $user])
+            ->call('toggleAccess', MobileAccess::DESKTOP_APP);
+
+        $user = $user->fresh();
+        $sesion = $this->openSession($user, ClientApplication::Desktop);
+
+        $token = $admin->createToken('mobile', ['admin:usuarios'])->plainTextToken;
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson("/api/v1/admin/users/{$user->id}/mobile-access/revoke", ['permission' => 'desktop.access'])
+            ->assertOk();
+
+        $this->assertFalse($user->fresh()->hasPermission('desktop.access'));
+        $this->assertNotNull($sesion->fresh()->revoked_at);
     }
 
     public function test_el_acceso_por_aplicacion_no_es_solicitable_por_el_interesado(): void

@@ -1,59 +1,79 @@
+@php
+    // Aplicaciones y módulos se conceden igual y con los mismos controles; lo
+    // único que cambia es qué significa cada uno, y eso lo dice la cabecera.
+    $filaAcceso = function (array $acceso) use ($canManage) {
+        return [
+            'permission' => $acceso['permission'],
+            'label' => $acceso['label'],
+            'description' => $acceso['description'],
+            'granted' => $acceso['granted'],
+            'revocable' => $acceso['revocable'],
+            'accionable' => $canManage && ($acceso['revocable'] || ! $acceso['granted']),
+        ];
+    };
+@endphp
+
 <div class="grid gap-6 lg:grid-cols-2">
-    {{-- Aplicaciones permitidas --}}
+    {{-- Accesos: dónde entra y qué consulta --}}
     <x-ui.card>
         <x-ui.section-header
-            title="Aplicaciones permitidas"
-            description="En qué clientes de CodeRED puede iniciar sesión esta cuenta." />
+            title="Accesos"
+            description="Qué puede hacer esta cuenta y desde dónde. Los cambios surten efecto en la siguiente consulta, sin regenerar ningún token." />
 
-        <div class="mt-[var(--space-section)] space-y-2">
-            @foreach ($applications as $app)
-                <div class="flex items-center justify-between gap-4 rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] px-4 py-3">
-                    <div class="min-w-0">
-                        <p class="type-card-title">{{ $app['label'] }}</p>
-                        <p class="type-caption mt-0.5">{{ $app['description'] }}</p>
+        <div class="mt-[var(--space-section)] space-y-5">
+            @foreach ([
+                ['titulo' => 'Aplicaciones', 'ayuda' => 'Dónde puede iniciar sesión.', 'items' => $applications],
+                ['titulo' => 'Módulos de consulta', 'ayuda' => 'Qué información puede consultar, en cualquiera de los tres clientes.', 'items' => $modules],
+            ] as $grupo)
+                @if ($grupo['items'] !== [])
+                    <div class="space-y-2">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-text-muted)]">{{ $grupo['titulo'] }}</p>
+                            <p class="type-caption mt-1">{{ $grupo['ayuda'] }}</p>
+                        </div>
 
-                        {{-- Un permiso que llega por el rol principal no se puede retirar desde
-                             aquí: hacerlo exigiría desmontar la configuración de roles. --}}
-                        @if ($app['granted'] && ! $app['revocable'])
-                            <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">
-                                Concedido por un rol asignado; se retira editando sus roles.
-                            </p>
-                        @endif
+                        @foreach ($grupo['items'] as $item)
+                            @php $fila = $filaAcceso($item); @endphp
+                            <div class="flex items-center justify-between gap-4 rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] px-4 py-3">
+                                <div class="min-w-0">
+                                    <p class="type-card-title">{{ $fila['label'] }}</p>
+                                    <p class="type-caption mt-0.5">{{ $fila['description'] }}</p>
+
+                                    {{-- Un permiso que llega por el rol principal no se puede retirar
+                                         desde aquí: hacerlo exigiría desmontar su configuración de roles. --}}
+                                    @if ($fila['granted'] && ! $fila['revocable'])
+                                        <p class="mt-1 text-xs text-[color:var(--color-text-muted)]">
+                                            Concedido por un rol asignado; se retira editando sus roles.
+                                        </p>
+                                    @endif
+                                </div>
+
+                                <div class="flex shrink-0 items-center gap-3">
+                                    <x-ui.badge :tone="$fila['granted'] ? 'success' : 'neutral'">
+                                        {{ $fila['granted'] ? 'Permitido' : 'Sin acceso' }}
+                                    </x-ui.badge>
+
+                                    @if ($fila['accionable'])
+                                        <x-ui.button
+                                            size="sm"
+                                            :variant="$fila['granted'] ? 'outline' : 'secondary'"
+                                            wire:click="toggleAccess('{{ $fila['permission'] }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="toggleAccess('{{ $fila['permission'] }}')"
+                                        >{{ $fila['granted'] ? 'Retirar' : 'Conceder' }}</x-ui.button>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
-
-                    <div class="flex shrink-0 items-center gap-3">
-                        @if ($app['granted'])
-                            <x-ui.badge tone="success">Permitido</x-ui.badge>
-                        @else
-                            <x-ui.badge tone="neutral">Sin acceso</x-ui.badge>
-                        @endif
-
-                        @if ($canManage && ($app['revocable'] || ! $app['granted']))
-                            <x-ui.button
-                                size="sm"
-                                :variant="$app['granted'] ? 'outline' : 'secondary'"
-                                wire:click="toggleApplication('{{ $app['permission'] }}')"
-                                wire:loading.attr="disabled"
-                                wire:target="toggleApplication('{{ $app['permission'] }}')"
-                            >{{ $app['granted'] ? 'Retirar' : 'Conceder' }}</x-ui.button>
-                        @endif
-                    </div>
-                </div>
+                @endif
             @endforeach
         </div>
 
-        @if ($modules !== [])
-            <div class="mt-6 border-t border-[color:var(--color-border-subtle)] pt-4">
-                <p class="type-caption mb-2">Módulos concedidos individualmente</p>
-                <div class="flex flex-wrap gap-2">
-                    @foreach ($modules as $module)
-                        <x-ui.badge :tone="$module['granted'] ? 'brand' : 'neutral'">
-                            {{ $module['label'] }}
-                        </x-ui.badge>
-                    @endforeach
-                </div>
-            </div>
-        @endif
+        <p class="mt-5 border-t border-[color:var(--color-border-subtle)] pt-4 text-xs text-[color:var(--color-text-muted)]">
+            Retirar una aplicación cierra además las sesiones abiertas en ella. Retirar un módulo
+            deja de autorizar esa consulta de inmediato, sin cerrar la sesión.
+        </p>
     </x-ui.card>
 
     {{-- Sesiones activas --}}
@@ -118,7 +138,7 @@
             @endforelse
         </div>
 
-        {{-- La distinción que pediste que quedara clara en administración. --}}
+        {{-- La distinción que debe quedar clara en administración. --}}
         <p class="mt-4 border-t border-[color:var(--color-border-subtle)] pt-4 text-xs text-[color:var(--color-text-muted)]">
             Las sesiones de usuario son distintas de los
             <a href="{{ route('admin.api-tokens.index') }}" class="text-[color:var(--color-brand-light)] hover:text-white">tokens de API</a>,

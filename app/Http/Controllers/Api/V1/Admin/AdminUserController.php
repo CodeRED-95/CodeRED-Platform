@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Actions\Permissions\ChangeUserAccessAction;
 use App\Services\Permissions\MobileAccessManager;
 use App\Services\Permissions\MobileAccess;
 use Symfony\Component\HttpFoundation\Response;
@@ -79,8 +80,12 @@ class AdminUserController extends AdminController
             return response()->json(['success' => false, 'message' => 'No tienes permisos para esta accion.'], 403);
         }
 
+        // grantable(), no requestable(): lo segundo es lo que el interesado puede
+        // pedirse a si mismo desde la app; esto es administracion, y desde aqui
+        // se concede tambien el acceso a cada aplicacion. El panel web y Mobile
+        // aceptan exactamente el mismo catalogo.
         $validated = $request->validate([
-            'permission' => ['required', 'string', Rule::in(MobileAccess::requestable())],
+            'permission' => ['required', 'string', Rule::in(MobileAccess::grantable())],
         ]);
 
         $usuario = User::query()->find($id);
@@ -91,11 +96,10 @@ class AdminUserController extends AdminController
 
         $permission = (string) $validated['permission'];
 
-        $cambio = $conceder
-            ? $access->grant($usuario, $permission)
-            : $access->revoke($usuario, $permission);
+        $resultado = app(ChangeUserAccessAction::class)->execute($usuario, $permission, $conceder, $admin);
 
-        $etiqueta = MobileAccess::label($permission);
+        $cambio = $resultado['changed'];
+        $etiqueta = $resultado['label'];
 
         return response()->json([
             'success' => true,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
+use App\Actions\Permissions\ChangeUserAccessAction;
 use App\Models\ClientSession;
 use App\Models\User;
 use App\Services\Auth\AuthAuditor;
@@ -15,12 +16,18 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 
 /**
- * Accesos por aplicación y sesiones activas de un usuario.
+ * Accesos y sesiones de un usuario, desde el panel web.
  *
- * Vive dentro de la ficha del usuario porque son dos caras del mismo gobierno:
- * en qué clientes puede entrar esta persona, y dónde está entrada ahora mismo.
+ * El panel es la central: todo lo que se puede conceder o cerrar desde CodeRED
+ * Mobile se puede hacer también aquí, y ambas interfaces pasan por la misma
+ * acción para no divergir.
  *
- * No introduce un sistema de permisos nuevo. Concede y retira con el mismo
+ * Dos ámbitos, un mismo mecanismo:
+ *
+ *   Aplicaciones -> dónde puede entrar esta cuenta
+ *   Módulos      -> qué puede consultar
+ *
+ * No introduce un sistema de permisos nuevo: concede y retira con el mismo
  * MobileAccessManager que ya usaba la bandeja de solicitudes, que transporta
  * cada permiso mediante un rol dedicado.
  */
@@ -36,39 +43,36 @@ class AccessAndSessions extends Component
     }
 
     /**
-     * Conceder o retirar el acceso a una aplicación.
+     * Conceder o retirar un acceso, sea de aplicación o de módulo.
      *
-     * Cerrar las sesiones al retirar no es cosmético: sin ello la persona
-     * conservaría su sesión abierta hasta que caducara el refresh. El middleware
-     * ya la bloquearía en la siguiente petición, pero dejar la sesión viva en el
-     * inventario contradice lo que la pantalla acaba de decir.
+     * El estado actual decide la dirección: si lo tiene, se retira; si no, se
+     * concede. Así el botón dice siempre lo que va a pasar.
      */
-    public function toggleApplication(string $permission, MobileAccessManager $access, ClientSessionManager $sessions): void
+    public function toggleAccess(string $permission, ChangeUserAccessAction $change): void
     {
         $this->authorizeManage();
 
-        if (MobileAccess::scope($permission) !== MobileAccess::SCOPE_APPLICATION) {
+        if (! MobileAccess::isGrantable($permission)) {
             return;
         }
 
-        if ($this->user->hasPermission($permission)) {
-            $access->revoke($this->user, $permission);
+        $actor = auth()->user();
 
-            $application = $this->applicationFor($permission);
+        $resultado = $change->execute(
+            $this->user,
+            $permission,
+            grant: ! $this->user->hasPermission($permission),
+            actor: $actor instanceof User ? $actor : null,
+        );
 
-            if ($application !== null) {
-                $sessions->revokeAllFor($this->user, $application, auth()->user(), 'app_access_revoked');
-            }
-
-            $this->dispatch('toast', tone: 'success', message: 'Acceso retirado y sesiones cerradas.');
-        } else {
-            $access->grant($this->user, $permission);
-
-            $this->dispatch('toast', tone: 'success', message: 'Acceso concedido.');
-        }
-
-        $this->user->unsetRelation('roles');
         $this->user->refresh();
+
+        $mensaje = $resultado['granted']
+            ? $resultado['label'].': acceso concedido.'
+            : $resultado['label'].': acceso retirado.'
+                .($resultado['sessions_revoked'] > 0 ? ' Se cerraron '.$resultado['sessions_revoked'].' sesiones.' : '');
+
+        $this->dispatch('toast', tone: 'success', message: $mensaje);
     }
 
     public function revokeSession(string $uuid, ClientSessionManager $sessions, AuthAuditor $auditor): void
@@ -127,16 +131,6 @@ class AccessAndSessions extends Component
                 ->get(),
             'canManage' => Gate::allows('update', $this->user),
         ]);
-    }
-
-    private function applicationFor(string $permission): ?\App\Enums\ClientApplication
-    {
-        return match ($permission) {
-            MobileAccess::PLATFORM_APP => \App\Enums\ClientApplication::Platform,
-            MobileAccess::MOBILE_APP => \App\Enums\ClientApplication::Mobile,
-            MobileAccess::DESKTOP_APP => \App\Enums\ClientApplication::Desktop,
-            default => null,
-        };
     }
 
     private function authorizeManage(): void

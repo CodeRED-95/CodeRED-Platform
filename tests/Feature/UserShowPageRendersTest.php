@@ -31,7 +31,12 @@ class UserShowPageRendersTest extends TestCase
         $this->actingAs($admin->fresh())
             ->get(route('admin.users.show', $member))
             ->assertOk()
-            ->assertSee('Aplicaciones permitidas')
+            ->assertSee('Accesos')
+            ->assertSee('Aplicaciones')
+            // Los modulos de consulta se gobiernan aqui, no solo desde Mobile.
+            ->assertSee('Módulos de consulta')
+            ->assertSee('Consulta DNI')
+            ->assertSee('Consulta RUC')
             ->assertSee('Sesiones activas')
             ->assertSee('CodeRED Mobile')
             ->assertSee('Galaxy S24')
