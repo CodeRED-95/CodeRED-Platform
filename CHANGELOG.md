@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.25.1] - 2026-08-17
+
+### ℹ️ Nota
+
+- Entrega real del OTP y fin del error sin correo
+
+---
+
 ## [4.25.0] - 2026-08-17
 
 ### ℹ️ Nota

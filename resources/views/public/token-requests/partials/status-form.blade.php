@@ -21,6 +21,12 @@
         </div>
     @endif
 
+    @if ($otpErrorMessage)
+        <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+            {{ $otpErrorMessage }}
+        </div>
+    @endif
+
     @if ($foundRequest)
         <div class="space-y-4 rounded-xl border border-white/10 bg-white/5 p-6">
             <h3 class="font-semibold text-white">Detalles de la Solicitud</h3>
@@ -51,9 +57,22 @@
             @elseif ($foundRequest->status === \App\Enums\ApiTokenRequestStatus::Approved && !$foundRequest->token_revealed_at)
                 <div class="border-t border-white/10 pt-4">
                     <p class="text-sm text-emerald-300">¡Tu solicitud fue aprobada!</p>
-                    <x-ui.button wire:click="revealToken" class="mt-2 w-full">
-                        Mostrar token una sola vez
-                    </x-ui.button>
+
+                    @if ($this->puedeRevelarAqui)
+                        <x-ui.button wire:click="revealToken" class="mt-2 w-full">
+                            Mostrar token una sola vez
+                        </x-ui.button>
+                    @else
+                        {{-- Sin correo no hay codigo de verificacion que enviar: estas
+                             solicitudes se entregan por el canal que eligio la persona. --}}
+                        <p class="mt-2 text-sm text-[color:var(--color-text-secondary)]">
+                            @if ($this->canalDeEntrega)
+                                El token se entrega por <strong class="text-white">{{ $this->canalDeEntrega }}</strong>, al destino que indicaste en la solicitud. No hace falta código de verificación aquí.
+                            @else
+                                Esta solicitud no tiene un correo de entrega. Contacta con el administrador para recibir el token.
+                            @endif
+                        </p>
+                    @endif
                 </div>
             @elseif ($foundRequest->token_revealed_at)
                  <div class="border-t border-white/10 pt-4">

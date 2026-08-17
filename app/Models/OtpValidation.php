@@ -8,6 +8,25 @@ use Illuminate\Support\Facades\Hash;
 
 class OtpValidation extends Model
 {
+    /**
+     * Codigo en claro, disponible solo en la peticion que lo genero.
+     *
+     * No es un atributo del modelo ni se persiste: la columna guarda el hash.
+     * Existe para que el correo pueda mostrarlo sin volver a generarlo, y se
+     * pierde en cuanto termina la peticion.
+     */
+    private ?string $plainCode = null;
+
+    public function setPlainCode(string $code): void
+    {
+        $this->plainCode = $code;
+    }
+
+    public function plainCode(): ?string
+    {
+        return $this->plainCode;
+    }
+
     protected $fillable = [
         'api_token_request_id',
         'email_blind_index',

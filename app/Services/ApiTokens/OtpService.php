@@ -34,7 +34,10 @@ class OtpService
         // Generar código de 6 dígitos
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-        // Crear nueva validación
+        // El codigo en claro solo existe en memoria durante esta llamada: en la
+        // base queda unicamente su hash. Se devuelve junto a la validacion
+        // porque quien envia el correo lo necesita, y no hay otra forma de
+        // recuperarlo despues.
         $validation = OtpValidation::create([
             'api_token_request_id' => $request->id,
             'email_blind_index' => $request->requester_email_blind_index,
@@ -58,6 +61,8 @@ class OtpService
                 'max_resends' => $this->maxResends,
             ]
         );
+
+        $validation->setPlainCode($code);
 
         return $validation;
     }

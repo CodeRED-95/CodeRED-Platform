@@ -118,6 +118,32 @@ class TokenRequestManager extends Component
     // FASE 2: Nuevos métodos para flujo OTP
     // ========================================
 
+    /**
+     * ¿Esta solicitud se puede completar desde aquí?
+     *
+     * Solo las de entrega por correo: son las únicas a las que se puede mandar
+     * el código de verificación. El resto se entregan de forma asistida por el
+     * canal que eligió la persona.
+     */
+    public function getPuedeRevelarAquiProperty(): bool
+    {
+        return $this->foundRequest !== null && filled($this->foundRequest->requester_email);
+    }
+
+    /** Canal por el que llegará el token cuando no se revela aquí. */
+    public function getCanalDeEntregaProperty(): ?string
+    {
+        if ($this->foundRequest === null) {
+            return null;
+        }
+
+        return match (true) {
+            filled($this->foundRequest->delivery_telegram_username) => 'Telegram',
+            filled($this->foundRequest->delivery_whatsapp_number) => 'WhatsApp',
+            default => null,
+        };
+    }
+
     public function requestOtp(CreateOtpTokenAction $action): void
     {
         if (! $this->foundRequest) {

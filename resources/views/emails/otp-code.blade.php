@@ -6,7 +6,7 @@ Hola {{ $request->requester_name ?? 'Usuario' }},
 Tu código de verificación de **6 dígitos** es:
 
 @component('mail::panel')
-## 123456
+## {{ $code }}
 
 **No compartas este código con nadie.**
 @endcomponent

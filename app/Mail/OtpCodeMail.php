@@ -32,14 +32,21 @@ class OtpCodeMail extends Mailable
 
     public function content(): Content
     {
-        // Generar código ficticio para demostración
-        // En producción, esto sería el código real (pero hasheado en la BD)
-        $demoCode = '123456'; // Esto es solo para el email
+        // El codigo en claro viaja en el objeto de validacion, disponible solo
+        // durante la peticion que lo genero. Antes aqui habia un '123456' fijo
+        // de demostracion, asi que el correo —cuando llegara a enviarse— habria
+        // dado a todo el mundo el mismo codigo inservible.
+        $code = $this->otp->plainCode();
+
+        if ($code === null) {
+            throw new \LogicException('OtpCodeMail exige el codigo en claro; se perdio antes de construir el correo.');
+        }
 
         return new Content(
             view: 'emails.otp-code',
             with: [
                 'request' => $this->request,
+                'code' => $code,
                 'emailMasked' => $this->emailMasked,
                 'expiresInMinutes' => config('token-requests.otp.expires_in_minutes', 10),
                 'expiresAt' => $this->otp->expires_at,
