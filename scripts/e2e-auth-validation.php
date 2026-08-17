@@ -11,9 +11,13 @@
  * Crea un usuario temporal y lo borra al terminar. No toca ningún dato real.
  */
 
-require __DIR__.'/vendor/autoload.php';
+// El script vive en scripts/, asi que la raiz del proyecto es el directorio
+// padre. Con __DIR__ a secas buscaria el autoload dentro de scripts/.
+$raiz = dirname(__DIR__);
 
-$app = require_once __DIR__.'/bootstrap/app.php';
+require $raiz.'/vendor/autoload.php';
+
+$app = require_once $raiz.'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Models\ClientSession;
