@@ -46,7 +46,8 @@ class ApproveTokenRequestAction
     public function execute(
         int $requestId,
         string $tokenName,
-        ApiTokenType $tokenType,
+        /** @var list<ApiTokenType> $tokenTypes Uno o varios; sus abilities se suman. */
+        array $tokenTypes,
         int $tokenExpiresInDays,
         int $ownerUserId,
         ?int $actorId,
@@ -59,7 +60,14 @@ class ApproveTokenRequestAction
             throw TokenRequestTransitionException::alreadyProcessed();
         }
 
-        return DB::transaction(function () use ($requestId, $tokenName, $tokenType, $tokenExpiresInDays, $ownerUserId, $actorId): ApiTokenRequest {
+        // Un token puede cubrir varias areas a la vez —DNI y RUC, por ejemplo—
+        // en lugar de obligar a emitir dos. Las abilities se acumulan y el
+        // registro guarda el primer tipo como principal, para no romper las
+        // consultas que ya filtran por token_type.
+        $tokenTypes = array_values(array_unique($tokenTypes, SORT_REGULAR));
+        $primaryType = $tokenTypes[0];
+
+        return DB::transaction(function () use ($requestId, $tokenName, $tokenTypes, $primaryType, $tokenExpiresInDays, $ownerUserId, $actorId): ApiTokenRequest {
             // Bloqueo de fila: dos administradores aprobando a la vez no pueden
             // emitir dos tokens para la misma solicitud.
             $request = ApiTokenRequest::query()->whereKey($requestId)->lockForUpdate()->firstOrFail();
@@ -78,7 +86,9 @@ class ApproveTokenRequestAction
 
             // Las abilities las decide el tipo de token, nunca el cliente: no
             // hay forma de pedir una combinación arbitraria desde fuera.
-            $abilities = $tokenType->abilities();
+            $abilities = array_values(array_unique(array_merge(
+                ...array_map(static fn (ApiTokenType $type): array => $type->abilities(), $tokenTypes),
+            )));
             $user = User::query()->active()->findOrFail($ownerUserId);
             $expiresAt = $this->generator->expiresAt($tokenExpiresInDays);
             $created = $this->generator->create($user, trim($tokenName), $abilities, $tokenExpiresInDays);
@@ -96,7 +106,7 @@ class ApproveTokenRequestAction
                 'requested_token_name' => trim($tokenName),
                 'requested_abilities' => $abilities,
                 'token_expires_in_days' => $tokenExpiresInDays,
-                'token_type' => $tokenType->value,
+                'token_type' => $primaryType->value,
                 'status' => ApiTokenRequestStatus::Approved,
                 'reviewed_by' => $actorId,
                 'reviewed_at' => now(),
@@ -109,19 +119,19 @@ class ApproveTokenRequestAction
             ])->save();
 
             $this->event($request, 'token_type_selected', 'Tipo de token seleccionado.', [
-                'token_type' => $tokenType->value,
+                'token_type' => $primaryType->value,
                 'abilities' => $abilities,
             ], $actorId);
 
-            if ($request->requested_token_type !== null && $request->requested_token_type !== $tokenType->value) {
+            if ($request->requested_token_type !== null && $request->requested_token_type !== $primaryType->value) {
                 $this->event($request, 'token_type_changed', 'El administrador aprobó un tipo distinto al solicitado.', [
                     'requested_token_type' => $request->requested_token_type,
-                    'token_type' => $tokenType->value,
+                    'token_type' => $primaryType->value,
                 ], $actorId);
             }
 
             $this->event($request, 'approved', 'Solicitud aprobada.', [
-                'token_type' => $tokenType->value,
+                'token_type' => $primaryType->value,
                 'abilities' => $abilities,
                 'token_expires_in_days' => $tokenExpiresInDays,
                 'expires_at' => $expiresAt->toIso8601String(),
@@ -129,7 +139,7 @@ class ApproveTokenRequestAction
 
             // El valor plano no se registra en ningún sitio: sólo cifrado en la
             // bóveda, de donde se revela una vez para la entrega.
-            $this->event($request, 'token_generated', 'Token Sanctum generado sin exponer valor plano.', ['token_type' => $tokenType->value], $actorId);
+            $this->event($request, 'token_generated', 'Token Sanctum generado sin exponer valor plano.', ['token_type' => $primaryType->value], $actorId);
 
             NotifyN8nTokenRequestStatus::dispatch($request->id, 'token_request.approved');
 

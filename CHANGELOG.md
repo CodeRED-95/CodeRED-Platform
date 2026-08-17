@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.25.0] - 2026-08-17
+
+### ℹ️ Nota
+
+- Estado por codigo, aprobacion multi-alcance y mascaras acotadas
+
+---
+
 ## [4.24.0] - 2026-08-17
 
 ### ℹ️ Nota

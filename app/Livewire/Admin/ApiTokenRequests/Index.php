@@ -59,7 +59,8 @@ class Index extends Component
 
     public string $approvalTokenName = '';
 
-    public string $approvalTokenType = '';
+    /** @var list<string> Tipos seleccionados al aprobar; sus abilities se suman. */
+    public array $approvalTokenTypes = [];
 
     public int|float|string $tokenExpiresInDays = ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
 
@@ -186,9 +187,11 @@ class Index extends Component
         $request = ApiTokenRequest::query()->findOrFail($id);
         $this->selectedId = $request->id;
         $this->approvalTokenName = $request->requested_token_name;
-        $this->approvalTokenType = in_array($request->requested_token_type, ApiTokenType::values(), true)
-            ? (string) $request->requested_token_type
-            : '';
+        // Se preselecciona lo solicitado, pero quien aprueba puede ampliarlo o
+        // cambiarlo: es la decision de que alcance tendra el token emitido.
+        $this->approvalTokenTypes = in_array($request->requested_token_type, ApiTokenType::values(), true)
+            ? [(string) $request->requested_token_type]
+            : [];
         $this->tokenExpiresInDays = $request->requested_token_expires_in_days ?: ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
         $this->approvalUserId = (int) auth()->id();
         $this->adminNote = '';
@@ -213,7 +216,8 @@ class Index extends Component
 
         $data = $this->validate([
             'approvalTokenName' => ['required', 'string', 'max:100'],
-            'approvalTokenType' => ['required', 'string', Rule::in(ApiTokenType::values())],
+            'approvalTokenTypes' => ['required', 'array', 'min:1'],
+            'approvalTokenTypes.*' => ['string', Rule::in(ApiTokenType::values())],
             'tokenExpiresInDays' => ['required', 'integer', 'min:'.ApiTokenGenerator::MIN_EXPIRES_IN_DAYS, 'max:'.ApiTokenGenerator::MAX_EXPIRES_IN_DAYS],
             'approvalUserId' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
             'adminNote' => ['nullable', 'string', 'max:1000'],
@@ -226,7 +230,7 @@ class Index extends Component
             $action->execute(
                 requestId: (int) $this->selectedId,
                 tokenName: $data['approvalTokenName'],
-                tokenType: ApiTokenType::from($data['approvalTokenType']),
+                tokenTypes: array_map(ApiTokenType::from(...), $data['approvalTokenTypes']),
                 tokenExpiresInDays: (int) $data['tokenExpiresInDays'],
                 ownerUserId: (int) $data['approvalUserId'],
                 actorId: auth()->id(),

@@ -41,7 +41,7 @@ class TelegramPersonalCodeRotationTest extends TestCase
         Livewire::actingAs($admin)->test(Index::class)
             ->call('selectRequest', $request->id)
             ->set('approvalTokenName', 'Telegram DNI')
-            ->set('approvalTokenType', ApiTokenType::Dni->value)
+            ->set('approvalTokenTypes', [ApiTokenType::Dni->value])
             ->set('approvalUserId', $admin->id)
             ->set('tokenExpiresInDays', 30)
             ->call('approve')

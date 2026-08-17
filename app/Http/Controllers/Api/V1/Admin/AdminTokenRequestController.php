@@ -86,7 +86,10 @@ class AdminTokenRequestController extends AdminController
 
         $data = $request->validate([
             'nombre_token' => ['required', 'string', 'max:100'],
-            'tipo_token' => ['required', 'string', Rule::in(ApiTokenType::values())],
+            // Acepta uno o varios tipos: un token puede cubrir DNI y RUC a la vez.
+            // Se admite todavia el valor suelto para no romper a quien ya llama asi.
+            'tipo_token' => ['required'],
+            'tipo_token.*' => ['string', Rule::in(ApiTokenType::values())],
             'vigencia_dias' => [
                 'required', 'integer',
                 'min:'.ApiTokenGenerator::MIN_EXPIRES_IN_DAYS,
@@ -103,7 +106,7 @@ class AdminTokenRequestController extends AdminController
             $solicitud = $action->execute(
                 requestId: $id,
                 tokenName: $data['nombre_token'],
-                tokenType: ApiTokenType::from($data['tipo_token']),
+                tokenTypes: array_map(ApiTokenType::from(...), (array) $data['tipo_token']),
                 tokenExpiresInDays: (int) $data['vigencia_dias'],
                 ownerUserId: (int) $data['usuario_id'],
                 actorId: $user->getKey(),

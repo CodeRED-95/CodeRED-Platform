@@ -1,8 +1,10 @@
 <div class="space-y-6">
     <form wire:submit.prevent="checkStatus" class="space-y-4">
-        <p class="text-sm leading-6 text-[color:var(--color-text-secondary)]">Ingresa el código de seguimiento y el correo electrónico que usaste en tu solicitud para ver su estado actual.</p>
+        <p class="text-sm leading-6 text-[color:var(--color-text-secondary)]">Ingresa el código de seguimiento que recibiste al enviar tu solicitud para ver su estado actual.</p>
         <x-ui.input wire:model.defer="tracking_code_status" name="tracking_code_status" label="Código de seguimiento" placeholder="CR-XXXXXXXXXX" required />
-        <x-ui.input wire:model.defer="email_status" name="email_status" type="email" label="Correo electrónico de entrega" placeholder="tu@correo.com" required />
+        {{-- El correo ya no se pide: aquí sólo se consulta el ESTADO. Revelar el
+             token sigue exigiendo el código de verificación de un solo uso que
+             se envía al destino de entrega. --}}
         <x-ui.button type="submit" class="w-full" wire:loading.attr="disabled" wire:target="checkStatus">
             <span wire:loading.remove wire:target="checkStatus">Consultar estado</span>
             <span wire:loading wire:target="checkStatus">Consultando...</span>

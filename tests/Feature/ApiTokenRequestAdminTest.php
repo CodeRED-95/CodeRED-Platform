@@ -54,9 +54,9 @@ class ApiTokenRequestAdminTest extends TestCase
             ->call('selectRequest', $request->id)
             ->set('approvalTokenName', 'Token sin tipo')
             ->set('approvalUserId', $owner->id)
-            ->set('approvalTokenType', '')
+            ->set('approvalTokenTypes', [])
             ->call('approve')
-            ->assertHasErrors(['approvalTokenType']);
+            ->assertHasErrors(['approvalTokenTypes']);
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
@@ -74,7 +74,7 @@ class ApiTokenRequestAdminTest extends TestCase
                 ->call('selectRequest', $request->id)
                 ->set('approvalTokenName', $type->label())
                 ->set('approvalUserId', $owner->id)
-                ->set('approvalTokenType', $type->value)
+                ->set('approvalTokenTypes', [$type->value])
                 ->call('approve')
                 ->assertHasNoErrors();
 
@@ -100,7 +100,7 @@ class ApiTokenRequestAdminTest extends TestCase
             ->call('selectRequest', $request->id)
             ->set('approvalTokenName', 'Token DNI')
             ->set('approvalUserId', $owner->id)
-            ->set('approvalTokenType', 'dni')
+            ->set('approvalTokenTypes', ['dni'])
             ->set('tokenExpiresInDays', 30)
             ->call('approve')
             ->assertHasNoErrors();
@@ -188,7 +188,7 @@ class ApiTokenRequestAdminTest extends TestCase
         $this->assertNull($request->delivery_telegram_username);
         $this->assertNull($request->delivery_whatsapp_number);
         $this->assertSame('c***@example.test', $request->delivery_email_masked);
-        $this->assertSame('@c**********o', $request->delivery_telegram_username_masked);
+        $this->assertSame('@c******o', $request->delivery_telegram_username_masked);
         $this->assertSame('+51 ******777', $request->delivery_whatsapp_number_masked);
 
         Livewire::actingAs($admin)->test(Index::class)
@@ -213,14 +213,59 @@ class ApiTokenRequestAdminTest extends TestCase
             ->assertDontSee('@cliente_demo')
             ->assertDontSee('+51999888777')
             ->assertSee('c***@example.test')
-            ->assertSee('@c**********o')
+            ->assertSee('@c******o')
             ->assertSee('+51 ******777');
+    }
+
+    public function test_approval_can_combine_several_token_types(): void
+    {
+        // Un token que sirve para DNI y para RUC a la vez, en lugar de obligar
+        // a emitir dos y que la persona tenga que gestionar ambos.
+        Queue::fake();
+        $admin = $this->superAdmin();
+        $owner = User::factory()->create();
+        $request = $this->pendingRequest(['requested_token_type' => 'dni']);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('selectRequest', $request->id)
+            ->set('approvalTokenName', 'Token combinado')
+            ->set('approvalUserId', $owner->id)
+            ->set('approvalTokenTypes', ['dni', 'ruc'])
+            ->call('approve')
+            ->assertHasNoErrors();
+
+        $request->refresh();
+        $token = ApiToken::query()->findOrFail($request->personal_access_token_id);
+
+        $esperadas = array_merge(ApiTokenType::Dni->abilities(), ApiTokenType::Ruc->abilities());
+
+        sort($esperadas);
+        $obtenidas = $token->abilities;
+        sort($obtenidas);
+
+        $this->assertSame($esperadas, $obtenidas);
+
+        // El tipo principal sigue siendo el primero: las consultas que filtran
+        // por token_type no se quedan sin valor.
+        $this->assertSame('dni', $request->token_type);
+    }
+
+    public function test_telegram_mask_does_not_grow_with_the_original(): void
+    {
+        // Repetir un asterisco por caracter hacia que un valor largo —un correo
+        // escrito por error en este campo— se saliera de la tarjeta, y ademas
+        // revelaba la longitud exacta.
+        $corto = ApiTokenRequest::maskTelegram('@ana');
+        $largo = ApiTokenRequest::maskTelegram('@correo.muy.largo.de.una.persona@example.test');
+
+        $this->assertSame(mb_strlen($corto), mb_strlen($largo));
+        $this->assertLessThan(15, mb_strlen($largo));
     }
 
     public function test_delivery_contact_masking_and_links_are_normalized(): void
     {
         $this->assertSame('c***@example.test', ApiTokenRequest::maskEmail('cliente@example.test'));
-        $this->assertSame('@c**********o', ApiTokenRequest::maskTelegram('@cliente_demo'));
+        $this->assertSame('@c******o', ApiTokenRequest::maskTelegram('@cliente_demo'));
         $this->assertSame('+51 ******777', ApiTokenRequest::maskPhone('+51 999 888 777'));
         $this->assertSame('@cliente_demo', ApiTokenRequest::normalizeTelegram('cliente_demo'));
         $this->assertSame('+51999888777', ApiTokenRequest::normalizePhone('+51 999 888 777'));

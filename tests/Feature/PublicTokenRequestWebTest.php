@@ -143,9 +143,10 @@ class PublicTokenRequestWebTest extends TestCase
 
         $request = ApiTokenRequest::query()->firstOrFail();
 
+        // Basta el codigo de seguimiento: es lo unico que conserva el
+        // solicitante, y aqui solo se consulta el ESTADO.
         Livewire::test(TokenRequestManager::class)
             ->set('tracking_code_status', $request->tracking_code)
-            ->set('email_status', 'ada@example.test')
             ->call('checkStatus')
             ->assertSet('errorMessage', null)
             ->assertSet('foundRequest.id', $request->id);
@@ -156,7 +157,7 @@ class PublicTokenRequestWebTest extends TestCase
         ]);
     }
 
-    public function test_lookup_fails_when_email_does_not_match_tracking_code(): void
+    public function test_lookup_ignores_the_email_and_only_needs_the_tracking_code(): void
     {
         Queue::fake();
 
@@ -167,12 +168,33 @@ class PublicTokenRequestWebTest extends TestCase
 
         $request = ApiTokenRequest::query()->firstOrFail();
 
+        // Un correo distinto al de la solicitud ya no impide ver el estado: el
+        // campo desaparecio del formulario y la busqueda es por codigo.
         Livewire::test(TokenRequestManager::class)
             ->set('tracking_code_status', $request->tracking_code)
             ->set('email_status', 'grace@example.test')
             ->call('checkStatus')
+            ->assertSet('errorMessage', null)
+            ->assertSet('foundRequest.id', $request->id);
+    }
+
+    public function test_lookup_fails_with_an_unknown_tracking_code(): void
+    {
+        Queue::fake();
+
+        Livewire::test(TokenRequestManager::class)
+            ->set('tracking_code_status', 'CR-NOEXISTE00')
+            ->call('checkStatus')
             ->assertSet('foundRequest', null)
             ->assertSet('errorMessage', 'No se encontró una solicitud con los datos proporcionados.');
+    }
+
+    public function test_lookup_requires_a_tracking_code(): void
+    {
+        Livewire::test(TokenRequestManager::class)
+            ->set('tracking_code_status', '')
+            ->call('checkStatus')
+            ->assertHasErrors(['tracking_code_status']);
     }
 
     public function test_public_user_cannot_access_admin_panel(): void

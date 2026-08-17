@@ -38,7 +38,7 @@ class ApiTokenExpirationDaysTest extends TestCase
             ->call('selectRequest', $request->id)
             ->assertSet('tokenExpiresInDays', 30)
             ->set('approvalUserId', $owner->id)
-            ->set('approvalTokenType', ApiTokenType::Dni->value)
+            ->set('approvalTokenTypes', [ApiTokenType::Dni->value])
             ->call('approve')
             ->assertHasNoErrors();
 
@@ -67,7 +67,7 @@ class ApiTokenExpirationDaysTest extends TestCase
             Livewire::actingAs($admin)->test(TokenRequestsIndex::class)
                 ->call('selectRequest', $request->id)
                 ->set('approvalUserId', $owner->id)
-                ->set('approvalTokenType', $type)
+                ->set('approvalTokenTypes', [$type])
                 ->set('tokenExpiresInDays', $days)
                 ->call('approve')
                 ->assertHasNoErrors();
@@ -87,7 +87,7 @@ class ApiTokenExpirationDaysTest extends TestCase
             Livewire::actingAs($admin)->test(TokenRequestsIndex::class)
                 ->call('selectRequest', $request->id)
                 ->set('approvalUserId', $owner->id)
-                ->set('approvalTokenType', ApiTokenType::Agencies->value)
+                ->set('approvalTokenTypes', [ApiTokenType::Agencies->value])
                 ->set('tokenExpiresInDays', $value)
                 ->call('approve')
                 ->assertHasErrors(['tokenExpiresInDays'])

@@ -79,20 +79,28 @@ class TokenRequestManager extends Component
         $this->resetStatusFields();
     }
 
+    /**
+     * Consulta el estado de una solicitud con el codigo de seguimiento.
+     *
+     * Ya no se pide ademas el correo. El codigo lo entrega el propio formulario
+     * al solicitante y es lo unico que este conserva; exigir tambien el correo
+     * dejaba fuera a quien lo escribio con otra grafia o uso un alias, sin
+     * ganar gran cosa: lo que aqui se ve es el ESTADO, no el token.
+     *
+     * La revelacion del token sigue exigiendo el codigo de verificacion de un
+     * solo uso que se envia al destino de entrega, asi que conocer un codigo de
+     * seguimiento no acerca a nadie al secreto.
+     */
     public function checkStatus(TokenVaultService $vault): void
     {
         $this->validate([
             'tracking_code_status' => ['required', 'string', 'starts_with:CR-'],
-            'email_status' => ['required', 'email'],
         ]);
 
         $this->resetStatusFields();
 
-        $blindIndex = $vault->generateBlindIndex($this->email_status);
-
         $request = ApiTokenRequest::query()
-            ->where('tracking_code', $this->tracking_code_status)
-            ->where('requester_email_blind_index', $blindIndex)
+            ->where('tracking_code', trim($this->tracking_code_status))
             ->first();
 
         if (! $request) {

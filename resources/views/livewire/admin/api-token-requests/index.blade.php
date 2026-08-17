@@ -170,9 +170,9 @@
                             <div><dt class="text-xs text-[color:var(--color-text-muted)]">Solicitante</dt><dd class="font-semibold">{{ $selected->requester_name ?? $selected->telegram_username ?? 'Sin nombre' }}</dd></div>
                             <div><dt class="text-xs text-[color:var(--color-text-muted)]">Aplicación</dt><dd class="font-semibold">{{ $selected->application_name ?? $selected->requested_token_name }}</dd></div>
                             <div><dt class="text-xs text-[color:var(--color-text-muted)]">Tipo</dt><dd class="font-semibold">{{ $this->requestDisplayLabel($selected) }}</dd></div>
-                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Scope</dt><dd><x-ui.badge tone="info">{{ $selected->requested_token_type ? strtoupper($selected->requested_token_type) : 'SIN PREFERENCIA' }}</x-ui.badge></dd></div>
-                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Fecha de solicitud</dt><dd>{{ $selected->requested_at?->format('d/m/Y H:i') ?? '—' }}</dd></div>
-                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Revisor asignado</dt><dd>{{ $selected->reviewer?->name ?? '—' }}</dd></div>
+                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Scope</dt><dd class="break-all"><x-ui.badge tone="info">{{ $selected->requested_token_type ? strtoupper($selected->requested_token_type) : 'SIN PREFERENCIA' }}</x-ui.badge></dd></div>
+                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Fecha de solicitud</dt><dd class="break-all">{{ $selected->requested_at?->format('d/m/Y H:i') ?? '—' }}</dd></div>
+                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Revisor asignado</dt><dd class="break-all">{{ $selected->reviewer?->name ?? '—' }}</dd></div>
                         </dl>
 
                         <section class="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -185,11 +185,11 @@
                             </div>
                             @if ($selected->isDelivered())
                                 <dl class="grid gap-2 text-sm md:grid-cols-2">
-                                    @if ($selectedMaskedContact['email'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd>{{ $selectedMaskedContact['email'] }}</dd></div>@endif
-                                    @if ($selectedMaskedContact['telegram'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd>{{ $selectedMaskedContact['telegram'] }}</dd></div>@endif
-                                    @if ($selectedMaskedContact['whatsapp'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd>{{ $selectedMaskedContact['whatsapp'] }}</dd></div>@endif
-                                    <div><dt class="text-xs text-[color:var(--color-text-muted)]">Entregado por</dt><dd>{{ $selected->deliveredBy?->name ?? 'Sistema externo' }}</dd></div>
-                                    <div><dt class="text-xs text-[color:var(--color-text-muted)]">Fecha de entrega</dt><dd>{{ $selected->delivered_at?->format('d/m/Y H:i') ?? '—' }}</dd></div>
+                                    @if ($selectedMaskedContact['email'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd class="break-all">{{ $selectedMaskedContact['email'] }}</dd></div>@endif
+                                    @if ($selectedMaskedContact['telegram'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd class="break-all">{{ $selectedMaskedContact['telegram'] }}</dd></div>@endif
+                                    @if ($selectedMaskedContact['whatsapp'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd class="break-all">{{ $selectedMaskedContact['whatsapp'] }}</dd></div>@endif
+                                    <div><dt class="text-xs text-[color:var(--color-text-muted)]">Entregado por</dt><dd class="break-all">{{ $selected->deliveredBy?->name ?? 'Sistema externo' }}</dd></div>
+                                    <div><dt class="text-xs text-[color:var(--color-text-muted)]">Fecha de entrega</dt><dd class="break-all">{{ $selected->delivered_at?->format('d/m/Y H:i') ?? '—' }}</dd></div>
                                 </dl>
                             @elseif (! $deliveryContactRevealed)
                                 @can('api-token-requests.view-delivery-contact')
@@ -198,15 +198,15 @@
                                     <p class="text-sm text-[color:var(--color-text-muted)]">No tienes permiso para revelar los datos completos de entrega.</p>
                                 @endcan
                                 <dl class="mt-3 grid gap-2 text-sm md:grid-cols-2">
-                                    @if ($selectedMaskedContact['email'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd>{{ $selectedMaskedContact['email'] }}</dd></div>@endif
-                                    @if ($selectedMaskedContact['telegram'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd>{{ $selectedMaskedContact['telegram'] }}</dd></div>@endif
-                                    @if ($selectedMaskedContact['whatsapp'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd>{{ $selectedMaskedContact['whatsapp'] }}</dd></div>@endif
+                                    @if ($selectedMaskedContact['email'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd class="break-all">{{ $selectedMaskedContact['email'] }}</dd></div>@endif
+                                    @if ($selectedMaskedContact['telegram'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd class="break-all">{{ $selectedMaskedContact['telegram'] }}</dd></div>@endif
+                                    @if ($selectedMaskedContact['whatsapp'])<div><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd class="break-all">{{ $selectedMaskedContact['whatsapp'] }}</dd></div>@endif
                                 </dl>
                             @else
                                 <dl class="grid gap-3 text-sm">
                                     @if ($revealedDeliveryContact['email'])<div class="rounded-lg border border-white/10 p-3"><dt class="text-xs text-[color:var(--color-text-muted)]">Correo</dt><dd class="break-all">{{ $revealedDeliveryContact['email'] }}</dd></div>@endif
-                                    @if ($revealedDeliveryContact['telegram'])<div class="rounded-lg border border-white/10 p-3"><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd>{{ $revealedDeliveryContact['telegram'] }}</dd></div>@endif
-                                    @if ($revealedDeliveryContact['whatsapp'])<div class="rounded-lg border border-white/10 p-3"><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd>{{ $revealedDeliveryContact['whatsapp'] }}</dd></div>@endif
+                                    @if ($revealedDeliveryContact['telegram'])<div class="rounded-lg border border-white/10 p-3"><dt class="text-xs text-[color:var(--color-text-muted)]">Telegram</dt><dd class="break-all">{{ $revealedDeliveryContact['telegram'] }}</dd></div>@endif
+                                    @if ($revealedDeliveryContact['whatsapp'])<div class="rounded-lg border border-white/10 p-3"><dt class="text-xs text-[color:var(--color-text-muted)]">WhatsApp</dt><dd class="break-all">{{ $revealedDeliveryContact['whatsapp'] }}</dd></div>@endif
                                 </dl>
                             @endif
                         </section>
@@ -236,9 +236,9 @@
                         </div>
                         <dl class="grid gap-3 text-sm md:grid-cols-2">
                             <div><dt class="text-xs text-[color:var(--color-text-muted)]">Estado actual</dt><dd class="font-semibold">{{ $selected->status->label() }}</dd></div>
-                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Última actualización</dt><dd>{{ $selected->updated_at?->format('d/m/Y H:i') ?? '—' }}</dd></div>
-                            <div class="md:col-span-2"><dt class="text-xs text-[color:var(--color-text-muted)]">Notas del solicitante</dt><dd>{{ $selected->purpose ?? '—' }}</dd></div>
-                            <div class="md:col-span-2"><dt class="text-xs text-[color:var(--color-text-muted)]">Información adicional</dt><dd>{{ $selected->application_name ? 'Solicitud pública desde '.$selected->application_name.'.' : '—' }}</dd></div>
+                            <div><dt class="text-xs text-[color:var(--color-text-muted)]">Última actualización</dt><dd class="break-all">{{ $selected->updated_at?->format('d/m/Y H:i') ?? '—' }}</dd></div>
+                            <div class="md:col-span-2"><dt class="text-xs text-[color:var(--color-text-muted)]">Notas del solicitante</dt><dd class="break-all">{{ $selected->purpose ?? '—' }}</dd></div>
+                            <div class="md:col-span-2"><dt class="text-xs text-[color:var(--color-text-muted)]">Información adicional</dt><dd class="break-all">{{ $selected->application_name ? 'Solicitud pública desde '.$selected->application_name.'.' : '—' }}</dd></div>
                         </dl>
 
                         @if ($selected->events->isNotEmpty())
@@ -257,9 +257,9 @@
                                 <form wire:submit="approve" class="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
                                     <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">Al confirmar, el token anterior dejará de funcionar inmediatamente y se generará un reemplazo con la misma fecha de caducidad.</div>
                                     <dl class="grid gap-2 text-sm">
-                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Tipo</dt><dd>{{ $this->requestDisplayLabel($selected) }}</dd></div>
-                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Permisos heredados</dt><dd>{{ implode(', ', $selected->requested_abilities ?? []) }}</dd></div>
-                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Caducidad heredada</dt><dd>{{ $selected->sourceToken?->expires_at?->format('d/m/Y H:i') ?? 'Sin expiración' }}</dd></div>
+                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Tipo</dt><dd class="break-all">{{ $this->requestDisplayLabel($selected) }}</dd></div>
+                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Permisos heredados</dt><dd class="break-all">{{ implode(', ', $selected->requested_abilities ?? []) }}</dd></div>
+                                        <div><dt class="text-xs text-[color:var(--color-text-muted)]">Caducidad heredada</dt><dd class="break-all">{{ $selected->sourceToken?->expires_at?->format('d/m/Y H:i') ?? 'Sin expiración' }}</dd></div>
                                     </dl>
                                     <x-ui.textarea wire:model="adminNote" label="Observación administrativa" :error="$errors->first('adminNote')" />
                                     <x-ui.button type="submit" class="w-full" loading-target="approve">Aprobar rotación</x-ui.button>
@@ -269,7 +269,17 @@
                                     <x-ui.input wire:model="approvalTokenName" label="Nombre definitivo" :error="$errors->first('approvalTokenName')" />
                                     <x-ui.dropdown-select wire:model="approvalUserId" label="Usuario propietario" :value="$approvalUserId" :options="$users->pluck('name', 'id')->all()" :error="$errors->first('approvalUserId')" />
                                     <x-ui.input wire:model.live="tokenExpiresInDays" type="number" min="1" max="365" step="1" label="Vigencia del token en días" :error="$errors->first('tokenExpiresInDays')" />
-                                    <fieldset class="space-y-2"><legend class="text-sm font-medium">Tipo de token</legend>@foreach ($tokenTypes as $type)<x-ui.radio wire:model="approvalTokenType" name="approvalTokenType" value="{{ $type['value'] }}" label="{{ $type['label'] }}" description="{{ $type['description'] }}" />@endforeach<x-ui.form-error :message="$errors->first('approvalTokenType')" /></fieldset>
+                                    <fieldset class="space-y-2">
+                                        <legend class="text-sm font-medium">Alcance del token</legend>
+                                        <p class="type-caption">Se pueden combinar. Un token con DNI y RUC sirve para las dos consultas; no hace falta emitir dos.</p>
+                                        @foreach ($tokenTypes as $type)
+                                            <x-ui.checkbox wire:model="approvalTokenTypes" value="{{ $type['value'] }}">
+                                                <span class="font-medium">{{ $type['label'] }}</span>
+                                                <span class="mt-0.5 block type-caption">{{ $type['description'] }}</span>
+                                            </x-ui.checkbox>
+                                        @endforeach
+                                        <x-ui.form-error :message="$errors->first('approvalTokenTypes')" />
+                                    </fieldset>
                                     <x-ui.textarea wire:model="adminNote" label="Observación administrativa" :error="$errors->first('adminNote')" />
                                     <x-ui.button type="submit" class="w-full" loading-target="approve">Aprobar solicitud</x-ui.button>
                                 </form>

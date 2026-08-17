@@ -406,15 +406,25 @@ class ApiTokenRequest extends Model
         return mb_substr($local, 0, 1).'***@'.$domain;
     }
 
+    /**
+     * Enmascara un usuario de Telegram.
+     *
+     * La mascara es de ancho fijo y no reproduce la longitud del original. Antes
+     * repetia un asterisco por caracter, asi que un valor largo —un correo
+     * escrito por error en este campo— generaba una tira interminable que se
+     * salia de la tarjeta en el panel. Ademas, revelar la longitud exacta es
+     * informacion que la mascara no tiene por que dar.
+     */
     public static function maskTelegram(string $username): string
     {
         $value = '@'.ltrim(trim($username), '@');
         $length = mb_strlen($value);
+
         if ($length <= 3) {
             return '@***';
         }
 
-        return mb_substr($value, 0, 2).str_repeat('*', max(3, $length - 3)).mb_substr($value, -1);
+        return mb_substr($value, 0, 2).'******'.mb_substr($value, -1);
     }
 
     public static function maskPhone(string $phone): string
