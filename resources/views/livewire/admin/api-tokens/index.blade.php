@@ -29,7 +29,7 @@
     @endif
 
 
-    <x-ui.card title="Nuevo cliente API" description="Identidad independiente de los usuarios del panel web.">
+        <x-ui.card title="Nuevo cliente API" description="Identidad independiente de los usuarios del panel web.">
         <form wire:submit="createClient" class="grid gap-4 md:grid-cols-4">
             <x-ui.input id="client-name" wire:model="clientName" label="Nombre del cliente" required :error="$errors->first('clientName')" />
             <x-ui.input id="client-contact" wire:model="clientContactName" label="Contacto" :error="$errors->first('clientContactName')" />
@@ -114,7 +114,7 @@
             <x-ui.pagination :paginator="$tokens" scroll-to="#api-token-list" />
         </div>
 
-        <x-ui.card title="Crear token" description="Elige DNI, RUC, AGENCIAS o SHALOM RECORDAR. El secreto se mostrará una sola vez.">
+        <x-ui.card title="Crear token" description="Selecciona uno o varios permisos. El secreto se mostrará una sola vez.">
             <form wire:submit="createToken" class="space-y-4">
                 <x-ui.input id="token-name" wire:model="name" label="Nombre" required :error="$errors->first('name')" placeholder="Extensión Chrome - PC principal" />
                 <x-ui.textarea id="token-description" wire:model="description" label="Descripción" :error="$errors->first('description')" />
@@ -129,16 +129,44 @@
                     <p class="text-xs text-[color:var(--color-text-muted)]">{{ $tokenExpirationPreview }}</p>
                 </div>
                 <fieldset class="space-y-3">
-                    <legend class="text-sm font-medium">Tipo de token</legend>
-                    @foreach ($tokenTypes as $type)
-                        <x-ui.radio wire:model="tokenType" name="tokenType" value="{{ $type['value'] }}" label="Generación de {{ $type['label'] }}" description="{{ $type['description'] }}" />
-                        <div class="ml-7 flex flex-wrap gap-1">
-                            @foreach ($type['abilities'] as $ability)
-                                <x-ui.badge tone="info">{{ $ability }}</x-ui.badge>
-                            @endforeach
+                    <legend class="text-sm font-medium">Permisos del token</legend>
+                    <p class="text-xs text-[color:var(--color-text-muted)]">Marca las abilities que necesita la integración. Solo puedes conceder las que tu usuario administra.</p>
+                    <div class="flex flex-wrap gap-2">
+                        @forelse ($abilities as $abilityValue)
+                            @php $selected = collect($availableAbilities)->firstWhere('ability', $abilityValue); @endphp
+                            @if ($selected)
+                                <x-ui.badge tone="info">{{ $selected['label'] }} · {{ $abilityValue }}</x-ui.badge>
+                            @endif
+                        @empty
+                            <x-ui.badge tone="warning">Ningún permiso seleccionado</x-ui.badge>
+                        @endforelse
+                    </div>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        @foreach ($availableAbilities as $ability)
+                            @php $isChecked = in_array($ability['ability'], $abilities, true); @endphp
+                            <label class="rounded-[var(--radius-control)] border border-white/10 bg-white/5 p-4 transition hover:bg-white/10">
+                                <div class="flex items-start gap-3">
+                                    <input type="checkbox" wire:model.live="abilities" value="{{ $ability['ability'] }}" class="mt-1 h-4 w-4 rounded border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-brand)] focus-ring" @disabled(! in_array($ability['ability'], $allowedAbilities, true))>
+                                    <div class="min-w-0 space-y-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="font-medium">{{ $ability['label'] }}</span>
+                                            <x-ui.badge tone="info">{{ $ability['ability'] }}</x-ui.badge>
+                                        </div>
+                                        <p class="text-xs text-[color:var(--color-text-muted)]">{{ $ability['description'] }}</p>
+                                        @if(! in_array($ability['ability'], $allowedAbilities, true))
+                                            <p class="text-xs text-[color:var(--color-danger)]">No autorizado para tu usuario.</p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                    @if (in_array('*', $allowedAbilities, true))
+                        <div class="rounded-[var(--radius-control)] border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/10 p-4 text-sm">
+                            <strong>Acceso completo:</strong> tu usuario puede otorgar cualquier ability disponible. Úsalo solo cuando sea necesario.
                         </div>
-                    @endforeach
-                    <x-ui.form-error :message="$errors->first('tokenType')" />
+                    @endif
+                    <x-ui.form-error :message="$errors->first('abilities')" />
                 </fieldset>
                 <x-ui.button type="submit" variant="primary" class="w-full" loading-target="createToken">Generar token</x-ui.button>
             </form>

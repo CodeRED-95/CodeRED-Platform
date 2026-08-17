@@ -107,7 +107,7 @@ class ApiTokenExpirationDaysTest extends TestCase
             Livewire::actingAs($admin)->test(TokensIndex::class)
                 ->set('name', 'Token '.$days)
                 ->set('targetUserId', $owner->id)
-                ->set('tokenType', ApiTokenType::Ruc->value)
+                ->set('abilities', ApiTokenType::Ruc->abilities())
                 ->set('tokenExpiresInDays', $days)
                 ->call('createToken')
                 ->assertHasNoErrors();

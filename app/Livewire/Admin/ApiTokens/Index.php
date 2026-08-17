@@ -10,6 +10,7 @@ use App\Models\ApiRequestLog;
 use App\Models\ApiToken;
 use App\Models\RevokedApiToken;
 use App\Models\User;
+use App\Services\ApiTokens\AbilityCatalogService;
 use App\Services\ApiTokens\ApiTokenGenerator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,6 +50,9 @@ class Index extends Component
     public int|float|string $tokenExpiresInDays = ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
 
     public string $tokenType = 'agencies';
+
+    /** @var list<string> */
+    public array $abilities = ['agencies:read'];
 
     public int $targetApiClientId = 0;
 
@@ -126,14 +130,20 @@ class Index extends Component
             'description' => ['nullable', 'string', 'max:500'],
             'tokenExpiresInDays' => ['required', 'integer', 'min:'.ApiTokenGenerator::MIN_EXPIRES_IN_DAYS, 'max:'.ApiTokenGenerator::MAX_EXPIRES_IN_DAYS],
             'targetApiClientId' => ['nullable', 'integer', 'min:0'],
-            'tokenType' => ['required', 'string', Rule::in(ApiTokenType::values())],
             'targetUserId' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
+            'abilities' => ['required', 'array', 'min:1'],
+            'abilities.*' => ['required', 'string', Rule::in(app(AbilityCatalogService::class)->allowedAbilities())],
         ]);
         $owner = $this->targetApiClientId > 0
             ? ApiClient::query()->where('active', true)->findOrFail($this->targetApiClientId)
             : User::query()->active()->findOrFail($validated['targetUserId']);
-        $tokenType = ApiTokenType::from($validated['tokenType']);
-        $abilities = $tokenType->abilities();
+        $allowedAbilities = app(AbilityCatalogService::class)->authorizedAbilitiesFor(auth()->user());
+        $abilities = array_values(array_unique(array_map('strval', $validated['abilities'])));
+        if ($abilities === [] && in_array($this->tokenType, ApiTokenType::values(), true)) {
+            $abilities = ApiTokenType::from($this->tokenType)->abilities();
+        }
+        abort_if($abilities === [], 422, 'Selecciona al menos un permiso.');
+        abort_if(array_diff($abilities, $allowedAbilities) !== [], 403, 'No puedes otorgar abilities que no administras.');
         $tokenExpiresInDays = (int) $validated['tokenExpiresInDays'];
         $created = $generator->create($owner, trim($validated['name']), $abilities, $tokenExpiresInDays);
         /** @var ApiToken $token */
@@ -145,16 +155,16 @@ class Index extends Component
         $audit->log($token, 'api_token_created', [], [
             'name' => $token->name,
             'owner_id' => $owner->id,
-            'token_type' => $tokenType->value,
             'abilities' => $abilities,
             'token_expires_in_days' => $tokenExpiresInDays,
             'expires_at' => $token->expires_at?->toIso8601String(),
-        ], ['name', 'owner_id', 'token_type', 'token_expires_in_days', 'abilities', 'expires_at']);
+        ], ['name', 'owner_id', 'token_expires_in_days', 'abilities', 'expires_at']);
 
         $this->plainTextToken = $created->plainTextToken;
         $this->createdTokenName = $token->name;
         $this->reset(['name', 'description']);
         $this->tokenType = 'agencies';
+        $this->abilities = ['agencies:read'];
         $this->tokenExpiresInDays = ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
         $this->dispatch('toast', type: 'success', message: 'Token creado. Cópialo antes de cerrar el aviso.');
     }
@@ -285,8 +295,8 @@ class Index extends Component
             'clients' => ApiClient::query()->orderBy('name')->get(),
             'usageSummary' => ApiRequestLog::query()->where('request_type', ApiRequestType::Api->value)->selectRaw('service, count(*) as total')->groupBy('service')->pluck('total', 'service'),
             'users' => User::query()->active()->orderBy('name')->get(['id', 'name', 'email']),
-            'availableAbilities' => (array) config('api.abilities'),
-            'tokenTypes' => ApiTokenType::options(),
+            'availableAbilities' => app(AbilityCatalogService::class)->options(),
+            'allowedAbilities' => app(AbilityCatalogService::class)->authorizedAbilitiesFor(auth()->user()),
             'tokenExpirationQuickOptions' => [1, 7, 30, 90, 180, 365],
             'tokenExpirationPreview' => $this->tokenExpirationPreview(),
         ])->layout('layouts.app', ['pageTitle' => 'API y Tokens']);

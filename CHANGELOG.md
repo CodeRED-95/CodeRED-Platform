@@ -6,6 +6,18 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.21.2] - 2026-08-17
+
+### ✨ Nuevo
+
+- El formulario administrativo de generación de tokens permite ahora seleccionar varias abilities al mismo tiempo, con validación en backend y visualización legible de permisos asociados.
+
+### 🐛 Corregido
+
+- La emisión de tokens deja de depender de un único tipo y ahora acepta combinaciones explícitas como `dni:consultar + ruc:consultar`, manteniendo la compatibilidad con Sanctum y el listado administrativo.
+
+---
+
 ## [4.21.1] - 2026-08-17
 
 ### ✨ Nuevo

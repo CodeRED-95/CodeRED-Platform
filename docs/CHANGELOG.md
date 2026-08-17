@@ -34,6 +34,7 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Fixed
 
+- El formulario de generación de tokens del panel ahora permite seleccionar múltiples abilities y valida que el usuario solo asigne permisos que administra.
 - Se corrigieron los botones de `Copiar JSON` y `Copiar datos` en los probadores administrativos de API DNI y API RUC para copiar el payload real y su versión legible, con fallback de clipboard y feedback de toast.
 - Las pantallas de Copias de seguridad de Agencias y Backups RUC distinguen ahora entre operación activa y última operación terminada, evitando que una restauración finalizada quede pegada como progreso en curso tras recargar la página.
 - El polling de restauración RUC se detiene también para estados terminales cancelados y el historial de restauraciones terminadas incluye `cancelled`.

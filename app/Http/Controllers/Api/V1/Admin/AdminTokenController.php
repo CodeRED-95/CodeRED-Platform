@@ -8,6 +8,7 @@ use App\Enums\ApiTokenType;
 use App\Http\Resources\Api\V1\Admin\AdminTokenResource;
 use App\Models\ApiToken;
 use App\Models\User;
+use App\Services\ApiTokens\AbilityCatalogService;
 use App\Services\ApiTokens\ApiTokenGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -89,6 +90,7 @@ class AdminTokenController extends AdminController
             return $user;
         }
 
+        $allowedAbilities = app(AbilityCatalogService::class)->allowedAbilities();
         $data = $request->validate([
             'nombre' => ['required', 'string', 'max:100'],
             'tipo' => ['required', 'string', Rule::in(ApiTokenType::values())],
@@ -98,6 +100,8 @@ class AdminTokenController extends AdminController
                 'max:'.ApiTokenGenerator::MAX_EXPIRES_IN_DAYS,
             ],
             'usuario_id' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
+            'abilities' => ['nullable', 'array', 'min:1'],
+            'abilities.*' => ['required', 'string', Rule::in($allowedAbilities)],
         ]);
 
         $owner = User::query()->active()->find($data['usuario_id']);
@@ -107,10 +111,15 @@ class AdminTokenController extends AdminController
         }
 
         $type = ApiTokenType::from($data['tipo']);
+        $abilities = array_values(array_unique(array_map('strval', $data['abilities'] ?? $type->abilities())));
+        $authorizedAbilities = app(AbilityCatalogService::class)->authorizedAbilitiesFor($user);
+        if ($user->isSuperAdmin() === false && array_diff($abilities, $authorizedAbilities) !== []) {
+            return $this->deny('No puedes otorgar abilities que tu usuario no administra.', Response::HTTP_FORBIDDEN);
+        }
         $created = app(ApiTokenGenerator::class)->create(
             $owner,
             trim($data['nombre']),
-            $type->abilities(),
+            $abilities,
             (int) $data['vigencia_dias'],
         );
 

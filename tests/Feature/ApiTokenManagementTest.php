@@ -6,6 +6,7 @@ use App\Enums\ApiTokenType;
 use App\Livewire\Admin\ApiTokens\Index;
 use App\Models\ActivityLog;
 use App\Models\ApiToken;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ApiDocumentationSettingsService;
@@ -42,7 +43,7 @@ class ApiTokenManagementTest extends TestCase
             ->set('description', 'Equipo principal')
             ->set('targetUserId', $owner->id)
             ->set('tokenExpiresInDays', 30)
-            ->set('tokenType', 'agencies')
+            ->set('abilities', ['agencies:read'])
             ->call('createToken')
             ->assertHasNoErrors()
             ->assertSet('createdTokenName', 'Extensión Chrome');
@@ -52,7 +53,7 @@ class ApiTokenManagementTest extends TestCase
         $this->assertStringContainsString('|', $plain);
         $token = ApiToken::query()->sole();
         $this->assertNotSame($plain, $token->token);
-        $this->assertSame(ApiTokenType::Agencies->abilities(), $token->abilities);
+        $this->assertSame(['agencies:read'], $token->abilities);
         $this->assertSame('Equipo principal', $token->description);
         $this->assertSame($super->id, $token->created_by);
         $this->assertDatabaseHas('activity_logs', ['action' => 'api_token_created', 'auditable_id' => $token->id]);
@@ -69,9 +70,9 @@ class ApiTokenManagementTest extends TestCase
         Livewire::actingAs($super)->test(Index::class)
             ->set('name', 'Peligroso')
             ->set('targetUserId', $super->id)
-            ->set('tokenType', 'admin')
+            ->set('abilities', ['not-a-real-ability'])
             ->call('createToken')
-            ->assertHasErrors(['tokenType']);
+            ->assertHasErrors(['abilities.0']);
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
@@ -100,13 +101,69 @@ class ApiTokenManagementTest extends TestCase
             Livewire::actingAs($super)->test(Index::class)
                 ->set('name', $type->label())
                 ->set('targetUserId', $owner->id)
-                ->set('tokenType', $type->value)
+                ->set('abilities', $type->abilities())
                 ->call('createToken')
                 ->assertHasNoErrors();
 
             $token = ApiToken::query()->latest('id')->firstOrFail();
             $this->assertSame($type->abilities(), $token->abilities);
         }
+    }
+
+    public function test_super_administrator_can_create_token_with_multiple_abilities(): void
+    {
+        $super = $this->superAdmin();
+        $owner = User::factory()->create();
+
+        Livewire::actingAs($super)->test(Index::class)
+            ->set('name', 'Integración multi')
+            ->set('targetUserId', $owner->id)
+            ->set('abilities', ['dni:consultar', 'ruc:consultar'])
+            ->call('createToken')
+            ->assertHasNoErrors()
+            ->assertSet('createdTokenName', 'Integración multi');
+
+        $token = ApiToken::query()->latest('id')->firstOrFail();
+        $this->assertSame(['dni:consultar', 'ruc:consultar'], $token->abilities);
+    }
+
+    public function test_token_list_shows_multiple_ability_badges(): void
+    {
+        $super = $this->superAdmin();
+        $owner = User::factory()->create();
+        $owner->createToken('Multi', ['dni:consultar', 'ruc:consultar'], now()->addDays(10));
+
+        Livewire::actingAs($super)->test(Index::class)
+            ->assertSee('dni:consultar')
+            ->assertSee('ruc:consultar')
+            ->assertSee('Abilities');
+    }
+
+    public function test_admin_api_token_store_accepts_multiple_abilities_and_blocks_unowned_ones(): void
+    {
+        $manager = User::factory()->create();
+        $role = Role::query()->firstOrCreate(['slug' => 'token-manager'], ['name' => 'Token Manager', 'is_system' => false]);
+        $role->permissions()->sync(Permission::query()->whereIn('slug', ['api-tokens.create-for-users', 'api-tokens.view-any', 'dni-records.view'])->pluck('id'));
+        $manager->roles()->attach($role);
+        $token = $manager->createToken('Admin API', ['admin:tokens'])->plainTextToken;
+        $owner = User::factory()->create();
+
+        $this->withToken($token)->postJson('/api/v1/admin/tokens', [
+            'nombre' => 'Token mixto',
+            'tipo' => 'agencies',
+            'vigencia_dias' => 30,
+            'usuario_id' => $owner->id,
+            'abilities' => ['dni:consultar', 'ruc:consultar'],
+        ])->assertForbidden();
+
+        $this->withToken($token)->postJson('/api/v1/admin/tokens', [
+            'nombre' => 'Token DNI',
+            'tipo' => 'dni',
+            'vigencia_dias' => 30,
+            'usuario_id' => $owner->id,
+            'abilities' => ['dni:consultar'],
+        ])->assertCreated()
+            ->assertJsonPath('data.detalle.abilities', ['dni:consultar']);
     }
 
     public function test_rotation_preserves_old_token_until_explicit_revocation(): void
