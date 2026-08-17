@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureApiTokenNotExpired;
 use App\Http\Middleware\EnsureApiTokenOwnerIsActive;
 use App\Http\Middleware\EnsureApiVersion;
 use App\Http\Middleware\EnsurePasswordIsChanged;
+use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsurePrivateApiCaching;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ResolveDelegatedUser;
@@ -51,6 +52,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'integration.hmac' => VerifyIntegrationRequest::class,
             'n8n.hmac' => VerifyN8nRequest::class,
             'abilities' => CheckAbilities::class,
+            // Capa unica de autorizacion: resuelve permiso RBAC para sesiones de
+            // usuario y ability declarada para tokens de integracion.
+            'access' => EnsurePermission::class,
         ]);
 
         $middleware->web(append: [

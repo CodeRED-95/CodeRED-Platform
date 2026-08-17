@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\V1\Integrations\N8nTelegramPersonalCodeController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\Admin\AdminPermissionRequestController;
+use App\Http\Controllers\Api\V1\Auth\AuthController as ClientAuthController;
+use App\Http\Controllers\Api\V1\Auth\SessionController as ClientSessionController;
 use App\Http\Controllers\Api\V1\Mobile\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\V1\Mobile\PermissionRequestController;
 use App\Http\Controllers\Api\V1\MobileDeviceController;
@@ -71,6 +73,27 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->middleware(['throttle:shalom-recordar'])
             ->name('auth.login');
     });
+    // Autenticacion de personas en los clientes oficiales. Unico punto donde se
+    // validan credenciales de usuario para Platform, Mobile y Desktop.
+    //
+    // /mobile/* se conserva intacto mas abajo durante la migracion: los clientes
+    // publicados siguen funcionando hasta que se actualicen.
+    Route::prefix('auth')->name('auth.')->group(function (): void {
+        Route::post('/login', [ClientAuthController::class, 'login'])->middleware('throttle:auth-login')->name('login');
+        Route::post('/refresh', [ClientAuthController::class, 'refresh'])->middleware('throttle:auth-refresh')->name('refresh');
+
+        // access:profile:read va en el grupo, no en cada ruta: ademas de
+        // autorizar, es quien resuelve la sesion del token y la deja en la
+        // peticion. Sin el, /logout y /sessions no sabrian cual es la actual.
+        Route::middleware(['auth:sanctum', 'api.token-owner-active', 'throttle:api-mobile', 'access:profile:read'])->group(function (): void {
+            Route::get('/me', [ClientAuthController::class, 'me'])->name('me');
+            Route::post('/logout', [ClientAuthController::class, 'logout'])->name('logout');
+            Route::get('/sessions', [ClientSessionController::class, 'index'])->name('sessions.index');
+            Route::delete('/sessions', [ClientSessionController::class, 'destroyAll'])->name('sessions.destroy-all');
+            Route::delete('/sessions/{uuid}', [ClientSessionController::class, 'destroy'])->name('sessions.destroy');
+        });
+    });
+
     Route::prefix('mobile')->name('mobile.')->group(function (): void {
         Route::post('/login', [MobileAuthController::class, 'login'])->middleware('throttle:api-mobile')->name('login');
 
@@ -99,7 +122,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 ->middleware(['throttle:shalom-recordar'])
                 ->name('auth.logout');
         });
-        Route::middleware(['throttle:api-agencias', 'api.audit:agencias', 'abilities:agencias:consultar'])->group(function (): void {
+        Route::middleware(['throttle:api-agencias', 'api.audit:agencias', 'access:agencias:consultar'])->group(function (): void {
             Route::get('/agencias', [AgencyCatalogController::class, 'index'])->name('agencias.index');
             Route::get('/agencias/{id}', [AgencyCatalogController::class, 'showById'])->name('agencias.show');
         });
@@ -107,7 +130,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         // (packages/shalom-declaracion-jurada) actúe en nombre del usuario que
         // tiene la sesión abierta allí, con su propio token técnico. Sin él, el
         // paquete React no tendría forma de atribuir cada declaración a su autor.
-        Route::middleware(['throttle:api-declaraciones', 'api.audit:declaraciones', 'api.delegate-user', 'abilities:declaraciones:gestionar'])->group(function (): void {
+        Route::middleware(['throttle:api-declaraciones', 'api.audit:declaraciones', 'api.delegate-user', 'access:declaraciones:gestionar'])->group(function (): void {
             Route::get('/declarations', [DeclarationController::class, 'index'])->name('declarations.index');
             Route::post('/declarations', [DeclarationController::class, 'store'])->name('declarations.store');
             Route::get('/declarations/{id}', [DeclarationController::class, 'show'])->whereNumber('id')->name('declarations.show');
@@ -122,19 +145,19 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         // para aprobar y rechazar—, así que la auditoría y la emisión ocurren
         // en un único sitio.
         Route::prefix('admin')->name('admin.')->middleware(['throttle:api-admin', 'api.audit:admin'])->group(function (): void {
-            Route::middleware(['abilities:admin:tokens'])->group(function (): void {
+            Route::middleware(['access:admin:tokens'])->group(function (): void {
                 Route::get('/tokens', [AdminTokenController::class, 'index'])->name('tokens.index');
                 Route::get('/tokens/types', [AdminTokenController::class, 'types'])->name('tokens.types');
                 Route::post('/tokens', [AdminTokenController::class, 'store'])->name('tokens.store');
                 Route::delete('/tokens/{id}', [AdminTokenController::class, 'destroy'])->whereNumber('id')->name('tokens.destroy');
             });
-            Route::middleware(['abilities:admin:solicitudes'])->group(function (): void {
+            Route::middleware(['access:admin:solicitudes'])->group(function (): void {
                 Route::get('/token-requests', [AdminTokenRequestController::class, 'index'])->name('token-requests.index');
                 Route::get('/token-requests/{id}', [AdminTokenRequestController::class, 'show'])->whereNumber('id')->name('token-requests.show');
                 Route::post('/token-requests/{id}/approve', [AdminTokenRequestController::class, 'approve'])->whereNumber('id')->name('token-requests.approve');
                 Route::post('/token-requests/{id}/reject', [AdminTokenRequestController::class, 'reject'])->whereNumber('id')->name('token-requests.reject');
             });
-            Route::middleware(['abilities:admin:usuarios'])->group(function (): void {
+            Route::middleware(['access:admin:usuarios'])->group(function (): void {
                 Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
                 Route::get('/users/{id}', [AdminUserController::class, 'show'])->whereNumber('id')->name('users.show');
                 // Conceder o retirar accesos moviles desde la ficha del usuario,
@@ -148,7 +171,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
         // Actividad reciente del propio usuario. Reutiliza api_request_logs, la
         // auditoría que ya existe: no hay registro nuevo ni escritura extra.
-        Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->group(function (): void {
+        Route::middleware(['throttle:api-mobile', 'access:mobile'])->group(function (): void {
             Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
         });
 
@@ -163,37 +186,37 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         // Solicitudes de acceso a modulos moviles. Solo la ability `mobile`:
         // pedir acceso es algo que cualquiera con la app puede hacer sobre si
         // mismo, y el permiso concreto se valida contra una lista blanca.
-        Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->prefix('mobile/permission-requests')->name('mobile.permission-requests.')->group(function (): void {
+        Route::middleware(['throttle:api-mobile', 'access:mobile'])->prefix('mobile/permission-requests')->name('mobile.permission-requests.')->group(function (): void {
             Route::get('/', [PermissionRequestController::class, 'index'])->name('index');
             Route::post('/', [PermissionRequestController::class, 'store'])->name('store');
         });
 
         // Bandeja administrativa. La ability abre la seccion; el permiso RBAC
         // se vuelve a comprobar dentro en cada peticion.
-        Route::middleware(['throttle:api-mobile', 'abilities:admin:accesos'])->prefix('admin/permission-requests')->name('admin.permission-requests.')->group(function (): void {
+        Route::middleware(['throttle:api-mobile', 'access:admin:accesos'])->prefix('admin/permission-requests')->name('admin.permission-requests.')->group(function (): void {
             Route::get('/', [AdminPermissionRequestController::class, 'index'])->name('index');
             Route::get('/{id}', [AdminPermissionRequestController::class, 'show'])->whereNumber('id')->name('show');
             Route::post('/{id}/approve', [AdminPermissionRequestController::class, 'approve'])->whereNumber('id')->name('approve');
             Route::post('/{id}/reject', [AdminPermissionRequestController::class, 'reject'])->whereNumber('id')->name('reject');
         });
 
-        Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->prefix('mobile/devices')->name('mobile.devices.')->group(function (): void {
+        Route::middleware(['throttle:api-mobile', 'access:mobile'])->prefix('mobile/devices')->name('mobile.devices.')->group(function (): void {
             Route::post('/', [MobileDeviceController::class, 'store'])->name('store');
             Route::delete('/{id}', [MobileDeviceController::class, 'destroy'])->whereNumber('id')->name('destroy');
         });
 
-        Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->prefix('notifications')->name('notifications.')->group(function (): void {
+        Route::middleware(['throttle:api-mobile', 'access:mobile'])->prefix('notifications')->name('notifications.')->group(function (): void {
             Route::get('/', [NotificationController::class, 'index'])->name('index');
             Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
             Route::post('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
             Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('read');
         });
-        Route::middleware(['throttle:api-dni', 'api.audit:dni', 'api.delegate-user', 'abilities:dni:consultar'])->group(function (): void {
+        Route::middleware(['throttle:api-dni', 'api.audit:dni', 'api.delegate-user', 'access:dni:consultar'])->group(function (): void {
             Route::get('/dni/{dni}', DniApiController::class)->name('dni.show');
         });
-        Route::get('/ruc/buscar', RucSearchApiController::class)->middleware(['throttle:ruc-search', 'api.audit:ruc', 'abilities:ruc:buscar'])->name('ruc.search');
-        Route::get('/ruc/{ruc}', RucApiController::class)->middleware(['throttle:ruc-lookup', 'api.audit:ruc', 'abilities:ruc:consultar'])->name('ruc.show');
-        Route::middleware(['throttle:api', 'abilities:agencies:read'])->group(function (): void {
+        Route::get('/ruc/buscar', RucSearchApiController::class)->middleware(['throttle:ruc-search', 'api.audit:ruc', 'access:ruc:buscar'])->name('ruc.search');
+        Route::get('/ruc/{ruc}', RucApiController::class)->middleware(['throttle:ruc-lookup', 'api.audit:ruc', 'access:ruc:consultar'])->name('ruc.show');
+        Route::middleware(['throttle:api', 'access:agencies:read'])->group(function (): void {
             Route::get('/agencies', [AgencyCatalogController::class, 'index'])->name('agencies.index');
             Route::get('/agencies/changes', AgencyChangesController::class)->name('agencies.changes');
             Route::get('/agencies/search', [AgenciesController::class, 'search'])->name('agencies.search');
@@ -203,7 +226,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/agencies/{code}', [AgencyCatalogController::class, 'show'])->name('agencies.show');
         });
         Route::post('/token-requests/rotation', TokenRotationRequestController::class)->middleware(['throttle:api'])->name('token-requests.rotation');
-        Route::get('/me', MeController::class)->middleware(['throttle:api', 'abilities:profile:read'])->name('me');
+        Route::get('/me', MeController::class)->middleware(['throttle:api', 'access:profile:read'])->name('me');
         Route::get('/admin/shalom/delivery-records/export', [DeliveryRecordsExportController::class, 'csv'])
             ->middleware(['throttle:api'])
             ->name('admin.shalom.delivery-records.export.csv');

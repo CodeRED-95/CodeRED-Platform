@@ -64,6 +64,15 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('ruc-admin-test', fn (Request $request): Limit => Limit::perMinute(20)->by('ruc-admin:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('public-token-request-form', fn (Request $request): Limit => Limit::perMinute(30)->by('token-form:'.hash_hmac('sha256', (string) $request->ip(), config('app.key'))));
         RateLimiter::for('public-token-requests', fn (Request $request): Limit => Limit::perHour((int) config('api.public_token_request_rate_limit', 5))->by('token-request:'.hash_hmac('sha256', implode('|', [(string) $request->ip(), (string) $request->input('installation_name'), (string) $request->input('delivery_destination')]), config('app.key'))));
+        // Fuerza bruta sobre el login: se limita por IP y por correo a la vez,
+        // de modo que ni un atacante desde una IP ni uno distribuido contra una
+        // sola cuenta puedan probar contrasenas en volumen. El refresh es mas
+        // holgado: es una operacion legitima y frecuente de los clientes.
+        RateLimiter::for('auth-login', fn (Request $request): array => [
+            Limit::perMinute(10)->by('auth-login-ip:'.$request->ip()),
+            Limit::perMinute(5)->by('auth-login-user:'.hash_hmac('sha256', mb_strtolower(trim((string) $request->input('email'))), config('app.key'))),
+        ]);
+        RateLimiter::for('auth-refresh', fn (Request $request): Limit => Limit::perMinute(30)->by('auth-refresh:'.$request->ip()));
         RateLimiter::for('shalom-recordar', fn (Request $request): Limit => $this->tokenLimit($request, 60, 'shalom-recordar'));
     }
 
