@@ -93,8 +93,18 @@ class TokenRequestManager extends Component
      */
     public function checkStatus(TokenVaultService $vault): void
     {
+        // Normalizar antes de validar. Un codigo copiado arrastra espacios, y
+        // el teclado del movil suele entregarlo en minusculas; ninguna de las
+        // dos cosas lo convierte en otro codigo. Sin esto, la validacion fallaba
+        // y —como el formulario no pintaba el error— la pantalla se quedaba
+        // parpadeando en "Buscando solicitud" sin decir nunca por que.
+        $this->tracking_code_status = mb_strtoupper(trim($this->tracking_code_status));
+
         $this->validate([
             'tracking_code_status' => ['required', 'string', 'starts_with:CR-'],
+        ], [
+            'tracking_code_status.required' => 'Escribe el código de seguimiento que recibiste al enviar tu solicitud.',
+            'tracking_code_status.starts_with' => 'El código de seguimiento empieza por CR-. Revísalo y vuelve a intentarlo.',
         ]);
 
         $this->resetStatusFields();

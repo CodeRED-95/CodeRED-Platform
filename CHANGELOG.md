@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.25.2] - 2026-08-17
+
+### ℹ️ Nota
+
+- Codigo de seguimiento normalizado y errores visibles
+
+---
+
 ## [4.25.1] - 2026-08-17
 
 ### ℹ️ Nota

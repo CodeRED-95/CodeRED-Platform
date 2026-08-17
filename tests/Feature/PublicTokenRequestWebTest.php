@@ -178,6 +178,37 @@ class PublicTokenRequestWebTest extends TestCase
             ->assertSet('foundRequest.id', $request->id);
     }
 
+    public function test_lookup_normalizes_case_and_surrounding_spaces(): void
+    {
+        Queue::fake();
+
+        $this->postWithCsrf($this->validPayload([
+            'delivery_method' => 'email',
+            'delivery_destination' => 'ada@example.test',
+        ]));
+
+        $request = ApiTokenRequest::query()->firstOrFail();
+
+        // Un codigo copiado arrastra espacios y el teclado del movil lo entrega
+        // en minusculas; ninguna de las dos cosas lo convierte en otro codigo.
+        Livewire::test(TokenRequestManager::class)
+            ->set('tracking_code_status', '  '.mb_strtolower($request->tracking_code).' ')
+            ->call('checkStatus')
+            ->assertHasNoErrors()
+            ->assertSet('foundRequest.id', $request->id);
+    }
+
+    public function test_a_malformed_tracking_code_says_so_instead_of_failing_in_silence(): void
+    {
+        // El formulario no pintaba los errores de validacion, asi que un codigo
+        // mal escrito dejaba la pantalla parpadeando sin explicar nada.
+        Livewire::test(TokenRequestManager::class)
+            ->set('tracking_code_status', 'ABC123')
+            ->call('checkStatus')
+            ->assertHasErrors(['tracking_code_status'])
+            ->assertSee('empieza por CR-');
+    }
+
     public function test_lookup_fails_with_an_unknown_tracking_code(): void
     {
         Queue::fake();
