@@ -15,7 +15,9 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Notifications\PermissionRequestReceived;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -134,11 +136,45 @@ class PermissionRequestController
             'permission' => $permission,
         ]);
 
+        // Avisar a quien puede decidirla. Sin esto la solicitud se quedaba
+        // esperando a que alguien entrase a mirar la bandeja por casualidad.
+        $this->notificarARevisores($solicitud);
+
         return response()->json([
             'success' => true,
             'message' => 'Solicitud enviada. Un administrador la revisará.',
             'data' => new PermissionRequestResource($solicitud),
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Notifica la solicitud a quienes pueden resolverla.
+     *
+     * Se busca por permiso, no por rol: quien tenga permission-requests.manage
+     * es quien puede decidir, venga ese permiso del rol que venga.
+     */
+    private function notificarARevisores(PermissionRequest $solicitud): void
+    {
+        try {
+            $revisores = User::query()
+                ->active()
+                ->whereHas('roles.permissions', fn ($query) => $query->where('slug', 'permission-requests.manage'))
+                ->get();
+
+            if ($revisores->isEmpty()) {
+                return;
+            }
+
+            Notification::send($revisores, new PermissionRequestReceived($solicitud));
+        } catch (\Throwable $exception) {
+            // Avisar es importante, pero no mas que registrar la solicitud: si
+            // la notificacion falla, la solicitud ya esta creada y visible en
+            // la bandeja.
+            Log::warning('permission_request_notification_failed', [
+                'permission_request_id' => $solicitud->getKey(),
+                'reason' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function hasPending(User $user, string $permission): bool

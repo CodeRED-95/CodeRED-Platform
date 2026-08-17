@@ -191,6 +191,17 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         // Solicitudes de acceso a modulos moviles. Solo la ability `mobile`:
         // pedir acceso es algo que cualquiera con la app puede hacer sobre si
         // mismo, y el permiso concreto se valida contra una lista blanca.
+        // Pedir acceso para uno mismo lo puede hacer cualquier cliente oficial,
+        // no solo Mobile: quien entra desde Desktop se encuentra igual sin
+        // permisos y necesita la misma via. Basta la sesion —access:profile:read
+        // no exige permiso adicional—, porque lo que se pide es sobre uno mismo
+        // y el permiso concreto se valida contra una lista blanca.
+        Route::middleware(['throttle:api-mobile', 'access:profile:read'])->prefix('permission-requests')->name('permission-requests.')->group(function (): void {
+            Route::get('/', [PermissionRequestController::class, 'index'])->name('index');
+            Route::post('/', [PermissionRequestController::class, 'store'])->name('store');
+        });
+
+        // Ruta anterior, conservada para las versiones de Mobile ya publicadas.
         Route::middleware(['throttle:api-mobile', 'access:mobile'])->prefix('mobile/permission-requests')->name('mobile.permission-requests.')->group(function (): void {
             Route::get('/', [PermissionRequestController::class, 'index'])->name('index');
             Route::post('/', [PermissionRequestController::class, 'store'])->name('store');
