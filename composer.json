@@ -98,6 +98,6 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "extra": {
-        "version": "4.21.2"
+        "version": "4.21.3"
     }
 }

@@ -6,30 +6,10 @@
     </x-ui.page-header>
 
     @if ($plainTextToken)
-        <x-ui.alert tone="warning" title="Copia este token ahora. No podrá volver a mostrarse.">
-            <div class="mt-3 space-y-3" x-data="codeRedTokenCopy(@js($plainTextToken))">
-                <p class="text-sm">Token: <strong>{{ $createdTokenName }}</strong></p>
-                <div class="flex flex-col gap-3 sm:flex-row">
-                    <code
-                        x-ref="tokenText"
-                        tabindex="0"
-                        class="min-w-0 flex-1 overflow-x-auto rounded-xl bg-black/30 px-4 py-3 text-sm text-white focus-ring"
-                        data-testid="plain-api-token"
-                    >{{ $plainTextToken }}</code>
-                    <x-ui.button variant="primary" x-on:click="copy" x-bind:disabled="copying" aria-label="Copiar token recién creado">
-                        <svg x-show="! copied" class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2M6 7h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" /></svg>
-                        <svg x-cloak x-show="copied" class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6" /></svg>
-                        <span x-text="copied ? 'Copiado ✓' : 'Copiar token'">Copiar token</span>
-                    </x-ui.button>
-                    <x-ui.button variant="secondary" x-on:click="select">Seleccionar</x-ui.button>
-                </div>
-                <x-ui.button variant="ghost" wire:click="dismissPlainToken">Ya lo guardé; ocultar token</x-ui.button>
-            </div>
-        </x-ui.alert>
+        @include('livewire.admin.api-tokens.partials.plain-token-alert')
     @endif
 
-
-        <x-ui.card title="Nuevo cliente API" description="Identidad independiente de los usuarios del panel web.">
+    <x-ui.card title="Nuevo cliente API" description="Identidad independiente de los usuarios del panel web.">
         <form wire:submit="createClient" class="grid gap-4 md:grid-cols-4">
             <x-ui.input id="client-name" wire:model="clientName" label="Nombre del cliente" required :error="$errors->first('clientName')" />
             <x-ui.input id="client-contact" wire:model="clientContactName" label="Contacto" :error="$errors->first('clientContactName')" />
@@ -40,175 +20,15 @@
             <span>Agencias: {{ $usageSummary['agencias'] ?? 0 }}</span><span>·</span><span>DNI: {{ $usageSummary['dni'] ?? 0 }}</span>
         </div>
     </x-ui.card>
+
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div class="space-y-6">
-            <x-ui.card title="Tokens emitidos" description="El valor completo nunca se almacena ni vuelve a mostrarse; los permisos se asignan por tipo.">
-                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <x-ui.search-box wire:model.live.debounce.400ms="search" label="Buscar" placeholder="Nombre o propietario" />
-                    <x-ui.dropdown-select id="token-status" wire:model.live="status" label="Estado" :value="$status" :options="['' => 'Todos', 'active' => 'Activos', 'expiring' => 'Próximos a expirar', 'expired' => 'Expirados']" />
-                    <x-ui.dropdown-select id="token-ability" wire:model.live="ability" label="Ability" :value="$ability" :options="['' => 'Todas'] + $availableAbilities" />
-                    <x-ui.dropdown-select id="token-owner" wire:model.live="ownerId" label="Propietario" :value="$ownerId" :options="[0 => 'Todos'] + $users->pluck('name', 'id')->all()" />
-                    <x-ui.input id="token-created-from" wire:model.live="createdFrom" type="date" label="Creado desde" />
-                    <x-ui.input id="token-created-to" wire:model.live="createdTo" type="date" label="Creado hasta" />
-                </div>
-            </x-ui.card>
-
-            @if ($selectedTokenIds !== [])
-                <x-ui.card class="border-[color:var(--color-danger)]/40">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <p class="font-medium">{{ count($selectedTokenIds) }} tokens seleccionados</p>
-                        <div class="flex flex-wrap gap-2">
-                            <x-ui.button variant="ghost" size="sm" wire:click="clearSelection">Limpiar selección</x-ui.button>
-                            <x-ui.confirm-dialog id="bulk-revoke-api-tokens" title="Revocar tokens seleccionados" message="Los clientes que utilicen estos tokens perderán acceso inmediatamente." confirm-label="Revocar tokens" confirm-action="revokeSelected">
-                                <x-slot:trigger><x-ui.button variant="danger" size="sm">Revocar seleccionados</x-ui.button></x-slot:trigger>
-                            </x-ui.confirm-dialog>
-                        </div>
-                    </div>
-                </x-ui.card>
-            @endif
-
-            <x-ui.table id="api-token-list">
-                <thead class="bg-white/5 text-xs uppercase tracking-[0.16em] text-[color:var(--color-text-secondary)]">
-                    <tr>
-                        <th class="px-4 py-4"><x-ui.checkbox aria-label="Seleccionar tokens visibles" wire:click="selectVisible(@js($tokens->pluck('id')->all()))" :checked="count($selectedTokenIds) > 0 && count($selectedTokenIds) === $tokens->count()" /></th>
-                        <th class="px-4 py-4">Token</th>
-                        <th class="px-4 py-4">Abilities</th>
-                        <th class="px-4 py-4">Uso y expiración</th>
-                        <th class="px-4 py-4">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-white/5">
-                    @forelse ($tokens as $token)
-                        @php
-                            $revoked = $token->revoked_at !== null;
-                            $expired = $token->expires_at?->isPast() ?? false;
-                            $expiring = ! $expired && $token->expires_at?->lte(now()->addDays(7));
-                        @endphp
-                        <tr class="align-top transition hover:bg-white/5">
-                            <td class="px-4 py-4"><x-ui.checkbox wire:model="selectedTokenIds" value="{{ $token->id }}" aria-label="Seleccionar token {{ $token->name }}" /></td>
-                            <td class="px-4 py-4">
-                                <p class="font-medium">{{ $token->name }}</p>
-                                <p class="text-sm text-[color:var(--color-text-secondary)]">{{ $token->tokenable?->name ?? 'Propietario no disponible' }} · #{{ $token->id }}</p>
-                                @if ($token->description)<p class="mt-1 max-w-md text-xs text-[color:var(--color-text-muted)]">{{ $token->description }}</p>@endif
-                            </td>
-                            <td class="px-4 py-4"><div class="flex max-w-sm flex-wrap gap-1">@foreach ($token->abilities ?? [] as $tokenAbility)<x-ui.badge tone="info">{{ $tokenAbility }}</x-ui.badge>@endforeach</div></td>
-                            <td class="px-4 py-4 text-sm">
-                                <x-ui.badge :tone="$revoked || $expired ? 'danger' : ($expiring ? 'warning' : 'success')">{{ $revoked ? 'Revocado' : ($expired ? 'Expirado' : ($expiring ? 'Próximo a expirar' : 'Activo')) }}</x-ui.badge>
-                                <p class="mt-2 text-[color:var(--color-text-secondary)]">Último uso: {{ $token->last_used_at?->format('d/m/Y H:i') ?? 'Nunca utilizado' }}</p>
-                                <p class="text-[color:var(--color-text-secondary)]">Consultas: {{ $token->request_logs_count }} · Agencias {{ $token->agency_requests_count }} · DNI {{ $token->dni_requests_count }} · RUC {{ $token->ruc_requests_count }}</p>
-                                <p class="text-[color:var(--color-text-secondary)]">Exitosas: {{ $token->successful_requests_count }} · Errores: {{ $token->failed_requests_count }}</p>
-                                <p class="text-[color:var(--color-text-secondary)]">Expira: {{ $token->expires_at?->format('d/m/Y H:i') ?? 'Sin expiración' }}</p>
-                            </td>
-                            <td class="px-4 py-4"><div class="flex flex-wrap gap-2">
-                                <x-ui.button size="sm" variant="secondary" wire:click="rotateToken({{ $token->id }})" wire:loading.attr="disabled">Rotar</x-ui.button>
-                                <x-ui.confirm-dialog id="revoke-token-{{ $token->id }}" title="Revocar token" message="{{ $token->name }} dejará de funcionar inmediatamente. Último uso: {{ $token->last_used_at?->format('d/m/Y H:i') ?? 'Nunca utilizado' }}." confirm-label="Revocar token" confirm-action="revokeToken({{ $token->id }})">
-                                    <x-slot:trigger><x-ui.button size="sm" variant="danger">Revocar</x-ui.button></x-slot:trigger>
-                                </x-ui.confirm-dialog>
-                            </div></td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5" class="px-5 py-12"><x-ui.empty-state title="No hay tokens" description="Crea una credencial con las abilities mínimas necesarias." icon="◈" /></td></tr>
-                    @endforelse
-                </tbody>
-            </x-ui.table>
-            <x-ui.pagination :paginator="$tokens" scroll-to="#api-token-list" />
+            @include('livewire.admin.api-tokens.partials.tokens-list')
+            @include('livewire.admin.api-tokens.partials.revoked-tokens')
         </div>
 
-        <x-ui.card title="Crear token" description="Selecciona uno o varios permisos. El secreto se mostrará una sola vez.">
-            <form wire:submit="createToken" class="space-y-4">
-                <x-ui.input id="token-name" wire:model="name" label="Nombre" required :error="$errors->first('name')" placeholder="Extensión Chrome - PC principal" />
-                <x-ui.textarea id="token-description" wire:model="description" label="Descripción" :error="$errors->first('description')" />
-                <x-ui.dropdown-select id="token-client-create" wire:model="targetApiClientId" label="Propietario o cliente" :value="$targetApiClientId" :options="[0 => 'Usuario administrador (compatibilidad)'] + $clients->pluck('name', 'id')->all()" :error="$errors->first('targetApiClientId')" />
-                <div class="space-y-2">
-                    <x-ui.input wire:model.live="tokenExpiresInDays" type="number" min="1" max="365" step="1" label="Vigencia del token en días" :error="$errors->first('tokenExpiresInDays')" />
-                    <div class="flex flex-wrap gap-2">
-                        @foreach ($tokenExpirationQuickOptions as $days)
-                            <x-ui.button type="button" size="sm" variant="ghost" wire:click="setTokenExpiresInDays({{ $days }})">{{ $days }} {{ $days === 1 ? 'día' : 'días' }}</x-ui.button>
-                        @endforeach
-                    </div>
-                    <p class="text-xs text-[color:var(--color-text-muted)]">{{ $tokenExpirationPreview }}</p>
-                </div>
-                <fieldset class="space-y-3">
-                    <legend class="text-sm font-medium">Permisos del token</legend>
-                    <p class="text-xs text-[color:var(--color-text-muted)]">Marca las abilities que necesita la integración. Solo puedes conceder las que tu usuario administra.</p>
-                    <div class="flex flex-wrap gap-2">
-                        @forelse ($abilities as $abilityValue)
-                            @php $selected = collect($availableAbilities)->firstWhere('ability', $abilityValue); @endphp
-                            @if ($selected)
-                                <x-ui.badge tone="info">{{ $selected['label'] }} · {{ $abilityValue }}</x-ui.badge>
-                            @endif
-                        @empty
-                            <x-ui.badge tone="warning">Ningún permiso seleccionado</x-ui.badge>
-                        @endforelse
-                    </div>
-                    <div class="grid gap-3 md:grid-cols-2">
-                        @foreach ($availableAbilities as $ability)
-                            @php $isChecked = in_array($ability['ability'], $abilities, true); @endphp
-                            <label class="rounded-[var(--radius-control)] border border-white/10 bg-white/5 p-4 transition hover:bg-white/10">
-                                <div class="flex items-start gap-3">
-                                    <input type="checkbox" wire:model.live="abilities" value="{{ $ability['ability'] }}" class="mt-1 h-4 w-4 rounded border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-brand)] focus-ring" @disabled(! in_array($ability['ability'], $allowedAbilities, true))>
-                                    <div class="min-w-0 space-y-1">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <span class="font-medium">{{ $ability['label'] }}</span>
-                                            <x-ui.badge tone="info">{{ $ability['ability'] }}</x-ui.badge>
-                                        </div>
-                                        <p class="text-xs text-[color:var(--color-text-muted)]">{{ $ability['description'] }}</p>
-                                        @if(! in_array($ability['ability'], $allowedAbilities, true))
-                                            <p class="text-xs text-[color:var(--color-danger)]">No autorizado para tu usuario.</p>
-                                        @endif
-                                    </div>
-                                </div>
-                            </label>
-                        @endforeach
-                    </div>
-                    @if (in_array('*', $allowedAbilities, true))
-                        <div class="rounded-[var(--radius-control)] border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/10 p-4 text-sm">
-                            <strong>Acceso completo:</strong> tu usuario puede otorgar cualquier ability disponible. Úsalo solo cuando sea necesario.
-                        </div>
-                    @endif
-                    <x-ui.form-error :message="$errors->first('abilities')" />
-                </fieldset>
-                <x-ui.button type="submit" variant="primary" class="w-full" loading-target="createToken">Generar token</x-ui.button>
-            </form>
-        </x-ui.card>
+        @include('livewire.admin.api-tokens.partials.create-token-form')
     </div>
-    <x-ui.card title="Tokens revocados" description="Historial sin secreto ni hash reutilizable.">
-        <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            @forelse ($revokedTokens as $revokedToken)
-                <div class="rounded-xl border border-white/10 p-3"><div class="flex justify-between gap-2"><span class="font-medium">{{ $revokedToken->name }}</span><x-ui.badge tone="danger">Revocado</x-ui.badge></div><p class="text-sm text-[color:var(--color-text-secondary)]">{{ $revokedToken->owner_name }} · #{{ $revokedToken->original_token_id }}</p><p class="text-xs text-[color:var(--color-text-muted)]">{{ implode(', ', $revokedToken->abilities) }} · {{ $revokedToken->revoked_at?->format('d/m/Y H:i') }}</p></div>
-            @empty
-                <p class="text-sm text-[color:var(--color-text-muted)]">No hay tokens revocados.</p>
-            @endforelse
-        </div>
-    </x-ui.card>
-    <x-ui.card title="Historial de consumo" description="No almacena Bearer Tokens ni el DNI en texto plano.">
-        <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <x-ui.dropdown-select id="log-client" wire:model.live="logClientId" label="Cliente" :value="$logClientId" :options="[0 => 'Todos'] + $clients->pluck('name', 'id')->all()" />
-            <x-ui.dropdown-select id="log-token" wire:model.live="logTokenId" label="Token" :value="$logTokenId" :options="[0 => 'Todos'] + $tokens->pluck('name', 'id')->all()" />
-            <x-ui.dropdown-select id="log-service" wire:model.live="logService" label="Servicio" :value="$logService" :options="['' => 'Todos', 'agencias' => 'Agencias', 'dni' => 'DNI', 'ruc' => 'RUC']" />
-            <x-ui.input id="log-status" wire:model.live.debounce.400ms="logStatus" label="Estado HTTP" inputmode="numeric" />
-            <x-ui.input id="log-from" wire:model.live="logFrom" type="date" label="Desde" />
-            <x-ui.input id="log-to" wire:model.live="logTo" type="date" label="Hasta" />
-        </div>
-        <div class="mt-5 overflow-x-auto">
-            <table class="w-full text-left text-sm">
-                <thead class="text-[color:var(--color-text-muted)]"><tr><th class="p-3">Fecha</th><th class="p-3">Cliente / token</th><th class="p-3">Usuario delegado</th><th class="p-3">Servicio</th><th class="p-3">HTTP</th><th class="p-3">Duración</th></tr></thead>
-                <tbody class="divide-y divide-white/5">
-                    @forelse ($logs as $log)
-                        <tr>
-                            <td class="p-3">{{ $log->created_at?->format('d/m/Y H:i:s') }}</td>
-                            <td class="p-3">{{ $log->client?->name ?? 'Usuario heredado' }} · {{ $log->token?->name ?? '#'.$log->token_id }}</td>
-                            <td class="p-3">{{ $log->delegatedUser ? $log->delegatedUser->name.' ('.$log->delegatedUser->email.')' : '—' }}{{ $log->is_duplicate_request ? ' · duplicado' : '' }}</td>
-                            <td class="p-3">{{ ucfirst($log->service) }}</td>
-                            <td class="p-3"><x-ui.badge :tone="$log->status_code < 400 ? 'success' : 'danger'">{{ $log->status_code }}</x-ui.badge></td>
-                            <td class="p-3">{{ $log->response_time_ms }} ms</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="6" class="p-8 text-center text-[color:var(--color-text-muted)]">Todavía no hay consumo registrado.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        <x-ui.pagination :paginator="$logs" />
-    </x-ui.card>
+
+    @include('livewire.admin.api-tokens.partials.request-logs')
 </div>

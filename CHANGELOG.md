@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.21.3] - 2026-08-17
+
+### 🐛 Corregido
+
+- `/admin/api-tokens` deja de romper la compilación de Blade/Livewire al separar la pantalla en parciales más pequeños y mover el catálogo de abilities al componente PHP.
+
+---
+
 ## [4.21.2] - 2026-08-17
 
 ### ✨ Nuevo

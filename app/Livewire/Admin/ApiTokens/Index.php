@@ -254,6 +254,7 @@ class Index extends Component
 
     public function render(): View
     {
+        $abilityCatalog = app(AbilityCatalogService::class);
         $query = ApiToken::query()->with(['tokenable', 'creator'])->withCount([
             'requestLogs' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value),
             'requestLogs as agency_requests_count' => fn (Builder $query) => $query->where('request_type', ApiRequestType::Api->value)->where('service', 'agencias'),
@@ -295,11 +296,57 @@ class Index extends Component
             'clients' => ApiClient::query()->orderBy('name')->get(),
             'usageSummary' => ApiRequestLog::query()->where('request_type', ApiRequestType::Api->value)->selectRaw('service, count(*) as total')->groupBy('service')->pluck('total', 'service'),
             'users' => User::query()->active()->orderBy('name')->get(['id', 'name', 'email']),
-            'availableAbilities' => app(AbilityCatalogService::class)->options(),
-            'allowedAbilities' => app(AbilityCatalogService::class)->authorizedAbilitiesFor(auth()->user()),
+            'availableAbilities' => $this->normalizeAbilityOptions($abilityCatalog->options()),
+            'abilityFilterOptions' => $this->abilityFilterOptions($abilityCatalog->options()),
+            'allowedAbilities' => $abilityCatalog->authorizedAbilitiesFor(auth()->user()),
+            'selectedAbilities' => $this->selectedAbilitiesSummary($abilityCatalog->options()),
             'tokenExpirationQuickOptions' => [1, 7, 30, 90, 180, 365],
             'tokenExpirationPreview' => $this->tokenExpirationPreview(),
         ])->layout('layouts.app', ['pageTitle' => 'API y Tokens']);
+    }
+
+    /**
+     * @param  array<int, array{ability: string, label: string, description: string, permission: string|null}>  $options
+     * @return array<int, array{ability: string, label: string, description: string, permission: string|null, selected: bool, disabled: bool}>
+     */
+    private function normalizeAbilityOptions(array $options): array
+    {
+        $allowed = array_fill_keys(app(AbilityCatalogService::class)->authorizedAbilitiesFor(auth()->user()), true);
+
+        return array_map(function (array $option) use ($allowed): array {
+            $ability = (string) $option['ability'];
+
+            return $option + [
+                'selected' => in_array($ability, $this->abilities, true),
+                'disabled' => ! isset($allowed[$ability]),
+            ];
+        }, $options);
+    }
+
+    /**
+     * @param  array<int, array{ability: string, label: string, description: string, permission: string|null}>  $options
+     * @return array<int, array{ability: string, label: string}>
+     */
+    private function selectedAbilitiesSummary(array $options): array
+    {
+        $lookup = collect($options)->keyBy('ability');
+
+        return collect($this->abilities)
+            ->map(fn (string $ability): ?array => $lookup->has($ability) ? ['ability' => $ability, 'label' => (string) $lookup->get($ability)['label']] : null)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array{ability: string, label: string, description: string, permission: string|null}>  $options
+     * @return array<string, string>
+     */
+    private function abilityFilterOptions(array $options): array
+    {
+        return collect($options)
+            ->mapWithKeys(fn (array $option): array => [$option['ability'] => $option['label'].' · '.$option['ability']])
+            ->all();
     }
 
     private function archiveRevocation(ApiToken $token): void
