@@ -41,6 +41,9 @@
         </x-ui.card>
     </div>
 
+    {{-- Gobierno de la cuenta: en qué clientes entra y dónde está entrada. --}}
+    <livewire:admin.users.access-and-sessions :user="$user" :key="'access-sessions-'.$user->id" />
+
     @if ($canViewActivity)
         <x-ui.card>
             <x-ui.section-header title="Historial de auditoría" subtitle="Responsables, cambios y contexto de seguridad de la cuenta." />

@@ -31,7 +31,7 @@ final class MobileAccessManager
      */
     public function grant(User $user, string $permission): bool
     {
-        if (! MobileAccess::isRequestable($permission)) {
+        if (! MobileAccess::isGrantable($permission)) {
             return false;
         }
 
@@ -91,13 +91,13 @@ final class MobileAccessManager
      * concedido, pero retirarle el rol de acceso no se lo quitaría — y la
      * interfaz debe poder decirlo.
      *
-     * @return list<array{permission: string, label: string, description: string, granted: bool, revocable: bool}>
+     * @return list<array{permission: string, label: string, description: string, scope: string, granted: bool, revocable: bool}>
      */
-    public function statusFor(User $user): array
+    public function statusFor(User $user, ?string $scope = null): array
     {
         $estados = [];
 
-        foreach (MobileAccess::all() as $acceso) {
+        foreach (MobileAccess::all($scope) as $acceso) {
             $permission = $acceso['permission'];
             $slug = MobileAccess::role($permission);
 
@@ -105,6 +105,7 @@ final class MobileAccessManager
                 'permission' => $permission,
                 'label' => $acceso['label'],
                 'description' => $acceso['description'],
+                'scope' => $acceso['scope'],
                 'granted' => $user->hasPermission($permission),
                 'revocable' => $slug !== null
                     && $user->roles()->where('roles.slug', $slug)->exists(),
