@@ -7,6 +7,7 @@ use App\Models\ApiClient;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Ruc\Models\RucRecord;
+use App\Support\ClipboardPayloadFormatter;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -36,6 +37,8 @@ class RucApiTesterTest extends TestCase
         Livewire::actingAs($this->roleUser('super-admin'))->test(RucTester::class)
             ->set('ruc', '20123456789')->set('mode', 'internal')->call('consult')
             ->assertHasNoErrors()->assertSet('result.ruc', '20123456789')
+            ->assertSet('copyJson', ClipboardPayloadFormatter::json(['success' => true, 'message' => 'RUC encontrado.', 'data' => ['ruc' => '20123456789', 'razon_social' => 'EMPRESA LOCAL SAC', 'estado' => null, 'condicion' => null, 'ubigeo' => null, 'direccion' => null, 'departamento' => null, 'provincia' => null, 'distrito' => null]]))
+            ->assertSet('copyDataText', "RUC: 20123456789\nRazón Social: EMPRESA LOCAL SAC")
             ->assertSet('technical.source', 'internal')->assertSee('EMPRESA LOCAL SAC');
 
         $this->assertDatabaseHas('api_request_logs', ['request_type' => 'admin_test', 'service' => 'ruc', 'source' => 'internal']);
@@ -52,7 +55,14 @@ class RucApiTesterTest extends TestCase
         Livewire::actingAs($super)->test(RucTester::class)
             ->set('ruc', '20123456789')->set('mode', 'endpoint')->set('tokenId', $rucToken->id)->call('consult')
             ->assertHasNoErrors()->assertSet('result.ruc', '20123456789')
+            ->assertSet('copyJson', ClipboardPayloadFormatter::json(['success' => true, 'message' => 'RUC encontrado.', 'data' => ['ruc' => '20123456789', 'razon_social' => 'EMPRESA LOCAL SAC', 'estado' => null, 'condicion' => null, 'ubigeo' => null, 'direccion' => null, 'departamento' => null, 'provincia' => null, 'distrito' => null]]))
             ->assertSet('technical.ability_verified', true)->assertSet('technical.token_name', 'Token RUC');
+
+        RucRecord::query()->create(['ruc' => '20123456780', 'razon_social' => 'EMPRESA OTRA SAC', 'estado' => 'ACTIVO']);
+        Livewire::actingAs($super)->test(RucTester::class)
+            ->set('ruc', '20123456780')->set('mode', 'internal')->call('consult')
+            ->assertSet('result.ruc', '20123456780')
+            ->assertSet('copyDataText', "RUC: 20123456780\nRazón Social: EMPRESA OTRA SAC\nEstado: ACTIVO");
 
         $this->assertDatabaseMissing('personal_access_tokens', ['name' => 'Prueba RUC efímera']);
 

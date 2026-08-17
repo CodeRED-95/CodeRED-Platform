@@ -40,16 +40,18 @@
                 <x-ui.badge>{{ match($technical['source']) { 'internal' => 'Base de datos interna', 'cache' => 'Caché', 'perudevs' => 'PeruDevs', default => 'No determinado' } }}</x-ui.badge>
                 <span class="text-sm">{{ $technical['response_time_ms'] }} ms · HTTP {{ $technical['http_status'] }}</span>
             </div>
+            <div class="mb-5 flex flex-wrap gap-3">
+                <x-ui.button type="button" variant="secondary" data-codered-copy="{{ $copyDataText }}" data-codered-copy-label="Datos">Copiar datos</x-ui.button>
+                <x-ui.button type="button" variant="secondary" data-codered-copy="{{ $copyJson }}" data-codered-copy-label="JSON">Copiar JSON</x-ui.button>
+            </div>
             <dl class="grid gap-4 md:grid-cols-2">
                 @foreach(['dni' => 'DNI', 'nombres' => 'Nombres', 'apellido_paterno' => 'Apellido paterno', 'apellido_materno' => 'Apellido materno', 'nombre_completo' => 'Nombre completo', 'genero' => 'Género', 'fecha_nacimiento' => 'Fecha de nacimiento', 'edad' => 'Edad', 'codigo_verificacion' => 'Código de verificación'] as $key => $label)
                     <div class="rounded-[var(--radius-control)] bg-white/5 p-4">
                         <dt class="text-xs text-[color:var(--color-text-muted)]">{{ $label }}</dt>
                         <dd class="mt-1 break-words">{{ $result[$key] ?? '—' }}</dd>
-                        <x-ui.button type="button" variant="ghost" class="mt-2" x-on:click="$dispatch('codered-copy', { value: @js((string) ($result[$key] ?? '')) })">Copiar {{ strtolower($label) }}</x-ui.button>
                     </div>
                 @endforeach
             </dl>
-            <x-ui.button type="button" variant="secondary" class="mt-5" x-on:click="$dispatch('codered-copy', { value: @js($copyJson) })">Copiar respuesta JSON</x-ui.button>
         </x-ui.card>
     @endif
 

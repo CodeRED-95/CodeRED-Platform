@@ -9,6 +9,7 @@ use App\Models\ApiToken;
 use App\Models\User;
 use App\Modules\Ruc\Http\Resources\RucResource;
 use App\Modules\Ruc\Services\RucLookupService;
+use App\Support\ClipboardPayloadFormatter;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -31,6 +32,8 @@ class RucTester extends Component
 
     public ?string $copyJson = null;
 
+    public ?string $copyDataText = null;
+
     public function mount(): void
     {
         Gate::authorize('ruc.test');
@@ -41,7 +44,7 @@ class RucTester extends Component
     {
         Gate::authorize('ruc.test');
         $this->validate(['ruc' => ['required', 'regex:/^\d{11}$/'], 'mode' => ['required', 'in:internal,endpoint'], 'tokenId' => ['exclude_unless:mode,endpoint', 'required', 'integer', 'min:1']], ['ruc.regex' => 'El RUC debe contener exactamente 11 dígitos.']);
-        $this->reset(['result', 'technical', 'errorMessage', 'copyJson']);
+        $this->reset(['result', 'technical', 'errorMessage', 'copyJson', 'copyDataText']);
         if ($this->mode === 'endpoint') {
             $this->endpoint($kernel);
         } else {
@@ -51,7 +54,7 @@ class RucTester extends Component
 
     public function clear(): void
     {
-        $this->reset(['ruc', 'result', 'technical', 'errorMessage', 'copyJson']);
+        $this->reset(['ruc', 'result', 'technical', 'errorMessage', 'copyJson', 'copyDataText']);
     }
 
     private function internal(RucLookupService $service): void
@@ -64,7 +67,8 @@ class RucTester extends Component
         if ($lookup['data'] === null) {
             $this->errorMessage = 'No se encontró el RUC consultado.';
         } else {
-            $this->success((new RucResource($lookup['data']))->resolve(request()), $lookup['source'], $status, $elapsed, null, false, $lookup['cached']);
+            $data = (new RucResource($lookup['data']))->resolve(request());
+            $this->success($data, ['success' => true, 'message' => 'RUC encontrado.', 'data' => $data], $lookup['source'], $status, $elapsed, null, false, $lookup['cached']);
         }
     }
 
@@ -73,12 +77,16 @@ class RucTester extends Component
         $selected = ApiToken::query()->with('tokenable')->findOrFail($this->tokenId);
         if (! in_array('ruc:consultar', $selected->abilities ?? [], true)) {
             $this->errorMessage = 'El token seleccionado no tiene el permiso ruc:consultar.';
+            $this->copyJson = null;
+            $this->copyDataText = null;
 
             return;
         }
         $owner = $selected->tokenable;
         if (! $owner instanceof User && ! $owner instanceof ApiClient) {
             $this->errorMessage = 'El propietario del token no está disponible.';
+            $this->copyJson = null;
+            $this->copyDataText = null;
 
             return;
         }
@@ -93,10 +101,12 @@ class RucTester extends Component
             $payload = json_decode((string) $response->getContent(), true);
             if ($response->getStatusCode() !== 200 || ! is_array($payload)) {
                 $this->errorMessage = (string) ($payload['message'] ?? 'La prueba del endpoint falló.');
+                $this->copyJson = null;
+                $this->copyDataText = null;
 
                 return;
             }
-            $this->success($payload['data'], (string) ($payload['meta']['source'] ?? 'internal'), 200, $elapsed, $selected->name, true, (bool) ($payload['meta']['cached'] ?? false));
+            $this->success($payload['data'], $payload, (string) ($payload['meta']['source'] ?? 'internal'), 200, $elapsed, $selected->name, true, (bool) ($payload['meta']['cached'] ?? false));
         } finally {
             $kernel->terminate($request ?? Request::create('/'), $response ?? response());
             ApiToken::query()->whereKey($temporary->accessToken->getKey())->delete();
@@ -104,10 +114,11 @@ class RucTester extends Component
         }
     }
 
-    private function success(array $data, string $source, int $status, int $elapsed, ?string $token, bool $ability, bool $cached): void
+    private function success(array $data, array $copyPayload, string $source, int $status, int $elapsed, ?string $token, bool $ability, bool $cached): void
     {
         $this->result = $data;
-        $this->copyJson = json_encode(['success' => true, 'message' => 'RUC encontrado.', 'data' => $data], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $this->copyJson = ClipboardPayloadFormatter::json($copyPayload);
+        $this->copyDataText = ClipboardPayloadFormatter::readable($data);
         $this->technical = ['source' => $source, 'cached' => $cached, 'http_status' => $status, 'response_time_ms' => $elapsed, 'token_name' => $token, 'ability_verified' => $ability, 'tested_at' => now()->toIso8601String()];
     }
 

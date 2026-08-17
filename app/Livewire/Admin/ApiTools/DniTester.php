@@ -10,6 +10,7 @@ use App\Models\ApiRequestLog;
 use App\Models\ApiToken;
 use App\Models\DniRecord;
 use App\Services\Dni\DniLookupService;
+use App\Support\ClipboardPayloadFormatter;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -33,6 +34,8 @@ class DniTester extends Component
 
     public ?string $copyJson = null;
 
+    public ?string $copyDataText = null;
+
     public function mount(): void
     {
         Gate::authorize('api-tools.dni.test');
@@ -55,7 +58,7 @@ class DniTester extends Component
             return;
         }
 
-        $this->reset(['result', 'technical', 'errorMessage', 'copyJson']);
+        $this->reset(['result', 'technical', 'errorMessage', 'copyJson', 'copyDataText']);
         if ($this->mode === 'endpoint') {
             $this->testEndpoint($kernel);
 
@@ -67,7 +70,7 @@ class DniTester extends Component
 
     public function clear(): void
     {
-        $this->reset(['dni', 'result', 'technical', 'errorMessage', 'copyJson']);
+        $this->reset(['dni', 'result', 'technical', 'errorMessage', 'copyJson', 'copyDataText']);
         $this->resetValidation();
     }
 
@@ -108,7 +111,11 @@ class DniTester extends Component
         }
 
         $payload = (new DniResource($lookup->data))->resolve(request());
-        $this->setSuccess($payload, $lookup->source, $status, $elapsed, [
+        $this->setSuccess($payload, [
+            'success' => true,
+            'data' => $payload,
+            'meta' => ['source' => $lookup->source],
+        ], $lookup->source, $status, $elapsed, [
             'local_database_hit' => $lookup->localDatabaseHit,
             'cache_hit' => $lookup->cacheHit,
             'provider_called' => $lookup->providerCalled,
@@ -171,7 +178,7 @@ class DniTester extends Component
                 return;
             }
 
-            $this->setSuccess((array) ($payload['data'] ?? []), (string) data_get($payload, 'meta.source', 'none'), $status, $elapsed, [
+            $this->setSuccess((array) ($payload['data'] ?? []), $payload, (string) data_get($payload, 'meta.source', 'none'), $status, $elapsed, [
                 'local_database_hit' => (bool) $log?->local_database_hit,
                 'cache_hit' => (bool) $log?->cache_hit,
                 'provider_called' => (bool) $log?->provider_called,
@@ -186,10 +193,11 @@ class DniTester extends Component
         }
     }
 
-    private function setSuccess(array $data, string $source, int $status, int $elapsed, array $details): void
+    private function setSuccess(array $data, array $copyPayload, string $source, int $status, int $elapsed, array $details): void
     {
         $this->result = $data;
-        $this->copyJson = json_encode(['success' => true, 'data' => $data], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $this->copyJson = ClipboardPayloadFormatter::json($copyPayload);
+        $this->copyDataText = ClipboardPayloadFormatter::readable($data);
         $this->technical = array_merge([
             'http_status' => $status,
             'response_time_ms' => $elapsed,
@@ -201,6 +209,8 @@ class DniTester extends Component
     private function setError(string $message, int $status, ?DniLookupResult $lookup = null, ?int $elapsed = null, ?string $tokenName = null): void
     {
         $this->errorMessage = $message;
+        $this->copyJson = null;
+        $this->copyDataText = null;
         $audit = $lookup === null
             ? ['source' => 'none', 'local_database_hit' => false, 'cache_hit' => false, 'provider_called' => false]
             : $lookup->audit();

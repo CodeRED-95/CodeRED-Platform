@@ -7,6 +7,7 @@ use App\Models\ApiClient;
 use App\Models\DniRecord;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\ClipboardPayloadFormatter;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -47,6 +48,22 @@ class DniApiTesterTest extends TestCase
             ->call('consult')
             ->assertHasNoErrors()
             ->assertSet('result.dni', '00123456')
+            ->assertSet('copyJson', ClipboardPayloadFormatter::json([
+                'success' => true,
+                'data' => [
+                    'dni' => '00123456',
+                    'nombres' => 'LOCAL',
+                    'apellido_paterno' => null,
+                    'apellido_materno' => null,
+                    'nombre_completo' => 'LOCAL',
+                    'genero' => null,
+                    'fecha_nacimiento' => null,
+                    'edad' => null,
+                    'codigo_verificacion' => null,
+                ],
+                'meta' => ['source' => 'internal'],
+            ]))
+            ->assertSet('copyDataText', "DNI: 00123456\nNombres: LOCAL\nNombre Completo: LOCAL")
             ->assertSet('technical.source', 'internal')
             ->assertSee('Base de datos interna')
             ->assertDontSee('DNI_PERUDEVS_API_KEY');
@@ -86,8 +103,30 @@ class DniApiTesterTest extends TestCase
             ->call('consult')
             ->assertHasNoErrors()
             ->assertSet('result.dni', '12345678')
+            ->assertSet('copyJson', ClipboardPayloadFormatter::json([
+                'success' => true,
+                'data' => [
+                    'dni' => '12345678',
+                    'nombres' => null,
+                    'apellido_paterno' => null,
+                    'apellido_materno' => null,
+                    'nombre_completo' => null,
+                    'genero' => null,
+                    'fecha_nacimiento' => null,
+                    'edad' => null,
+                    'codigo_verificacion' => null,
+                ],
+                'meta' => ['source' => 'internal'],
+            ]))
             ->assertSet('technical.ability_verified', true)
             ->assertSet('technical.token_name', 'Token DNI de referencia');
+
+        Livewire::actingAs($super)->test(DniTester::class)
+            ->set('dni', '00123456')
+            ->set('mode', 'internal')
+            ->call('consult')
+            ->assertSet('result.dni', '00123456')
+            ->assertSet('copyDataText', "DNI: 00123456\nNombres: LOCAL\nNombre Completo: LOCAL");
 
         $this->assertDatabaseHas('api_request_logs', ['request_type' => 'admin_test', 'service' => 'dni']);
         $this->assertDatabaseMissing('personal_access_tokens', ['name' => 'Prueba administrativa efímera']);

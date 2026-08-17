@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { copyToClipboard, fallbackCopy } from "../../resources/js/clipboard.js";
+import { copyToClipboard, fallbackCopy, registerClipboardListener } from "../../resources/js/clipboard.js";
 
 test("copies null numbers unicode and json through secure clipboard", async () => {
   const values = [];
@@ -21,4 +21,32 @@ test("fallback uses a temporary readonly textarea", () => {
   assert.equal(textarea.value, "RUC");
   assert.equal(selected, true);
   assert.equal(removed, true);
+});
+
+test("clipboard listener copies exact payload and emits success toast", async () => {
+  const values = [];
+  const events = [];
+  const documentRef = {
+    documentElement: { dataset: {} },
+    addEventListener(type, handler) {
+      this.handlers ??= {};
+      this.handlers[type] = handler;
+    },
+  };
+  const environment = {
+    isSecureContext: true,
+    navigator: { clipboard: { writeText: async (value) => values.push(value) } },
+    dispatchEvent: (event) => events.push(event.detail),
+    document: documentRef,
+  };
+
+  registerClipboardListener(documentRef, environment);
+  documentRef.handlers.click({
+    preventDefault() {},
+    target: { closest: () => ({ getAttribute: (name) => (name === "data-codered-copy" ? '{"dni":"12345678"}' : "JSON") }) },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(values, ['{"dni":"12345678"}']);
+  assert.deepEqual(events, [{ type: "success", message: "JSON copiado al portapapeles." }]);
 });
