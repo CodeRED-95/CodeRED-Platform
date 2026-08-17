@@ -26,6 +26,7 @@ class MobileTokenAbilityResolver
         'api-tokens.view-any' => ['admin:tokens'],
         'api-token-requests.view' => ['admin:solicitudes'],
         'users.view' => ['admin:usuarios'],
+        'permission-requests.view' => ['admin:accesos'],
     ];
 
     /**

@@ -8,6 +8,9 @@ use App\Http\Resources\Api\V1\Admin\AdminUserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use App\Services\Permissions\MobileAccessManager;
+use App\Services\Permissions\MobileAccess;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -45,6 +48,64 @@ class AdminUserController extends AdminController
         return $this->paginated(
             AdminUserResource::collection($query->paginate($this->perPage($request))->withQueryString())
         );
+    }
+
+    /**
+     * Concede un acceso movil sin esperar a que el usuario lo solicite.
+     *
+     * Exige el mismo permiso que decidir una solicitud: conceder a mano y
+     * aprobar una peticion son la misma facultad, y separarlas dejaria una
+     * puerta mas estrecha al lado de una mas ancha.
+     */
+    public function grantAccess(Request $request, int $id, MobileAccessManager $access): JsonResponse
+    {
+        return $this->changeAccess($request, $id, $access, conceder: true);
+    }
+
+    public function revokeAccess(Request $request, int $id, MobileAccessManager $access): JsonResponse
+    {
+        return $this->changeAccess($request, $id, $access, conceder: false);
+    }
+
+    private function changeAccess(Request $request, int $id, MobileAccessManager $access, bool $conceder): JsonResponse
+    {
+        $admin = $request->user();
+
+        if (! $admin instanceof User) {
+            return response()->json(['success' => false, 'message' => 'No autenticado.'], 401);
+        }
+
+        if (! $admin->hasPermission('permission-requests.manage')) {
+            return response()->json(['success' => false, 'message' => 'No tienes permisos para esta accion.'], 403);
+        }
+
+        $validated = $request->validate([
+            'permission' => ['required', 'string', Rule::in(MobileAccess::requestable())],
+        ]);
+
+        $usuario = User::query()->find($id);
+
+        if ($usuario === null) {
+            return response()->json(['success' => false, 'message' => 'El usuario no existe.'], 404);
+        }
+
+        $permission = (string) $validated['permission'];
+
+        $cambio = $conceder
+            ? $access->grant($usuario, $permission)
+            : $access->revoke($usuario, $permission);
+
+        $etiqueta = MobileAccess::label($permission);
+
+        return response()->json([
+            'success' => true,
+            // Idempotente: si no hubo cambio, tampoco hay error. El estado
+            // final es el que se pedia.
+            'message' => $cambio
+                ? sprintf($conceder ? 'Acceso a %s concedido.' : 'Acceso a %s retirado.', $etiqueta)
+                : sprintf($conceder ? 'El usuario ya tenia acceso a %s.' : 'El usuario no tenia acceso a %s.', $etiqueta),
+            'data' => ['accesos_moviles' => $access->statusFor($usuario->fresh())],
+        ]);
     }
 
     public function show(Request $request, int $id): JsonResponse

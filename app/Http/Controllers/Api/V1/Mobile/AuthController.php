@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\TransientToken;
+use Throwable;
 
 class AuthController extends Controller
 {
@@ -62,10 +63,12 @@ class AuthController extends Controller
         ]);
     }
 
-    public function me(Request $request): JsonResponse
+    public function me(Request $request, MobileTokenAbilityResolver $abilityResolver): JsonResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
+
+        $this->syncTokenAbilities($user, $abilityResolver);
 
         return response()->json([
             'success' => true,
@@ -74,6 +77,64 @@ class AuthController extends Controller
                 'roles' => $this->rolesPayload($user),
                 'permissions' => $this->permissionsPayload($user),
             ],
+        ]);
+    }
+
+    /**
+     * Recalcula las abilities del token actual desde el RBAC vigente.
+     *
+     * Las abilities se fijan al iniciar sesion, asi que un permiso concedido
+     * despues no llegaba al token: la persona tenia el permiso pero su token
+     * seguia sin la ability, y la unica salida era cerrar sesion y volver a
+     * entrar. Como la app ya llama a /me para refrescar sus permisos, aqui es
+     * donde el token se pone al dia.
+     *
+     * Esto no debilita Sanctum. Las abilities no se amplian arbitrariamente: se
+     * **recalculan** con el mismo resolver que las emitio, a partir de los
+     * permisos reales de la persona en ese instante. Y funciona en las dos
+     * direcciones -si a alguien le retiran un permiso, la ability desaparece en
+     * la siguiente llamada-, cosa que antes no ocurria hasta el logout. Es, por
+     * tanto, mas estricto que lo que habia.
+     */
+    private function syncTokenAbilities(User $user, MobileTokenAbilityResolver $abilityResolver): void
+    {
+        $token = $user->currentAccessToken();
+
+        // Debe ser un token realmente guardado. Una sesion por cookie usa
+        // TransientToken, y en las pruebas Sanctum::actingAs inyecta un doble
+        // que supera el instanceof pero no se puede persistir: en ambos casos
+        // no hay nada que sincronizar.
+        if (! $token instanceof PersonalAccessToken || ! $token->exists || $token->getKey() === null) {
+            return;
+        }
+
+        $actuales = array_values((array) ($token->abilities ?? []));
+        $esperadas = $abilityResolver->resolve($user);
+
+        sort($actuales);
+        sort($esperadas);
+
+        if ($actuales === $esperadas) {
+            return;
+        }
+
+        try {
+            $token->forceFill(['abilities' => $esperadas])->save();
+        } catch (Throwable $exception) {
+            // Poner el token al dia es una mejora, no el proposito de /me:
+            // quien pide su perfil debe recibirlo aunque esto falle.
+            Log::warning('mobile_token_abilities_sync_failed', [
+                'user_id' => $user->getKey(),
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return;
+        }
+
+        Log::info('mobile_token_abilities_synced', [
+            'user_id' => $user->getKey(),
+            'token_id' => $token->getKey(),
+            'abilities' => count($esperadas),
         ]);
     }
 

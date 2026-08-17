@@ -6,6 +6,17 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.21.0] - 2026-08-17
+
+### ✨ Nuevo
+
+- Solicitudes de acceso a los módulos móviles: quien no tiene Consulta RUC o Consulta DNI puede pedirlo desde la app, y un administrador lo aprueba o rechaza. El permiso concedido es el RBAC real (`ruc.view`, `dni-records.view`), transportado por un rol dedicado, sin tocar el rol principal ni convertir a nadie en administrador
+- `GET`/`POST /api/v1/mobile/permission-requests` para el interesado, y la bandeja administrativa en `/api/v1/admin/permission-requests` con filtros, paginación y contador de pendientes
+- Un administrador puede conceder o retirar accesos móviles desde la ficha del usuario, sin esperar a una solicitud
+- Las abilities del token móvil se recalculan al llamar a `/mobile/me`: un permiso aprobado llega sin cerrar sesión, y uno retirado desaparece en la siguiente llamada en lugar de sobrevivir hasta el logout
+
+---
+
 ## [4.20.1] - 2026-08-16
 
 ### 🐛 Corregido

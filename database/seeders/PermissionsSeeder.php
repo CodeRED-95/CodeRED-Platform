@@ -53,6 +53,8 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'dni-records.update', 'name' => 'Actualizar registros DNI'],
                 ['slug' => 'dni-records.delete', 'name' => 'Eliminar registros DNI'],
                 ['slug' => 'dni-records.refresh', 'name' => 'Actualizar desde proveedor DNI'],
+                ['slug' => 'permission-requests.view', 'name' => 'Ver solicitudes de acceso móvil'],
+                ['slug' => 'permission-requests.manage', 'name' => 'Aprobar o rechazar solicitudes de acceso móvil'],
                 ['slug' => 'ruc.view', 'name' => 'Ver padrón RUC'],
                 ['slug' => 'ruc.test', 'name' => 'Probar API RUC'],
                 ['slug' => 'ruc.backup.view', 'name' => 'Ver copias del padrón RUC'],

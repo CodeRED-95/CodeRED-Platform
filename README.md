@@ -181,7 +181,7 @@ Guías: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) · [docs/TESTING.md](docs/TES
 **Inicio y operación**
 - [Instalación](docs/INSTALL.md) · [Guía de desarrollo](docs/DEVELOPMENT.md)
 - [Docker](docs/DOCKER.md) · [Entorno y variables](docs/ENVIRONMENT.md)
-- [Despliegue seguro](docs/DEPLOYMENT_SAFE.md) - [Workers de larga duracion](docs/WORKERS.md) - [Declaraciones: borrado y copias](docs/DECLARACIONES_SEGURIDAD.md) · [Solución de problemas](docs/TROUBLESHOOTING.md)
+- [Despliegue seguro](docs/DEPLOYMENT_SAFE.md) - [Workers de larga duracion](docs/WORKERS.md) - [Declaraciones: borrado y copias](docs/DECLARACIONES_SEGURIDAD.md) - [Accesos moviles](docs/ACCESOS_MOVILES.md) · [Solución de problemas](docs/TROUBLESHOOTING.md)
 
 **Arquitectura y datos**
 - [Arquitectura](docs/ARCHITECTURE.md) · [Base de datos](docs/DATABASE.md) · [Seeders](docs/SEEDERS.md)

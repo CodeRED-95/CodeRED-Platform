@@ -130,6 +130,12 @@ class User extends Authenticatable
      * Se borran con el usuario (cascada en la migracion): una cuenta eliminada
      * no puede dejar tokens vivos a los que se siga intentando enviar.
      */
+    /** Solicitudes de acceso a modulos moviles hechas por esta persona. */
+    public function permissionRequests(): HasMany
+    {
+        return $this->hasMany(PermissionRequest::class);
+    }
+
     public function mobileDevices(): HasMany
     {
         return $this->hasMany(MobileDevice::class);

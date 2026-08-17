@@ -16,7 +16,9 @@ use App\Http\Controllers\Api\V1\Integrations\IntegrationDiscoveryController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTelegramPersonalCodeController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
+use App\Http\Controllers\Api\V1\Admin\AdminPermissionRequestController;
 use App\Http\Controllers\Api\V1\Mobile\AuthController as MobileAuthController;
+use App\Http\Controllers\Api\V1\Mobile\PermissionRequestController;
 use App\Http\Controllers\Api\V1\MobileDeviceController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ShalomRecordarAuthController;
@@ -135,6 +137,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::middleware(['abilities:admin:usuarios'])->group(function (): void {
                 Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
                 Route::get('/users/{id}', [AdminUserController::class, 'show'])->whereNumber('id')->name('users.show');
+                // Conceder o retirar accesos moviles desde la ficha del usuario,
+                // sin esperar a que el interesado los solicite.
+                // Conceder o retirar accesos moviles desde la ficha del usuario,
+                // sin esperar a que el interesado los solicite.
+                Route::post('/users/{id}/mobile-access/grant', [AdminUserController::class, 'grantAccess'])->whereNumber('id')->name('users.access.grant');
+                Route::post('/users/{id}/mobile-access/revoke', [AdminUserController::class, 'revokeAccess'])->whereNumber('id')->name('users.access.revoke');
             });
         });
 
@@ -152,6 +160,23 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         // notificaciones: un dispositivo es de una persona, y un token tecnico
         // no tiene a quien avisar. El alta es un upsert por token y la baja
         // parte siempre de los dispositivos del propio usuario.
+        // Solicitudes de acceso a modulos moviles. Solo la ability `mobile`:
+        // pedir acceso es algo que cualquiera con la app puede hacer sobre si
+        // mismo, y el permiso concreto se valida contra una lista blanca.
+        Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->prefix('mobile/permission-requests')->name('mobile.permission-requests.')->group(function (): void {
+            Route::get('/', [PermissionRequestController::class, 'index'])->name('index');
+            Route::post('/', [PermissionRequestController::class, 'store'])->name('store');
+        });
+
+        // Bandeja administrativa. La ability abre la seccion; el permiso RBAC
+        // se vuelve a comprobar dentro en cada peticion.
+        Route::middleware(['throttle:api-mobile', 'abilities:admin:accesos'])->prefix('admin/permission-requests')->name('admin.permission-requests.')->group(function (): void {
+            Route::get('/', [AdminPermissionRequestController::class, 'index'])->name('index');
+            Route::get('/{id}', [AdminPermissionRequestController::class, 'show'])->whereNumber('id')->name('show');
+            Route::post('/{id}/approve', [AdminPermissionRequestController::class, 'approve'])->whereNumber('id')->name('approve');
+            Route::post('/{id}/reject', [AdminPermissionRequestController::class, 'reject'])->whereNumber('id')->name('reject');
+        });
+
         Route::middleware(['throttle:api-mobile', 'abilities:mobile'])->prefix('mobile/devices')->name('mobile.devices.')->group(function (): void {
             Route::post('/', [MobileDeviceController::class, 'store'])->name('store');
             Route::delete('/{id}', [MobileDeviceController::class, 'destroy'])->whereNumber('id')->name('destroy');
