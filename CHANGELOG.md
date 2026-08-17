@@ -6,6 +6,30 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.23.1] - 2026-08-17
+
+### ℹ️ Nota
+
+- Validacion integral del ecosistema de identidad
+
+---
+
+## [4.23.0] - 2026-08-17
+
+### ℹ️ Nota
+
+- Administracion de accesos por aplicacion y sesiones de cliente
+
+---
+
+## [4.22.0] - 2026-08-16
+
+### ℹ️ Nota
+
+- Autenticacion central de usuario para Platform, Mobile y Desktop
+
+---
+
 ## [4.21.3] - 2026-08-17
 
 ### 🐛 Corregido
