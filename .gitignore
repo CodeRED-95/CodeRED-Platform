@@ -45,3 +45,4 @@ codered-agent-data/
 # Declaraciones juradas emitidas: documentos personales de usuarios reales.
 /storage/app/private/declarations/
 /storage/app/private/livewire-tmp/
+storage/app/public/releases/

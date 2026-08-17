@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\AgencyCatalogController;
 use App\Http\Controllers\Api\V1\AgencyChangesController;
 use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\DeclarationController;
+use App\Http\Controllers\Api\V1\DesktopUpdateController;
 use App\Http\Controllers\Api\V1\DniApiController;
 use App\Http\Controllers\Api\V1\ExtensionChromeConfigController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -39,6 +40,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/health', HealthController::class)->name('health');
     Route::get('/version', SystemVersionController::class)->name('version');
     Route::get('/extension/chrome/config', ExtensionChromeConfigController::class)->middleware('throttle:api')->name('extension.chrome.config');
+    // Canal de actualizacion de CodeRED Desktop. Publico a proposito: la
+    // aplicacion comprueba si hay version nueva antes de tener credencial
+    // alguna, y quien la usa con un token de API tampoco tiene sesion.
+    Route::get('/desktop/update', DesktopUpdateController::class)->middleware('throttle:api')->name('desktop.update');
     Route::post('/shalom/sync', [ShalomSyncController::class, 'sync'])
         ->middleware(['throttle:100,1', AuthenticateShalomApiKey::class])
         ->name('shalom.sync');

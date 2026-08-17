@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.26.0] - 2026-08-17
+
+### ℹ️ Nota
+
+- Canal de actualizacion de CodeRED Desktop
+
+---
+
 ## [4.25.3] - 2026-08-17
 
 ### ℹ️ Nota
