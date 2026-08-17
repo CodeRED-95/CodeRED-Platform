@@ -43,6 +43,9 @@ class Index extends Component
     #[Url]
     public string $createdTo = '';
 
+    #[Url]
+    public string $tab = 'tokens';
+
     public string $name = '';
 
     public string $description = '';
@@ -53,6 +56,8 @@ class Index extends Component
 
     /** @var list<string> */
     public array $abilities = ['agencies:read'];
+
+    public string $permissionSearch = '';
 
     public int $targetApiClientId = 0;
 
@@ -94,12 +99,23 @@ class Index extends Component
         Gate::authorize('api-tokens.view-any');
         $this->targetUserId = (int) auth()->id();
         $this->targetApiClientId = (int) (ApiClient::query()->where('active', true)->value('id') ?? 0);
+        $this->tab = in_array($this->tab, ['tokens', 'create'], true) ? $this->tab : 'tokens';
     }
 
     public function updating(): void
     {
         $this->resetPage();
         $this->selectedTokenIds = [];
+    }
+
+    public function showTokensTab(): void
+    {
+        $this->tab = 'tokens';
+    }
+
+    public function showCreateTab(): void
+    {
+        $this->tab = 'create';
     }
 
     public function createClient(): void
@@ -166,6 +182,8 @@ class Index extends Component
         $this->tokenType = 'agencies';
         $this->abilities = ['agencies:read'];
         $this->tokenExpiresInDays = ApiTokenGenerator::DEFAULT_EXPIRES_IN_DAYS;
+        $this->permissionSearch = '';
+        $this->tab = 'tokens';
         $this->dispatch('toast', type: 'success', message: 'Token creado. Cópialo antes de cerrar el aviso.');
     }
 
@@ -173,6 +191,7 @@ class Index extends Component
     {
         $this->plainTextToken = null;
         $this->createdTokenName = null;
+        $this->tab = 'tokens';
     }
 
     public function rotateToken(int $tokenId, AuditLogger $audit): void
@@ -297,9 +316,11 @@ class Index extends Component
             'usageSummary' => ApiRequestLog::query()->where('request_type', ApiRequestType::Api->value)->selectRaw('service, count(*) as total')->groupBy('service')->pluck('total', 'service'),
             'users' => User::query()->active()->orderBy('name')->get(['id', 'name', 'email']),
             'availableAbilities' => $this->normalizeAbilityOptions($abilityCatalog->options()),
+            'filteredAbilities' => $this->filteredAbilityOptions($abilityCatalog->options()),
             'abilityFilterOptions' => $this->abilityFilterOptions($abilityCatalog->options()),
             'allowedAbilities' => $abilityCatalog->authorizedAbilitiesFor(auth()->user()),
             'selectedAbilities' => $this->selectedAbilitiesSummary($abilityCatalog->options()),
+            'activeTab' => $this->tab,
             'tokenExpirationQuickOptions' => [1, 7, 30, 90, 180, 365],
             'tokenExpirationPreview' => $this->tokenExpirationPreview(),
         ])->layout('layouts.app', ['pageTitle' => 'API y Tokens']);
@@ -336,6 +357,26 @@ class Index extends Component
             ->filter()
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<int, array{ability: string, label: string, description: string, permission: string|null}>  $options
+     * @return array<int, array{ability: string, label: string, description: string, permission: string|null, selected: bool, disabled: bool}>
+     */
+    private function filteredAbilityOptions(array $options): array
+    {
+        $term = mb_strtolower(trim($this->permissionSearch));
+
+        $normalized = $this->normalizeAbilityOptions($options);
+        if ($term === '') {
+            return $normalized;
+        }
+
+        return array_values(array_filter($normalized, function (array $option) use ($term): bool {
+            return str_contains(mb_strtolower($option['label']), $term)
+                || str_contains(mb_strtolower($option['ability']), $term)
+                || str_contains(mb_strtolower($option['description']), $term);
+        }));
     }
 
     /**

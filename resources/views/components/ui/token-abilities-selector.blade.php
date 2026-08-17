@@ -3,12 +3,23 @@
     'availableAbilities' => [],
     'allowedAbilities' => [],
     'selectedAbilities' => [],
+    'permissionSearch' => '',
+    'selectedCount' => 0,
     'error' => null,
 ])
 
 <fieldset class="space-y-3">
-    <legend class="text-sm font-medium">Permisos del token</legend>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="text-sm font-medium">Permisos del token</div>
+        <div class="flex flex-wrap items-center gap-2">
+            <x-ui.badge tone="info">{{ $selectedCount }} seleccionados</x-ui.badge>
+            @if ($selectedCount > 0)
+                <x-ui.button type="button" size="sm" variant="ghost" wire:click="$set('abilities', [])">Limpiar selección</x-ui.button>
+            @endif
+        </div>
+    </div>
     <p class="text-xs text-[color:var(--color-text-muted)]">Marca las abilities que necesita la integración. Solo puedes conceder las que tu usuario administra.</p>
+    <x-ui.search-box wire:model.live.debounce.300ms="permissionSearch" label="Buscar permiso" placeholder="Buscar permiso..." />
     <div class="flex flex-wrap gap-2">
         @forelse ($selectedAbilities as $ability)
             <x-ui.badge tone="info">{{ $ability['label'] }} · {{ $ability['ability'] }}</x-ui.badge>
