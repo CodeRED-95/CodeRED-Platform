@@ -83,11 +83,13 @@ class ApiTokenManagementTest extends TestCase
 
         $this->assertSame('Token SHALOM RECORDAR', $type->label());
         $this->assertSame('Permite sincronizar datos de Shalom Recordar Extension con CodeRED Platform.', $type->description());
-        $this->assertSame(['shalom-recordar:sync'], $type->abilities());
+        // Todo token lleva ademas profile:read, que solo permite preguntar
+        // quien soy: sin ella un token no puede validarse contra /me.
+        $this->assertSame(['shalom-recordar:sync', ApiTokenType::BASE_ABILITY], $type->abilities());
         $this->assertContains('shalom-recordar:sync', ApiTokenType::allowedAbilities());
         $this->assertContains('shalom-recordar', ApiTokenType::values());
         $this->assertContains(
-            ['value' => 'shalom-recordar', 'label' => 'Token SHALOM RECORDAR', 'description' => 'Permite sincronizar datos de Shalom Recordar Extension con CodeRED Platform.', 'abilities' => ['shalom-recordar:sync']],
+            ['value' => 'shalom-recordar', 'label' => 'Token SHALOM RECORDAR', 'description' => 'Permite sincronizar datos de Shalom Recordar Extension con CodeRED Platform.', 'abilities' => ['shalom-recordar:sync', ApiTokenType::BASE_ABILITY]],
             ApiTokenType::options()
         );
     }

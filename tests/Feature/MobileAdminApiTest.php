@@ -141,7 +141,7 @@ class MobileAdminApiTest extends TestCase
 
         $response->assertOk();
         $tipos = collect($response->json('data'));
-        $this->assertTrue($tipos->contains(fn (array $t): bool => $t['valor'] === 'dni' && $t['abilities'] === ['dni:consultar']));
+        $this->assertTrue($tipos->contains(fn (array $t): bool => $t['valor'] === 'dni' && $t['abilities'] === ['dni:consultar', 'profile:read']));
         $this->assertSame(365, $response->json('meta.vigencia_maxima_dias'));
     }
 

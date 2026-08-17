@@ -29,15 +29,31 @@ enum ApiTokenType: string
         };
     }
 
+    /**
+     * Ability que lleva todo token, sea del tipo que sea.
+     *
+     * `profile:read` solo permite preguntar "quien soy y que puedo hacer": el
+     * endpoint /me devuelve el propietario del token y su propia lista de
+     * abilities, nada mas. No concede acceso a ningun dato de negocio.
+     *
+     * Va en todos los tipos porque un cliente necesita validar el token antes de
+     * usarlo. Sin ella, un token emitido desde el flujo de solicitudes recibia un
+     * 403 al comprobarse y resultaba inservible aunque tuviera sus permisos
+     * funcionales correctos.
+     */
+    public const BASE_ABILITY = 'profile:read';
+
     /** @return list<string> */
     public function abilities(): array
     {
-        return match ($this) {
+        $funcionales = match ($this) {
             self::Dni => ['dni:consultar'],
             self::Ruc => ['ruc:consultar', 'ruc:buscar'],
             self::Agencies => ['agencies:read'],
             self::ShalomRecordar => ['shalom-recordar:sync'],
         };
+
+        return array_values(array_unique([...$funcionales, self::BASE_ABILITY]));
     }
 
     /** @return array<string, string> */

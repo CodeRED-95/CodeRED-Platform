@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ApiTokenType;
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -41,7 +43,10 @@ class ChromeExtensionConfigTest extends TestCase
 
         $payload = $response->json('data');
 
-        $this->assertSame(['agencies:read'], $payload['required_scopes']);
+        // profile:read entra en los scopes requeridos porque la propia
+        // configuracion manda a la extension a validar su token contra
+        // /api/v1/me, y ese endpoint la exige.
+        $this->assertSame(['agencies:read', ApiTokenType::BASE_ABILITY], $payload['required_scopes']);
         $this->assertArrayNotHasKey('token', $payload);
         $this->assertArrayNotHasKey('secret', $payload);
     }

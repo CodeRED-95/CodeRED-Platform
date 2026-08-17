@@ -237,7 +237,7 @@ class ApiTokenRequestAdminTest extends TestCase
         $request->refresh();
         $token = ApiToken::query()->findOrFail($request->personal_access_token_id);
 
-        $esperadas = array_merge(ApiTokenType::Dni->abilities(), ApiTokenType::Ruc->abilities());
+        $esperadas = array_unique(array_merge(ApiTokenType::Dni->abilities(), ApiTokenType::Ruc->abilities()));
 
         sort($esperadas);
         $obtenidas = $token->abilities;
