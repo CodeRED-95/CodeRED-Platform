@@ -154,7 +154,9 @@ class SuperAdminAndViewerTest extends TestCase
         $this->get(route('admin.users.index'))->assertForbidden();
         $this->get(route('admin.api-tokens.index'))->assertForbidden();
         $this->get(route('admin.settings.ubigeos'))->assertForbidden();
-        $this->get(route('dashboard'))->assertForbidden();
+        // La portada no le muestra el dashboard, pero tampoco le deja tirado
+        // en un 403 sin menu: le lleva a la pantalla que si puede abrir.
+        $this->get(route('dashboard'))->assertRedirect(route('admin.agencies.index'));
     }
 
     public function test_viewer_sees_declaracion_jurada_link_in_the_sidebar_but_not_other_admin_tools(): void

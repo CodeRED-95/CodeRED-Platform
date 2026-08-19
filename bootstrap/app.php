@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuditApiRequest;
 use App\Http\Middleware\EnsureApiTokenNotExpired;
+use App\Http\Middleware\LandOnAccessibleHome;
 use App\Http\Middleware\EnsureApiTokenOwnerIsActive;
 use App\Http\Middleware\EnsureApiVersion;
 use App\Http\Middleware\EnsurePasswordIsChanged;
@@ -55,6 +56,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Capa unica de autorizacion: resuelve permiso RBAC para sesiones de
             // usuario y ability declarada para tokens de integracion.
             'access' => EnsurePermission::class,
+            'home.landing' => LandOnAccessibleHome::class,
         ]);
 
         $middleware->web(append: [

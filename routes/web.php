@@ -53,7 +53,7 @@ Route::get('/support/buscador-shalom', [BuscadorShalomLegalController::class, 's
 
 Route::get('/solicitar-token', [PublicTokenRequestController::class, 'create'])->middleware('throttle:public-token-request-form')->name('public.token-requests.create');
 Route::post('/solicitar-token', [PublicTokenRequestController::class, 'store'])->middleware('throttle:public-token-requests')->name('public.token-requests.store');
-Route::get('/', Dashboard::class)->middleware(['auth'])->name('dashboard');
+Route::get('/', Dashboard::class)->middleware(['auth', 'home.landing'])->name('dashboard');
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');

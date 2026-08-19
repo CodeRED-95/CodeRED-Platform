@@ -43,7 +43,7 @@ class RoleMatrixTest extends TestCase
             ->assertDontSee('Usuarios')->assertDontSee('Design System');
         $this->get(route('admin.agencies.map'))->assertOk();
         $this->get(route('admin.agencies.show', $agency))->assertOk()->assertDontSee('Editar');
-        $this->get(route('dashboard'))->assertForbidden();
+        $this->get(route('dashboard'))->assertRedirect(route('admin.agencies.index'));
         $this->get(route('admin.agencies.create'))->assertForbidden();
         $this->get(route('admin.agencies.edit', $agency))->assertForbidden();
         $this->get(route('admin.agencies.import.shalom'))->assertForbidden();
