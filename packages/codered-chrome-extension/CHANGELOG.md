@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.1 - 2026-08-25
+
+- La insignia del buscador solo muestra "Terrestre" o "Aereo". Desaparecen "Modo neutral" y "Canal pendiente": cuando no hay canal, la insignia se oculta.
+
 ## 2.7.0 - 2026-08-25
 
 - El buscador funciona en `sysnewos.shalomcontrol.com/service-order/items`: se inyecta en la tarjeta "Agencia de destino" y selecciona el destino en el combobox Vue de la SPA nueva.

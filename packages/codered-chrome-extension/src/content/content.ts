@@ -846,17 +846,32 @@ function normalizeClassList(value: string | null | undefined): string {
   return String(value ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-  function updateChannelBadge(container: HTMLElement): void {
-    const badge = container.querySelector<HTMLElement>(`.${CHANNEL_BADGE_CLASS}`);
-    if (badge) badge.textContent = activeChannelText(container.ownerDocument);
-  }
+/**
+ * La insignia solo nombra el canal: Terrestre o Aereo. Cuando no hay canal
+ * —paginas de solo consulta, o deteccion aun en curso— se oculta, en vez de
+ * anunciar un estado interno que al operador no le dice nada.
+ */
+function updateChannelBadge(container: HTMLElement): void {
+  const badge = container.querySelector<HTMLElement>(`.${CHANNEL_BADGE_CLASS}`);
+  if (!badge) return;
 
-  function activeChannelText(root: ParentNode): string {
-    if (resolvePageContext(window.location.pathname).mode === 'neutral') return '🌐 Modo neutral';
-    const channel = detectActiveShalomChannelState(root).channel;
-    if (!channel) return '⌛ Canal pendiente';
-    return channel === 'AEREO' ? '✈️ Aéreo' : '🚚 Terrestre';
-  }
+  const text = activeChannelText(container.ownerDocument);
+  badge.textContent = text;
+  badge.hidden = text === '';
+}
+
+function activeChannelText(root: ParentNode): string {
+  const channel = resolveBadgeChannel(root);
+  if (!channel) return '';
+  return channel === 'AEREO' ? '✈️ Aéreo' : '🚚 Terrestre';
+}
+
+function resolveBadgeChannel(root: ParentNode): Exclude<ShalomChannel, 'AUTO'> | null {
+  // La SPA nueva expone el canal en radios; el sitio clasico, en pestanas.
+  if (isServiceOrderItemsPath(window.location.pathname)) return detectComboboxChannel(root);
+  if (resolvePageContext(window.location.pathname).mode === 'neutral') return null;
+  return detectActiveShalomChannelState(root).channel;
+}
 
 function channelLabel(channel: Exclude<ShalomChannel, 'AUTO'>): string {
   return channel === 'AEREO' ? 'Aéreo' : 'Terrestre';

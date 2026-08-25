@@ -521,7 +521,13 @@ describe('Shalom Control DOM integration', () => {
     expect(select.value).toBe('');
     expect(inputSpy).not.toHaveBeenCalled();
     expect(changeSpy).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain('Modo neutral');
+    // La insignia solo nombra el canal: sin canal, se oculta en vez de anunciar
+    // "Modo neutral" o "Canal pendiente".
+    const badge = document.querySelector<HTMLElement>('.codered-channel-badge');
+    expect(badge?.textContent).toBe('');
+    expect(badge?.hidden).toBe(true);
+    expect(document.body.textContent).not.toContain('Modo neutral');
+    expect(document.body.textContent).not.toContain('Canal pendiente');
   });
 
   it('keeps technical failures as warnings with structured context', async () => {
