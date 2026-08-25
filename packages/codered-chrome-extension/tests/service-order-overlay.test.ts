@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { createServiceOrderLockController } from '../src/content/service-order-lock';
 import { DEFAULT_BLOCK_RULE_SET } from '../src/shared/block-rules';
@@ -64,6 +64,29 @@ describe('overlay de bloqueo', () => {
     const icon = overlay?.shadowRoot?.querySelector('.codered-service-order-lock-icon');
 
     expect(icon?.querySelector('svg')).not.toBeNull();
+  });
+
+  it('no avisa por consola cuando la extension se actualiza con la pagina abierta', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    controller = createServiceOrderLockController({
+      getManualLock: async () => false,
+      setManualLock: async () => undefined,
+      // Contexto huerfano: es lo que ocurre en las pestanas ya abiertas cuando
+      // se instala una version nueva.
+      getRuleSet: async () => { throw new Error('Extension context invalidated.'); },
+    });
+
+    await controller.initialize();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const avisos = warnSpy.mock.calls.filter(([message]) => String(message).includes('La extension se actualizo'));
+    expect(avisos).toHaveLength(0);
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   it('no deja hojas de estilo sueltas en el head de la pagina', async () => {

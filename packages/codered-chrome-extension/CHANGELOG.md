@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.7.3 - 2026-08-25
+
+- El aviso "La extension se actualizo: recarga la pagina" deja de salir como advertencia en la consola de la pagina; pasa a `console.debug`.
+- Un error inesperado al evaluar el horario se registra una sola vez, no una vez por segundo.
+
 ## 2.7.2 - 2026-08-25
 
 - Los fallos al seleccionar agencia dejan de aparecer como avisos en la consola de la pagina: el motivo ya se muestra en el panel del buscador. Ahora salen por `console.debug`, oculto salvo que se active el nivel Verbose, y con el contexto serializado en vez de "[object Object]".

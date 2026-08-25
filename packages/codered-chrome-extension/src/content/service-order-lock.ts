@@ -112,6 +112,7 @@ export function createServiceOrderLockController(deps: {
   let storageListenerBound = false;
   let overlayListenersBound = false;
   let orphaned = false;
+  let evaluationErrorLogged = false;
   const callbacks = new Set<StorageCallback>();
 
   async function initialize(): Promise<void> {
@@ -209,7 +210,10 @@ export function createServiceOrderLockController(deps: {
     stateTimer = null;
     observer?.disconnect();
     observer = null;
-    console.warn('[CodeRED] La extension se actualizo: recarga la pagina para reactivar el control de horario.');
+    // console.debug y no warn: no es un fallo del sitio ni algo que el
+    // operador deba resolver, y aparecia en la lista de errores de la pagina
+    // cada vez que se actualizaba la extension.
+    console.debug('[CodeRED] La extension se actualizo: recarga la pagina para reactivar el control de horario.');
   }
 
   /** Envuelve el trabajo periodico: un contexto muerto apaga, no revienta. */
@@ -227,7 +231,12 @@ export function createServiceOrderLockController(deps: {
           handleOrphanedContext();
           return;
         }
-        console.warn('[CodeRED] Error evaluando el bloqueo horario', error);
+        // Una sola vez: este bloque corre cada segundo, y un error recurrente
+        // llenaria la consola con la misma linea indefinidamente.
+        if (!evaluationErrorLogged) {
+          evaluationErrorLogged = true;
+          console.warn('[CodeRED] Error evaluando el bloqueo horario', error);
+        }
       });
   }
 
