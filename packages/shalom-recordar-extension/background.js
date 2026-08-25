@@ -75,15 +75,24 @@ async function manualSync() {
   return runExclusive(() => ShalomRecordarSync.syncNow());
 }
 
-async function checkAutomaticSync(reason = 'startup') {
+async function checkAutomaticSync(reason = 'startup', now) {
   return runExclusive(async () => {
     await ShalomRecordarSync.ensureDailyAutomaticSyncAlarm();
-    return ShalomRecordarSync.runAutomaticSyncIfNeeded({ source: reason });
+    // `now` inyectable para pruebas deterministas; en produccion se omite y
+    // runAutomaticSyncIfNeeded usa la fecha real.
+    const options = { source: reason };
+    // Duck-typing, no `instanceof Date`: el objeto puede venir de otro realm
+    // (un contexto vm en pruebas, o un mensaje entre contextos) y ahi
+    // `instanceof` da false aunque sea una fecha valida.
+    if (now && typeof now.getTime === 'function' && !Number.isNaN(now.getTime())) {
+        options.now = now;
+    }
+    return ShalomRecordarSync.runAutomaticSyncIfNeeded(options);
   });
 }
 
-async function bootstrap(reason = 'startup') {
-  return checkAutomaticSync(reason);
+async function bootstrap(reason = 'startup', now) {
+  return checkAutomaticSync(reason, now);
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

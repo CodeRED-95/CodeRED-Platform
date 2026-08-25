@@ -122,6 +122,12 @@ function createSandbox() {
 }
 
 function closeClaveModal() {
+    // SweetAlert resetea las casillas del PIN al cerrar el modal. El capturador
+    // no puede fiarse de sus valores en ese instante: la clave debe salir del
+    // buffer. Se vacian aqui para que la prueba refleje el DOM real.
+    for (const field of Object.values(sandboxState.claveFields)) {
+        field.value = '';
+    }
     for (const observer of mutationObservers) {
         if (observer.target && observer.target.id === 'modalValidarCodigo') {
             observer.target.style = 'display: none;';

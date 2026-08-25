@@ -219,7 +219,8 @@ test('un inicio de Chrome después de las 08:00 dispara la recuperación automá
     });
 
     const background = loadBackground(api);
-    await background.bootstrap('startup');
+    // Fecha inyectada: sin esto el test dependia del dia real del sistema.
+    await background.bootstrap('startup', new Date('2026-08-11T15:00:00Z'));
 
     assert.equal(storage.lastAutomaticSyncDate, '2026-08-11');
     assert.equal(storage.lastAlarm.name, api.DAILY_SYNC_ALARM_NAME);

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.8.1 - 2026-08-25
+
+### Fixed
+
+- La clave se capturaba incorrecta: al cerrarse el modal de validación se leía el valor de las casillas `swal-input*` del DOM, pero SweetAlert ya las había reseteado en ese instante. Ahora la clave se arma únicamente desde el buffer de lo tecleado, como en la versión original, conservando la detección por el cambio de `display` del modal.
+- El buffer de la clave se indexa con la id normalizada, coherente con `CLAVE_FIELDS`.
+- La recuperación de sincronización tras iniciar Chrome descartaba la fecha inyectada por un `instanceof Date` que falla entre realms; se comprueba por forma. Corrige un test dependiente de la fecha del sistema.
+
 ## 2.8.0 - 2026-08-11
 
 ### Added

@@ -157,21 +157,24 @@ function scheduleOsDebouncedSave(target, source, eventTimeStamp) {
     }, OS_DEBOUNCE_MS);
 }
 
-function captureClave(target, source, eventTimeStamp) {
+function captureClave(target) {
     const state = getContentState();
     state.claveBuffer ||= {};
-    state.claveBuffer[source] = normalizeText(getFieldValue(target));
+    // Se indexa por la id normalizada (misma que CLAVE_FIELDS). El valor se
+    // guarda en crudo salvo el trim: es lo que el usuario tecleo en la casilla,
+    // y es la unica fuente fiable de la clave.
+    state.claveBuffer[getInputId(target)] = normalizeText(getFieldValue(target));
 }
 
 function getClaveCompleteValue() {
     const state = getContentState();
     const buffer = state.claveBuffer || {};
-    const visibleFields = CLAVE_FIELDS.map((fieldId) => document.getElementById(fieldId)).filter(Boolean);
-    const completeValue = visibleFields.length > 0
-        ? visibleFields.map((field) => normalizeText(getFieldValue(field)) || buffer[getInputId(field)] || '').join('')
-        : CLAVE_FIELDS.map((fieldId) => buffer[fieldId] || '').join('');
 
-    return completeValue;
+    // Solo desde el buffer, nunca del DOM. Cuando el modal se cierra, SweetAlert
+    // ya reseteo o reordeno las casillas swal-input*, asi que leer sus valores
+    // en ese instante capturaba una clave incorrecta. El buffer conserva lo que
+    // el usuario tecleo, en el orden fijo 1-2-3-4.
+    return CLAVE_FIELDS.map((fieldId) => buffer[fieldId] || '').join('');
 }
 
 function ensureClaveModalObserver() {
@@ -205,7 +208,7 @@ function handleCapture(event) {
     if (!isRelevantField(target)) return;
 
     if (isClaveField(target)) {
-        captureClave(target, source, event.timeStamp);
+        captureClave(target);
         return;
     }
 
