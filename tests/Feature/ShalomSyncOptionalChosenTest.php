@@ -131,8 +131,10 @@ class ShalomSyncOptionalChosenTest extends TestCase
 
         $item = $run->items()->firstOrFail();
 
-        $this->assertNull($item->incoming_data['texto_chosen_terrestre'] ?? 'no-null');
-        $this->assertNull($item->incoming_data['texto_chosen_aereo'] ?? 'no-null');
+        // Ni el valor fabricado ni ningun otro: el campo viaja vacio, de modo
+        // que la comparacion lo ignora y la escritura lo respeta.
+        $this->assertNull($item->incoming_data['texto_chosen_terrestre'] ?? null);
+        $this->assertNull($item->incoming_data['texto_chosen_aereo'] ?? null);
         // El resto de la agencia si viaja con normalidad.
         $this->assertSame('JAEN CO', $item->incoming_data['name']);
     }
