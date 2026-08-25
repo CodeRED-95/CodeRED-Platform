@@ -30,5 +30,6 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon128.png"
-  }
+  },
+  "update_url": "https://platform.codered.lat/ext/shalom-recordar/updates.xml"
 }

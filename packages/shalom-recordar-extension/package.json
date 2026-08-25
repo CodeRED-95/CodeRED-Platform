@@ -12,7 +12,8 @@
     "build": "node scripts/sync-version.mjs && node scripts/build-extension.mjs",
     "validate:extension": "node scripts/validate-extension-build.mjs",
     "build:extension": "npm run build && npm run validate:extension",
-    "package": "npm run build:extension && node scripts/package-extension.mjs"
+    "package": "npm run build:extension && node scripts/package-extension.mjs",
+    "pack:crx": "npm run build && node scripts/pack-crx.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
