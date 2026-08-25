@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_BLOCK_RULE,
   evaluateRule,
@@ -10,6 +10,7 @@ import {
   type BlockRule,
 } from '../src/shared/block-rules';
 import { resolvePageContext, isNeutralShalomSearchPath } from '../src/content/shalom-host';
+import { isContextInvalidatedError, isExtensionContextAlive } from '../src/shared/runtime';
 
 describe('default service order schedule', () => {
   it.each([
@@ -196,6 +197,30 @@ describe('payload parsing', () => {
 
   it('returns null when the payload has no rules array', () => {
     expect(parseBlockRuleSet({ data: {} })).toBe(null);
+  });
+});
+
+describe('contexto huerfano tras actualizar la extension', () => {
+  const globals = globalThis as { chrome?: unknown };
+
+  afterEach(() => {
+    delete globals.chrome;
+  });
+
+  it('detecta el contexto vivo por chrome.runtime.id', () => {
+    expect(isExtensionContextAlive()).toBe(false);
+
+    globals.chrome = { runtime: { id: 'abcdef' } };
+    expect(isExtensionContextAlive()).toBe(true);
+
+    // Al invalidarse el contexto, los objetos siguen ahi pero el id desaparece.
+    globals.chrome = { runtime: {}, storage: { local: { get: () => undefined } } };
+    expect(isExtensionContextAlive()).toBe(false);
+  });
+
+  it('reconoce el error que lanza chrome cuando el contexto muere', () => {
+    expect(isContextInvalidatedError(new Error('Extension context invalidated.'))).toBe(true);
+    expect(isContextInvalidatedError(new Error('Failed to fetch'))).toBe(false);
   });
 });
 

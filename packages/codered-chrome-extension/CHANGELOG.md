@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.1 - 2026-08-25
+
+- Corrige el error "Extension context invalidated" que se repetia cada segundo en las pestanas abiertas despues de actualizar la extension.
+- El control de horario detecta que perdio el canal con la extension y se apaga en silencio, dejando el overlay puesto: una actualizacion no puede servir para saltarse el bloqueo. Basta recargar la pagina para reactivarlo.
+
 ## 2.6.0 - 2026-08-25
 
 - Cada destino de una regla lleva su propia ruta: `sysnewos.shalomcontrol.com/service-order` y `sysprovincia2.shalomcontrol.com/ordenservicio/listar` conviven en la misma regla y comparten horario.

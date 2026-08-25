@@ -9,6 +9,7 @@ import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agen
 import { bindChannelButtons, detectActiveShalomChannelState, type ShalomChannel } from './shalom-page-adapter';
 import { createServiceOrderLockController } from './service-order-lock';
 import { DEFAULT_BLOCK_RULE_SET, parseBlockRuleSet } from '../shared/block-rules';
+import { isExtensionContextAlive } from '../shared/runtime';
 import {
   getShalomPageCapabilities,
   hostnameMatchesAllowedDomain,
@@ -60,19 +61,37 @@ export function createShalomContentController(dependencies: ContentControllerDep
   let resizeListenerBound = false;
   let routeObserverBound = false;
   const serviceOrderLock = createServiceOrderLockController({
+    // Tras una actualizacion de la extension estas llamadas lanzan
+    // "Extension context invalidated" en las pestanas que ya estaban abiertas.
+    // Se devuelven valores neutros y el controlador se apaga solo.
     getManualLock: async () => {
-      if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.get !== 'function') return false;
-      const data = await chrome.storage.local.get(['codered_service_order_lock']);
-      return data.codered_service_order_lock === true;
+      if (!isExtensionContextAlive() || typeof chrome.storage?.local?.get !== 'function') return false;
+
+      try {
+        const data = await chrome.storage.local.get(['codered_service_order_lock']);
+        return data.codered_service_order_lock === true;
+      } catch {
+        return false;
+      }
     },
     setManualLock: async (locked) => {
-      if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.set !== 'function') return;
-      await chrome.storage.local.set({ codered_service_order_lock: locked });
+      if (!isExtensionContextAlive() || typeof chrome.storage?.local?.set !== 'function') return;
+
+      try {
+        await chrome.storage.local.set({ codered_service_order_lock: locked });
+      } catch {
+        // Contexto huerfano: el popup sigue siendo la via fiable para esto.
+      }
     },
     getRuleSet: async () => {
-      if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.get !== 'function') return DEFAULT_BLOCK_RULE_SET;
-      const data = await chrome.storage.local.get(['codered_block_rules']);
-      return parseBlockRuleSet(data.codered_block_rules) ?? DEFAULT_BLOCK_RULE_SET;
+      if (!isExtensionContextAlive() || typeof chrome.storage?.local?.get !== 'function') return DEFAULT_BLOCK_RULE_SET;
+
+      try {
+        const data = await chrome.storage.local.get(['codered_block_rules']);
+        return parseBlockRuleSet(data.codered_block_rules) ?? DEFAULT_BLOCK_RULE_SET;
+      } catch {
+        return DEFAULT_BLOCK_RULE_SET;
+      }
     },
   });
   const emittedLogs = new Set<string>();
@@ -508,7 +527,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   function listenForCatalogChanges(): void {
     if (storageListenerBound) return;
-    if (typeof chrome === 'undefined' || typeof chrome.storage?.onChanged?.addListener !== 'function') return;
+    if (!isExtensionContextAlive() || typeof chrome.storage?.onChanged?.addListener !== 'function') return;
     storageListenerBound = true;
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'local') return;
@@ -594,12 +613,18 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   async function requestCatalog(): Promise<Agency[]> {
     if (dependencies.requestCatalog) return dependencies.requestCatalog();
-    if (typeof chrome === 'undefined' || typeof chrome.runtime?.sendMessage !== 'function') {
+    if (!isExtensionContextAlive() || typeof chrome.runtime?.sendMessage !== 'function') {
       console.error('[CodeRED Shalom] chrome.runtime.sendMessage no está disponible.');
       return [];
     }
-    const response = await chrome.runtime.sendMessage({ type: 'CATALOG_GET' });
-    return Array.isArray(response?.agencies) ? response.agencies : [];
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'CATALOG_GET' });
+      return Array.isArray(response?.agencies) ? response.agencies : [];
+    } catch (error) {
+      console.warn('[CodeRED Shalom] No fue posible leer el catálogo local', serializeSafeError(error));
+      return [];
+    }
   }
 
   return { cargarDatos, createSearchContainer, bindSearchEvents, findInjectionTarget, injectSearchIfPossible, initializeContentScript, isSupportedShalomPage, mount, startInjectionObserver, stopInjectionObserver };

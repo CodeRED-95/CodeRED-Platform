@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from '../storage/storage-keys';
+import { isContextInvalidatedError, isExtensionContextAlive } from '../shared/runtime';
 import {
   DEFAULT_BLOCK_RULE_SET,
   evaluateRuleSet,
@@ -54,6 +55,7 @@ export function createServiceOrderLockController(deps: {
   let routeTimer: number | null = null;
   let storageListenerBound = false;
   let overlayListenersBound = false;
+  let orphaned = false;
   const callbacks = new Set<StorageCallback>();
 
   async function initialize(): Promise<void> {
@@ -81,7 +83,7 @@ export function createServiceOrderLockController(deps: {
 
   function bindStorageListener(): void {
     if (storageListenerBound) return;
-    if (typeof chrome === 'undefined' || typeof chrome.storage?.onChanged?.addListener !== 'function') return;
+    if (!isExtensionContextAlive() || typeof chrome.storage?.onChanged?.addListener !== 'function') return;
     storageListenerBound = true;
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'local') return;
@@ -89,10 +91,12 @@ export function createServiceOrderLockController(deps: {
       if (FORCED_UNLOCK_KEY in changes) forcedUnlock = normalizeForcedUnlock(changes[FORCED_UNLOCK_KEY].newValue);
       if (BLOCK_RULES_KEY in changes) {
         // El panel publico reglas nuevas: se aplican sin recargar la pagina.
-        void readRuleSet().then((next) => {
-          ruleSet = next;
-          evaluateAndRender();
-        });
+        void readRuleSet()
+          .then((next) => {
+            ruleSet = next;
+            evaluateAndRender();
+          })
+          .catch(() => handleOrphanedContext());
         return;
       }
       evaluateAndRender();
@@ -133,13 +137,47 @@ export function createServiceOrderLockController(deps: {
     }, 25);
   }
 
+  /**
+   * La extension se actualizo o se recargo y esta copia del content script ya
+   * no tiene canal con ella. Se paran los temporizadores para no repetir el
+   * error cada segundo, pero el overlay se deja tal cual: si la pestana estaba
+   * bloqueada debe seguir estandolo hasta que se recargue la pagina. Quitarlo
+   * convertiria cada actualizacion de la extension en una via para saltarse el
+   * horario.
+   */
+  function handleOrphanedContext(): void {
+    if (orphaned) return;
+    orphaned = true;
+    stopCountdown();
+    if (stateTimer) window.clearInterval(stateTimer);
+    stateTimer = null;
+    observer?.disconnect();
+    observer = null;
+    console.warn('[CodeRED] La extension se actualizo: recarga la pagina para reactivar el control de horario.');
+  }
+
+  /** Envuelve el trabajo periodico: un contexto muerto apaga, no revienta. */
+  function guarded(work: () => void): void {
+    if (orphaned) return;
+    if (!isExtensionContextAlive()) {
+      handleOrphanedContext();
+      return;
+    }
+
+    void refreshForcedUnlockIfNeeded()
+      .then(work)
+      .catch((error: unknown) => {
+        if (isContextInvalidatedError(error)) {
+          handleOrphanedContext();
+          return;
+        }
+        console.warn('[CodeRED] Error evaluando el bloqueo horario', error);
+      });
+  }
+
   function startStateTimer(): void {
     if (stateTimer) return;
-    stateTimer = window.setInterval(() => {
-      void refreshForcedUnlockIfNeeded().then(() => {
-        evaluateAndRender();
-      });
-    }, 1000);
+    stateTimer = window.setInterval(() => guarded(evaluateAndRender), 1000);
   }
 
   function currentEvaluation(now = new Date()) {
@@ -374,7 +412,7 @@ export function createServiceOrderLockController(deps: {
   function startCountdown(): void {
     if (countdownTimer) return;
     countdownTimer = window.setInterval(() => {
-      void refreshForcedUnlockIfNeeded().then(() => {
+      guarded(() => {
         const state = evaluateState();
         if (!state.visible || !state.locked) {
           evaluateAndRender();
@@ -402,9 +440,15 @@ export function createServiceOrderLockController(deps: {
   }
 
   async function readForcedUnlock(): Promise<ServiceOrderForcedUnlock | null> {
-    if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.get !== 'function') return null;
-    const data = await chrome.storage.local.get([FORCED_UNLOCK_KEY]);
-    return normalizeForcedUnlock(data[FORCED_UNLOCK_KEY]);
+    if (!isExtensionContextAlive() || typeof chrome.storage?.local?.get !== 'function') return null;
+
+    try {
+      const data = await chrome.storage.local.get([FORCED_UNLOCK_KEY]);
+      return normalizeForcedUnlock(data[FORCED_UNLOCK_KEY]);
+    } catch (error) {
+      if (isContextInvalidatedError(error)) handleOrphanedContext();
+      return forcedUnlock;
+    }
   }
 
   function normalizeForcedUnlock(value: unknown): ServiceOrderForcedUnlock | null {
@@ -444,9 +488,13 @@ export function createServiceOrderLockController(deps: {
 
     if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime() || !currentPeriodId || currentPeriodId !== current.restrictedPeriodId) {
       forcedUnlock = null;
-      if (typeof chrome !== 'undefined' && typeof chrome.storage?.local?.remove === 'function') {
-        await chrome.storage.local.remove([FORCED_UNLOCK_KEY]);
-        await logForcedUnlock('forced_unlock_expired', current);
+      if (isExtensionContextAlive() && typeof chrome.storage?.local?.remove === 'function') {
+        try {
+          await chrome.storage.local.remove([FORCED_UNLOCK_KEY]);
+          await logForcedUnlock('forced_unlock_expired', current);
+        } catch (error) {
+          if (isContextInvalidatedError(error)) handleOrphanedContext();
+        }
       }
       return;
     }
@@ -477,11 +525,16 @@ export function createServiceOrderLockController(deps: {
   }
 
   async function logForcedUnlock(type: 'forced_unlock_started' | 'forced_unlock_ended' | 'forced_unlock_expired', forced: ServiceOrderForcedUnlock): Promise<void> {
-    if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.get !== 'function') return;
-    const data = await chrome.storage.local.get([FORCED_UNLOCK_LOG_KEY]);
-    const log = Array.isArray(data[FORCED_UNLOCK_LOG_KEY]) ? data[FORCED_UNLOCK_LOG_KEY] : [];
-    const entry = { type, at: new Date().toISOString(), createdAt: forced.createdAt, expiresAt: forced.expiresAt, restrictedPeriodId: forced.restrictedPeriodId };
-    await chrome.storage.local.set({ [FORCED_UNLOCK_LOG_KEY]: [...log, entry].slice(-50) });
+    if (!isExtensionContextAlive() || typeof chrome.storage?.local?.get !== 'function') return;
+
+    try {
+      const data = await chrome.storage.local.get([FORCED_UNLOCK_LOG_KEY]);
+      const log = Array.isArray(data[FORCED_UNLOCK_LOG_KEY]) ? data[FORCED_UNLOCK_LOG_KEY] : [];
+      const entry = { type, at: new Date().toISOString(), createdAt: forced.createdAt, expiresAt: forced.expiresAt, restrictedPeriodId: forced.restrictedPeriodId };
+      await chrome.storage.local.set({ [FORCED_UNLOCK_LOG_KEY]: [...log, entry].slice(-50) });
+    } catch (error) {
+      if (isContextInvalidatedError(error)) handleOrphanedContext();
+    }
   }
 
   function blockEvent(event: Event): void {
