@@ -217,6 +217,31 @@ class Form extends Component
         $this->refreshPlace();
     }
 
+    /**
+     * Vacia el nombre anterior de la agencia.
+     *
+     * El campo es de solo lectura porque lo escribe el flujo de renombrado, no
+     * una persona; este boton es la unica forma de retirarlo cuando ya no
+     * aporta —y de paso deja de usarse como alias en las busquedas—. Se limita
+     * a super-admin, la misma condicion que ya filtraba `old_name` al guardar.
+     *
+     * No escribe en la base: el cambio se consolida al guardar la agencia, para
+     * que siga pasando por la validacion y la autorizacion del formulario.
+     */
+    public function clearOldName(): void
+    {
+        Gate::authorize('update', $this->agency ?? Agency::class);
+
+        if (! auth()->user()?->isSuperAdmin()) {
+            $this->addError('old_name', 'Solo un super administrador puede retirar el nombre anterior.');
+
+            return;
+        }
+
+        $this->old_name = null;
+        $this->dispatch('toast', type: 'success', message: 'Nombre anterior retirado. Guarda la agencia para aplicarlo.');
+    }
+
     public function syncUbigeo(): void
     {
         $ubigeo = $this->resolveUbigeo();

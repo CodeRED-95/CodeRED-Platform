@@ -32,13 +32,26 @@
                         <div class="mt-4 grid gap-4 md:grid-cols-2">
                             @foreach ($fields as $field)
                                 @if ($field === 'old_name')
-                                    <x-ui.input
-                                        type="text"
-                                        wire:model.blur="old_name"
-                                        label="Nombre anterior"
-                                        :error="$errors->first('old_name')"
-                                        readonly
-                                    />
+                                    <div class="flex items-end gap-3">
+                                        <div class="flex-1">
+                                            <x-ui.input
+                                                type="text"
+                                                wire:model.blur="old_name"
+                                                label="Nombre anterior"
+                                                description="Se usa como alias en las búsquedas del buscador."
+                                                :error="$errors->first('old_name')"
+                                                readonly
+                                            />
+                                        </div>
+                                        @if (filled($old_name) && auth()->user()?->isSuperAdmin())
+                                            <x-ui.button
+                                                type="button"
+                                                variant="danger"
+                                                wire:click="clearOldName"
+                                                wire:confirm="¿Retirar «{{ $old_name }}» como nombre anterior? Dejará de encontrarse la agencia por ese nombre."
+                                            >Quitar</x-ui.button>
+                                        @endif
+                                    </div>
                                 @elseif ($field === 'ubigeo_control')
                                     <div class="md:col-span-2 flex items-end gap-3">
                                         <div class="flex-1">
