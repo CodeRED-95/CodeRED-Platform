@@ -99,8 +99,8 @@ export function createShalomContentController(dependencies: ContentControllerDep
   const emittedLogs = new Set<string>();
 
   async function initializeContentScript(): Promise<void> {
-    console.log('[CodeRED Shalom] Content script iniciado');
-    console.log(`[CodeRED Shalom] URL actual: ${window.location.href}`);
+    debugLog('[CodeRED Shalom] Content script iniciado');
+    debugLog(`[CodeRED Shalom] URL actual: ${window.location.href}`);
     if (!hasRequiredContentGlobals()) return;
     // Puerta de runtime: fuera de las rutas autorizadas no se carga el
     // catálogo, no se inyecta la interfaz, no se arranca el MutationObserver y
@@ -115,7 +115,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     await refreshChannelDetection(true);
     await cargarDatos();
     const result = injectSearchIfPossible();
-    console.log('[CodeRED Shalom] Resultado de inyección', { reason: result.reason });
+    debugLog('[CodeRED Shalom] Resultado de inyección', { reason: result.reason });
     startInjectionObserver();
     startRouteObserver();
     listenForCatalogChanges();
@@ -125,7 +125,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     if (channel) activeChannel = channel;
     try {
       agencies = await requestCatalog();
-      console.log(`[CodeRED Shalom] Catálogo local cargado: ${agencies.length} agencias`);
+      debugLog(`[CodeRED Shalom] Catálogo local cargado: ${agencies.length} agencias`);
       refreshVisibleResults();
     } catch (error) {
       console.error('[CodeRED Shalom] Falló la carga del catálogo', serializeSafeError(error));
@@ -138,18 +138,18 @@ export function createShalomContentController(dependencies: ContentControllerDep
     const pathname = window.location.pathname;
     const allowedDomains = (dependencies.allowedDomains ?? DEFAULT_ALLOWED_DOMAINS).map((domain) => domain.trim().toLowerCase()).filter(Boolean);
     if (!isSupportedShalomHost(hostname)) {
-      console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'unsupported-page', hostname });
+      debugOnce(`skip:unsupported-page:${hostname}`, '[CodeRED Shalom] Inyección omitida', { reason: 'unsupported-page', hostname });
       return false;
     }
     if (!isSupportedShalomPath(pathname)) {
-      console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'unsupported-path', pathname });
+      debugOnce(`skip:unsupported-path:${pathname}`, '[CodeRED Shalom] Inyección omitida', { reason: 'unsupported-path', pathname });
       return false;
     }
     if (allowedDomains.length === 0 || allowedDomains.some((domain) => hostnameMatchesAllowedDomain(hostname, domain))) {
-      console.log('[CodeRED Shalom] Página compatible');
+      debugLog('[CodeRED Shalom] Página compatible');
       return true;
     }
-    console.warn('[CodeRED Shalom] Inyección omitida', { reason: 'domain-not-allowed', hostname, allowedDomains });
+    debugOnce(`skip:domain-not-allowed:${hostname}`, '[CodeRED Shalom] Inyección omitida', { reason: 'domain-not-allowed', hostname, allowedDomains });
     return false;
   }
 
@@ -162,17 +162,17 @@ export function createShalomContentController(dependencies: ContentControllerDep
       const serviceOrderTarget = findServiceOrderInsertionTarget();
       return serviceOrderTarget;
     }
-    console.log('[CodeRED Shalom] Buscando punto de inyección');
+    debugLog('[CodeRED Shalom] Buscando punto de inyección');
     const selectors = ['.mdl-layout__header-row', 'header .mdl-layout__header-row', '.mdl-layout__header', 'header', '[role="banner"]', '.navbar', '.topbar', '.header'];
     for (const selector of selectors) {
       const elements = Array.from(document.querySelectorAll(selector)).filter((element): element is HTMLElement => element instanceof HTMLElement);
       const visible = elements.find((element) => isElementVisible(element) && !element.closest(`#${CONTAINER_ID}`));
       if (visible) {
-        console.log(`[CodeRED Shalom] Target encontrado: ${selector}`);
+        debugLog(`[CodeRED Shalom] Target encontrado: ${selector}`);
         return { element: visible, selector, mode: 'interactive' };
       }
     }
-    console.log('[CodeRED Shalom] Target todavía no disponible');
+    debugLog('[CodeRED Shalom] Target todavía no disponible');
     return null;
   }
 
@@ -205,7 +205,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     for (const root of roots) {
       const insertionPoint = resolveServiceOrderSearchAnchor(root);
       if (insertionPoint) {
-        console.log('[CodeRED][SYSNEWOS] Search anchor resolved');
+        debugLog('[CodeRED][SYSNEWOS] Search anchor resolved');
         return insertionPoint;
       }
     }
@@ -360,7 +360,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
       bindSearchEvents(existing);
       bindChannelButtons(document, handleChannelChange);
       updateChannelBadge(existing);
-      console.log('[CodeRED Shalom] Buscador ya estaba inyectado');
+      debugLog('[CodeRED Shalom] Buscador ya estaba inyectado');
       return { success: true, reason: 'already-mounted', element: existing };
     }
 
@@ -371,7 +371,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
     mountSearchContainer(target, container);
     bindSearchEvents(container);
     bindChannelButtons(document, handleChannelChange);
-    console.log('[CodeRED Shalom] Buscador inyectado');
+    debugLog('[CodeRED Shalom] Buscador inyectado');
     positionOpenPanel(container);
     return { success: true, reason: 'mounted', element: container };
   }
@@ -388,7 +388,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
         void refreshChannelDetection();
         void handleRouteChange();
         const existing = document.getElementById(CONTAINER_ID);
-        if (!existing?.isConnected) console.log('[CodeRED Shalom] El header cambió; reinyectando');
+        if (!existing?.isConnected) debugLog('[CodeRED Shalom] El header cambió; reinyectando');
         const result = injectSearchIfPossible();
         if (result.element) positionOpenPanel(result.element);
       }, 100);
@@ -424,7 +424,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   function handleChannelChange(nextChannel: Exclude<ShalomChannel, 'AUTO'>): void {
     activeChannel = nextChannel;
-    console.log(`[CodeRED Shalom] Canal activo detectado: ${activeChannel}`);
+    debugLog(`[CodeRED Shalom] Canal activo detectado: ${activeChannel}`);
     const container = document.getElementById(CONTAINER_ID);
     if (!container) return;
     updateChannelBadge(container);
@@ -877,6 +877,25 @@ function resolveBadgeChannel(root: ParentNode): Exclude<ShalomChannel, 'AUTO'> |
   if (isServiceOrderItemsPath(window.location.pathname)) return detectComboboxChannel(root);
   if (resolvePageContext(window.location.pathname).mode === 'neutral') return null;
   return detectActiveShalomChannelState(root).channel;
+}
+
+/**
+ * Diagnostico de rutina del content script.
+ *
+ * Sale por `console.debug`, que Chrome oculta salvo que se active el nivel
+ * Verbose. Desde que el script se carga en todo *.shalomcontrol.com, estos
+ * mensajes aparecian en cada pagina del dominio —y los de "Inyeccion omitida",
+ * ademas, en cada comprobacion de ruta—, llenando la lista de errores del
+ * navegador con el funcionamiento normal.
+ */
+function debugLog(message: string, context?: Record<string, unknown>): void {
+  if (context === undefined) {
+    console.debug(message);
+
+    return;
+  }
+
+  console.debug(message, safeJson(context));
 }
 
 function safeJson(context: Record<string, unknown>): string {

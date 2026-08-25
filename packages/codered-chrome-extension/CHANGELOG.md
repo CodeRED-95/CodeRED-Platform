@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.1 - 2026-08-25
+
+- El content script deja de escribir en la consola de la pagina durante su funcionamiento normal. "Inyeccion omitida" y el resto de mensajes de diagnostico pasan a `console.debug`, oculto salvo que se active el nivel Verbose.
+- "Inyeccion omitida" ademas se registra una sola vez por ruta, en vez de en cada comprobacion.
+
 ## 2.8.0 - 2026-08-25
 
 - El control horario pasa a ser opt-in por token: solo se aplica en las instalaciones cuyo token lleva la ability `extension:blocking`, que se concede desde el panel de tokens de CodeRED Platform.

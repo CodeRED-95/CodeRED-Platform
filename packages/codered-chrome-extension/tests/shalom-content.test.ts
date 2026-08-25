@@ -373,7 +373,12 @@ describe('Shalom Control DOM integration', () => {
   });
 
   it('does not inject on a Shalom host outside the authorized routes', async () => {
-    const unsupportedPaths = ['/', '/inicio', '/ordenservicio', '/listaordenservicio/otra', '/service-order/otra', '/ordenservicio/listar/otra'];
+    // El content script se carga en todo el dominio, asi que la mayoria de las
+    // paginas caen aqui: no inyectar es el comportamiento normal y no debe
+    // ensuciar la consola de la pagina.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const unsupportedPaths = ['/', '/inicio', '/ordenservicio', '/mante/persona', '/listaordenservicio/otra', '/service-order/otra', '/ordenservicio/listar/otra'];
     for (const path of unsupportedPaths) {
       const dom = new JSDOM('<!doctype html><html><body><div class="mdl-layout__header-row"></div></body></html>', { url: `https://app.shalomcontrol.com${path}` });
       globalThis.window = dom.window as unknown as Window & typeof globalThis;
@@ -386,6 +391,13 @@ describe('Shalom Control DOM integration', () => {
       // Ni siquiera se solicita el catalogo fuera de las rutas autorizadas.
       expect(requestCatalog).not.toHaveBeenCalled();
     }
+
+    const avisos = warnSpy.mock.calls.filter(([message]) => String(message).includes('Inyección omitida'));
+    expect(avisos).toHaveLength(0);
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   it('injects on the authorized routes, with and without trailing slash', async () => {
