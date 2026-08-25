@@ -43,6 +43,16 @@ class ConfirmAgencyImportRunAction
                     $agency = $this->matchAgencyForWrite($incoming);
 
                     if ($item->action === 'create' && ! $agency) {
+                        // Ultima red: `agencies.code` es UNIQUE y la abreviatura
+                        // de Shalom no lo es. Si otra agencia ya la ocupa, crear
+                        // reventaria la transaccion entera y no se aplicaria
+                        // ningun cambio de la ejecucion.
+                        if (! empty($incoming['code']) && Agency::query()->where('code', $incoming['code'])->exists()) {
+                            $result['skipped']++;
+
+                            continue;
+                        }
+
                         $agency = new Agency;
                         $agency->status = AgencyStatus::UnderReview;
                         $agency->source = 'shalom_sync';

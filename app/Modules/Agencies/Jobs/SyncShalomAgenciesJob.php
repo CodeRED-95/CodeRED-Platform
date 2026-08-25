@@ -254,8 +254,16 @@ class SyncShalomAgenciesJob implements ShouldQueue
 
         if (! empty($incoming['code'])) {
             $agency = Agency::query()->where('code', $incoming['code'])->first();
+
             if ($agency && ! $this->belongsToAnotherAgency($agency, $externalId)) {
                 return [$agency, null];
+            }
+
+            // La abreviatura pertenece a otra agencia y la columna `code` es
+            // UNIQUE: no se puede emparejar (seria sobrescribir una ficha
+            // ajena) ni crear (violaria el indice). Lo decide una persona.
+            if ($agency) {
+                return [null, sprintf('la abreviatura %s ya pertenece a la agencia %s (external_id %s)', $incoming['code'], $agency->name, $agency->external_id ?? 'sin asignar')];
             }
         }
 
