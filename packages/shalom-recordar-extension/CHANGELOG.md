@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.0 - 2026-08-25
+
+### Changed
+
+- La clave se considera correcta y se captura cuando aparece el formulario de entrega (`frmEntrega`, `action="entrega/ajax"`), que el servidor inyecta solo tras validar el código. Antes se disparaba con el cierre del modal de validación, que también ocurre al cancelar o fallar, de modo que podía capturarse un código erróneo. Si hubo intentos fallidos, se envía el intento acertado (el último del buffer).
+
 ## 2.8.1 - 2026-08-25
 
 ### Fixed

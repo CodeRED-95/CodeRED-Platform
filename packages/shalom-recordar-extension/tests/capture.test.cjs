@@ -50,6 +50,7 @@ function reset() {
     timers.clear();
     timerSeq = 0;
     sandboxState.claveFields = {};
+    sandboxState.entregaForm = null;
 }
 
 function loadContentScript(sandbox) {
@@ -88,6 +89,7 @@ function createSandbox() {
             body: { nodeType: 1 },
             getElementById(id) {
                 if (id === 'modalValidarCodigo') return modal;
+                if (id === 'frmEntrega') return sandboxState.entregaForm || null;
                 if (sandboxState.claveFields[id]) return sandboxState.claveFields[id];
                 return null;
             },
@@ -121,18 +123,36 @@ function createSandbox() {
     };
 }
 
-function closeClaveModal() {
-    // SweetAlert resetea las casillas del PIN al cerrar el modal. El capturador
-    // no puede fiarse de sus valores en ese instante: la clave debe salir del
-    // buffer. Se vacian aqui para que la prueba refleje el DOM real.
+// El codigo fue correcto: el servidor inyecta el formulario de entrega y
+// SweetAlert resetea las casillas del PIN. Ambas cosas a la vez, para que la
+// prueba refleje el DOM real: la clave solo puede salir del buffer.
+function appearEntregaForm() {
     for (const field of Object.values(sandboxState.claveFields)) {
         field.value = '';
     }
+    sandboxState.entregaForm = {
+        id: 'frmEntrega',
+        getAttribute(name) {
+            if (name === 'action') return 'entrega/ajax';
+            if (name === 'style') return '';
+            return null;
+        },
+    };
+    fireRootObservers();
+}
+
+function removeEntregaForm() {
+    sandboxState.entregaForm = null;
+    fireRootObservers();
+}
+
+// Los observadores de raiz (documentElement/body) son los que llaman a
+// checkEntregaConfirmation; el del modal, si existiera, tiene id propio.
+function fireRootObservers() {
     for (const observer of mutationObservers) {
-        if (observer.target && observer.target.id === 'modalValidarCodigo') {
-            observer.target.style = 'display: none;';
-            observer.callback([{ attributeName: 'style', target: observer.target }]);
-        }
+        const targetId = observer.target && observer.target.id;
+        if (targetId === 'modalValidarCodigo' || targetId === 'frmEntrega') continue;
+        observer.callback([{ type: 'childList' }]);
     }
 }
 
@@ -189,6 +209,45 @@ test('RUC por input guarda una vez', () => {
     assert.equal(messages[0].data.value, '20004568791');
 });
 
+test('Clave no se captura si no aparece el formulario de entrega', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'swal-input1', value: '3535' });
+    runTimers();
+    // El modal se cerro pero el codigo NO era correcto: el formulario nunca
+    // aparece. No debe capturarse ninguna clave.
+    removeEntregaForm();
+
+    assert.equal(messages.length, 0);
+});
+
+test('Clave envia el intento acertado tras un intento fallido', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    // Primer intento equivocado: el formulario no aparece.
+    emit('input', { id: 'swal-input1', value: '0000' });
+    runTimers();
+    removeEntregaForm();
+    assert.equal(messages.length, 0);
+
+    // Se corrige y esta vez el formulario aparece: se envia el valor corregido.
+    emit('input', { id: 'swal-input1', value: '3535' });
+    runTimers();
+    appearEntregaForm();
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '3535');
+});
+
 test('Clave por input guarda Clave', () => {
     reset();
     const sandbox = createSandbox();
@@ -198,7 +257,7 @@ test('Clave por input guarda Clave', () => {
 
     emit('input', { id: 'swal-input1', value: '3535' });
     runTimers();
-    closeClaveModal();
+    appearEntregaForm();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');
@@ -215,7 +274,7 @@ test('Clave de 57 guarda un solo registro completo', () => {
     emit('input', { id: 'swal-input1', value: '5' });
     emit('input', { id: 'swal-input2', value: '7' });
     runTimers();
-    closeClaveModal();
+    appearEntregaForm();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');
@@ -231,7 +290,7 @@ test('Clave conserva ceros iniciales y el primer dígito completo', () => {
 
     emit('input', { id: 'swal-input1', value: '0123' });
     runTimers();
-    closeClaveModal();
+    appearEntregaForm();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');
@@ -250,7 +309,7 @@ test('Clave progresiva por input termina en un solo registro final', () => {
     emit('input', { id: 'swal-input1', value: '353' });
     emit('input', { id: 'swal-input1', value: '3535' });
     runTimers();
-    closeClaveModal();
+    appearEntregaForm();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');
@@ -269,7 +328,7 @@ test('Clave de 0123 conserva ceros iniciales', () => {
     emit('input', { id: 'swal-input3', value: '2' });
     emit('input', { id: 'swal-input4', value: '3' });
     runTimers();
-    closeClaveModal();
+    appearEntregaForm();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');
@@ -402,7 +461,7 @@ test('Clave con valor de 8 dígitos nunca se reclasifica como DNI', () => {
 
     emit('input', { id: 'swal-input1', value: '00456879' });
     runTimers();
-    closeClaveModal();
+    appearEntregaForm();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');

