@@ -8,6 +8,7 @@ import { buildMapsUrl } from '../utils/format';
 import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agency-selector';
 import { bindChannelButtons, detectActiveShalomChannelState, type ShalomChannel } from './shalom-page-adapter';
 import { createServiceOrderLockController } from './service-order-lock';
+import { DEFAULT_BLOCK_RULE_SET, parseBlockRuleSet } from '../shared/block-rules';
 import {
   getShalomPageCapabilities,
   hostnameMatchesAllowedDomain,
@@ -68,6 +69,11 @@ export function createShalomContentController(dependencies: ContentControllerDep
       if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.set !== 'function') return;
       await chrome.storage.local.set({ codered_service_order_lock: locked });
     },
+    getRuleSet: async () => {
+      if (typeof chrome === 'undefined' || typeof chrome.storage?.local?.get !== 'function') return DEFAULT_BLOCK_RULE_SET;
+      const data = await chrome.storage.local.get(['codered_block_rules']);
+      return parseBlockRuleSet(data.codered_block_rules) ?? DEFAULT_BLOCK_RULE_SET;
+    },
   });
   const emittedLogs = new Set<string>();
 
@@ -80,10 +86,13 @@ export function createShalomContentController(dependencies: ContentControllerDep
     // no se escuchan cambios de storage. El manifest ya restringe la
     // inyección, pero esta comprobación es la que garantiza que no se ejecute
     // nada en rutas parecidas ni tras una navegación SPA.
+    // El bloqueo horario se inicializa ANTES de la puerta del buscador: sus
+    // reglas las define el panel y pueden cubrir rutas de shalomcontrol.com
+    // donde el buscador no se inyecta.
+    await serviceOrderLock.initialize();
     if (!isSupportedShalomPage()) return;
     await refreshChannelDetection(true);
     await cargarDatos();
-    await serviceOrderLock.initialize();
     const result = injectSearchIfPossible();
     console.log('[CodeRED Shalom] Resultado de inyección', { reason: result.reason });
     startInjectionObserver();

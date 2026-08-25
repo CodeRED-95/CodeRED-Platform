@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\DeclarationController;
 use App\Http\Controllers\Api\V1\DesktopUpdateController;
 use App\Http\Controllers\Api\V1\DniApiController;
+use App\Http\Controllers\Api\V1\ExtensionBlockRulesController;
 use App\Http\Controllers\Api\V1\ExtensionChromeConfigController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Integrations\IntegrationDiscoveryController;
@@ -108,6 +109,9 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         });
     });
     Route::middleware(['auth:sanctum', 'api.token-owner-active', 'api.private-cache'])->group(function (): void {
+        Route::get('/extension/chrome/block-rules', ExtensionBlockRulesController::class)
+            ->middleware(['throttle:api'])
+            ->name('extension.chrome.block-rules');
         Route::prefix('shalom-recordar')->name('shalom-recordar.')->group(function (): void {
             Route::post('/installation', [ShalomRecordarSyncController::class, 'register'])
                 ->middleware(['throttle:shalom-recordar'])

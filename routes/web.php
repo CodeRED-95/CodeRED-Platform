@@ -28,6 +28,7 @@ use App\Livewire\Admin\Settings\AgencyBackups as AgencyBackupSettings;
 use App\Livewire\Admin\Settings\ApiDocumentation as ApiDocumentationSettings;
 use App\Livewire\Admin\Settings\Dni as DniSettings;
 use App\Livewire\Admin\Settings\N8n as N8nSettings;
+use App\Livewire\Admin\Settings\ExtensionBlocking as ExtensionBlockingSettings;
 use App\Livewire\Admin\Settings\Ubigeos as UbigeoSettings;
 use App\Livewire\Admin\ShalomRecordar\Index as ShalomRecordarIndex;
 use App\Livewire\Admin\ShalomRecordar\InstallationShow as ShalomRecordarInstallationShow;
@@ -138,6 +139,7 @@ Route::get('/admin/settings/dni', DniSettings::class)->middleware(['auth'])->nam
 Route::get('/admin/settings/api-documentation', ApiDocumentationSettings::class)->middleware(['auth'])->name('admin.settings.api-documentation');
 Route::get('/admin/settings/agency-backups', AgencyBackupSettings::class)->middleware(['auth'])->name('admin.settings.agency-backups');
 Route::get('/admin/settings/ubigeos', UbigeoSettings::class)->middleware(['auth'])->name('admin.settings.ubigeos');
+Route::get('/admin/settings/bloqueo-extension', ExtensionBlockingSettings::class)->middleware(['auth'])->name('admin.settings.extension-blocking');
 Route::get('/admin/integrations/n8n', N8nSettings::class)->middleware(['auth'])->name('admin.integrations.n8n');
 Route::get('/admin/design-system', DesignSystem::class)
     ->middleware(['auth'])

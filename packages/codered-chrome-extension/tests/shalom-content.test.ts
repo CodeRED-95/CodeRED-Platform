@@ -125,30 +125,15 @@ describe('manifest injection scope', () => {
     // que sigan apuntando al dominio anterior. Eliminar cuando codered.lat
     // este validado al 100% y se publique una nueva version de la extension.
     expect(manifest.host_permissions).toContain('https://platform.codered.host/*');
-    // La inyeccion queda restringida a las dos rutas autorizadas de cualquier
-    // subdominio de shalomcontrol.com. Las variantes con '?*' cubren las URLs
-    // con query string, ya que Chrome compara el patron de ruta contra
-    // pathname + query.
-    expect(manifest.content_scripts[0].matches).toEqual([
-      'https://*.shalomcontrol.com/listaordenservicio',
-      'https://*.shalomcontrol.com/listaordenservicio/',
-      'https://*.shalomcontrol.com/listaordenservicio?*',
-      'https://*.shalomcontrol.com/listaordenservicio/?*',
-      'https://*.shalomcontrol.com/service-order',
-      'https://*.shalomcontrol.com/service-order/',
-      'https://*.shalomcontrol.com/service-order?*',
-      'https://*.shalomcontrol.com/service-order/?*',
-      'https://*.shalomcontrol.com/ordenservicio/listar',
-      'https://*.shalomcontrol.com/ordenservicio/listar/',
-      'https://*.shalomcontrol.com/ordenservicio/listar?*',
-      'https://*.shalomcontrol.com/ordenservicio/listar/?*',
-    ]);
-    // Ninguna ruta comodin sobre shalomcontrol.com ni shalom.pe.
-    expect(manifest.content_scripts[0].matches).not.toContain('https://*.shalomcontrol.com/*');
-    expect(manifest.content_scripts[0].matches).not.toContain('https://shalomcontrol.com/*');
+    // La inyeccion cubre todo shalomcontrol.com porque el bloqueo horario se
+    // configura desde el panel de la Plataforma y puede apuntar a cualquier
+    // ruta del dominio. El buscador sigue acotado por isSupportedShalomPage().
+    expect(manifest.content_scripts[0].matches).toEqual(['https://*.shalomcontrol.com/*']);
     expect(manifest.content_scripts[0].matches.some((m) => m.includes('shalom.pe'))).toBe(false);
     expect(manifest.host_permissions.some((h) => h.includes('shalom.pe'))).toBe(false);
-    expect(manifest.host_permissions).not.toContain('https://*.shalomcontrol.com/*');
+    // El alcance sigue limitado al dominio corporativo: nada de <all_urls>.
+    expect(manifest.host_permissions).not.toContain('<all_urls>');
+    expect(manifest.host_permissions.every((h) => h.includes('shalomcontrol.com') || h.includes('codered'))).toBe(true);
     expect(manifest.content_scripts[0].matches).not.toContain('https://platform.codered.lat/*');
     expect(manifest.content_scripts[0].matches).not.toContain('https://platform.codered.host/*');
     expect(manifest.content_scripts[0].run_at).toBe('document_idle');

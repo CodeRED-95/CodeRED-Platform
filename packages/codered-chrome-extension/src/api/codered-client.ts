@@ -1,4 +1,5 @@
 import { adaptAgency, type Agency } from '../models/agency';
+import { parseBlockRuleSet, type BlockRuleSet } from '../shared/block-rules';
 
 export class CodeRedApiError extends Error {
   constructor(public status: number, message: string) {
@@ -40,6 +41,12 @@ export class CodeRedClient {
     }
 
     return { agencies, cursor, catalogRevision };
+  }
+
+  /** Reglas de bloqueo horario publicadas desde el panel de la Plataforma. */
+  async fetchBlockRules(): Promise<BlockRuleSet | null> {
+    const data = await this.request<Record<string, unknown>>('/extension/chrome/block-rules');
+    return parseBlockRuleSet(data);
   }
 
   async fetchChanges(cursor: string) {

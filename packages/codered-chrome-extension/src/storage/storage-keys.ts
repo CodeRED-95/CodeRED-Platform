@@ -6,6 +6,7 @@ export const STORAGE_KEYS = {
   LAST_SYNC_AT: 'codered_last_sync_at',
   LAST_SYNC_STATUS: 'codered_last_sync_status',
   SYNC_METADATA: 'codered_sync_metadata',
+  BLOCK_RULES: 'codered_block_rules',
   SERVICE_ORDER_LOCK: 'codered_service_order_lock',
   SERVICE_ORDER_FORCED_UNLOCK: 'codered_service_order_forced_unlock',
 } as const;

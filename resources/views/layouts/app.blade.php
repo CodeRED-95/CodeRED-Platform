@@ -99,6 +99,7 @@
                                 ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => $menuUser->hasPermission('settings.api-documentation.update')],
                                 ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => $menuUser->hasPermission('settings.agency-backups.update')],
                                 ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => $menuUser->hasPermission('settings.ubigeos.update')],
+                                ['label' => 'Bloqueo extensión', 'route' => 'admin.settings.extension-blocking', 'icon' => '⏱', 'can' => $menuUser->hasPermission('settings.extension-blocking.view')],
                                 ['label' => 'n8n', 'route' => 'admin.integrations.n8n', 'icon' => '↗', 'can' => $menuUser->hasPermission('integrations.n8n.manage')],
                             ],
                         ];
@@ -295,6 +296,7 @@
                                 ['label' => 'Documentación API', 'route' => 'admin.settings.api-documentation', 'icon' => '⚙', 'can' => $menuUser->hasPermission('settings.api-documentation.update')],
                                 ['label' => 'Copias de agencias', 'route' => 'admin.settings.agency-backups', 'icon' => '⚙', 'can' => $menuUser->hasPermission('settings.agency-backups.update')],
                                 ['label' => 'Ubigeos', 'route' => 'admin.settings.ubigeos', 'icon' => '⌖', 'can' => $menuUser->hasPermission('settings.ubigeos.update')],
+                                ['label' => 'Bloqueo extensión', 'route' => 'admin.settings.extension-blocking', 'icon' => '⏱', 'can' => $menuUser->hasPermission('settings.extension-blocking.view')],
                                 ['label' => 'n8n', 'route' => 'admin.integrations.n8n', 'icon' => '↗', 'can' => $menuUser->hasPermission('integrations.n8n.manage')],
                             ],
                         ];

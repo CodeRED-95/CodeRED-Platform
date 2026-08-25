@@ -66,6 +66,7 @@ npm run build:extension
 - `GET /api/v1/catalog/metadata`: revision del catalogo y cursor.
 - `GET /api/v1/agencies`: sincronizacion completa paginada.
 - `GET /api/v1/agencies/changes`: sincronizacion incremental cuando el cursor sea valido.
+- `GET /api/v1/extension/chrome/block-rules`: reglas de bloqueo horario publicadas desde el panel. No exige un scope concreto, basta un token valido, porque la configuracion es global.
 
 Scopes requeridos: `agencias:consultar`, `agencies:read`, `agencies:map`.
 
@@ -126,14 +127,28 @@ Configurar `API_ALLOWED_ORIGINS` con el origen de la extension si se restringe e
 - Popup con `No fue posible leer el estado local`: revisar permisos `storage`, service worker en `chrome://extensions` y recargar la extension.
 - Content script no aparece: recargar la pestaña de Shalom Control despues de recargar la extension.
 
+## Bloqueo horario
+
+El horario de bloqueo no vive en el codigo: lo administra un super-admin en CodeRED Platform, en `Configuracion > Bloqueo extension` (`/admin/settings/bloqueo-extension`), y se aplica a todas las instalaciones que sincronizan con un token valido.
+
+Cada regla define:
+
+- **Dominio y ruta**: `sysnewos.shalomcontrol.com` + `/service-order`, o comodines (`*.shalomcontrol.com`, `/ordenservicio/*`). Solo se admiten hosts de `shalomcontrol.com`, que es el unico dominio con `host_permissions`.
+- **Modo**: `horario permitido` (fuera de las ventanas se bloquea, el comportamiento historico) u `horario bloqueado` (solo se bloquea dentro de las ventanas).
+- **Ventanas por dia**: lunes a sabado 08:00-20:05 y domingo 08:00-17:05 es un caso valido. Un dia sin ventana queda bloqueado el dia entero en modo permitido.
+- **Zona horaria**: `America/Lima` por defecto; los limites se calculan con `Intl`, no con un desfase fijo.
+
+El service worker descarga las reglas al instalar la extension, al arrancar el navegador, cada 30 minutos y en cada sincronizacion manual. Guarda la ultima copia en `chrome.storage.local` (`codered_block_rules`): si la red falla se conserva el bloqueo anterior y, si nunca se sincronizo nada, se aplica `DEFAULT_BLOCK_RULE_SET`, que reproduce el horario historico de Service Order.
+
+El bloqueo manual y el desbloqueo forzoso del popup no cambian: el desbloqueo forzoso sigue caducando al llegar el proximo cambio de horario de la regla afectada.
+
 ## Dominios compatibles
 
-La extension inyecta el buscador solamente en:
+El content script se carga en `https://*.shalomcontrol.com/*` (todo el dominio, para poder aplicar el bloqueo horario en cualquier ruta que configure el panel). El **buscador** sigue inyectandose solo en las rutas soportadas, que decide `isSupportedShalomPage()` en tiempo de ejecucion:
 
-- `https://shalom.pe/*`
-- `https://*.shalom.pe/*`
-- `https://shalomcontrol.com/*`
-- `https://*.shalomcontrol.com/*`
+- `/listaordenservicio`
+- `/service-order`
+- `/ordenservicio/listar`
 
 `https://platform.codered.lat/*` permanece en `host_permissions` para que el service worker sincronice con CodeRED Platform, pero no esta en `content_scripts.matches` y no recibe el buscador.
 

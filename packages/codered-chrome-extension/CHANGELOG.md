@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.0 - 2026-08-24
+
+- El horario de bloqueo deja de estar escrito en el codigo: ahora lo define el panel `Configuracion > Bloqueo extension` de CodeRED Platform y se descarga desde `GET /api/v1/extension/chrome/block-rules`.
+- Soporta varias reglas, horarios distintos por dia (por ejemplo lunes a sabado 08:00-20:05 y domingo 08:00-17:05), zona horaria configurable y modo "horario permitido" u "horario bloqueado".
+- Las reglas se refrescan al arrancar el navegador, cada 30 minutos y en cada sincronizacion manual; si no hay conexion se conserva la ultima copia local y, sin ninguna, se aplica el horario historico de Service Order.
+- El content script cubre todo `*.shalomcontrol.com` para poder bloquear cualquier ruta que configure el panel; el buscador de agencias sigue limitado a las rutas de siempre.
+- El popup muestra el nombre, el horario y la zona horaria de la regla que afecta a la pestana activa. El bloqueo manual y el desbloqueo forzoso se mantienen sin cambios.
+
 ## 2.3.15 - 2026-08-16
 
 - Añade desbloqueo forzoso exclusivo desde el popup con confirmación explícita y persistencia por periodo restringido de Lima.

@@ -63,7 +63,7 @@
       <section class="popup-card popup-card--lock" aria-label="Control de Service Order" aria-live="polite" aria-atomic="true">
         <div class="card-header">
           <div>
-            <h2>Control de Service Order</h2>
+            <h2 id="service-order-lock-title">Control de Service Order</h2>
             <p id="service-order-lock-description" class="description">El horario automático sigue el horario de Lima, Perú (GMT-5).</p>
           </div>
           <span id="service-order-lock-state" class="pill" data-tone="muted">DESCONOCIDO</span>
@@ -73,8 +73,8 @@
           <div class="lock-grid">
             <div class="lock-grid__top">
               <div class="lock-grid__item">
-                <strong>Horario permitido</strong>
-                <span>08:00 h - 20:05 h</span>
+                <strong id="service-order-lock-schedule-title">Horario permitido</strong>
+                <span id="service-order-lock-schedule">08:00 h - 20:05 h</span>
               </div>
               <div class="lock-grid__item" style="text-align:right">
                 <strong>Próximo cambio</strong>

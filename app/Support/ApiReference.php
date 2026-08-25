@@ -438,6 +438,30 @@ final class ApiReference
                     'response' => self::json(['success' => true, 'data' => ['min_version' => '2.7.0', 'features' => ['sync' => true]]]),
                     'errors' => ['429'],
                 ],
+                [
+                    'method' => 'GET',
+                    'path' => '/api/v1/extension/chrome/block-rules',
+                    'title' => 'Reglas de bloqueo horario',
+                    'ability' => null,
+                    'auth' => true,
+                    'description' => 'Horarios de bloqueo configurados en el panel. Cualquier token válido puede leerlas: la configuración es global para todas las instalaciones.',
+                    'params' => [],
+                    'request' => self::curl('GET', '/extension/chrome/block-rules'),
+                    'response' => self::json(['success' => true, 'data' => [
+                        'version' => 'a1b2c3…',
+                        'generated_at' => '2026-08-24T08:00:00-05:00',
+                        'rules' => [[
+                            'id' => 1,
+                            'label' => 'Service Order',
+                            'host_pattern' => 'sysnewos.shalomcontrol.com',
+                            'path_pattern' => '/service-order',
+                            'window_mode' => 'allowed',
+                            'timezone' => 'America/Lima',
+                            'windows' => [['day_of_week' => 1, 'start_time' => '08:00', 'end_time' => '20:05']],
+                        ]],
+                    ]]),
+                    'errors' => ['401', '429'],
+                ],
             ],
         ];
     }

@@ -1,12 +1,19 @@
 import { STORAGE_KEYS } from '../storage/storage-keys';
-import { formatRemainingDuration, getRestrictedPeriodId, getNextAllowedServiceOrderDate, getServiceOrderScheduleState } from '../shared/lima-time';
+import {
+  DEFAULT_BLOCK_RULE_SET,
+  evaluateRuleSet,
+  formatRemainingDuration,
+  getRulePeriodId,
+  getNextRuleChange,
+  type BlockRule,
+  type BlockRuleSet,
+} from '../shared/block-rules';
 
 const OVERLAY_ID = 'codered-service-order-lock-overlay';
 const STORAGE_EVENT_KEY = STORAGE_KEYS.SERVICE_ORDER_LOCK;
 const FORCED_UNLOCK_KEY = STORAGE_KEYS.SERVICE_ORDER_FORCED_UNLOCK;
+const BLOCK_RULES_KEY = STORAGE_KEYS.BLOCK_RULES;
 const LOCK_ATTRIBUTE = 'data-codered-service-order-locked';
-const TARGET_HOSTNAME = 'sysnewos.shalomcontrol.com';
-const TARGET_PATH = '/service-order';
 const FORCED_UNLOCK_LOG_KEY = 'codered_service_order_forced_unlock_log';
 
 export type ServiceOrderForcedUnlock = {
@@ -24,6 +31,9 @@ export type ServiceOrderLockState = {
   forcedUnlockActive: boolean;
   reason: 'schedule' | 'manual' | 'schedule+manual' | 'unlocked' | 'outside-scope';
   remainingLabel: string;
+  ruleLabel: string;
+  scheduleLabel: string;
+  windowMode: 'allowed' | 'blocked';
 };
 
 type StorageCallback = (state: ServiceOrderLockState) => void;
@@ -31,9 +41,11 @@ type StorageCallback = (state: ServiceOrderLockState) => void;
 export function createServiceOrderLockController(deps: {
   getManualLock: () => Promise<boolean>;
   setManualLock: (locked: boolean) => Promise<void>;
+  getRuleSet?: () => Promise<BlockRuleSet>;
 }) {
   let manualLocked = false;
   let forcedUnlock: ServiceOrderForcedUnlock | null = null;
+  let ruleSet: BlockRuleSet = DEFAULT_BLOCK_RULE_SET;
   let initialized = false;
   let overlay: HTMLElement | null = null;
   let countdownTimer: number | null = null;
@@ -49,10 +61,22 @@ export function createServiceOrderLockController(deps: {
     initialized = true;
     manualLocked = await deps.getManualLock();
     forcedUnlock = await readForcedUnlock();
+    ruleSet = await readRuleSet();
     bindStorageListener();
     bindRouteObservers();
     startStateTimer();
     evaluateAndRender();
+  }
+
+  async function readRuleSet(): Promise<BlockRuleSet> {
+    if (deps.getRuleSet) {
+      try {
+        return await deps.getRuleSet();
+      } catch {
+        return ruleSet;
+      }
+    }
+    return ruleSet;
   }
 
   function bindStorageListener(): void {
@@ -63,6 +87,14 @@ export function createServiceOrderLockController(deps: {
       if (areaName !== 'local') return;
       if (STORAGE_EVENT_KEY in changes) manualLocked = Boolean(changes[STORAGE_EVENT_KEY].newValue);
       if (FORCED_UNLOCK_KEY in changes) forcedUnlock = normalizeForcedUnlock(changes[FORCED_UNLOCK_KEY].newValue);
+      if (BLOCK_RULES_KEY in changes) {
+        // El panel publico reglas nuevas: se aplican sin recargar la pagina.
+        void readRuleSet().then((next) => {
+          ruleSet = next;
+          evaluateAndRender();
+        });
+        return;
+      }
       evaluateAndRender();
     });
   }
@@ -105,27 +137,24 @@ export function createServiceOrderLockController(deps: {
     if (stateTimer) return;
     stateTimer = window.setInterval(() => {
       void refreshForcedUnlockIfNeeded().then(() => {
-        if (isTargetPage()) evaluateAndRender();
+        evaluateAndRender();
       });
     }, 1000);
   }
 
-  function isTargetPage(): boolean {
-    return window.location.hostname.toLowerCase() === TARGET_HOSTNAME && normalizePath(window.location.pathname) === TARGET_PATH;
+  function currentEvaluation(now = new Date()) {
+    return evaluateRuleSet(ruleSet, window.location.hostname, window.location.pathname, now);
   }
 
-  function normalizePath(pathname: string): string {
-    return pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  function activeRule(): BlockRule | null {
+    return currentEvaluation().rule;
   }
 
   function evaluateState(): ServiceOrderLockState {
-    const visible = isTargetPage();
     const now = new Date();
-    const scheduleState = getServiceOrderScheduleState(now, manualLocked);
-    const forcedUnlockActive = isForcedUnlockValid(now);
-    const locked = manualLocked || (scheduleState.lockedBySchedule && !forcedUnlockActive);
+    const evaluation = currentEvaluation(now);
 
-    if (!visible) {
+    if (!evaluation.matched || !evaluation.rule) {
       return {
         visible: false,
         locked: false,
@@ -134,25 +163,35 @@ export function createServiceOrderLockController(deps: {
         forcedUnlockActive: false,
         reason: 'outside-scope',
         remainingLabel: '',
+        ruleLabel: '',
+        scheduleLabel: '',
+        windowMode: 'allowed',
       };
     }
+
+    const lockedBySchedule = evaluation.blockedBySchedule;
+    const forcedUnlockActive = isForcedUnlockValid(evaluation.rule, now);
+    const locked = manualLocked || (lockedBySchedule && !forcedUnlockActive);
 
     return {
       visible: true,
       locked,
-      lockedBySchedule: scheduleState.lockedBySchedule,
+      lockedBySchedule,
       manualLocked,
       forcedUnlockActive,
       reason: manualLocked
-        ? scheduleState.lockedBySchedule && forcedUnlockActive
+        ? lockedBySchedule && forcedUnlockActive
           ? 'schedule+manual'
           : 'manual'
-        : scheduleState.lockedBySchedule
+        : lockedBySchedule
           ? forcedUnlockActive
             ? 'unlocked'
             : 'schedule'
           : 'unlocked',
-      remainingLabel: scheduleState.remainingLabel,
+      remainingLabel: evaluation.remainingLabel,
+      ruleLabel: evaluation.rule.label,
+      scheduleLabel: evaluation.scheduleLabel,
+      windowMode: evaluation.rule.windowMode,
     };
   }
 
@@ -195,7 +234,16 @@ export function createServiceOrderLockController(deps: {
   }
 
   function overlayMarkup(state: ServiceOrderLockState): string {
-    const reason = state.reason === 'schedule+manual' ? 'Horario + bloqueo manual' : 'Fuera del horario permitido';
+    const reason = state.reason === 'schedule+manual'
+      ? 'Horario + bloqueo manual'
+      : state.reason === 'manual'
+        ? 'Bloqueo manual'
+        : state.windowMode === 'allowed'
+          ? 'Fuera del horario permitido'
+          : 'Dentro del horario bloqueado';
+    const scheduleTitle = state.windowMode === 'allowed' ? 'Horario permitido' : 'Horario bloqueado';
+    const nextChange = nextChangeLabel();
+
     return `
       <div class="codered-service-order-lock-card">
         <div class="codered-service-order-lock-hero">
@@ -207,19 +255,33 @@ export function createServiceOrderLockController(deps: {
           <div class="codered-service-order-lock-hero-copy">
             <span class="codered-service-order-lock-badge">Bloqueo activo</span>
             <h2>Operaciones temporalmente bloqueadas</h2>
-            <p>Las operaciones en este módulo se encuentran fuera del horario permitido.</p>
-            <p class="codered-service-order-lock-emphasis">Podrás continuar a partir de las 08:00 h.</p>
+            <p>${escapeHtml(state.ruleLabel)}: las operaciones en este módulo están bloqueadas en este momento.</p>
+            ${nextChange ? `<p class="codered-service-order-lock-emphasis">Podrás continuar ${escapeHtml(nextChange)}.</p>` : ''}
           </div>
         </div>
 
         <dl class="codered-service-order-lock-details">
           <div><dt>Estado</dt><dd class="codered-service-order-lock-pill">BLOQUEADO</dd></div>
           <div><dt>Motivo</dt><dd>${escapeHtml(reason)}</dd></div>
-          <div><dt>Horario permitido</dt><dd>08:00 h - 20:05 h</dd></div>
+          <div><dt>${escapeHtml(scheduleTitle)}</dt><dd>${escapeHtml(state.scheduleLabel)}</dd></div>
           <div><dt>Disponible nuevamente en</dt><dd id="codered-service-order-lock-countdown" class="codered-service-order-lock-countdown">${state.remainingLabel}</dd></div>
         </dl>
       </div>
     `;
+  }
+
+  function nextChangeLabel(): string {
+    const rule = activeRule();
+    if (!rule) return '';
+    const next = getNextRuleChange(rule, new Date());
+    if (!next) return '';
+
+    return new Intl.DateTimeFormat('es-PE', {
+      timeZone: rule.timezone,
+      weekday: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(next);
   }
 
   function applyOverlayStyles(element: HTMLElement): void {
@@ -353,10 +415,10 @@ export function createServiceOrderLockController(deps: {
     return candidate as ServiceOrderForcedUnlock;
   }
 
-  function isForcedUnlockValid(now = new Date()): boolean {
+  function isForcedUnlockValid(rule: BlockRule, now = new Date()): boolean {
     if (!forcedUnlock?.active) return false;
     const expiresAt = Date.parse(forcedUnlock.expiresAt);
-    const currentPeriodId = getRestrictedPeriodId(now);
+    const currentPeriodId = getRulePeriodId(rule, now);
     if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime()) return false;
     if (!currentPeriodId || forcedUnlock.restrictedPeriodId !== currentPeriodId) return false;
     return true;
@@ -369,8 +431,17 @@ export function createServiceOrderLockController(deps: {
       return;
     }
     const now = new Date();
+    const rule = activeRule();
     const expiresAt = Date.parse(current.expiresAt);
-    const currentPeriodId = getRestrictedPeriodId(now);
+    const currentPeriodId = rule ? getRulePeriodId(rule, now) : null;
+
+    // Fuera del alcance de cualquier regla no se toca la excepcion: sigue
+    // siendo valida para la pestana que si esta bloqueada.
+    if (!rule) {
+      forcedUnlock = current;
+      return;
+    }
+
     if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime() || !currentPeriodId || currentPeriodId !== current.restrictedPeriodId) {
       forcedUnlock = null;
       if (typeof chrome !== 'undefined' && typeof chrome.storage?.local?.remove === 'function') {
@@ -385,12 +456,14 @@ export function createServiceOrderLockController(deps: {
   async function setForcedUnlockActive(active: boolean): Promise<void> {
     if (active) {
       const now = new Date();
-      const nextAllowed = getNextAllowedServiceOrderDate(now);
+      const rule = activeRule();
+      if (!rule) return;
+      const nextChange = getNextRuleChange(rule, now);
       const value: ServiceOrderForcedUnlock = {
         active: true,
         createdAt: now.toISOString(),
-        expiresAt: nextAllowed.toISOString(),
-        restrictedPeriodId: getRestrictedPeriodId(now) ?? '',
+        expiresAt: (nextChange ?? new Date(now.getTime() + 60 * 60 * 1000)).toISOString(),
+        restrictedPeriodId: getRulePeriodId(rule, now) ?? '',
       };
       forcedUnlock = value;
       await chrome.storage.local.set({ [FORCED_UNLOCK_KEY]: value });
@@ -442,6 +515,10 @@ export function createServiceOrderLockController(deps: {
     setManualLock,
     setForcedUnlockActive,
     refresh: evaluateAndRender,
+    async reloadRules(): Promise<void> {
+      ruleSet = await readRuleSet();
+      evaluateAndRender();
+    },
     destroy() {
       stopCountdown();
       if (stateTimer) window.clearInterval(stateTimer);

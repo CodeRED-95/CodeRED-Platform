@@ -44,6 +44,8 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'settings.api-documentation.update', 'name' => 'Configurar documentación API'],
                 ['slug' => 'settings.agency-backups.update', 'name' => 'Configurar copias de agencias'],
                 ['slug' => 'settings.ubigeos.update', 'name' => 'Sincronizar catálogo de UBIGEO'],
+                ['slug' => 'settings.extension-blocking.view', 'name' => 'Ver bloqueo horario de la extensión'],
+                ['slug' => 'settings.extension-blocking.manage', 'name' => 'Gestionar bloqueo horario de la extensión'],
                 ['slug' => 'settings.dni.view', 'name' => 'Ver ajustes DNI'],
                 ['slug' => 'settings.dni.update', 'name' => 'Actualizar ajustes DNI'],
                 ['slug' => 'settings.dni.test', 'name' => 'Probar proveedor DNI'],

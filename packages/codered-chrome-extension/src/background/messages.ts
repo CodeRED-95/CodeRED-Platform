@@ -12,6 +12,8 @@ export type RuntimeRequest =
   | { type: 'CONFIG_GET' }
   | { type: 'CONFIG_SAVE'; token: string }
   | { type: 'TOKEN_DELETE' }
+  | { type: 'BLOCK_RULES_GET' }
+  | { type: 'BLOCK_RULES_SYNC' }
   | { type: 'SERVICE_ORDER_LOCK_GET' }
   | { type: 'SERVICE_ORDER_LOCK_SET'; locked: boolean }
   | { type: 'SERVICE_ORDER_FORCED_UNLOCK_GET' }
@@ -32,6 +34,8 @@ export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
     case 'CATALOG_STATUS':
     case 'CONFIG_GET':
     case 'API_TEST_CONNECTION':
+    case 'BLOCK_RULES_GET':
+    case 'BLOCK_RULES_SYNC':
     case 'SERVICE_ORDER_LOCK_GET':
     case 'SERVICE_ORDER_FORCED_UNLOCK_GET':
       return true;

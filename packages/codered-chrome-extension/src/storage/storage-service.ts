@@ -2,7 +2,7 @@ import type { Agency } from '../models/agency';
 import { type ExtensionConfiguration, type SyncMetadata } from '../models/configuration';
 import { maskToken } from '../utils/format';
 import { LEGACY_CATALOG_KEYS, LEGACY_SYNC_METADATA_KEYS, LEGACY_TOKEN_KEYS, STORAGE_KEYS } from './storage-keys';
-import { getRestrictedPeriodId } from '../shared/lima-time';
+import { DEFAULT_BLOCK_RULE_SET, getRulePeriodId, parseBlockRuleSet, type BlockRule, type BlockRuleSet } from '../shared/block-rules';
 
 export interface ServiceOrderForcedUnlock {
   active: boolean;
@@ -88,6 +88,36 @@ export class ChromeStorageService {
     });
   }
 
+  /**
+   * Reglas publicadas por la Plataforma. Mientras no se haya sincronizado
+   * ninguna se devuelve el conjunto por defecto, que replica el bloqueo
+   * historico de Service Order: una instalacion sin red nunca queda sin
+   * bloqueo.
+   */
+  async getBlockRuleSet(): Promise<BlockRuleSet> {
+    const data = await chrome.storage.local.get([STORAGE_KEYS.BLOCK_RULES]);
+    const stored = parseBlockRuleSet(data[STORAGE_KEYS.BLOCK_RULES]);
+    return stored ?? DEFAULT_BLOCK_RULE_SET;
+  }
+
+  async saveBlockRuleSet(ruleSet: BlockRuleSet): Promise<void> {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.BLOCK_RULES]: {
+        version: ruleSet.version,
+        generated_at: ruleSet.generatedAt,
+        rules: ruleSet.rules.map((rule) => ({
+          id: rule.id,
+          label: rule.label,
+          host_pattern: rule.hostPattern,
+          path_pattern: rule.pathPattern,
+          window_mode: rule.windowMode,
+          timezone: rule.timezone,
+          windows: rule.windows.map((window) => ({ day_of_week: window.dayOfWeek, start_time: window.start, end_time: window.end })),
+        })),
+      },
+    });
+  }
+
   async getServiceOrderLock(): Promise<boolean> {
     const data = await chrome.storage.local.get([STORAGE_KEYS.SERVICE_ORDER_LOCK]);
     return data[STORAGE_KEYS.SERVICE_ORDER_LOCK] === true;
@@ -117,11 +147,11 @@ export class ChromeStorageService {
     await chrome.storage.local.set({ [STORAGE_KEYS.SERVICE_ORDER_FORCED_UNLOCK]: value });
   }
 
-  async clearExpiredServiceOrderForcedUnlock(now = new Date()): Promise<void> {
+  async clearExpiredServiceOrderForcedUnlock(rule: BlockRule | null, now = new Date()): Promise<void> {
     const forcedUnlock = await this.getServiceOrderForcedUnlock();
     if (!forcedUnlock) return;
     const expiresAt = Date.parse(forcedUnlock.expiresAt);
-    const activePeriodId = getRestrictedPeriodId(now);
+    const activePeriodId = rule ? getRulePeriodId(rule, now) : null;
     if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime() || !activePeriodId || forcedUnlock.restrictedPeriodId !== activePeriodId) {
       await this.setServiceOrderForcedUnlock(null);
     }

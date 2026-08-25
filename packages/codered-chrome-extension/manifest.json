@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Buscador Shalom Control",
   "short_name": "Shalom Control",
-  "version": "2.3.15",
+  "version": "2.4.0",
   "description": "Cliente ligero de CodeRED Platform para buscar agencias Shalom con cache local.",
   "action": {
     "default_title": "Buscador Shalom",
@@ -26,18 +26,7 @@
   "host_permissions": [
     "https://platform.codered.lat/*",
     "https://platform.codered.host/*",
-    "https://*.shalomcontrol.com/listaordenservicio",
-    "https://*.shalomcontrol.com/listaordenservicio/",
-    "https://*.shalomcontrol.com/listaordenservicio?*",
-    "https://*.shalomcontrol.com/listaordenservicio/?*",
-    "https://*.shalomcontrol.com/service-order",
-    "https://*.shalomcontrol.com/service-order/",
-    "https://*.shalomcontrol.com/service-order?*",
-    "https://*.shalomcontrol.com/service-order/?*",
-    "https://*.shalomcontrol.com/ordenservicio/listar",
-    "https://*.shalomcontrol.com/ordenservicio/listar/",
-    "https://*.shalomcontrol.com/ordenservicio/listar?*",
-    "https://*.shalomcontrol.com/ordenservicio/listar/?*"
+    "https://*.shalomcontrol.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'"
@@ -45,18 +34,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.shalomcontrol.com/listaordenservicio",
-        "https://*.shalomcontrol.com/listaordenservicio/",
-        "https://*.shalomcontrol.com/listaordenservicio?*",
-        "https://*.shalomcontrol.com/listaordenservicio/?*",
-        "https://*.shalomcontrol.com/service-order",
-        "https://*.shalomcontrol.com/service-order/",
-        "https://*.shalomcontrol.com/service-order?*",
-        "https://*.shalomcontrol.com/service-order/?*",
-        "https://*.shalomcontrol.com/ordenservicio/listar",
-        "https://*.shalomcontrol.com/ordenservicio/listar/",
-        "https://*.shalomcontrol.com/ordenservicio/listar?*",
-        "https://*.shalomcontrol.com/ordenservicio/listar/?*"
+        "https://*.shalomcontrol.com/*"
       ],
       "js": [
         "content.js"

@@ -1,6 +1,6 @@
 import './popup.css';
 import { EXTENSION_VERSION } from '../shared/version';
-import { getServiceOrderScheduleState } from '../shared/lima-time';
+import { DEFAULT_BLOCK_RULE, evaluateRule, parseBlockRuleSet, type BlockRule } from '../shared/block-rules';
 import { getTokenRequestUrl } from '../models/configuration';
 
 // Derivado de getPlatformApiBaseUrl() para que el dominio viva en un solo
@@ -23,6 +23,7 @@ type ServiceOrderLockResponse = {
     expiresAt: string;
     restrictedPeriodId: string;
   } | null;
+  rule?: BlockRule | null;
 };
 
 type PopupElements = {
@@ -40,6 +41,9 @@ type PopupElements = {
   options: HTMLButtonElement;
   syncMode: HTMLElement;
   message: HTMLElement;
+  lockTitle: HTMLElement;
+  lockScheduleTitle: HTMLElement;
+  lockSchedule: HTMLElement;
   lockDescription: HTMLElement;
   lockState: HTMLElement;
   lockCurrent: HTMLElement;
@@ -139,6 +143,9 @@ function getElements(): PopupElements {
     options: requireElement<HTMLButtonElement>('#open-options'),
     syncMode: requireElement('#sync-mode'),
     message: requireElement('#message'),
+    lockTitle: requireElement('#service-order-lock-title'),
+    lockScheduleTitle: requireElement('#service-order-lock-schedule-title'),
+    lockSchedule: requireElement('#service-order-lock-schedule'),
     lockDescription: requireElement('#service-order-lock-description'),
     lockState: requireElement('#service-order-lock-state'),
     lockCurrent: requireElement('#service-order-lock-current'),
@@ -234,11 +241,15 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
     const response = await readServiceOrderLockState();
     const manualLocked = Boolean(response?.locked);
     const forcedUnlock = response?.forcedUnlock?.active ? response.forcedUnlock : null;
-    const scheduleState = getServiceOrderScheduleState(new Date(), manualLocked);
-    const scheduleLocked = scheduleState.lockedBySchedule;
+    const rule = response?.rule ?? DEFAULT_BLOCK_RULE;
+    const evaluation = evaluateRule(rule, new Date());
+    const scheduleLocked = evaluation.blockedBySchedule;
     const forcedUnlockActive = Boolean(forcedUnlock && scheduleLocked);
     const locked = manualLocked || (scheduleLocked && !forcedUnlockActive);
-    const nextChange = scheduleState.nextAllowedAt ? formatServiceOrderNextChange(scheduleState.nextAllowedAt) : 'Hoy, 8:05 p. m.';
+    const nextChange = evaluation.nextChangeAt ? formatServiceOrderNextChange(evaluation.nextChangeAt, rule.timezone) : 'Sin cambios programados';
+    elements.lockTitle.textContent = `Control de ${rule.label}`;
+    elements.lockScheduleTitle.textContent = rule.windowMode === 'allowed' ? 'Horario permitido' : 'Horario bloqueado';
+    elements.lockSchedule.textContent = evaluation.scheduleLabel;
     elements.lockToggle.checked = manualLocked;
     elements.lockState.textContent = manualLocked
       ? 'BLOQUEADO MANUALMENTE'
@@ -259,11 +270,13 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
       ? 'Bloqueo manual'
       : forcedUnlockActive
         ? 'Excepción manual fuera del horario'
-        : scheduleState.reason === 'schedule'
-          ? 'Fuera del horario permitido'
+        : scheduleLocked
+          ? rule.windowMode === 'allowed'
+            ? 'Fuera del horario permitido'
+            : 'Dentro del horario bloqueado'
           : 'Funcionamiento normal';
     elements.lockAvailable.textContent = nextChange;
-    elements.lockDescription.textContent = 'El horario automático sigue el horario de Lima, Perú (GMT-5).';
+    elements.lockDescription.textContent = `El horario lo define CodeRED Platform (${rule.timezone}).`;
     elements.lockStatus.dataset.tone = manualLocked || locked || forcedUnlockActive ? 'warning' : 'success';
     elements.lockStatus.querySelector('p')!.textContent = locked
       ? manualLocked
@@ -294,18 +307,49 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
 
 async function readServiceOrderLockState(): Promise<ServiceOrderLockResponse | null> {
   try {
-    const [lockState, forcedState] = await Promise.all([
+    const [lockState, forcedState, rulesState] = await Promise.all([
       chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_LOCK_GET' }) as Promise<ServiceOrderLockResponse>,
       chrome.runtime.sendMessage({ type: 'SERVICE_ORDER_FORCED_UNLOCK_GET' }) as Promise<ServiceOrderLockResponse>,
+      chrome.runtime.sendMessage({ type: 'BLOCK_RULES_GET' }) as Promise<{ activeRule?: unknown }>,
     ]);
     return {
       success: lockState?.success ?? forcedState?.success,
       locked: lockState?.locked,
       forcedUnlock: forcedState?.forcedUnlock ?? null,
+      rule: normalizeActiveRule(rulesState?.activeRule),
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * El service worker devuelve la regla ya normalizada, pero el popup vuelve a
+ * pasarla por el parser para no depender de la forma exacta del mensaje.
+ */
+function normalizeActiveRule(value: unknown): BlockRule | null {
+  const parsed = parseBlockRuleSet({ rules: [toApiShape(value)] });
+  return parsed?.rules[0] ?? null;
+}
+
+function toApiShape(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const rule = value as Record<string, unknown>;
+  if ('host_pattern' in rule) return rule;
+  return {
+    id: rule.id,
+    label: rule.label,
+    host_pattern: rule.hostPattern,
+    path_pattern: rule.pathPattern,
+    window_mode: rule.windowMode,
+    timezone: rule.timezone,
+    windows: Array.isArray(rule.windows)
+      ? rule.windows.map((window) => {
+          const item = window as Record<string, unknown>;
+          return { day_of_week: item.dayOfWeek, start_time: item.start, end_time: item.end };
+        })
+      : [],
+  };
 }
 
 function wireForcedUnlockModal(elements: PopupElements): void {
@@ -365,9 +409,9 @@ function wireForcedUnlockModal(elements: PopupElements): void {
   });
 }
 
-function formatServiceOrderNextChange(date: Date): string {
+function formatServiceOrderNextChange(date: Date, timeZone = 'America/Lima'): string {
   const formatter = new Intl.DateTimeFormat('es-PE', {
-    timeZone: 'America/Lima',
+    timeZone,
     weekday: 'short',
     hour: 'numeric',
     minute: '2-digit',

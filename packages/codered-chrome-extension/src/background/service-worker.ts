@@ -1,21 +1,34 @@
 import { CodeRedClient } from '../api/codered-client';
 import { searchAgencies } from '../search/agency-search';
 import { ChromeStorageService } from '../storage/storage-service';
-import { getNextAllowedServiceOrderDate, getRestrictedPeriodId } from '../shared/lima-time';
+import { evaluateRule, getNextRuleChange, getRulePeriodId, ruleMatchesLocation, type BlockRule } from '../shared/block-rules';
 import { getPlatformApiBaseUrl, getTokenRequestUrl } from '../models/configuration';
 import { isRuntimeRequest } from './messages';
 import { createSyncService } from './sync-service';
 
 const storage = new ChromeStorageService();
 const ALARM_NAME = 'codered-agency-sync';
+const BLOCK_RULES_ALARM_NAME = 'codered-block-rules-sync';
+// Las reglas de bloqueo se refrescan mucho mas a menudo que el catalogo: un
+// cambio de horario en el panel debe llegar a los navegadores en minutos, no al
+// dia siguiente.
+const BLOCK_RULES_INTERVAL_MINUTES = 30;
 const apiBaseUrl = getPlatformApiBaseUrl();
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(ALARM_NAME, { periodInMinutes: 24 * 60 });
+  chrome.alarms.create(BLOCK_RULES_ALARM_NAME, { periodInMinutes: BLOCK_RULES_INTERVAL_MINUTES });
+  void syncBlockRules();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  chrome.alarms.create(BLOCK_RULES_ALARM_NAME, { periodInMinutes: BLOCK_RULES_INTERVAL_MINUTES });
+  void syncBlockRules();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_NAME) void syncNow();
+  if (alarm.name === BLOCK_RULES_ALARM_NAME) void syncBlockRules();
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -91,8 +104,18 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
     return { success: true };
   }
 
+  if (message.type === 'BLOCK_RULES_GET') {
+    const ruleSet = await storage.getBlockRuleSet();
+    const activeRule = await resolveActiveRule();
+    return { success: true, ruleSet, activeRule, evaluation: activeRule ? evaluateRule(activeRule) : null };
+  }
+
+  if (message.type === 'BLOCK_RULES_SYNC') {
+    return { success: true, sync: await syncBlockRules() };
+  }
+
   if (message.type === 'SERVICE_ORDER_LOCK_GET') {
-    await storage.clearExpiredServiceOrderForcedUnlock();
+    await storage.clearExpiredServiceOrderForcedUnlock(await resolveActiveRule());
     return { success: true, locked: await storage.getServiceOrderLock(), forcedUnlock: await storage.getServiceOrderForcedUnlock() };
   }
 
@@ -102,7 +125,7 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
   }
 
   if (message.type === 'SERVICE_ORDER_FORCED_UNLOCK_GET') {
-    await storage.clearExpiredServiceOrderForcedUnlock();
+    await storage.clearExpiredServiceOrderForcedUnlock(await resolveActiveRule());
     return { success: true, forcedUnlock: await storage.getServiceOrderForcedUnlock() };
   }
 
@@ -110,15 +133,19 @@ async function handleMessage(message: Parameters<typeof isRuntimeRequest>[0]) {
     const active = message.active;
     if (active) {
       const now = new Date();
-      const restrictedPeriodId = getRestrictedPeriodId(now);
-      if (!restrictedPeriodId) {
+      const rule = await resolveActiveRule();
+      const restrictedPeriodId = rule ? getRulePeriodId(rule, now) : null;
+      if (!rule || !restrictedPeriodId) {
         await storage.setServiceOrderForcedUnlock(null);
         return { success: false, message: 'El horario permitido ya está activo.' };
       }
+      const nextChange = getNextRuleChange(rule, now);
       const forcedUnlock = {
         active: true,
         createdAt: now.toISOString(),
-        expiresAt: getNextAllowedServiceOrderDate(now).toISOString(),
+        // Sin proximo cambio (regla que bloquea siempre) la excepcion dura una
+        // hora: preferimos que caduque sola antes que dejarla abierta.
+        expiresAt: (nextChange ?? new Date(now.getTime() + 60 * 60 * 1000)).toISOString(),
         restrictedPeriodId,
       };
       await storage.setServiceOrderForcedUnlock(forcedUnlock);
@@ -148,6 +175,7 @@ async function syncNow(options: { forceFull?: boolean } = {}) {
   console.log('[CodeRED] Token válido');
 
   await storage.setSyncMetadata({ status: 'updating', message: 'Actualizando' });
+  await syncBlockRules();
   try {
     const client = new CodeRedClient(apiBaseUrl, configuration.token);
     const sync = createSyncService(client, storage);
@@ -159,6 +187,56 @@ async function syncNow(options: { forceFull?: boolean } = {}) {
     await storage.setSyncMetadata({ status: result.status, message: result.message });
     return result;
   }
+}
+
+/**
+ * Descarga las reglas del panel. Ante cualquier fallo se conserva la copia
+ * local: perder la conexion no puede traducirse en perder el bloqueo.
+ */
+async function syncBlockRules(): Promise<{ status: string; message: string; version?: string }> {
+  const configuration = await storage.getConfiguration();
+  if (!configuration.token) return { status: 'error', message: 'Configura un token para recibir las reglas de bloqueo' };
+
+  try {
+    const client = new CodeRedClient(apiBaseUrl, configuration.token);
+    const ruleSet = await client.fetchBlockRules();
+    if (!ruleSet) return { status: 'error', message: 'Respuesta de reglas no valida' };
+
+    const current = await storage.getBlockRuleSet();
+    if (current.version !== '' && current.version === ruleSet.version) {
+      return { status: 'unchanged', message: 'Reglas al dia', version: ruleSet.version };
+    }
+
+    await storage.saveBlockRuleSet(ruleSet);
+    console.log(`[CodeRED] Reglas de bloqueo actualizadas: ${ruleSet.rules.length} (version ${ruleSet.version.slice(0, 12)})`);
+    return { status: 'updated', message: 'Reglas actualizadas', version: ruleSet.version };
+  } catch (error) {
+    const status = typeof error === 'object' && error !== null && 'status' in error ? Number((error as { status: unknown }).status) : 0;
+    console.log(`[CodeRED] No fue posible sincronizar las reglas de bloqueo (${status}). Se conservan las locales.`);
+    return { status: 'error', message: 'Sin conexion: se conservan las reglas guardadas' };
+  }
+}
+
+/**
+ * Regla que corresponde a la pestana activa. Si ninguna coincide se usa la
+ * primera del conjunto para que el popup siempre tenga algo que mostrar.
+ */
+async function resolveActiveRule(): Promise<BlockRule | null> {
+  const ruleSet = await storage.getBlockRuleSet();
+  if (ruleSet.rules.length === 0) return null;
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url) {
+      const url = new URL(tab.url);
+      const matched = ruleSet.rules.find((rule) => ruleMatchesLocation(rule, url.hostname, url.pathname));
+      if (matched) return matched;
+    }
+  } catch {
+    // Sin permiso de pestanas o URL no parseable: se cae al primer regla.
+  }
+
+  return ruleSet.rules[0];
 }
 
 async function scheduleAlarm(): Promise<void> {
