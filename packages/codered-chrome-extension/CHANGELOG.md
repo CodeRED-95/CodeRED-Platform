@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.2 - 2026-08-25
+
+- Los fallos al seleccionar agencia dejan de aparecer como avisos en la consola de la pagina: el motivo ya se muestra en el panel del buscador. Ahora salen por `console.debug`, oculto salvo que se active el nivel Verbose, y con el contexto serializado en vez de "[object Object]".
+
 ## 2.7.1 - 2026-08-25
 
 - La insignia del buscador solo muestra "Terrestre" o "Aereo". Desaparecen "Modo neutral" y "Canal pendiente": cuando no hay canal, la insignia se oculta.

@@ -530,6 +530,37 @@ describe('Shalom Control DOM integration', () => {
     expect(document.body.textContent).not.toContain('Canal pendiente');
   });
 
+  it('no ensucia la consola cuando la seleccion falla: el motivo ya se ve en el panel', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><header class="mdl-layout__header-row"></header></body></html>', { url: 'https://sysprovincia2.shalomcontrol.com/ordenservicio/listar' });
+    globalThis.window = dom.window as unknown as Window & typeof globalThis;
+    globalThis.document = dom.window.document;
+    globalThis.MutationObserver = dom.window.MutationObserver;
+    globalThis.HTMLElement = dom.window.HTMLElement;
+    globalThis.HTMLSelectElement = dom.window.HTMLSelectElement;
+    globalThis.Event = dom.window.Event;
+    // Dos selectores activos: la seleccion falla con 'multiple-active-selects'.
+    document.body.insertAdjacentHTML('beforeend', '<section><select id="a_osProDestino"><option value="">Seleccione</option><option value="t">1001 - CHICLAYO HUB - TERRESTRE</option></select><select id="b_osProDestino"><option value="">Seleccione</option><option value="u">1001 - CHICLAYO HUB - TERRESTRE</option></select></section>');
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const controller = createShalomContentController({ requestCatalog: async () => [terrestrialAgency] });
+    await controller.mount();
+    const input = document.querySelector<HTMLInputElement>('#codered-search-input')!;
+    input.value = 'chiclayo';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    document.querySelector<HTMLButtonElement>('.codered-agency-card')?.click();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    const selectionWarnings = warnSpy.mock.calls.filter(([message]) => String(message).includes('No se pudo seleccionar agencia'));
+    expect(selectionWarnings).toHaveLength(0);
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
   it('keeps technical failures as warnings with structured context', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);

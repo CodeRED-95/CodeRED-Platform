@@ -525,11 +525,11 @@ export function createShalomContentController(dependencies: ContentControllerDep
       }
 
       if (result.reason === 'option-not-found') {
-        infoOnce('select-agency-unavailable', '[CodeRED Shalom] La agencia seleccionada no está disponible actualmente en Shalom Control', {
+        debugOnce('select-agency-unavailable', '[CodeRED Shalom] La agencia seleccionada no está disponible actualmente en Shalom Control', {
           agency: safeAgencyContext(agency),
         });
       } else {
-        warnOnce('select-agency-combobox', '[CodeRED Shalom] No se pudo seleccionar agencia en la SPA', {
+        debugOnce('select-agency-combobox', '[CodeRED Shalom] No se pudo seleccionar agencia en la SPA', {
           reason: result.reason,
           agency: safeAgencyContext(agency),
           detail: result.message,
@@ -578,7 +578,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
       return;
     }
     if (selected.reason === 'option-not-found') {
-      infoOnce('select-agency-unavailable', '[CodeRED Shalom] La agencia seleccionada no está disponible actualmente en Shalom Control', {
+      debugOnce('select-agency-unavailable-chosen', '[CodeRED Shalom] La agencia seleccionada no está disponible actualmente en Shalom Control', {
         channel: requestedChannel,
         agency: safeAgencyContext(agency),
       });
@@ -586,7 +586,7 @@ export function createShalomContentController(dependencies: ContentControllerDep
       return;
     }
 
-    warnOnce('select-agency', '[CodeRED Shalom] No se pudo seleccionar agencia', {
+    debugOnce('select-agency', '[CodeRED Shalom] No se pudo seleccionar agencia', {
       reason: selected.reason,
       channel: requestedChannel,
       agency: safeAgencyContext(agency),
@@ -692,10 +692,16 @@ export function createShalomContentController(dependencies: ContentControllerDep
     console.warn(message, context);
   }
 
-  function infoOnce(key: string, message: string, context: Record<string, unknown>): void {
+  /**
+   * Para lo que el operador ya ve en pantalla. Sale por `console.debug`, que
+   * Chrome oculta salvo que se active el nivel Verbose y no engorda la lista
+   * de errores de la pagina. El contexto va serializado para que no aparezca
+   * como "[object Object]" en las consolas que concatenan los argumentos.
+   */
+  function debugOnce(key: string, message: string, context: Record<string, unknown>): void {
     if (emittedLogs.has(key)) return;
     emittedLogs.add(key);
-    console.info(message, context);
+    console.debug(message, safeJson(context));
   }
 
   async function requestCatalog(): Promise<Agency[]> {
@@ -871,6 +877,14 @@ function resolveBadgeChannel(root: ParentNode): Exclude<ShalomChannel, 'AUTO'> |
   if (isServiceOrderItemsPath(window.location.pathname)) return detectComboboxChannel(root);
   if (resolvePageContext(window.location.pathname).mode === 'neutral') return null;
   return detectActiveShalomChannelState(root).channel;
+}
+
+function safeJson(context: Record<string, unknown>): string {
+  try {
+    return JSON.stringify(context) ?? '';
+  } catch {
+    return String(context);
+  }
 }
 
 function channelLabel(channel: Exclude<ShalomChannel, 'AUTO'>): string {
