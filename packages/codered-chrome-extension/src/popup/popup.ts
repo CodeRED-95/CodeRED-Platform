@@ -1,7 +1,7 @@
 import './popup.css';
 import { EXTENSION_VERSION } from '../shared/version';
 import { evaluateRule, parseBlockRuleSet, type BlockRule } from '../shared/block-rules';
-import { getTokenRequestUrl } from '../models/configuration';
+import { getPlatformOrigin, getPrivacyUrl, getSupportUrl, getTokenRequestUrl } from '../models/configuration';
 
 // Derivado de getPlatformApiBaseUrl() para que el dominio viva en un solo
 // sitio (models/configuration.ts) y no haya que tocar el popup al migrarlo.
@@ -60,6 +60,15 @@ type PopupElements = {
   forceCancel: HTMLButtonElement;
   forceConfirm: HTMLButtonElement;
   forceFeedback: HTMLElement;
+  help: HTMLButtonElement;
+  privacy: HTMLButtonElement;
+  about: HTMLButtonElement;
+  aboutModal: HTMLElement;
+  aboutClose: HTMLButtonElement;
+  aboutVersion: HTMLElement;
+  aboutPlatform: HTMLElement;
+  aboutAgencies: HTMLElement;
+  aboutSync: HTMLElement;
 };
 
 type ConnectionState = { label: string; tone: 'success' | 'warning' | 'missing' | 'error' };
@@ -82,6 +91,7 @@ async function initPopup(): Promise<void> {
   });
   elements.requestAnother.addEventListener('click', () => void requestToken());
   wireForcedUnlockModal(elements);
+  wireFooterLinks(elements);
 
   chrome.storage.onChanged.addListener(() => {
     void renderState(elements);
@@ -162,6 +172,15 @@ function getElements(): PopupElements {
     forceCancel: requireElement<HTMLButtonElement>('#forced-unlock-cancel'),
     forceConfirm: requireElement<HTMLButtonElement>('#forced-unlock-confirm'),
     forceFeedback: requireElement('#forced-unlock-feedback'),
+    help: requireElement<HTMLButtonElement>('#popup-help'),
+    privacy: requireElement<HTMLButtonElement>('#popup-privacy'),
+    about: requireElement<HTMLButtonElement>('#popup-about'),
+    aboutModal: requireElement('#about-modal'),
+    aboutClose: requireElement<HTMLButtonElement>('#about-close'),
+    aboutVersion: requireElement('#about-version'),
+    aboutPlatform: requireElement('#about-platform'),
+    aboutAgencies: requireElement('#about-agencies'),
+    aboutSync: requireElement('#about-sync'),
   };
 }
 
@@ -376,6 +395,61 @@ function toApiShape(value: unknown): unknown {
         })
       : [],
   };
+}
+
+/**
+ * Pie del popup. Ayuda y Privacidad abren las paginas publicas de la
+ * Plataforma —las mismas que declara la ficha de Chrome Web Store—; Acerca de
+ * resume en el sitio lo que hay instalado, sin salir del popup.
+ */
+function wireFooterLinks(elements: PopupElements): void {
+  elements.help.addEventListener('click', () => void openTab(getSupportUrl()));
+  elements.privacy.addEventListener('click', () => void openTab(getPrivacyUrl()));
+
+  const close = () => {
+    elements.aboutModal.hidden = true;
+    elements.aboutModal.setAttribute('aria-hidden', 'true');
+  };
+
+  elements.about.addEventListener('click', () => {
+    void fillAbout(elements);
+    elements.aboutModal.hidden = false;
+    elements.aboutModal.setAttribute('aria-hidden', 'false');
+    elements.aboutClose.focus();
+  });
+
+  elements.aboutClose.addEventListener('click', close);
+  elements.aboutModal.querySelector('.popup-modal__backdrop')?.addEventListener('click', close);
+  elements.aboutModal.addEventListener('keydown', (event) => {
+    if ((event as KeyboardEvent).key === 'Escape') close();
+  });
+}
+
+async function fillAbout(elements: PopupElements): Promise<void> {
+  elements.aboutVersion.textContent = EXTENSION_VERSION;
+  elements.aboutPlatform.textContent = getPlatformOrigin().replace(/^https?:\/\//, '');
+
+  try {
+    const state = await chrome.runtime.sendMessage({ type: 'GET_STATE' }) as StateResponse;
+    elements.aboutAgencies.textContent = String(state?.agencyCount ?? 0);
+    elements.aboutSync.textContent = formatLastSync(state?.metadata?.lastSyncedAt ?? null);
+  } catch {
+    elements.aboutAgencies.textContent = '—';
+    elements.aboutSync.textContent = '—';
+  }
+}
+
+function formatLastSync(value: string | null): string {
+  if (!value) return 'Sin sincronizar';
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? 'Sin sincronizar'
+    : new Intl.DateTimeFormat('es-PE', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+}
+
+async function openTab(url: string): Promise<void> {
+  await chrome.tabs.create({ url });
 }
 
 function wireForcedUnlockModal(elements: PopupElements): void {

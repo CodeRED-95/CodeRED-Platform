@@ -25,6 +25,20 @@ export function getTokenRequestPath(): string {
   return configured.startsWith('/') ? configured : '/' + configured;
 }
 
+/** Origen publico de la Plataforma, sin la parte /api/v1. */
+export function getPlatformOrigin(): string {
+  return new URL(getPlatformApiBaseUrl()).origin;
+}
+
+/** Paginas publicas enlazadas desde el pie del popup. */
+export function getSupportUrl(): string {
+  return `${getPlatformOrigin()}/support/buscador-shalom`;
+}
+
+export function getPrivacyUrl(): string {
+  return `${getPlatformOrigin()}/privacy/buscador-shalom`;
+}
+
 export function getTokenRequestUrl(): string {
   const baseUrl = new URL(getPlatformApiBaseUrl());
   return new URL(getTokenRequestPath(), baseUrl.origin).toString();

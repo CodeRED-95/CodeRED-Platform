@@ -318,6 +318,30 @@ describe('token configuration flow', () => {
   });
 });
 
+describe('pie del popup', () => {
+  it('los tres enlaces estan operativos, sin `disabled`', async () => {
+    const { readFileSync } = await import('node:fs');
+    const html = readFileSync(new URL('../src/popup/popup.html', import.meta.url), 'utf8');
+
+    for (const id of ['popup-help', 'popup-privacy', 'popup-about']) {
+      const button = new RegExp(`<button[^>]*id="${id}"[^>]*>`).exec(html)?.[0] ?? '';
+      expect(button, `falta el boton ${id}`).not.toBe('');
+      expect(button, `${id} sigue deshabilitado`).not.toContain('disabled');
+    }
+
+    // Acerca de abre un panel dentro del propio popup.
+    expect(html).toContain('id="about-modal"');
+  });
+
+  it('Ayuda y Privacidad apuntan a las paginas publicas de la Plataforma', async () => {
+    const { getPrivacyUrl, getSupportUrl } = await import('../src/models/configuration');
+
+    expect(getSupportUrl()).toBe('https://platform.codered.lat/support/buscador-shalom');
+    expect(getPrivacyUrl()).toBe('https://platform.codered.lat/privacy/buscador-shalom');
+  });
+});
+
+
 function chromeStorageMock(seed: Record<string, unknown> = {}) {
   let store = { ...seed };
   return {

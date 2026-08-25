@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.0 - 2026-08-25
+
+- Los tres enlaces del pie del popup dejan de estar deshabilitados: Ayuda y Privacidad abren las paginas publicas de CodeRED Platform, y Acerca de muestra version, plataforma, agencias en cache y ultima sincronizacion sin salir del popup.
+
 ## 2.8.1 - 2026-08-25
 
 - El content script deja de escribir en la consola de la pagina durante su funcionamiento normal. "Inyeccion omitida" y el resto de mensajes de diagnostico pasan a `console.debug`, oculto salvo que se active el nivel Verbose.

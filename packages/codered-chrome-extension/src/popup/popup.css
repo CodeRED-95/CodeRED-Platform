@@ -673,3 +673,48 @@ button:disabled {
     min-height: 38px;
   }
 }
+
+.popup-link:not([disabled]) {
+  cursor: pointer;
+}
+
+.popup-link:not([disabled]):hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.about-grid {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.about-grid > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.about-grid dt {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.about-grid dd {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  /* Estilo de la casa: solo parte cuando no cabe, nunca a media palabra. */
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.popup-modal__note {
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+}
