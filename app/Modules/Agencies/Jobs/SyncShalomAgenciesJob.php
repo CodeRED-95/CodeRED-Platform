@@ -240,8 +240,10 @@ class SyncShalomAgenciesJob implements ShouldQueue
 
     private function matchAgency(array $incoming): array
     {
-        if (! empty($incoming['external_id'])) {
-            $matches = Agency::query()->where('external_id', $incoming['external_id'])->limit(2)->get();
+        $externalId = $incoming['external_id'] ?? null;
+
+        if (! empty($externalId)) {
+            $matches = Agency::query()->where('external_id', $externalId)->limit(2)->get();
             if ($matches->count() === 1) {
                 return [$matches->first(), null];
             }
@@ -252,7 +254,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
 
         if (! empty($incoming['code'])) {
             $agency = Agency::query()->where('code', $incoming['code'])->first();
-            if ($agency) {
+            if ($agency && ! $this->belongsToAnotherAgency($agency, $externalId)) {
                 return [$agency, null];
             }
         }
@@ -264,7 +266,8 @@ class SyncShalomAgenciesJob implements ShouldQueue
                 ->where('province', $incoming['province'])
                 ->where('district', $incoming['district'])
                 ->get()
-                ->filter(fn (Agency $agency) => app(UpdateAgencyNameAction::class)->normalizeName($agency->name) === $needle);
+                ->filter(fn (Agency $agency) => app(UpdateAgencyNameAction::class)->normalizeName($agency->name) === $needle)
+                ->reject(fn (Agency $agency) => $this->belongsToAnotherAgency($agency, $externalId));
 
             if ($matches->count() === 1) {
                 return [$matches->first(), null];
@@ -275,6 +278,30 @@ class SyncShalomAgenciesJob implements ShouldQueue
         }
 
         return [null, null];
+    }
+
+    /**
+     * Protege los emparejamientos de respaldo.
+     *
+     * `external_id` es la identidad autoritativa de Shalom. Si el entrante trae
+     * uno y la agencia candidata ya lleva otro distinto, no son la misma
+     * agencia por mucho que compartan abreviatura o nombre normalizado, y
+     * emparejarlas significa proponer sobrescribir una ficha con los datos de
+     * otra.
+     *
+     * Paso de verdad: SAN CLEMENTE (Pisco, Ica, external_id 496) entraba como
+     * agencia nueva; al no existir aun ese external_id se caia al respaldo por
+     * `code` y encontraba PISAC (Calca, Cusco), porque Shalom abrevia las dos
+     * como PSC. La vista previa proponia convertir la agencia de Cusco en la de
+     * Ica: mismo id interno, todos los datos cambiados.
+     */
+    private function belongsToAnotherAgency(Agency $agency, mixed $incomingExternalId): bool
+    {
+        if (blank($incomingExternalId) || blank($agency->external_id)) {
+            return false;
+        }
+
+        return (string) $agency->external_id !== (string) $incomingExternalId;
     }
 
     private function classify(?Agency $agency, array $incoming, ?string $conflictReason, UpdateAgencyNameAction $nameAction): array

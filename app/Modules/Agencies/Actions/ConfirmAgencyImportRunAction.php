@@ -135,9 +135,28 @@ class ConfirmAgencyImportRunAction
         }
 
         if (! empty($incoming['code'])) {
-            return Agency::query()->lockForUpdate()->where('code', $incoming['code'])->first();
+            $agency = Agency::query()->lockForUpdate()->where('code', $incoming['code'])->first();
+
+            // Mismo resguardo que en la vista previa: la abreviatura de Shalom
+            // no es unica (PSC vale para PISAC y para PISCO), asi que no puede
+            // emparejar con una agencia que ya lleva otro external_id. Sin
+            // esto, confirmar sobrescribia una ficha con los datos de otra.
+            if ($agency && $this->belongsToAnotherAgency($agency, $incoming['external_id'] ?? null)) {
+                return null;
+            }
+
+            return $agency;
         }
 
         return null;
+    }
+
+    private function belongsToAnotherAgency(Agency $agency, mixed $incomingExternalId): bool
+    {
+        if (blank($incomingExternalId) || blank($agency->external_id)) {
+            return false;
+        }
+
+        return (string) $agency->external_id !== (string) $incomingExternalId;
     }
 }
