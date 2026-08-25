@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.3 - 2026-08-25
+
+- La tarjeta de bloqueo se monta en un shadow root: las hojas de estilo del sitio ya no pueden descolocarla. El icono del candado se salia de su circulo en las paginas de sysprovincia2.
+- Deja de inyectarse la hoja de estilos del overlay en el head de la pagina.
+- `destroy()` limpia tambien el temporizador de cambio de ruta y sus listeners, que quedaban vivos.
+
 ## 2.6.2 - 2026-08-25
 
 - Protege tambien el desbloqueo forzoso frente a un contexto de extension invalidado: era la ultima via que podia lanzar "Extension context invalidated" sin recogerlo.

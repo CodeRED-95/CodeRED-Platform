@@ -17,6 +17,62 @@ const BLOCK_RULES_KEY = STORAGE_KEYS.BLOCK_RULES;
 const LOCK_ATTRIBUTE = 'data-codered-service-order-locked';
 const FORCED_UNLOCK_LOG_KEY = 'codered_service_order_forced_unlock_log';
 
+/**
+ * Estilos del overlay. Viven dentro del shadow root, asi que ninguna hoja de
+ * la pagina puede alcanzarlos: `all: initial` en :host corta ademas la
+ * herencia de tipografia y color del sitio anfitrion.
+ */
+const OVERLAY_STYLES = `
+  :host { all: initial; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  svg { display: block; position: static; float: none; max-width: none; max-height: none; transform: none; inset: auto; }
+  .codered-service-order-lock-card {
+    width: min(520px, calc(100vw - 48px));
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 255, 0.98) 100%);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+    padding: 28px 28px 24px;
+    color: #1f2937;
+    position: relative;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-synthesis: none;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .codered-service-order-lock-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 4px;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+  }
+  .codered-service-order-lock-hero { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 18px; align-items: center; }
+  .codered-service-order-lock-icon { width: 84px; height: 84px; border-radius: 999px; display: grid; place-items: center; background: linear-gradient(180deg, #eaf2ff 0%, #dbeafe 100%); color: #2563eb; box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12); overflow: hidden; }
+  .codered-service-order-lock-icon svg { width: 36px; height: 36px; fill: currentColor; }
+  .codered-service-order-lock-hero-copy { min-width: 0; }
+  .codered-service-order-lock-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 700; letter-spacing: .04em; margin-bottom: 10px; }
+  h2 { margin: 0; font-size: 22px; line-height: 1.15; color: #0f172a; font-weight: 700; }
+  p { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: #475569; }
+  .codered-service-order-lock-emphasis { color: #2563eb; font-weight: 700; }
+  .codered-service-order-lock-details { margin: 20px 0 0; padding: 18px 0 0; border-top: 1px solid #eef2f7; display: grid; gap: 14px; }
+  .codered-service-order-lock-details > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+  dt { margin: 0; color: #475569; font-size: 13px; font-weight: 600; }
+  dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 700; text-align: right; }
+  .codered-service-order-lock-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: #fee2e2; color: #dc2626; box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.08); }
+  .codered-service-order-lock-countdown { color: #2563eb; font-size: 16px; }
+  @media (max-width: 560px) {
+    .codered-service-order-lock-card { width: min(100%, 520px); padding: 22px 18px 18px; }
+    .codered-service-order-lock-hero { grid-template-columns: 64px minmax(0, 1fr); gap: 14px; }
+    .codered-service-order-lock-icon { width: 64px; height: 64px; }
+    h2 { font-size: 20px; }
+    p { font-size: 14px; }
+  }
+`;
+
+
 export type ServiceOrderForcedUnlock = {
   active: boolean;
   createdAt: string;
@@ -263,7 +319,11 @@ export function createServiceOrderLockController(deps: {
     overlay.setAttribute('aria-live', 'assertive');
     overlay.setAttribute(LOCK_ATTRIBUTE, 'true');
     overlay.tabIndex = -1;
-    overlay.innerHTML = overlayMarkup(state);
+    // El contenido vive en un shadow root: los sitios de shalomcontrol.com
+    // traen sus propias hojas de estilo (reglas globales sobre svg, h2, p...)
+    // y sin aislamiento acaban descolocando la tarjeta de bloqueo.
+    const shadow = overlay.shadowRoot ?? overlay.attachShadow({ mode: 'open' });
+    shadow.innerHTML = `<style>${OVERLAY_STYLES}</style>${overlayMarkup(state)}`;
     applyOverlayStyles(overlay);
     if (!existing) document.documentElement.appendChild(overlay);
     trapFocus();
@@ -339,58 +399,8 @@ export function createServiceOrderLockController(deps: {
     element.style.padding = '24px';
     element.style.overflow = 'hidden';
     element.style.isolation = 'isolate';
-    ensureOverlayStyles();
-  }
-
-  function ensureOverlayStyles(): void {
-    if (document.getElementById('codered-service-order-lock-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'codered-service-order-lock-styles';
-    style.textContent = `
-      #${OVERLAY_ID} { font-synthesis: none; }
-      #${OVERLAY_ID} .codered-service-order-lock-card {
-        width: min(520px, calc(100vw - 48px));
-        border-radius: 18px;
-        border: 1px solid #e5e7eb;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 255, 0.98) 100%);
-        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
-        padding: 28px 28px 24px;
-        color: #1f2937;
-        position: relative;
-      }
-      #${OVERLAY_ID} .codered-service-order-lock-card::before {
-        content: '';
-        position: absolute;
-        inset: 0 auto auto 0;
-        width: 100%;
-        height: 4px;
-        border-radius: 18px 18px 0 0;
-        background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
-      }
-      #${OVERLAY_ID} .codered-service-order-lock-hero { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 18px; align-items: center; }
-      #${OVERLAY_ID} .codered-service-order-lock-icon { width: 84px; height: 84px; border-radius: 999px; display: grid; place-items: center; background: linear-gradient(180deg, #eaf2ff 0%, #dbeafe 100%); color: #2563eb; box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12); }
-      #${OVERLAY_ID} .codered-service-order-lock-icon svg { width: 36px; height: 36px; fill: currentColor; }
-      #${OVERLAY_ID} .codered-service-order-lock-hero-copy { min-width: 0; }
-      #${OVERLAY_ID} .codered-service-order-lock-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 700; letter-spacing: .04em; margin-bottom: 10px; }
-      #${OVERLAY_ID} h2 { margin: 0; font-size: 22px; line-height: 1.15; color: #0f172a; }
-      #${OVERLAY_ID} p { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: #475569; }
-      #${OVERLAY_ID} .codered-service-order-lock-emphasis { color: #2563eb; font-weight: 700; }
-      #${OVERLAY_ID} .codered-service-order-lock-details { margin: 20px 0 0; padding: 18px 0 0; border-top: 1px solid #eef2f7; display: grid; gap: 14px; }
-      #${OVERLAY_ID} .codered-service-order-lock-details > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
-      #${OVERLAY_ID} dt { margin: 0; color: #475569; font-size: 13px; font-weight: 600; }
-      #${OVERLAY_ID} dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 700; text-align: right; }
-      #${OVERLAY_ID} .codered-service-order-lock-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: #fee2e2; color: #dc2626; box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.08); }
-      #${OVERLAY_ID} .codered-service-order-lock-countdown { color: #2563eb; font-size: 16px; }
-      @media (max-width: 560px) {
-        #${OVERLAY_ID} { padding: 18px; }
-        #${OVERLAY_ID} .codered-service-order-lock-card { width: min(100%, 520px); padding: 22px 18px 18px; }
-        #${OVERLAY_ID} .codered-service-order-lock-hero { grid-template-columns: 64px minmax(0, 1fr); gap: 14px; }
-        #${OVERLAY_ID} .codered-service-order-lock-icon { width: 64px; height: 64px; }
-        #${OVERLAY_ID} h2 { font-size: 20px; }
-        #${OVERLAY_ID} p { font-size: 14px; }
-      }
-    `;
-    document.head.appendChild(style);
+    // Restos de versiones anteriores, que estilaban el overlay desde el head.
+    document.getElementById('codered-service-order-lock-styles')?.remove();
   }
 
   function attachOverlayListeners(): void {
@@ -424,7 +434,7 @@ export function createServiceOrderLockController(deps: {
   }
 
   function syncCountdownText(state: ServiceOrderLockState): void {
-    const node = document.getElementById('codered-service-order-lock-countdown');
+    const node = overlay?.shadowRoot?.querySelector('#codered-service-order-lock-countdown');
     if (node) node.textContent = state.remainingLabel || formatRemainingDuration(0);
   }
 
@@ -593,6 +603,12 @@ export function createServiceOrderLockController(deps: {
       stopCountdown();
       if (stateTimer) window.clearInterval(stateTimer);
       stateTimer = null;
+      // El chequeo de ruta deja un timeout de 25 ms pendiente: sin limpiarlo,
+      // se dispara despues de destruir el controlador.
+      if (routeTimer) window.clearTimeout(routeTimer);
+      routeTimer = null;
+      window.removeEventListener('popstate', scheduleRouteCheck);
+      window.removeEventListener('hashchange', scheduleRouteCheck);
       observer?.disconnect();
       observer = null;
       removeOverlay();
