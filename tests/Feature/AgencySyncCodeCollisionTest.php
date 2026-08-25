@@ -60,15 +60,17 @@ class AgencySyncCodeCollisionTest extends TestCase
         $this->assertSame('CUSCO', $pisac->department);
         $this->assertSame(521, (int) $pisac->external_id);
 
-        // Y no se crea nada: `agencies.code` es UNIQUE, asi que la de Ica no
-        // cabe mientras PISAC ocupe la abreviatura. Se omite en vez de reventar
-        // la transaccion, que dejaria sin aplicar el resto de la ejecucion.
-        $this->assertSame(0, $result['created']);
-        $this->assertSame(1, $result['skipped']);
-        $this->assertNull(Agency::query()->where('external_id', 496)->first());
+        // Y la de Ica entra como agencia propia, compartiendo abreviatura:
+        // `code` ya no es unico, la identidad es external_id.
+        $this->assertSame(1, $result['created']);
+        $sanClemente = Agency::query()->where('external_id', 496)->first();
+        $this->assertNotNull($sanClemente);
+        $this->assertSame('SAN CLEMENTE', $sanClemente->name);
+        $this->assertSame('PSC', $sanClemente->code);
+        $this->assertNotSame($pisac->id, $sanClemente->id);
     }
 
-    public function test_la_colision_de_abreviatura_se_marca_como_conflicto_en_la_vista_previa(): void
+    public function test_una_agencia_nueva_con_abreviatura_repetida_es_un_alta(): void
     {
         // El resguardo de verdad esta antes: la vista previa la clasifica como
         // conflicto, con el motivo escrito, y los conflictos no vienen
@@ -88,9 +90,28 @@ class AgencySyncCodeCollisionTest extends TestCase
             'district' => 'SAN CLEMENTE',
         ]);
 
+        // Ni empareja ni es conflicto: es un alta. La abreviatura compartida
+        // ya no impide nada, y PISAC no se toca porque lleva otro external_id.
         $this->assertNull($match, 'No debe emparejar con una agencia que lleva otro external_id.');
-        $this->assertStringContainsString('PSC', (string) $reason);
-        $this->assertStringContainsString($pisac->name, (string) $reason);
+        $this->assertNull($reason, 'Compartir abreviatura no es un conflicto: es una agencia nueva.');
+        $this->assertSame(521, (int) $pisac->fresh()->external_id);
+    }
+
+    public function test_dos_registros_sin_external_id_con_la_misma_abreviatura_si_son_conflicto(): void
+    {
+        // Aqui la abreviatura no distingue y no hay external_id que desempate:
+        // emparejar con cualquiera de las dos seria una moneda al aire.
+        Agency::factory()->create(['external_id' => null, 'code' => 'DUP', 'name' => 'UNA']);
+        Agency::factory()->create(['external_id' => null, 'code' => 'DUP', 'name' => 'OTRA']);
+
+        $job = new \App\Modules\Agencies\Jobs\SyncShalomAgenciesJob(1);
+        $method = new \ReflectionMethod($job, 'matchAgency');
+        $method->setAccessible(true);
+
+        [$match, $reason] = $method->invoke($job, ['external_id' => 999, 'code' => 'DUP', 'name' => 'TERCERA', 'department' => null, 'province' => null, 'district' => null]);
+
+        $this->assertNull($match);
+        $this->assertStringContainsString('DUP', (string) $reason);
     }
 
     public function test_sin_external_id_entrante_el_respaldo_por_abreviatura_sigue_valiendo(): void

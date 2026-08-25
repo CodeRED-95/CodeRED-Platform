@@ -58,6 +58,8 @@ class AgenciesController
     {
         $agency = Agency::query()
             ->where('code', strtoupper($code))
+            // Determinista: la abreviatura puede repetirse entre agencias.
+            ->orderBy('external_id')
             ->firstOrFail();
 
         return response()->json([

@@ -13,6 +13,8 @@ class Show extends Component
     {
         $this->agency = Agency::query()
             ->where('code', strtoupper($code))
+            // Determinista: la abreviatura puede repetirse entre agencias.
+            ->orderBy('external_id')
             ->firstOrFail();
     }
 

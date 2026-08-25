@@ -18,7 +18,9 @@ class StoreAgencyRequest extends FormRequest
     {
         return [
             'external_id' => ['nullable', 'integer', 'min:1', 'unique:agencies,external_id'],
-            'code' => ['required', 'string', 'max:50', 'unique:agencies,code'],
+            // La abreviatura no identifica una agencia en Shalom y puede
+            // repetirse; la unicidad se exige sobre external_id.
+            'code' => ['required', 'string', 'max:50'],
             'name' => ['required', 'string', 'max:255'],
             'short_name' => ['nullable', 'string', 'max:255'],
             'department' => ['required', 'string', 'max:255'],

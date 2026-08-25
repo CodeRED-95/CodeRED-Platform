@@ -40,19 +40,14 @@ class ConfirmAgencyImportRunAction
                     }
 
                     $incoming = $this->writableData($item->incoming_data ?? []);
-                    $agency = $this->matchAgencyForWrite($incoming);
+                    // Se respeta la agencia que decidio la vista previa: volver
+                    // a emparejar aqui por abreviatura podia apuntar a otra
+                    // ficha distinta de la que se reviso y aprobo.
+                    $agency = $item->matched_agency_id !== null
+                        ? Agency::query()->lockForUpdate()->find($item->matched_agency_id)
+                        : $this->matchAgencyForWrite($incoming);
 
                     if ($item->action === 'create' && ! $agency) {
-                        // Ultima red: `agencies.code` es UNIQUE y la abreviatura
-                        // de Shalom no lo es. Si otra agencia ya la ocupa, crear
-                        // reventaria la transaccion entera y no se aplicaria
-                        // ningun cambio de la ejecucion.
-                        if (! empty($incoming['code']) && Agency::query()->where('code', $incoming['code'])->exists()) {
-                            $result['skipped']++;
-
-                            continue;
-                        }
-
                         $agency = new Agency;
                         $agency->status = AgencyStatus::UnderReview;
                         $agency->source = 'shalom_sync';
@@ -145,17 +140,16 @@ class ConfirmAgencyImportRunAction
         }
 
         if (! empty($incoming['code'])) {
-            $agency = Agency::query()->lockForUpdate()->where('code', $incoming['code'])->first();
+            // Mismo criterio que la vista previa: la abreviatura no distingue
+            // agencias, asi que solo vale como respaldo cuando queda una sola
+            // candidata que no pertenezca a otro external_id.
+            $candidates = Agency::query()
+                ->lockForUpdate()
+                ->where('code', $incoming['code'])
+                ->get()
+                ->reject(fn (Agency $agency) => $this->belongsToAnotherAgency($agency, $incoming['external_id'] ?? null));
 
-            // Mismo resguardo que en la vista previa: la abreviatura de Shalom
-            // no es unica (PSC vale para PISAC y para PISCO), asi que no puede
-            // emparejar con una agencia que ya lleva otro external_id. Sin
-            // esto, confirmar sobrescribia una ficha con los datos de otra.
-            if ($agency && $this->belongsToAnotherAgency($agency, $incoming['external_id'] ?? null)) {
-                return null;
-            }
-
-            return $agency;
+            return $candidates->count() === 1 ? $candidates->first() : null;
         }
 
         return null;

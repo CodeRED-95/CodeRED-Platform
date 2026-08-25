@@ -253,17 +253,21 @@ class SyncShalomAgenciesJob implements ShouldQueue
         }
 
         if (! empty($incoming['code'])) {
-            $agency = Agency::query()->where('code', $incoming['code'])->first();
+            // Las candidatas que ya llevan otro external_id quedan fuera: no
+            // son la misma agencia por compartir abreviatura. Si tras el
+            // filtro no queda ninguna, es un alta; si queda mas de una, la
+            // abreviatura no distingue y lo decide una persona.
+            $candidates = Agency::query()
+                ->where('code', $incoming['code'])
+                ->get()
+                ->reject(fn (Agency $agency) => $this->belongsToAnotherAgency($agency, $externalId));
 
-            if ($agency && ! $this->belongsToAnotherAgency($agency, $externalId)) {
-                return [$agency, null];
+            if ($candidates->count() === 1) {
+                return [$candidates->first(), null];
             }
 
-            // La abreviatura pertenece a otra agencia y la columna `code` es
-            // UNIQUE: no se puede emparejar (seria sobrescribir una ficha
-            // ajena) ni crear (violaria el indice). Lo decide una persona.
-            if ($agency) {
-                return [null, sprintf('la abreviatura %s ya pertenece a la agencia %s (external_id %s)', $incoming['code'], $agency->name, $agency->external_id ?? 'sin asignar')];
+            if ($candidates->count() > 1) {
+                return [null, sprintf('la abreviatura %s corresponde a %d agencias sin external_id', $incoming['code'], $candidates->count())];
             }
         }
 

@@ -416,12 +416,9 @@ class Form extends Component
                 'min:1',
                 Rule::unique('agencies', 'external_id')->ignore($this->agency?->id),
             ],
-            'code' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('agencies', 'code')->ignore($this->agency?->id)->whereNull('deleted_at'),
-            ],
+            // Sin unicidad: la abreviatura de Shalom se repite entre agencias
+            // (PSC vale para PISAC y para PISCO). La identidad es external_id.
+            'code' => ['required', 'string', 'max:50'],
             'name' => ['required', 'string', 'max:255'],
             'old_name' => ['nullable', 'string', 'max:255'],
             'short_name' => ['nullable', 'string', 'max:255'],

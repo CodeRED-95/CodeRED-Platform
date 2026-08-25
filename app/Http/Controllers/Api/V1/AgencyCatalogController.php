@@ -48,7 +48,14 @@ class AgencyCatalogController
 
     public function show(Request $request, string $code, CatalogRevisionService $revision): JsonResponse|Response
     {
-        return $this->resourceResponse($request, Agency::query()->where('code', strtoupper(trim($code)))->firstOrFail(), $revision);
+        // La abreviatura ya no es unica: se ordena por external_id para que la
+        // misma URL devuelva siempre la misma agencia.
+        $agency = Agency::query()
+            ->where('code', strtoupper(trim($code)))
+            ->orderBy('external_id')
+            ->firstOrFail();
+
+        return $this->resourceResponse($request, $agency, $revision);
     }
 
     public function showById(Request $request, int $id, CatalogRevisionService $revision): JsonResponse|Response
