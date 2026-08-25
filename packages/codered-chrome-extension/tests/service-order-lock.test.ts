@@ -92,10 +92,27 @@ describe('rule matching', () => {
   });
 
   it('supports host wildcards and path prefixes', () => {
-    const rule: BlockRule = { ...DEFAULT_BLOCK_RULE, hostPattern: '*.shalomcontrol.com', pathPattern: '/ordenservicio/*' };
+    const rule: BlockRule = { ...DEFAULT_BLOCK_RULE, hostPatterns: ['*.shalomcontrol.com'], pathPattern: '/ordenservicio/*' };
     expect(ruleMatchesLocation(rule, 'sysnewos.shalomcontrol.com', '/ordenservicio/listar')).toBe(true);
     expect(ruleMatchesLocation(rule, 'shalomcontrol.com', '/ordenservicio')).toBe(true);
     expect(ruleMatchesLocation(rule, 'sysnewos.shalomcontrol.com', '/otra')).toBe(false);
+  });
+});
+
+describe('varios dominios por regla', () => {
+  const rule: BlockRule = {
+    ...DEFAULT_BLOCK_RULE,
+    hostPatterns: ['sysnewos.shalomcontrol.com', 'sysprovincia2.shalomcontrol.com'],
+  };
+
+  it('coincide con cualquiera de los dominios de la regla', () => {
+    expect(ruleMatchesLocation(rule, 'sysnewos.shalomcontrol.com', '/service-order')).toBe(true);
+    expect(ruleMatchesLocation(rule, 'sysprovincia2.shalomcontrol.com', '/service-order')).toBe(true);
+    expect(ruleMatchesLocation(rule, 'syslima.shalomcontrol.com', '/service-order')).toBe(false);
+  });
+
+  it('exige que la ruta encaje aunque el dominio coincida', () => {
+    expect(ruleMatchesLocation(rule, 'sysprovincia2.shalomcontrol.com', '/otra-ruta')).toBe(false);
   });
 });
 
@@ -106,7 +123,7 @@ describe('payload parsing', () => {
         version: 'abc123',
         generated_at: '2026-08-24T00:00:00+00:00',
         rules: [
-          { id: 1, label: 'Service Order', host_pattern: 'sysnewos.shalomcontrol.com', path_pattern: '/service-order', window_mode: 'allowed', timezone: 'America/Lima', windows: [{ day_of_week: 1, start_time: '08:00:00', end_time: '20:05:00' }] },
+          { id: 1, label: 'Service Order', host_pattern: 'sysnewos.shalomcontrol.com', host_patterns: ['sysnewos.shalomcontrol.com', 'sysprovincia.shalomcontrol.com'], path_pattern: '/service-order', window_mode: 'allowed', timezone: 'America/Lima', windows: [{ day_of_week: 1, start_time: '08:00:00', end_time: '20:05:00' }] },
           { id: 2, label: 'Sin host' },
         ],
       },
@@ -115,6 +132,15 @@ describe('payload parsing', () => {
     expect(parsed?.version).toBe('abc123');
     expect(parsed?.rules).toHaveLength(1);
     expect(parsed?.rules[0].windows[0]).toEqual({ dayOfWeek: 1, start: '08:00', end: '20:05' });
+    expect(parsed?.rules[0].hostPatterns).toEqual(['sysnewos.shalomcontrol.com', 'sysprovincia.shalomcontrol.com']);
+  });
+
+  it('sigue leyendo payloads antiguos con un solo host_pattern', () => {
+    const parsed = parseBlockRuleSet({
+      data: { version: 'v1', rules: [{ id: 1, label: 'Legacy', host_pattern: 'sysnewos.shalomcontrol.com', path_pattern: '/service-order', windows: [] }] },
+    });
+
+    expect(parsed?.rules[0].hostPatterns).toEqual(['sysnewos.shalomcontrol.com']);
   });
 
   it('returns null when the payload has no rules array', () => {

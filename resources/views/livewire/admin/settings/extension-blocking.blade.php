@@ -31,8 +31,8 @@
             <div class="space-y-5">
                 <div class="grid gap-4 md:grid-cols-2">
                     <x-ui.input label="Nombre" wire:model="label" :error="$errors->first('label')" placeholder="Service Order" required />
-                    <x-ui.input label="Dominio" wire:model="hostPattern" :error="$errors->first('hostPattern')"
-                        description="Admite comodín: *.shalomcontrol.com o sysnewos.shalomcontrol.com" required />
+                    <x-ui.textarea label="Dominios" wire:model="hostPatterns" rows="3" :error="$errors->first('hostPatterns')"
+                        description="Uno por línea. Admite comodín: *.shalomcontrol.com o sysnewos.shalomcontrol.com" required />
                     <x-ui.input label="Ruta" wire:model="pathPattern" :error="$errors->first('pathPattern')"
                         description="/service-order bloquea esa ruta. /* bloquea todo el dominio." required />
                     <x-ui.input label="Zona horaria" wire:model="timezone" :error="$errors->first('timezone')" />
@@ -126,7 +126,11 @@
                                     <p class="text-xs text-[color:var(--color-text-muted)]">{{ $rule->timezone }}</p>
                                 </td>
                                 <td class="px-3 py-3 align-top font-mono text-xs">
-                                    {{ $rule->host_pattern }}{{ $rule->path_pattern }}
+                                    <ul class="space-y-0.5">
+                                        @foreach($rule->hostPatterns() as $host)
+                                            <li>{{ $host }}{{ $rule->path_pattern }}</li>
+                                        @endforeach
+                                    </ul>
                                 </td>
                                 <td class="px-3 py-3 align-top">
                                     <p class="mb-1 text-xs text-[color:var(--color-text-muted)]">

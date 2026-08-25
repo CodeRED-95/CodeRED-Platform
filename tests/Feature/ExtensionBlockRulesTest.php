@@ -90,7 +90,7 @@ class ExtensionBlockRulesTest extends TestCase
             ->test(ExtensionBlocking::class)
             ->call('create')
             ->set('label', 'Service Order')
-            ->set('hostPattern', 'sysnewos.shalomcontrol.com')
+            ->set('hostPatterns', 'sysnewos.shalomcontrol.com')
             ->set('pathPattern', '/service-order')
             ->set('schedule', $schedule)
             ->set('bulkStart', '08:00')
@@ -109,17 +109,59 @@ class ExtensionBlockRulesTest extends TestCase
         $this->assertSame('17:05:00', substr((string) $rule->windows->firstWhere('day_of_week', 0)->end_time, 0, 8));
     }
 
+    public function test_una_regla_admite_varios_dominios(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(ExtensionBlocking::class)
+            ->call('create')
+            ->set('label', 'Service Order')
+            ->set('hostPatterns', "sysnewos.shalomcontrol.com
+sysprovincia2.shalomcontrol.com
+sysnewos.shalomcontrol.com")
+            ->set('pathPattern', '/service-order')
+            ->call('applyRange', 'all')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $rule = ExtensionBlockRule::query()->with('hosts')->firstOrFail();
+
+        // El duplicado se descarta y el primero queda tambien en host_pattern,
+        // que es lo unico que entiende la extension 2.4.0.
+        $this->assertSame(['sysnewos.shalomcontrol.com', 'sysprovincia2.shalomcontrol.com'], $rule->hostPatterns());
+        $this->assertSame('sysnewos.shalomcontrol.com', $rule->host_pattern);
+
+        $data = $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/extension/chrome/block-rules')->json('data');
+
+        $this->assertSame(['sysnewos.shalomcontrol.com', 'sysprovincia2.shalomcontrol.com'], $data['rules'][0]['host_patterns']);
+        $this->assertSame('sysnewos.shalomcontrol.com', $data['rules'][0]['host_pattern']);
+    }
+
+    public function test_rechaza_un_dominio_invalido_aunque_los_demas_sean_validos(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(ExtensionBlocking::class)
+            ->call('create')
+            ->set('label', 'Mixta')
+            ->set('hostPatterns', "sysnewos.shalomcontrol.com
+www.youtube.com")
+            ->call('applyRange', 'all')
+            ->call('save')
+            ->assertHasErrors('hostPatterns');
+
+        $this->assertSame(0, ExtensionBlockRule::query()->count());
+    }
+
     public function test_rechaza_dominios_fuera_de_shalomcontrol(): void
     {
         Livewire::actingAs($this->admin())
             ->test(ExtensionBlocking::class)
             ->call('create')
             ->set('label', 'Distracciones')
-            ->set('hostPattern', 'www.youtube.com')
+            ->set('hostPatterns', 'www.youtube.com')
             ->set('pathPattern', '/*')
             ->call('applyRange', 'all')
             ->call('save')
-            ->assertHasErrors('hostPattern');
+            ->assertHasErrors('hostPatterns');
 
         $this->assertSame(0, ExtensionBlockRule::query()->count());
     }
@@ -130,7 +172,7 @@ class ExtensionBlockRulesTest extends TestCase
             ->test(ExtensionBlocking::class)
             ->call('create')
             ->set('label', 'Sin dias')
-            ->set('hostPattern', 'sysnewos.shalomcontrol.com')
+            ->set('hostPatterns', 'sysnewos.shalomcontrol.com')
             ->call('save')
             ->assertHasErrors('schedule');
     }

@@ -34,6 +34,30 @@ class ExtensionBlockRule extends Model
         'updated_at' => 'datetime',
     ];
 
+    public function hosts(): HasMany
+    {
+        return $this->hasMany(ExtensionBlockRuleHost::class, 'extension_block_rule_id')->orderBy('id');
+    }
+
+    /**
+     * Dominios de la regla. `host_pattern` sigue siendo el primero por
+     * compatibilidad con la extension 2.4.0, que solo entiende una cadena.
+     *
+     * @return array<int, string>
+     */
+    public function hostPatterns(): array
+    {
+        $patterns = $this->relationLoaded('hosts') || $this->exists
+            ? $this->hosts->pluck('host_pattern')->all()
+            : [];
+
+        if ($patterns === [] && is_string($this->host_pattern) && $this->host_pattern !== '') {
+            $patterns = [$this->host_pattern];
+        }
+
+        return array_values(array_unique($patterns));
+    }
+
     public function windows(): HasMany
     {
         return $this->hasMany(ExtensionBlockWindow::class, 'extension_block_rule_id')->orderBy('day_of_week')->orderBy('start_time');

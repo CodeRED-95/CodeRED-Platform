@@ -20,7 +20,8 @@ class ExtensionBlocking extends Component
 
     public string $label = '';
 
-    public string $hostPattern = '*.shalomcontrol.com';
+    /** Un dominio por linea. */
+    public string $hostPatterns = '*.shalomcontrol.com';
 
     public string $pathPattern = '/*';
 
@@ -55,11 +56,11 @@ class ExtensionBlocking extends Component
     public function edit(int $ruleId): void
     {
         Gate::authorize('settings.extension-blocking.manage');
-        $rule = ExtensionBlockRule::query()->with('windows')->findOrFail($ruleId);
+        $rule = ExtensionBlockRule::query()->with(['windows', 'hosts'])->findOrFail($ruleId);
 
         $this->editingId = $rule->getKey();
         $this->label = (string) $rule->label;
-        $this->hostPattern = (string) $rule->host_pattern;
+        $this->hostPatterns = implode("\n", $rule->hostPatterns());
         $this->pathPattern = (string) $rule->path_pattern;
         $this->windowMode = (string) $rule->window_mode;
         $this->timezone = (string) $rule->timezone;
@@ -112,12 +113,13 @@ class ExtensionBlocking extends Component
     {
         Gate::authorize('settings.extension-blocking.manage');
 
-        $this->hostPattern = BlockRulePattern::normalizeHost($this->hostPattern);
+        $hosts = $this->normalizedHosts();
+        $this->hostPatterns = implode("\n", $hosts);
         $this->pathPattern = BlockRulePattern::normalizePath($this->pathPattern);
 
         $this->validate([
             'label' => ['required', 'string', 'max:120'],
-            'hostPattern' => ['required', 'string', 'max:190'],
+            'hostPatterns' => ['required', 'string'],
             'pathPattern' => ['required', 'string', 'max:190'],
             'windowMode' => ['required', 'in:allowed,blocked'],
             'timezone' => ['required', 'timezone'],
@@ -125,14 +127,28 @@ class ExtensionBlocking extends Component
             'notes' => ['nullable', 'string', 'max:2000'],
         ], [], [
             'label' => 'nombre',
-            'hostPattern' => 'dominio',
+            'hostPatterns' => 'dominio',
             'pathPattern' => 'ruta',
         ]);
 
-        if (! BlockRulePattern::hostIsAllowed($this->hostPattern)) {
-            $this->addError('hostPattern', 'El dominio debe pertenecer a '.BlockRulePattern::ALLOWED_DOMAIN.': la extension no tiene permisos sobre otros sitios.');
+        if ($hosts === []) {
+            $this->addError('hostPatterns', 'Indica al menos un dominio.');
 
             return;
+        }
+
+        foreach ($hosts as $host) {
+            if (! BlockRulePattern::hostIsAllowed($host)) {
+                $this->addError('hostPatterns', '«'.$host.'» no pertenece a '.BlockRulePattern::ALLOWED_DOMAIN.': la extension no tiene permisos sobre otros sitios.');
+
+                return;
+            }
+
+            if (mb_strlen($host) > 190) {
+                $this->addError('hostPatterns', '«'.$host.'» supera los 190 caracteres.');
+
+                return;
+            }
         }
 
         $windows = $this->normalizedWindows();
@@ -151,14 +167,15 @@ class ExtensionBlocking extends Component
             }
         }
 
-        DB::transaction(function () use ($windows): void {
+        DB::transaction(function () use ($windows, $hosts): void {
             $rule = $this->editingId !== null
                 ? ExtensionBlockRule::query()->findOrFail($this->editingId)
                 : new ExtensionBlockRule(['sort_order' => (int) ExtensionBlockRule::query()->max('sort_order') + 1]);
 
             $rule->fill([
                 'label' => $this->label,
-                'host_pattern' => $this->hostPattern,
+                // Primer dominio: lo que sigue leyendo la extension 2.4.0.
+                'host_pattern' => $hosts[0],
                 'path_pattern' => $this->pathPattern,
                 'window_mode' => $this->windowMode,
                 'timezone' => $this->timezone,
@@ -174,6 +191,8 @@ class ExtensionBlocking extends Component
             $rule->save();
             $rule->windows()->delete();
             $rule->windows()->createMany($windows);
+            $rule->hosts()->delete();
+            $rule->hosts()->createMany(array_map(fn (string $host): array => ['host_pattern' => $host], $hosts));
         });
 
         $service->forgetCache();
@@ -208,11 +227,24 @@ class ExtensionBlocking extends Component
     public function render(ExtensionBlockRuleService $service): View
     {
         return view('livewire.admin.settings.extension-blocking', [
-            'rules' => ExtensionBlockRule::query()->ordered()->with('windows')->get(),
+            'rules' => ExtensionBlockRule::query()->ordered()->with(['windows', 'hosts'])->get(),
             'days' => BlockRulePattern::DAYS,
             'payloadVersion' => substr($service->payload()['version'], 0, 12),
             'canManage' => Gate::allows('settings.extension-blocking.manage'),
         ])->layout('layouts.app', ['pageTitle' => 'Bloqueo de la extensión']);
+    }
+
+    /**
+     * Dominios del textarea: uno por linea, normalizados y sin repetidos.
+     *
+     * @return array<int, string>
+     */
+    private function normalizedHosts(): array
+    {
+        $hosts = preg_split('/[\r\n,;]+/', $this->hostPatterns) ?: [];
+        $hosts = array_map(fn (string $host): string => BlockRulePattern::normalizeHost($host), $hosts);
+
+        return array_values(array_unique(array_filter($hosts, fn (string $host): bool => $host !== '')));
     }
 
     /**
@@ -262,7 +294,7 @@ class ExtensionBlocking extends Component
     {
         $this->editingId = null;
         $this->label = '';
-        $this->hostPattern = '*.shalomcontrol.com';
+        $this->hostPatterns = '*.shalomcontrol.com';
         $this->pathPattern = '/*';
         $this->windowMode = 'allowed';
         $this->timezone = 'America/Lima';

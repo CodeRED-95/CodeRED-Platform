@@ -20,7 +20,8 @@ export interface BlockWindow {
 export interface BlockRule {
   id: number;
   label: string;
-  hostPattern: string;
+  /** Una regla puede cubrir varios dominios; basta con que uno coincida. */
+  hostPatterns: string[];
   pathPattern: string;
   windowMode: WindowMode;
   timezone: string;
@@ -47,7 +48,7 @@ export interface RuleEvaluation {
 export const DEFAULT_BLOCK_RULE: BlockRule = {
   id: 0,
   label: 'Service Order',
-  hostPattern: 'sysnewos.shalomcontrol.com',
+  hostPatterns: ['sysnewos.shalomcontrol.com'],
   pathPattern: '/service-order',
   windowMode: 'allowed',
   timezone: 'America/Lima',
@@ -84,8 +85,14 @@ function parseBlockRule(raw: unknown): BlockRule | null {
   const rule = asRecord(raw);
   if (!rule) return null;
 
-  const hostPattern = typeof rule.host_pattern === 'string' ? rule.host_pattern.trim().toLowerCase() : '';
-  if (hostPattern === '') return null;
+  // `host_patterns` (plural) lo publica la Plataforma desde 2.5.0; el singular
+  // se mantiene para no romper la lectura de payloads antiguos cacheados.
+  const hostPatterns = Array.isArray(rule.host_patterns)
+    ? rule.host_patterns.filter((value): value is string => typeof value === 'string').map((value) => value.trim().toLowerCase()).filter((value) => value !== '')
+    : typeof rule.host_pattern === 'string' && rule.host_pattern.trim() !== ''
+      ? [rule.host_pattern.trim().toLowerCase()]
+      : [];
+  if (hostPatterns.length === 0) return null;
 
   const windows = Array.isArray(rule.windows)
     ? rule.windows
@@ -104,7 +111,7 @@ function parseBlockRule(raw: unknown): BlockRule | null {
   return {
     id: Number(rule.id) || 0,
     label: typeof rule.label === 'string' && rule.label.trim() !== '' ? rule.label.trim() : 'Bloqueo',
-    hostPattern,
+    hostPatterns: [...new Set(hostPatterns)],
     pathPattern: typeof rule.path_pattern === 'string' && rule.path_pattern.trim() !== '' ? rule.path_pattern.trim().toLowerCase() : '/*',
     windowMode: rule.window_mode === 'blocked' ? 'blocked' : 'allowed',
     timezone: typeof rule.timezone === 'string' && rule.timezone.trim() !== '' ? rule.timezone.trim() : 'America/Lima',
@@ -113,7 +120,9 @@ function parseBlockRule(raw: unknown): BlockRule | null {
 }
 
 export function ruleMatchesLocation(rule: BlockRule, hostname: string, pathname: string): boolean {
-  return hostMatches(rule.hostPattern, hostname.toLowerCase()) && pathMatches(rule.pathPattern, normalizePath(pathname));
+  const host = hostname.toLowerCase();
+  if (!rule.hostPatterns.some((pattern) => hostMatches(pattern, host))) return false;
+  return pathMatches(rule.pathPattern, normalizePath(pathname));
 }
 
 function hostMatches(pattern: string, hostname: string): boolean {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.5.0 - 2026-08-25
+
+- Una regla puede cubrir varios dominios: el panel acepta una lista y basta con que uno coincida para aplicar el horario.
+- El payload publica `host_patterns` (lista) y mantiene `host_pattern` con el primer dominio, para que las instalaciones 2.4.0 sigan bloqueando mientras se actualizan.
+
 ## 2.4.0 - 2026-08-24
 
 - El horario de bloqueo deja de estar escrito en el codigo: ahora lo define el panel `Configuracion > Bloqueo extension` de CodeRED Platform y se descarga desde `GET /api/v1/extension/chrome/block-rules`.

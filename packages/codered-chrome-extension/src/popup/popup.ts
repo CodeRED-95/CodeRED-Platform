@@ -339,7 +339,8 @@ function toApiShape(value: unknown): unknown {
   return {
     id: rule.id,
     label: rule.label,
-    host_pattern: rule.hostPattern,
+    host_pattern: Array.isArray(rule.hostPatterns) ? rule.hostPatterns[0] : rule.hostPattern,
+    host_patterns: rule.hostPatterns,
     path_pattern: rule.pathPattern,
     window_mode: rule.windowMode,
     timezone: rule.timezone,

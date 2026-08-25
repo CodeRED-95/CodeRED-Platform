@@ -133,7 +133,7 @@ El horario de bloqueo no vive en el codigo: lo administra un super-admin en Code
 
 Cada regla define:
 
-- **Dominio y ruta**: `sysnewos.shalomcontrol.com` + `/service-order`, o comodines (`*.shalomcontrol.com`, `/ordenservicio/*`). Solo se admiten hosts de `shalomcontrol.com`, que es el unico dominio con `host_permissions`.
+- **Dominios y ruta**: uno o varios dominios (`sysnewos.shalomcontrol.com`, `sysprovincia2.shalomcontrol.com`, o comodines como `*.shalomcontrol.com`) mas una ruta comun (`/service-order`, `/ordenservicio/*`). La regla aplica si coincide cualquiera de sus dominios. Solo se admiten hosts de `shalomcontrol.com`, que es el unico dominio con `host_permissions`. Para rutas distintas, crear otra regla.
 - **Modo**: `horario permitido` (fuera de las ventanas se bloquea, el comportamiento historico) u `horario bloqueado` (solo se bloquea dentro de las ventanas).
 - **Ventanas por dia**: lunes a sabado 08:00-20:05 y domingo 08:00-17:05 es un caso valido. Un dia sin ventana queda bloqueado el dia entero en modo permitido.
 - **Zona horaria**: `America/Lima` por defecto; los limites se calculan con `Intl`, no con un desfase fijo.

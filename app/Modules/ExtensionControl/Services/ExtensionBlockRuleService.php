@@ -28,7 +28,7 @@ class ExtensionBlockRuleService
             $rules = ExtensionBlockRule::query()
                 ->active()
                 ->ordered()
-                ->with('windows')
+                ->with(['windows', 'hosts'])
                 ->get()
                 ->map(fn (ExtensionBlockRule $rule): array => $this->serializeRule($rule))
                 ->all();
@@ -53,10 +53,16 @@ class ExtensionBlockRuleService
      */
     private function serializeRule(ExtensionBlockRule $rule): array
     {
+        $hostPatterns = $rule->hostPatterns();
+
         return [
             'id' => $rule->getKey(),
             'label' => $rule->label,
-            'host_pattern' => $rule->host_pattern,
+            // `host_pattern` (singular) se mantiene para la extension 2.4.0,
+            // que solo entiende un dominio por regla y descarta las que no lo
+            // traigan. Desde 2.5.0 se lee `host_patterns`.
+            'host_pattern' => $hostPatterns[0] ?? $rule->host_pattern,
+            'host_patterns' => $hostPatterns,
             'path_pattern' => $rule->path_pattern,
             'window_mode' => $rule->window_mode,
             'timezone' => $rule->timezone,
