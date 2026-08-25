@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.2 - 2026-08-25
+
+- Protege tambien el desbloqueo forzoso frente a un contexto de extension invalidado: era la ultima via que podia lanzar "Extension context invalidated" sin recogerlo.
+
 ## 2.6.1 - 2026-08-25
 
 - Corrige el error "Extension context invalidated" que se repetia cada segundo en las pestanas abiertas despues de actualizar la extension.

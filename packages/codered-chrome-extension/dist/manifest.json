@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Buscador Shalom Control",
   "short_name": "Shalom Control",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "description": "Cliente ligero de CodeRED Platform para buscar agencias Shalom con cache local.",
   "action": {
     "default_title": "Buscador Shalom",

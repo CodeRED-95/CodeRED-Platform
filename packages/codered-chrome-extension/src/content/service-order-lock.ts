@@ -502,6 +502,11 @@ export function createServiceOrderLockController(deps: {
   }
 
   async function setForcedUnlockActive(active: boolean): Promise<void> {
+    if (!isExtensionContextAlive()) {
+      handleOrphanedContext();
+      return;
+    }
+
     if (active) {
       const now = new Date();
       const rule = activeRule();
@@ -514,14 +519,26 @@ export function createServiceOrderLockController(deps: {
         restrictedPeriodId: getRulePeriodId(rule, now) ?? '',
       };
       forcedUnlock = value;
-      await chrome.storage.local.set({ [FORCED_UNLOCK_KEY]: value });
-      await logForcedUnlock('forced_unlock_started', value);
+
+      try {
+        await chrome.storage.local.set({ [FORCED_UNLOCK_KEY]: value });
+        await logForcedUnlock('forced_unlock_started', value);
+      } catch (error) {
+        if (isContextInvalidatedError(error)) handleOrphanedContext();
+      }
+
       return;
     }
+
     const current = await readForcedUnlock();
     if (current) await logForcedUnlock('forced_unlock_ended', current);
     forcedUnlock = null;
-    await chrome.storage.local.remove([FORCED_UNLOCK_KEY]);
+
+    try {
+      await chrome.storage.local.remove([FORCED_UNLOCK_KEY]);
+    } catch (error) {
+      if (isContextInvalidatedError(error)) handleOrphanedContext();
+    }
   }
 
   async function logForcedUnlock(type: 'forced_unlock_started' | 'forced_unlock_ended' | 'forced_unlock_expired', forced: ServiceOrderForcedUnlock): Promise<void> {
