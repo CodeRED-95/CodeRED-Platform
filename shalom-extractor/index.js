@@ -442,9 +442,10 @@ if (debugEnabled) {
 }
 
 app.post('/extract', async (req, res) => {
-  if (typeof req.body?.chosenFileContent !== 'string' || !req.body.chosenFileContent.trim()) {
-    return res.status(422).json({ error: 'chosenFileContent is required' });
-  }
+  // `chosenFileContent` es opcional y, de hecho, no se usa: las agencias se
+  // obtienen navegando shalom.com.pe. Se acepta por compatibilidad con quien
+  // lo siga enviando, pero exigirlo obligaba a subir un archivo intrascendente
+  // para poder sincronizar.
 
   let browser;
   try {

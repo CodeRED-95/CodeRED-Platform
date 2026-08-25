@@ -25,7 +25,12 @@ class SyncShalomAgenciesJob implements ShouldQueue
 
     public int $timeout = 240;
 
-    public function __construct(public int $importRunId, public string $chosenPath) {}
+    /**
+     * `$chosenPath` es opcional: sin archivo Chosen la sincronizacion se
+     * ejecuta igual y los textos texto_chosen_* de cada agencia se dejan como
+     * estan (ConfirmAgencyImportRunAction ignora los valores vacios).
+     */
+    public function __construct(public int $importRunId, public ?string $chosenPath = null) {}
 
     public function middleware(): array
     {
@@ -43,15 +48,21 @@ class SyncShalomAgenciesJob implements ShouldQueue
         $run->update(['status' => 'running', 'stage' => 'Extrayendo agencias Shalom', 'started_at' => now(), 'progress' => 10]);
 
         try {
-            $chosenFileContent = Storage::get($this->chosenPath);
-            $chosenRows = collect($chosenParser($chosenFileContent))->keyBy('external_id');
+            $chosenFileContent = $this->chosenPath !== null ? Storage::get($this->chosenPath) : null;
+            $chosenRows = $chosenFileContent !== null
+                ? collect($chosenParser($chosenFileContent))->keyBy('external_id')
+                : collect();
 
             $timeout = (int) config('services.shalom_extractor.timeout', 180);
             $url = rtrim((string) config('services.shalom_extractor.url', 'http://shalom-extractor:3000'), '/');
 
-            $response = Http::connectTimeout(15)->timeout($timeout)->retry(2, 1500)->post($url.'/extract', [
-                'chosenFileContent' => $chosenFileContent,
-            ]);
+            // El extractor no consume el Chosen: saca las agencias de
+            // shalom.com.pe por su cuenta. Solo se envia cuando existe, por
+            // compatibilidad con versiones anteriores del servicio.
+            $response = Http::connectTimeout(15)->timeout($timeout)->retry(2, 1500)->post(
+                $url.'/extract',
+                $chosenFileContent !== null ? ['chosenFileContent' => $chosenFileContent] : []
+            );
 
             if ($response->failed()) {
                 throw new RuntimeException('El extractor Shalom respondió con estado '.$response->status().'.');

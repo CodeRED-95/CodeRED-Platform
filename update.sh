@@ -461,6 +461,7 @@ if [[ "$OLD_HEAD" != "$NEW_HEAD" ]]; then
     if changed '(^composer.lock$|^docker/php/Dockerfile$|^docker-compose.yml$|^compose.yml$|^app/|^bootstrap/|^config/|^routes/)'; then BUILD_SERVICES+=(app queue queue-ruc-backups scheduler); fi
     if changed '(^packages/codered-agent/|^docker-compose.yml$|^compose.yml$)'; then BUILD_SERVICES+=(codered-agent); fi
     if changed '(^packages/shalom-declaracion-jurada/|^docker-compose.yml$|^compose.yml$)'; then BUILD_SERVICES+=(declaracion-jurada); fi
+    if changed '(^shalom-extractor/|^docker-compose.yml$|^compose.yml$)'; then BUILD_SERVICES+=(shalom-extractor); fi
 fi
 if ((${#BUILD_SERVICES[@]})); then
     docker compose build "${BUILD_SERVICES[@]}"

@@ -1,23 +1,22 @@
 <div class="space-y-6">
     <x-ui.page-header
         title="Sincronización Shalom"
-        subtitle="Carga el archivo Chosen para analizar diferencias y encolar la importación sin exponer el flujo a la interfaz del navegador."
+        subtitle="Encola el análisis de agencias contra Shalom. El archivo Chosen es opcional y solo aporta los textos texto_chosen_*."
     >
         <x-slot:actions>
             <x-ui.button href="{{ route('admin.agencies.index') }}" variant="secondary">Volver a agencias</x-ui.button>
         </x-slot:actions>
     </x-ui.page-header>
 
-    <x-ui.card title="Archivo de sincronización" description="Acepta JSON, TXT o HTML con elementos <li>. El archivo se conserva dentro de la ejecución.">
+    <x-ui.card title="Archivo Chosen (opcional)" description="Acepta JSON, TXT o HTML con elementos <li>. El archivo se conserva dentro de la ejecución.">
         <form wire:submit="sync" class="space-y-5">
             <x-ui.file-upload
                 id="chosenFile"
                 wire:model="chosenFile"
                 label="Archivo Chosen"
                 accept=".json,.txt,.html,text/plain,application/json,text/html"
-                description="Selecciona el archivo exportado desde Shalom para iniciar el análisis."
+                description="Puedes dejarlo vacío: el extractor obtiene las agencias por su cuenta. Súbelo solo si quieres actualizar los textos texto_chosen_*; sin él, los que ya están guardados se conservan."
                 :error="$errors->first('chosenFile')"
-                required
             />
 
             <div class="flex flex-wrap gap-3">

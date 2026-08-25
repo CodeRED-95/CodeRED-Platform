@@ -27,19 +27,27 @@ class ShalomSync extends Component
         Gate::authorize('import', Agency::class);
 
         $maxKb = max(1, (int) config('services.shalom_extractor.max_file_mb', 10)) * 1024;
-        $this->validate(['chosenFile' => ['required', 'file', 'max:'.$maxKb]]);
+        // El Chosen es opcional: el extractor obtiene las agencias de
+        // shalom.com.pe por su cuenta y este archivo solo aporta los textos
+        // texto_chosen_*, que la SPA nueva ya no usa. Sin el, la sincronizacion
+        // corre igual y los textos existentes se conservan.
+        $this->validate(['chosenFile' => ['nullable', 'file', 'max:'.$maxKb]]);
 
         $run = AgencyImportRun::create([
             'type' => 'shalom_sync',
             'status' => 'pending',
             'stage' => 'En cola',
-            'chosen_original_name' => $this->chosenFile->getClientOriginalName(),
+            'chosen_original_name' => $this->chosenFile?->getClientOriginalName(),
             'created_by' => Auth::id(),
         ]);
 
         $directory = 'imports/shalom/'.$run->id;
-        $path = $this->chosenFile->storeAs($directory, 'chosen-original.json');
-        $run->update(['chosen_storage_path' => $path]);
+        $path = null;
+
+        if ($this->chosenFile) {
+            $path = $this->chosenFile->storeAs($directory, 'chosen-original.json');
+            $run->update(['chosen_storage_path' => $path]);
+        }
         Storage::put($directory.'/extractor.log', '['.now()->toIso8601String()."] Ejecución creada.\n");
 
         SyncShalomAgenciesJob::dispatch($run->id, $path)

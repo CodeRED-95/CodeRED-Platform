@@ -54,7 +54,8 @@ class ShalomSyncRun extends Component
         }
 
         abort_unless($this->importRun->status === 'failed', 409);
-        abort_unless(filled($this->importRun->chosen_storage_path), 422);
+        // Sin guardia sobre el Chosen: desde que es opcional, una ejecucion
+        // puede no tener archivo y aun asi debe poder reintentarse.
 
         $this->importRun->forceFill([
             'status' => 'pending',
