@@ -9,7 +9,7 @@ import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agen
 import { detectComboboxChannel, selectAgencyInCombobox } from './destination-combobox';
 import { bindChannelButtons, detectActiveShalomChannelState, type ShalomChannel } from './shalom-page-adapter';
 import { createServiceOrderLockController } from './service-order-lock';
-import { DEFAULT_BLOCK_RULE_SET, parseBlockRuleSet } from '../shared/block-rules';
+import { EMPTY_BLOCK_RULE_SET, parseBlockRuleSet } from '../shared/block-rules';
 import { isExtensionContextAlive } from '../shared/runtime';
 import {
   getShalomPageCapabilities,
@@ -86,13 +86,13 @@ export function createShalomContentController(dependencies: ContentControllerDep
       }
     },
     getRuleSet: async () => {
-      if (!isExtensionContextAlive() || typeof chrome.storage?.local?.get !== 'function') return DEFAULT_BLOCK_RULE_SET;
+      if (!isExtensionContextAlive() || typeof chrome.storage?.local?.get !== 'function') return EMPTY_BLOCK_RULE_SET;
 
       try {
         const data = await chrome.storage.local.get(['codered_block_rules']);
-        return parseBlockRuleSet(data.codered_block_rules) ?? DEFAULT_BLOCK_RULE_SET;
+        return parseBlockRuleSet(data.codered_block_rules) ?? EMPTY_BLOCK_RULE_SET;
       } catch {
-        return DEFAULT_BLOCK_RULE_SET;
+        return EMPTY_BLOCK_RULE_SET;
       }
     },
   });

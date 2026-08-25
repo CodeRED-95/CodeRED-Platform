@@ -1,6 +1,6 @@
 import './popup.css';
 import { EXTENSION_VERSION } from '../shared/version';
-import { DEFAULT_BLOCK_RULE, evaluateRule, parseBlockRuleSet, type BlockRule } from '../shared/block-rules';
+import { evaluateRule, parseBlockRuleSet, type BlockRule } from '../shared/block-rules';
 import { getTokenRequestUrl } from '../models/configuration';
 
 // Derivado de getPlatformApiBaseUrl() para que el dominio viva en un solo
@@ -236,12 +236,33 @@ function applyReadError(elements: PopupElements): void {
   elements.message.dataset.tone = 'error';
 }
 
+/** La tarjeta de control horario solo existe si el token la tiene concedida. */
+function lockCard(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('.popup-card--lock');
+}
+
+function hideLockCard(): void {
+  const card = lockCard();
+  if (card) card.hidden = true;
+}
+
 async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
   try {
     const response = await readServiceOrderLockState();
+    const rule = response?.rule ?? null;
+
+    // Sin regla aplicable no hay nada que mostrar: el token no tiene el
+    // control horario concedido, o no hay ninguna regla publicada.
+    if (!rule) {
+      hideLockCard();
+      return;
+    }
+
+    const card = lockCard();
+    if (card) card.hidden = false;
+
     const manualLocked = Boolean(response?.locked);
     const forcedUnlock = response?.forcedUnlock?.active ? response.forcedUnlock : null;
-    const rule = response?.rule ?? DEFAULT_BLOCK_RULE;
     const evaluation = evaluateRule(rule, new Date());
     const scheduleLocked = evaluation.blockedBySchedule;
     const forcedUnlockActive = Boolean(forcedUnlock && scheduleLocked);
@@ -293,6 +314,7 @@ async function renderServiceOrderLock(elements: PopupElements): Promise<void> {
     elements.forceFeedback.textContent = '';
     return;
   } catch {
+    hideLockCard();
     elements.lockState.textContent = 'DESCONOCIDO';
     elements.lockState.dataset.tone = 'muted';
     elements.lockCurrent.textContent = 'DESCONOCIDO';

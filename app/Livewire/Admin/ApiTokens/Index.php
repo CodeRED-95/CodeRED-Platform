@@ -8,6 +8,7 @@ use App\Enums\ApiTokenType;
 use App\Models\ApiClient;
 use App\Models\ApiRequestLog;
 use App\Models\ApiToken;
+use App\Modules\ExtensionControl\Support\BlockingAbility;
 use App\Models\RevokedApiToken;
 use App\Models\User;
 use App\Services\ApiTokens\AbilityCatalogService;
@@ -212,6 +213,33 @@ class Index extends Component
         $this->plainTextToken = $created->plainTextToken;
         $this->createdTokenName = $new->name;
         $this->dispatch('toast', type: 'success', message: 'Token rotado. El token anterior sigue activo hasta que lo revoques.');
+    }
+
+    /**
+     * Concede o retira el control horario de la extension en un token concreto.
+     *
+     * Las abilities viven en el propio token, asi que basta con reescribir la
+     * columna: el token sigue siendo valido y no hay que reemitirlo. La
+     * extension lo nota en su siguiente sincronizacion.
+     */
+    public function toggleBlockingAbility(int $tokenId, AuditLogger $audit): void
+    {
+        Gate::authorize('api-tokens.create-for-users');
+        $token = ApiToken::query()->findOrFail($tokenId);
+        $before = $token->abilities ?? [];
+        $after = BlockingAbility::toggle($token);
+
+        $token->forceFill(['abilities' => $after])->save();
+
+        $audit->log($token, 'api_token_abilities_updated', ['abilities' => $before], ['abilities' => $after], ['abilities']);
+
+        $this->dispatch(
+            'toast',
+            type: 'success',
+            message: BlockingAbility::grantedTo($token->fresh())
+                ? 'Control horario habilitado para este token.'
+                : 'Control horario retirado de este token.'
+        );
     }
 
     public function revokeToken(int $tokenId, AuditLogger $audit): void

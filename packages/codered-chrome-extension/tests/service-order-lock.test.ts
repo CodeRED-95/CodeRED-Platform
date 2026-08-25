@@ -1,16 +1,36 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  DEFAULT_BLOCK_RULE,
+  EMPTY_BLOCK_RULE_SET,
   evaluateRule,
   getNextRuleChange,
   getRulePeriodId,
   isBlockedByRule,
   parseBlockRuleSet,
   ruleMatchesLocation,
+  evaluateRuleSet,
   type BlockRule,
 } from '../src/shared/block-rules';
 import { resolvePageContext, isNeutralShalomSearchPath } from '../src/content/shalom-host';
 import { isContextInvalidatedError, isExtensionContextAlive } from '../src/shared/runtime';
+
+/** El horario historico de Service Order, ahora solo como dato de prueba. */
+const SERVICE_ORDER_RULE: BlockRule = {
+  id: 0,
+  label: 'Service Order',
+  destinations: [{ hostPattern: 'sysnewos.shalomcontrol.com', pathPattern: '/service-order' }],
+  windowMode: 'allowed',
+  timezone: 'America/Lima',
+  windows: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, start: '08:00', end: '20:05' })),
+};
+
+describe('sin reglas no hay bloqueo', () => {
+  it('el conjunto vacio no afecta a ninguna URL', () => {
+    expect(EMPTY_BLOCK_RULE_SET.rules).toHaveLength(0);
+    const evaluation = evaluateRuleSet(EMPTY_BLOCK_RULE_SET, 'sysnewos.shalomcontrol.com', '/service-order');
+    expect(evaluation.matched).toBe(false);
+    expect(evaluation.blockedBySchedule).toBe(false);
+  });
+});
 
 describe('default service order schedule', () => {
   it.each([
@@ -22,26 +42,26 @@ describe('default service order schedule', () => {
     ['23:59', '2026-08-17T04:59:00.000Z', true],
     ['00:00', '2026-08-17T05:00:00.000Z', true],
   ])('checks %s Lima correctly', (_label, iso, locked) => {
-    expect(isBlockedByRule(DEFAULT_BLOCK_RULE, new Date(iso))).toBe(locked);
+    expect(isBlockedByRule(SERVICE_ORDER_RULE, new Date(iso))).toBe(locked);
   });
 
   it('moves the next change to 08:00 the following day at the exact 20:05 boundary', () => {
-    expect(getNextRuleChange(DEFAULT_BLOCK_RULE, new Date('2026-08-17T01:05:00.000Z'))?.toISOString()).toBe('2026-08-17T13:00:00.000Z');
+    expect(getNextRuleChange(SERVICE_ORDER_RULE, new Date('2026-08-17T01:05:00.000Z'))?.toISOString()).toBe('2026-08-17T13:00:00.000Z');
   });
 
   it('keeps a stable restricted period id across the whole blocked stretch', () => {
-    const early = getRulePeriodId(DEFAULT_BLOCK_RULE, new Date('2026-08-17T01:05:00.000Z'));
-    const late = getRulePeriodId(DEFAULT_BLOCK_RULE, new Date('2026-08-17T02:00:00.000Z'));
+    const early = getRulePeriodId(SERVICE_ORDER_RULE, new Date('2026-08-17T01:05:00.000Z'));
+    const late = getRulePeriodId(SERVICE_ORDER_RULE, new Date('2026-08-17T02:00:00.000Z'));
     expect(early).toBe(late);
     expect(early).toBe('0:2026-08-17T13:00:00.000Z');
-    expect(getRulePeriodId(DEFAULT_BLOCK_RULE, new Date('2026-08-16T13:00:00.000Z'))).toBe(null);
+    expect(getRulePeriodId(SERVICE_ORDER_RULE, new Date('2026-08-16T13:00:00.000Z'))).toBe(null);
   });
 });
 
 describe('per-day schedules from the platform panel', () => {
   // Lunes a sabado 08:00-20:05, domingo 08:00-17:05.
   const rule: BlockRule = {
-    ...DEFAULT_BLOCK_RULE,
+    ...SERVICE_ORDER_RULE,
     id: 7,
     windows: [
       ...[1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, start: '08:00', end: '20:05' })),
@@ -72,7 +92,7 @@ describe('per-day schedules from the platform panel', () => {
 
 describe('blocked-window mode', () => {
   const rule: BlockRule = {
-    ...DEFAULT_BLOCK_RULE,
+    ...SERVICE_ORDER_RULE,
     id: 9,
     windowMode: 'blocked',
     windows: [{ dayOfWeek: 0, start: '12:00', end: '14:00' }],
@@ -86,14 +106,14 @@ describe('blocked-window mode', () => {
 
 describe('rule matching', () => {
   it('matches an exact path only', () => {
-    expect(ruleMatchesLocation(DEFAULT_BLOCK_RULE, 'sysnewos.shalomcontrol.com', '/service-order')).toBe(true);
-    expect(ruleMatchesLocation(DEFAULT_BLOCK_RULE, 'sysnewos.shalomcontrol.com', '/service-order/')).toBe(true);
-    expect(ruleMatchesLocation(DEFAULT_BLOCK_RULE, 'sysnewos.shalomcontrol.com', '/otra-ruta')).toBe(false);
-    expect(ruleMatchesLocation(DEFAULT_BLOCK_RULE, 'otro.shalomcontrol.com', '/service-order')).toBe(false);
+    expect(ruleMatchesLocation(SERVICE_ORDER_RULE, 'sysnewos.shalomcontrol.com', '/service-order')).toBe(true);
+    expect(ruleMatchesLocation(SERVICE_ORDER_RULE, 'sysnewos.shalomcontrol.com', '/service-order/')).toBe(true);
+    expect(ruleMatchesLocation(SERVICE_ORDER_RULE, 'sysnewos.shalomcontrol.com', '/otra-ruta')).toBe(false);
+    expect(ruleMatchesLocation(SERVICE_ORDER_RULE, 'otro.shalomcontrol.com', '/service-order')).toBe(false);
   });
 
   it('supports host wildcards and path prefixes', () => {
-    const rule: BlockRule = { ...DEFAULT_BLOCK_RULE, destinations: [{ hostPattern: '*.shalomcontrol.com', pathPattern: '/ordenservicio/*' }] };
+    const rule: BlockRule = { ...SERVICE_ORDER_RULE, destinations: [{ hostPattern: '*.shalomcontrol.com', pathPattern: '/ordenservicio/*' }] };
     expect(ruleMatchesLocation(rule, 'sysnewos.shalomcontrol.com', '/ordenservicio/listar')).toBe(true);
     expect(ruleMatchesLocation(rule, 'shalomcontrol.com', '/ordenservicio')).toBe(true);
     expect(ruleMatchesLocation(rule, 'sysnewos.shalomcontrol.com', '/otra')).toBe(false);
@@ -102,7 +122,7 @@ describe('rule matching', () => {
 
 describe('varios destinos por regla', () => {
   const rule: BlockRule = {
-    ...DEFAULT_BLOCK_RULE,
+    ...SERVICE_ORDER_RULE,
     destinations: [
       { hostPattern: 'sysnewos.shalomcontrol.com', pathPattern: '/service-order' },
       { hostPattern: 'sysprovincia2.shalomcontrol.com', pathPattern: '/service-order' },
@@ -124,7 +144,7 @@ describe('ruta propia por destino', () => {
   // El caso real que fallaba: dos dominios del mismo grupo, cada uno con su
   // propia ruta dentro de shalomcontrol.com.
   const rule: BlockRule = {
-    ...DEFAULT_BLOCK_RULE,
+    ...SERVICE_ORDER_RULE,
     destinations: [
       { hostPattern: 'sysnewos.shalomcontrol.com', pathPattern: '/service-order' },
       { hostPattern: 'sysprovincia2.shalomcontrol.com', pathPattern: '/ordenservicio/listar' },

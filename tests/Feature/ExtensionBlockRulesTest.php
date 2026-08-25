@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Modules\ExtensionControl\Models\ExtensionBlockRule;
 use App\Modules\ExtensionControl\Services\ExtensionBlockRuleService;
+use App\Modules\ExtensionControl\Support\BlockingAbility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -267,7 +268,37 @@ www.youtube.com")
      * @param  array<int, string>  $abilities
      * @return array<string, string>
      */
-    private function tokenHeaders(array $abilities = ['agencies:read']): array
+    public function test_un_token_sin_la_ability_no_recibe_reglas(): void
+    {
+        $this->createRule();
+
+        // Un token de agencias corriente: sirve para buscar, no para bloquear.
+        $this->withHeaders($this->tokenHeaders(['agencies:read', 'profile:read']))
+            ->getJson('/api/v1/extension/chrome/block-rules')
+            ->assertForbidden();
+    }
+
+    public function test_el_admin_concede_y_retira_el_control_horario_en_un_token(): void
+    {
+        $owner = User::factory()->create(['status' => 'active']);
+        $token = $owner->createToken('Extension', ['agencies:read', 'profile:read'])->accessToken;
+
+        Livewire::actingAs($this->admin())
+            ->test(\App\Livewire\Admin\ApiTokens\Index::class)
+            ->call('toggleBlockingAbility', $token->getKey());
+
+        $this->assertContains(BlockingAbility::NAME, $token->fresh()->abilities);
+
+        Livewire::actingAs($this->admin())
+            ->test(\App\Livewire\Admin\ApiTokens\Index::class)
+            ->call('toggleBlockingAbility', $token->getKey());
+
+        // Se retira sin tocar las demas abilities ni invalidar el token.
+        $this->assertNotContains(BlockingAbility::NAME, $token->fresh()->abilities);
+        $this->assertContains('agencies:read', $token->fresh()->abilities);
+    }
+
+    private function tokenHeaders(array $abilities = ['agencies:read', 'extension:blocking', 'profile:read']): array
     {
         $token = User::factory()->create(['status' => 'active'])->createToken('Prueba bloqueo', $abilities)->plainTextToken;
 

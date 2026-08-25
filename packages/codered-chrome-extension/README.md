@@ -129,7 +129,9 @@ Configurar `API_ALLOWED_ORIGINS` con el origen de la extension si se restringe e
 
 ## Bloqueo horario
 
-El horario de bloqueo no vive en el codigo: lo administra un super-admin en CodeRED Platform, en `Configuracion > Bloqueo extension` (`/admin/settings/bloqueo-extension`), y se aplica a todas las instalaciones que sincronizan con un token valido.
+El horario de bloqueo no vive en el codigo: lo administra un super-admin en CodeRED Platform, en `Configuracion > Bloqueo extension` (`/admin/settings/bloqueo-extension`).
+
+Ademas es **opt-in por token**: solo se aplica en las instalaciones cuyo token lleva la ability `extension:blocking`, que se concede o retira token a token desde `/admin/api-tokens`. Un token sin ella recibe 403 en el endpoint de reglas, no guarda ninguna, no muestra la tarjeta de control en el popup y no bloquea nada.
 
 Cada regla define:
 

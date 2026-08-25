@@ -212,6 +212,15 @@ async function syncBlockRules(): Promise<{ status: string; message: string; vers
     return { status: 'updated', message: 'Reglas actualizadas', version: ruleSet.version };
   } catch (error) {
     const status = typeof error === 'object' && error !== null && 'status' in error ? Number((error as { status: unknown }).status) : 0;
+
+    // 403: el token no lleva la ability `extension:blocking`. No es un fallo
+    // de red, es la respuesta correcta para una instalacion sin control
+    // horario, asi que se limpian las reglas que pudiera tener guardadas.
+    if (status === 403) {
+      await storage.saveBlockRuleSet({ version: '', generatedAt: null, rules: [] });
+      return { status: 'disabled', message: 'Este token no tiene control horario' };
+    }
+
     console.log(`[CodeRED] No fue posible sincronizar las reglas de bloqueo (${status}). Se conservan las locales.`);
     return { status: 'error', message: 'Sin conexion: se conservan las reglas guardadas' };
   }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.0 - 2026-08-25
+
+- El control horario pasa a ser opt-in por token: solo se aplica en las instalaciones cuyo token lleva la ability `extension:blocking`, que se concede desde el panel de tokens de CodeRED Platform.
+- Sin esa ability, la tarjeta de control desaparece del popup y no se aplica ningun bloqueo.
+- Se elimina el horario de respaldo escrito en el codigo: sin reglas publicadas no hay bloqueo, tampoco en una instalacion recien puesta.
+
 ## 2.7.3 - 2026-08-25
 
 - El aviso "La extension se actualizo: recarga la pagina" deja de salir como advertencia en la consola de la pagina; pasa a `console.debug`.

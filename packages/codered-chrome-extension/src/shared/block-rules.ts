@@ -5,8 +5,8 @@
  * (08:00-20:05, un unico destino). Ahora la Plataforma publica las reglas en
  * `GET /api/v1/extension/chrome/block-rules` y este modulo las evalua: que URL
  * afecta cada regla, si el instante actual queda bloqueado y cuando cambia el
- * estado. Si no hay reglas sincronizadas se usa DEFAULT_BLOCK_RULE_SET, que
- * reproduce exactamente el comportamiento anterior.
+ * estado. El control horario es opt-in por token: sin reglas publicadas, la
+ * extension no bloquea nada.
  */
 
 export type WindowMode = 'allowed' | 'blocked';
@@ -49,19 +49,18 @@ export interface RuleEvaluation {
   scheduleLabel: string;
 }
 
-export const DEFAULT_BLOCK_RULE: BlockRule = {
-  id: 0,
-  label: 'Service Order',
-  destinations: [{ hostPattern: 'sysnewos.shalomcontrol.com', pathPattern: '/service-order' }],
-  windowMode: 'allowed',
-  timezone: 'America/Lima',
-  windows: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, start: '08:00', end: '20:05' })),
-};
-
-export const DEFAULT_BLOCK_RULE_SET: BlockRuleSet = {
-  version: 'default',
+/**
+ * Sin reglas no hay bloqueo.
+ *
+ * Hasta la 2.7.3 existia un horario de respaldo escrito en el codigo, que se
+ * aplicaba cuando aun no se habia sincronizado nada. Desde que el control
+ * horario es opt-in por token, ese respaldo sobraba: una instalacion sin la
+ * ability `extension:blocking` no debe bloquear nunca, ni recien instalada.
+ */
+export const EMPTY_BLOCK_RULE_SET: BlockRuleSet = {
+  version: '',
   generatedAt: null,
-  rules: [DEFAULT_BLOCK_RULE],
+  rules: [],
 };
 
 const MINUTES_PER_DAY = 24 * 60;

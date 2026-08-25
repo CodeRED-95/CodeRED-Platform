@@ -63,6 +63,15 @@
                     <td class="px-4 py-4">
                         <div class="flex flex-wrap gap-2">
                             <x-ui.button size="sm" variant="secondary" wire:click="rotateToken({{ $token->id }})" wire:loading.attr="disabled">Rotar</x-ui.button>
+                            @php($tieneControlHorario = in_array('extension:blocking', (array) ($token->abilities ?? []), true))
+                            <x-ui.button
+                                size="sm"
+                                :variant="$tieneControlHorario ? 'info' : 'ghost'"
+                                wire:click="toggleBlockingAbility({{ $token->id }})"
+                                wire:loading.attr="disabled"
+                                title="{{ $tieneControlHorario ? 'Este token aplica el control horario configurado en el panel' : 'Este token no aplica ningún control horario' }}">
+                                {{ $tieneControlHorario ? 'Control horario: sí' : 'Control horario: no' }}
+                            </x-ui.button>
                             <x-ui.confirm-dialog id="revoke-token-{{ $token->id }}" title="Revocar token" message="{{ $token->name }} dejará de funcionar inmediatamente. Último uso: {{ $token->last_used_at?->format('d/m/Y H:i') ?? 'Nunca utilizado' }}." confirm-label="Revocar token" confirm-action="revokeToken({{ $token->id }})">
                                 <x-slot:trigger><x-ui.button size="sm" variant="danger">Revocar</x-ui.button></x-slot:trigger>
                             </x-ui.confirm-dialog>

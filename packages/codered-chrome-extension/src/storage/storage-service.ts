@@ -2,7 +2,7 @@ import type { Agency } from '../models/agency';
 import { type ExtensionConfiguration, type SyncMetadata } from '../models/configuration';
 import { maskToken } from '../utils/format';
 import { LEGACY_CATALOG_KEYS, LEGACY_SYNC_METADATA_KEYS, LEGACY_TOKEN_KEYS, STORAGE_KEYS } from './storage-keys';
-import { DEFAULT_BLOCK_RULE_SET, getRulePeriodId, parseBlockRuleSet, type BlockRule, type BlockRuleSet } from '../shared/block-rules';
+import { EMPTY_BLOCK_RULE_SET, getRulePeriodId, parseBlockRuleSet, type BlockRule, type BlockRuleSet } from '../shared/block-rules';
 
 export interface ServiceOrderForcedUnlock {
   active: boolean;
@@ -89,15 +89,14 @@ export class ChromeStorageService {
   }
 
   /**
-   * Reglas publicadas por la Plataforma. Mientras no se haya sincronizado
-   * ninguna se devuelve el conjunto por defecto, que replica el bloqueo
-   * historico de Service Order: una instalacion sin red nunca queda sin
-   * bloqueo.
+   * Reglas publicadas por la Plataforma. Sin nada sincronizado el conjunto
+   * viene vacio: el control horario solo existe para los tokens que llevan la
+   * ability `extension:blocking`.
    */
   async getBlockRuleSet(): Promise<BlockRuleSet> {
     const data = await chrome.storage.local.get([STORAGE_KEYS.BLOCK_RULES]);
     const stored = parseBlockRuleSet(data[STORAGE_KEYS.BLOCK_RULES]);
-    return stored ?? DEFAULT_BLOCK_RULE_SET;
+    return stored ?? EMPTY_BLOCK_RULE_SET;
   }
 
   async saveBlockRuleSet(ruleSet: BlockRuleSet): Promise<void> {

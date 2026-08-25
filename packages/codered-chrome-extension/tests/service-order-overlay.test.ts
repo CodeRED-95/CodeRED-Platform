@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { createServiceOrderLockController } from '../src/content/service-order-lock';
-import { DEFAULT_BLOCK_RULE_SET } from '../src/shared/block-rules';
+import type { BlockRuleSet } from '../src/shared/block-rules';
 
 /**
  * El overlay se inyecta en paginas de terceros con sus propias hojas de
@@ -9,6 +9,24 @@ import { DEFAULT_BLOCK_RULE_SET } from '../src/shared/block-rules';
  * el DOM de la pagina, la CSS del sitio puede descolocarlo, que es justo lo
  * que paso con el icono del candado en sysprovincia2.
  */
+/**
+ * Regla que bloquea siempre, sea cual sea la hora: modo "horario permitido"
+ * sin ninguna ventana. Antes estas pruebas usaban el horario 08:00-20:05 y solo
+ * pasaban si se ejecutaban de noche.
+ */
+const LOCKED_RULE_SET: BlockRuleSet = {
+  version: 'test',
+  generatedAt: null,
+  rules: [{
+    id: 1,
+    label: 'Service Order',
+    destinations: [{ hostPattern: 'sysnewos.shalomcontrol.com', pathPattern: '/service-order' }],
+    windowMode: 'allowed',
+    timezone: 'America/Lima',
+    windows: [],
+  }],
+};
+
 describe('overlay de bloqueo', () => {
   let dom: JSDOM;
   let controller: ReturnType<typeof createServiceOrderLockController> | null = null;
@@ -42,7 +60,7 @@ describe('overlay de bloqueo', () => {
     controller = createServiceOrderLockController({
       getManualLock: async () => false,
       setManualLock: async () => undefined,
-      getRuleSet: async () => DEFAULT_BLOCK_RULE_SET,
+      getRuleSet: async () => LOCKED_RULE_SET,
     });
 
     await controller.initialize();
@@ -61,9 +79,11 @@ describe('overlay de bloqueo', () => {
 
   it('mantiene el icono dentro de su contenedor', async () => {
     const overlay = await mountLocked();
-    const icon = overlay?.shadowRoot?.querySelector('.codered-service-order-lock-icon');
+    expect(overlay).not.toBeNull();
 
-    expect(icon?.querySelector('svg')).not.toBeNull();
+    const icon = overlay!.shadowRoot!.querySelector('.codered-service-order-lock-icon');
+    expect(icon).not.toBeNull();
+    expect(icon!.querySelector('svg')).not.toBeNull();
   });
 
   it('no avisa por consola cuando la extension se actualiza con la pagina abierta', async () => {
@@ -90,8 +110,21 @@ describe('overlay de bloqueo', () => {
   });
 
   it('no deja hojas de estilo sueltas en el head de la pagina', async () => {
-    await mountLocked();
+    const overlay = await mountLocked();
+    expect(overlay).not.toBeNull();
 
     expect(dom.window.document.getElementById('codered-service-order-lock-styles')).toBeNull();
+  });
+
+  it('sin reglas no monta nada: el token no tiene control horario', async () => {
+    controller = createServiceOrderLockController({
+      getManualLock: async () => false,
+      setManualLock: async () => undefined,
+      getRuleSet: async () => ({ version: '', generatedAt: null, rules: [] }),
+    });
+
+    await controller.initialize();
+
+    expect(dom.window.document.getElementById('codered-service-order-lock-overlay')).toBeNull();
   });
 });

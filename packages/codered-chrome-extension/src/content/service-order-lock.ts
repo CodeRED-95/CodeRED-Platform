@@ -1,7 +1,7 @@
 import { STORAGE_KEYS } from '../storage/storage-keys';
 import { isContextInvalidatedError, isExtensionContextAlive } from '../shared/runtime';
 import {
-  DEFAULT_BLOCK_RULE_SET,
+  EMPTY_BLOCK_RULE_SET,
   evaluateRuleSet,
   formatRemainingDuration,
   getRulePeriodId,
@@ -102,7 +102,7 @@ export function createServiceOrderLockController(deps: {
 }) {
   let manualLocked = false;
   let forcedUnlock: ServiceOrderForcedUnlock | null = null;
-  let ruleSet: BlockRuleSet = DEFAULT_BLOCK_RULE_SET;
+  let ruleSet: BlockRuleSet = EMPTY_BLOCK_RULE_SET;
   let initialized = false;
   let overlay: HTMLElement | null = null;
   let countdownTimer: number | null = null;

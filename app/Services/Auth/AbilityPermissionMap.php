@@ -43,6 +43,10 @@ final class AbilityPermissionMap
         'shalom-recordar:sync' => 'shalom-recordar.sync',
         'shalom-recordar:read-own' => 'shalom-recordar.view-own',
 
+        // Control horario de la extension. Se concede token a token desde el
+        // panel; para una sesion de usuario basta con poder ver el panel.
+        'extension:blocking' => 'settings.extension-blocking.view',
+
         // Áreas de administración expuestas a los clientes. La ability abre el
         // área; cada acción concreta vuelve a comprobar su permiso en el
         // controlador, porque abrir la pantalla y poder revocar no son lo mismo.
