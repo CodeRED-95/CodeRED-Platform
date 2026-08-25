@@ -108,9 +108,8 @@ export class ChromeStorageService {
         rules: ruleSet.rules.map((rule) => ({
           id: rule.id,
           label: rule.label,
-          host_pattern: rule.hostPatterns[0] ?? '',
-          host_patterns: rule.hostPatterns,
-          path_pattern: rule.pathPattern,
+          host_pattern: rule.destinations[0]?.hostPattern ?? '',
+          destinations: rule.destinations.map((destination) => ({ host_pattern: destination.hostPattern, path_pattern: destination.pathPattern })),
           window_mode: rule.windowMode,
           timezone: rule.timezone,
           windows: rule.windows.map((window) => ({ day_of_week: window.dayOfWeek, start_time: window.start, end_time: window.end })),

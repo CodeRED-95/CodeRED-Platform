@@ -339,9 +339,12 @@ function toApiShape(value: unknown): unknown {
   return {
     id: rule.id,
     label: rule.label,
-    host_pattern: Array.isArray(rule.hostPatterns) ? rule.hostPatterns[0] : rule.hostPattern,
-    host_patterns: rule.hostPatterns,
-    path_pattern: rule.pathPattern,
+    destinations: Array.isArray(rule.destinations)
+      ? rule.destinations.map((destination) => {
+          const item = destination as Record<string, unknown>;
+          return { host_pattern: item.hostPattern, path_pattern: item.pathPattern };
+        })
+      : [],
     window_mode: rule.windowMode,
     timezone: rule.timezone,
     windows: Array.isArray(rule.windows)

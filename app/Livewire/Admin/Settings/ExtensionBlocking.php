@@ -20,7 +20,7 @@ class ExtensionBlocking extends Component
 
     public string $label = '';
 
-    /** Un dominio por linea. */
+    /** Un destino por linea: dominio, o dominio con ruta / URL completa. */
     public string $hostPatterns = '*.shalomcontrol.com';
 
     public string $pathPattern = '/*';
@@ -60,7 +60,12 @@ class ExtensionBlocking extends Component
 
         $this->editingId = $rule->getKey();
         $this->label = (string) $rule->label;
-        $this->hostPatterns = implode("\n", $rule->hostPatterns());
+        $this->hostPatterns = implode("\n", array_map(
+            fn (array $destination): string => $destination['path_pattern'] === $rule->path_pattern
+                ? $destination['host_pattern']
+                : $destination['host_pattern'].$destination['path_pattern'],
+            $rule->destinations()
+        ));
         $this->pathPattern = (string) $rule->path_pattern;
         $this->windowMode = (string) $rule->window_mode;
         $this->timezone = (string) $rule->timezone;
@@ -113,8 +118,12 @@ class ExtensionBlocking extends Component
     {
         Gate::authorize('settings.extension-blocking.manage');
 
-        $hosts = $this->normalizedHosts();
-        $this->hostPatterns = implode("\n", $hosts);
+        $destinations = $this->normalizedDestinations();
+        $hosts = array_values(array_unique(array_column($destinations, 'host')));
+        $this->hostPatterns = implode("\n", array_map(
+            fn (array $destination): string => $destination['host'].($destination['path'] ?? ''),
+            $destinations
+        ));
         $this->pathPattern = BlockRulePattern::normalizePath($this->pathPattern);
 
         $this->validate([
@@ -131,8 +140,8 @@ class ExtensionBlocking extends Component
             'pathPattern' => 'ruta',
         ]);
 
-        if ($hosts === []) {
-            $this->addError('hostPatterns', 'Indica al menos un dominio.');
+        if ($destinations === []) {
+            $this->addError('hostPatterns', 'Indica al menos un destino.');
 
             return;
         }
@@ -167,7 +176,7 @@ class ExtensionBlocking extends Component
             }
         }
 
-        DB::transaction(function () use ($windows, $hosts): void {
+        DB::transaction(function () use ($windows, $hosts, $destinations): void {
             $rule = $this->editingId !== null
                 ? ExtensionBlockRule::query()->findOrFail($this->editingId)
                 : new ExtensionBlockRule(['sort_order' => (int) ExtensionBlockRule::query()->max('sort_order') + 1]);
@@ -192,7 +201,10 @@ class ExtensionBlocking extends Component
             $rule->windows()->delete();
             $rule->windows()->createMany($windows);
             $rule->hosts()->delete();
-            $rule->hosts()->createMany(array_map(fn (string $host): array => ['host_pattern' => $host], $hosts));
+            $rule->hosts()->createMany(array_map(
+                fn (array $destination): array => ['host_pattern' => $destination['host'], 'path_pattern' => $destination['path']],
+                $destinations
+            ));
         });
 
         $service->forgetCache();
@@ -235,16 +247,34 @@ class ExtensionBlocking extends Component
     }
 
     /**
-     * Dominios del textarea: uno por linea, normalizados y sin repetidos.
+     * Destinos del textarea: uno por linea, normalizados y sin repetidos. Cada
+     * linea puede ser solo dominio (hereda la ruta de la regla) o dominio con
+     * ruta, incluida una URL completa pegada del navegador.
      *
-     * @return array<int, string>
+     * @return array<int, array{host: string, path: string|null}>
      */
-    private function normalizedHosts(): array
+    private function normalizedDestinations(): array
     {
-        $hosts = preg_split('/[\r\n,;]+/', $this->hostPatterns) ?: [];
-        $hosts = array_map(fn (string $host): string => BlockRulePattern::normalizeHost($host), $hosts);
+        $lines = preg_split('/[\r\n,;]+/', $this->hostPatterns) ?: [];
+        $destinations = [];
 
-        return array_values(array_unique(array_filter($hosts, fn (string $host): bool => $host !== '')));
+        foreach ($lines as $line) {
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $parsed = BlockRulePattern::parseDestination($line);
+
+            if ($parsed['host'] === '') {
+                continue;
+            }
+
+            $key = $parsed['host'].'|'.($parsed['path'] ?? '');
+
+            $destinations[$key] = ['host' => $parsed['host'], 'path' => $parsed['path']];
+        }
+
+        return array_values($destinations);
     }
 
     /**

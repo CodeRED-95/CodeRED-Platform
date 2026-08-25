@@ -54,6 +54,7 @@ class ExtensionBlockRuleService
     private function serializeRule(ExtensionBlockRule $rule): array
     {
         $hostPatterns = $rule->hostPatterns();
+        $destinations = $rule->destinations();
 
         return [
             'id' => $rule->getKey(),
@@ -63,6 +64,10 @@ class ExtensionBlockRuleService
             // traigan. Desde 2.5.0 se lee `host_patterns`.
             'host_pattern' => $hostPatterns[0] ?? $rule->host_pattern,
             'host_patterns' => $hostPatterns,
+            // `destinations` (dominio + ruta propia) es lo que lee la 2.6.0.
+            // Las claves anteriores se mantienen para las versiones ya
+            // instaladas, que solo entienden una ruta comun por regla.
+            'destinations' => $destinations,
             'path_pattern' => $rule->path_pattern,
             'window_mode' => $rule->window_mode,
             'timezone' => $rule->timezone,

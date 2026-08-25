@@ -455,6 +455,10 @@ final class ApiReference
                             'label' => 'Service Order',
                             'host_pattern' => 'sysnewos.shalomcontrol.com',
                             'host_patterns' => ['sysnewos.shalomcontrol.com', 'sysprovincia2.shalomcontrol.com'],
+                            'destinations' => [
+                                ['host_pattern' => 'sysnewos.shalomcontrol.com', 'path_pattern' => '/service-order'],
+                                ['host_pattern' => 'sysprovincia2.shalomcontrol.com', 'path_pattern' => '/ordenservicio/listar'],
+                            ],
                             'path_pattern' => '/service-order',
                             'window_mode' => 'allowed',
                             'timezone' => 'America/Lima',

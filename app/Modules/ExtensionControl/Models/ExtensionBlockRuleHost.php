@@ -11,7 +11,7 @@ class ExtensionBlockRuleHost extends Model
 {
     protected $table = 'extension_block_rule_hosts';
 
-    protected $fillable = ['extension_block_rule_id', 'host_pattern'];
+    protected $fillable = ['extension_block_rule_id', 'host_pattern', 'path_pattern'];
 
     protected $casts = [
         'created_at' => 'datetime',

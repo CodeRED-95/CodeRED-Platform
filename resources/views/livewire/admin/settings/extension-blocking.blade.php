@@ -31,10 +31,11 @@
             <div class="space-y-5">
                 <div class="grid gap-4 md:grid-cols-2">
                     <x-ui.input label="Nombre" wire:model="label" :error="$errors->first('label')" placeholder="Service Order" required />
-                    <x-ui.textarea label="Dominios" wire:model="hostPatterns" rows="3" :error="$errors->first('hostPatterns')"
-                        description="Uno por línea. Admite comodín: *.shalomcontrol.com o sysnewos.shalomcontrol.com" required />
-                    <x-ui.input label="Ruta" wire:model="pathPattern" :error="$errors->first('pathPattern')"
-                        description="/service-order bloquea esa ruta. /* bloquea todo el dominio." required />
+                    <x-ui.textarea label="Destinos" wire:model="hostPatterns" rows="4" :error="$errors->first('hostPatterns')"
+                        description="Uno por línea. Puedes pegar la URL completa (https://sysprovincia2.shalomcontrol.com/ordenservicio/listar) o solo el dominio, que heredará la ruta de abajo. Admite comodín: *.shalomcontrol.com"
+                        required />
+                    <x-ui.input label="Ruta por defecto" wire:model="pathPattern" :error="$errors->first('pathPattern')"
+                        description="La usan los destinos que no traen ruta propia. /* bloquea el dominio entero." required />
                     <x-ui.input label="Zona horaria" wire:model="timezone" :error="$errors->first('timezone')" />
                 </div>
 
@@ -127,8 +128,8 @@
                                 </td>
                                 <td class="px-3 py-3 align-top font-mono text-xs">
                                     <ul class="space-y-0.5">
-                                        @foreach($rule->hostPatterns() as $host)
-                                            <li>{{ $host }}{{ $rule->path_pattern }}</li>
+                                        @foreach($rule->destinations() as $destination)
+                                            <li>{{ $destination['host_pattern'] }}{{ $destination['path_pattern'] }}</li>
                                         @endforeach
                                     </ul>
                                 </td>

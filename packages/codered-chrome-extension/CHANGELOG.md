@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.0 - 2026-08-25
+
+- Cada destino de una regla lleva su propia ruta: `sysnewos.shalomcontrol.com/service-order` y `sysprovincia2.shalomcontrol.com/ordenservicio/listar` conviven en la misma regla y comparten horario.
+- En el panel se puede pegar la URL completa tal cual sale del navegador; un destino sin ruta hereda la ruta por defecto de la regla.
+- El payload publica `destinations`; `host_patterns` y `host_pattern` siguen ahi para las instalaciones 2.4.0 y 2.5.0 que aun no se han actualizado.
+
 ## 2.5.0 - 2026-08-25
 
 - Una regla puede cubrir varios dominios: el panel acepta una lista y basta con que uno coincida para aplicar el horario.

@@ -133,7 +133,53 @@ sysnewos.shalomcontrol.com")
         $data = $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/extension/chrome/block-rules')->json('data');
 
         $this->assertSame(['sysnewos.shalomcontrol.com', 'sysprovincia2.shalomcontrol.com'], $data['rules'][0]['host_patterns']);
+        $this->assertCount(2, $data['rules'][0]['destinations']);
         $this->assertSame('sysnewos.shalomcontrol.com', $data['rules'][0]['host_pattern']);
+    }
+
+    public function test_cada_destino_puede_traer_su_propia_ruta(): void
+    {
+        // El caso que fallaba en produccion: se pegaba la URL completa de un
+        // segundo dominio y la ruta se perdia, asi que esa pagina no se
+        // bloqueaba nunca.
+        Livewire::actingAs($this->admin())
+            ->test(ExtensionBlocking::class)
+            ->call('create')
+            ->set('label', 'Service Order')
+            ->set('hostPatterns', "sysnewos.shalomcontrol.com
+https://sysprovincia2.shalomcontrol.com/ordenservicio/listar?x=1")
+            ->set('pathPattern', '/service-order')
+            ->call('applyRange', 'all')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $rule = ExtensionBlockRule::query()->with('hosts')->firstOrFail();
+
+        $this->assertSame([
+            ['host_pattern' => 'sysnewos.shalomcontrol.com', 'path_pattern' => '/service-order'],
+            ['host_pattern' => 'sysprovincia2.shalomcontrol.com', 'path_pattern' => '/ordenservicio/listar'],
+        ], $rule->destinations());
+
+        $data = $this->withHeaders($this->tokenHeaders())->getJson('/api/v1/extension/chrome/block-rules')->json('data');
+
+        $this->assertSame('/ordenservicio/listar', $data['rules'][0]['destinations'][1]['path_pattern']);
+    }
+
+    public function test_el_mismo_dominio_admite_dos_rutas_distintas(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(ExtensionBlocking::class)
+            ->call('create')
+            ->set('label', 'Dos rutas')
+            ->set('hostPatterns', "sysprovincia2.shalomcontrol.com/service-order
+sysprovincia2.shalomcontrol.com/ordenservicio/listar")
+            ->call('applyRange', 'all')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $rule = ExtensionBlockRule::query()->with('hosts')->firstOrFail();
+
+        $this->assertCount(2, $rule->destinations());
     }
 
     public function test_rechaza_un_dominio_invalido_aunque_los_demas_sean_validos(): void

@@ -17,12 +17,16 @@ export interface BlockWindow {
   end: string;
 }
 
+export interface BlockDestination {
+  hostPattern: string;
+  pathPattern: string;
+}
+
 export interface BlockRule {
   id: number;
   label: string;
-  /** Una regla puede cubrir varios dominios; basta con que uno coincida. */
-  hostPatterns: string[];
-  pathPattern: string;
+  /** Una regla cubre varios destinos; basta con que uno coincida. */
+  destinations: BlockDestination[];
   windowMode: WindowMode;
   timezone: string;
   windows: BlockWindow[];
@@ -48,8 +52,7 @@ export interface RuleEvaluation {
 export const DEFAULT_BLOCK_RULE: BlockRule = {
   id: 0,
   label: 'Service Order',
-  hostPatterns: ['sysnewos.shalomcontrol.com'],
-  pathPattern: '/service-order',
+  destinations: [{ hostPattern: 'sysnewos.shalomcontrol.com', pathPattern: '/service-order' }],
   windowMode: 'allowed',
   timezone: 'America/Lima',
   windows: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({ dayOfWeek, start: '08:00', end: '20:05' })),
@@ -85,14 +88,8 @@ function parseBlockRule(raw: unknown): BlockRule | null {
   const rule = asRecord(raw);
   if (!rule) return null;
 
-  // `host_patterns` (plural) lo publica la Plataforma desde 2.5.0; el singular
-  // se mantiene para no romper la lectura de payloads antiguos cacheados.
-  const hostPatterns = Array.isArray(rule.host_patterns)
-    ? rule.host_patterns.filter((value): value is string => typeof value === 'string').map((value) => value.trim().toLowerCase()).filter((value) => value !== '')
-    : typeof rule.host_pattern === 'string' && rule.host_pattern.trim() !== ''
-      ? [rule.host_pattern.trim().toLowerCase()]
-      : [];
-  if (hostPatterns.length === 0) return null;
+  const destinations = parseDestinations(rule);
+  if (destinations.length === 0) return null;
 
   const windows = Array.isArray(rule.windows)
     ? rule.windows
@@ -111,18 +108,66 @@ function parseBlockRule(raw: unknown): BlockRule | null {
   return {
     id: Number(rule.id) || 0,
     label: typeof rule.label === 'string' && rule.label.trim() !== '' ? rule.label.trim() : 'Bloqueo',
-    hostPatterns: [...new Set(hostPatterns)],
-    pathPattern: typeof rule.path_pattern === 'string' && rule.path_pattern.trim() !== '' ? rule.path_pattern.trim().toLowerCase() : '/*',
+    destinations,
     windowMode: rule.window_mode === 'blocked' ? 'blocked' : 'allowed',
     timezone: typeof rule.timezone === 'string' && rule.timezone.trim() !== '' ? rule.timezone.trim() : 'America/Lima',
     windows,
   };
 }
 
+/**
+ * Destinos de la regla. `destinations` lo publica la Plataforma desde 2.6.0;
+ * las formas anteriores (`host_patterns` + `path_pattern`, o el `host_pattern`
+ * suelto de la 2.4.0) se siguen entendiendo para no perder el bloqueo con un
+ * payload viejo cacheado en chrome.storage.
+ */
+function parseDestinations(rule: Record<string, unknown>): BlockDestination[] {
+  const fallbackPath = typeof rule.path_pattern === 'string' && rule.path_pattern.trim() !== '' ? normalizePattern(rule.path_pattern) : '/*';
+
+  const explicit = Array.isArray(rule.destinations)
+    ? rule.destinations
+        .map((value) => {
+          const destination = asRecord(value);
+          const host = typeof destination?.host_pattern === 'string' ? destination.host_pattern.trim().toLowerCase() : '';
+          if (host === '') return null;
+          const path = typeof destination?.path_pattern === 'string' && destination.path_pattern.trim() !== '' ? normalizePattern(destination.path_pattern) : fallbackPath;
+          return { hostPattern: host, pathPattern: path } satisfies BlockDestination;
+        })
+        .filter((destination): destination is BlockDestination => destination !== null)
+    : [];
+
+  if (explicit.length > 0) return dedupeDestinations(explicit);
+
+  const hosts = Array.isArray(rule.host_patterns)
+    ? rule.host_patterns.filter((value): value is string => typeof value === 'string').map((value) => value.trim().toLowerCase()).filter((value) => value !== '')
+    : typeof rule.host_pattern === 'string' && rule.host_pattern.trim() !== ''
+      ? [rule.host_pattern.trim().toLowerCase()]
+      : [];
+
+  return dedupeDestinations(hosts.map((hostPattern) => ({ hostPattern, pathPattern: fallbackPath })));
+}
+
+function dedupeDestinations(destinations: BlockDestination[]): BlockDestination[] {
+  const seen = new Set<string>();
+
+  return destinations.filter((destination) => {
+    const key = `${destination.hostPattern}|${destination.pathPattern}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizePattern(value: string): string {
+  const clean = value.trim().toLowerCase();
+  return clean.startsWith('/') ? clean : '/'.concat(clean);
+}
+
 export function ruleMatchesLocation(rule: BlockRule, hostname: string, pathname: string): boolean {
   const host = hostname.toLowerCase();
-  if (!rule.hostPatterns.some((pattern) => hostMatches(pattern, host))) return false;
-  return pathMatches(rule.pathPattern, normalizePath(pathname));
+  const path = normalizePath(pathname);
+
+  return rule.destinations.some((destination) => hostMatches(destination.hostPattern, host) && pathMatches(destination.pathPattern, path));
 }
 
 function hostMatches(pattern: string, hostname: string): boolean {
