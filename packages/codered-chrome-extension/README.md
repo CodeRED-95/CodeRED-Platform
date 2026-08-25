@@ -144,6 +144,12 @@ El bloqueo manual y el desbloqueo forzoso del popup no cambian: el desbloqueo fo
 
 ## Dominios compatibles
 
+### Seleccion de destino segun la pagina
+
+- `/ordenservicio/listar` (sitio clasico): `<select id*="osProDestino">` + Chosen, gestionado por `agency-selector.ts`. Sin cambios.
+- `/service-order/items` (SPA Vue de sysnewos): combobox propio, gestionado por `destination-combobox.ts`. El valor real es el ID de la agencia (`li[data-key]`, que coincide con nuestro `external_id`); el commit se dispara con `mousedown` y el filtro del sitio solo busca por departamento, provincia o distrito con `startsWith`, nunca por el nombre de la agencia. El canal se lee de los radios `input[name="transport-type"]`.
+- `/listaordenservicio` y `/service-order`: solo consulta, sin seleccion.
+
 El content script se carga en `https://*.shalomcontrol.com/*` (todo el dominio, para poder aplicar el bloqueo horario en cualquier ruta que configure el panel). El **buscador** sigue inyectandose solo en las rutas soportadas, que decide `isSupportedShalomPage()` en tiempo de ejecucion:
 
 - `/listaordenservicio`

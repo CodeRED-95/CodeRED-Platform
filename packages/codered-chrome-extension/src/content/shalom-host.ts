@@ -7,6 +7,7 @@
  *   https://<sub>.shalomcontrol.com/listaordenservicio
  *   https://<sub>.shalomcontrol.com/ordenservicio/listar
  *   https://<sub>.shalomcontrol.com/service-order/
+ *   https://<sub>.shalomcontrol.com/service-order/items
  *
  * `content_scripts.matches` del manifest ya restringe la inyección, pero NO es
  * la única protección: estas funciones se evalúan también en runtime, porque
@@ -16,7 +17,7 @@
 const SUPPORTED_DOMAIN = 'shalomcontrol.com';
 
 /** Rutas exactas donde la extensión puede activarse (barra final opcional). */
-export const SUPPORTED_PATHS = ['/listaordenservicio', '/ordenservicio/listar', '/service-order'] as const;
+export const SUPPORTED_PATHS = ['/listaordenservicio', '/ordenservicio/listar', '/service-order', '/service-order/items'] as const;
 
 /**
  * `true` solo si el hostname es un subdominio de shalomcontrol.com, es decir
@@ -60,9 +61,17 @@ export type ShalomPageMode = 'interactive' | 'neutral';
 
 export interface ShalomPageContext {
   site: 'sysnewos' | 'shalom';
-  module: 'service-order' | 'legacy';
+  module: 'service-order' | 'service-order-items' | 'legacy';
   mode: ShalomPageMode;
 }
+
+/**
+ * Como se selecciona el destino en cada pagina:
+ * - `chosen`: el `<select>` + Chosen historico (`/ordenservicio/listar`).
+ * - `combobox`: el combobox Vue de la SPA nueva (`/service-order/items`).
+ * - `none`: paginas de solo consulta.
+ */
+export type ShalomDestinationSelector = 'chosen' | 'combobox' | 'none';
 
 export interface ShalomPageCapabilities {
   mode: ShalomPageMode;
@@ -70,6 +79,11 @@ export interface ShalomPageCapabilities {
   neutralChannel: boolean;
   agencySelection: boolean;
   channelDetection: boolean;
+  destinationSelector: ShalomDestinationSelector;
+}
+
+export function isServiceOrderItemsPath(pathname: string | null | undefined): boolean {
+  return normalizePathname(pathname) === '/service-order/items';
 }
 
 export function getShalomPageCapabilities(pathname: string | null | undefined): ShalomPageCapabilities {
@@ -80,6 +94,20 @@ export function getShalomPageCapabilities(pathname: string | null | undefined): 
       neutralChannel: true,
       agencySelection: false,
       channelDetection: false,
+      destinationSelector: 'none',
+    };
+  }
+
+  // SPA nueva: si permite seleccionar, pero por el combobox Vue y con el canal
+  // en radios, no en pestanas.
+  if (isServiceOrderItemsPath(pathname)) {
+    return {
+      mode: 'interactive',
+      search: true,
+      neutralChannel: false,
+      agencySelection: true,
+      channelDetection: true,
+      destinationSelector: 'combobox',
     };
   }
 
@@ -89,6 +117,7 @@ export function getShalomPageCapabilities(pathname: string | null | undefined): 
     neutralChannel: false,
     agencySelection: true,
     channelDetection: true,
+    destinationSelector: 'chosen',
   };
 }
 
@@ -96,6 +125,10 @@ export function resolvePageContext(pathname: string | null | undefined): ShalomP
   const normalized = normalizePathname(pathname);
   if (normalized === '/service-order') {
     return { site: 'sysnewos', module: 'service-order', mode: 'neutral' };
+  }
+
+  if (normalized === '/service-order/items') {
+    return { site: 'sysnewos', module: 'service-order-items', mode: 'interactive' };
   }
 
   return { site: 'shalom', module: 'legacy', mode: 'interactive' };

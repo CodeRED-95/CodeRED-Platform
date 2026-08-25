@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.7.0 - 2026-08-25
+
+- El buscador funciona en `sysnewos.shalomcontrol.com/service-order/items`: se inyecta en la tarjeta "Agencia de destino" y selecciona el destino en el combobox Vue de la SPA nueva.
+- Adaptador nuevo (`destination-combobox.ts`) para ese selector: la lista se teletransporta al body, el commit va por `mousedown` (no `click`) y el filtro del sitio solo compara por departamento, provincia y distrito, nunca por el nombre de la agencia. La extension traduce la agencia elegida a la consulta que ese filtro entiende y pulsa la opcion por su `data-key`, que coincide con nuestro `external_id`.
+- No se vuelve a pulsar una agencia ya seleccionada: el sitio la deseleccionaria.
+- El canal se lee de los radios Terrestre/Aereo de la SPA.
+- `/ordenservicio/listar` y el resto de rutas siguen exactamente igual, con el `<select>` + Chosen de siempre.
+
 ## 2.6.3 - 2026-08-25
 
 - La tarjeta de bloqueo se monta en un shadow root: las hojas de estilo del sitio ya no pueden descolocarla. El icono del candado se salia de su circulo en las paginas de sysprovincia2.

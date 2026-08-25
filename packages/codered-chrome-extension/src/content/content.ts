@@ -4,8 +4,9 @@
 import type { Agency } from '../models/agency';
 import { statusNotice } from '../models/agency';
 import { searchAgencies } from '../search/agency-search';
-import { buildMapsUrl } from '../utils/format';
+import { buildMapsUrl, normalizeText } from '../utils/format';
 import { getChosenTextForActiveChannel, selectAgencyInDestination } from './agency-selector';
+import { detectComboboxChannel, selectAgencyInCombobox } from './destination-combobox';
 import { bindChannelButtons, detectActiveShalomChannelState, type ShalomChannel } from './shalom-page-adapter';
 import { createServiceOrderLockController } from './service-order-lock';
 import { DEFAULT_BLOCK_RULE_SET, parseBlockRuleSet } from '../shared/block-rules';
@@ -14,6 +15,7 @@ import {
   getShalomPageCapabilities,
   hostnameMatchesAllowedDomain,
   isNeutralShalomSearchPath,
+  isServiceOrderItemsPath,
   isSupportedShalomHost,
   isSupportedShalomPath,
   resolvePageContext,
@@ -153,6 +155,9 @@ export function createShalomContentController(dependencies: ContentControllerDep
 
   function findInjectionTarget(): InjectionTarget | null {
     const pageContext = resolvePageContext(window.location.pathname);
+    if (pageContext.module === 'service-order-items') {
+      return findServiceOrderItemsTarget();
+    }
     if (pageContext.mode === 'neutral') {
       const serviceOrderTarget = findServiceOrderInsertionTarget();
       return serviceOrderTarget;
@@ -169,6 +174,28 @@ export function createShalomContentController(dependencies: ContentControllerDep
     }
     console.log('[CodeRED Shalom] Target todavía no disponible');
     return null;
+  }
+
+  /**
+   * En /service-order/items no hay cabecera donde colgarse: el buscador se
+   * inserta dentro de la tarjeta "Agencia de destino", justo debajo de su
+   * titulo y encima del campo nativo.
+   */
+  function findServiceOrderItemsTarget(): InjectionTarget | null {
+    const heading = Array.from(document.querySelectorAll('h1, h2, h3'))
+      .filter((element): element is HTMLElement => element instanceof HTMLElement)
+      .find((element) => normalizeText(element.textContent ?? '').includes('agencia de destino') && isElementVisible(element));
+
+    if (!heading || !heading.parentElement) return null;
+    if (heading.parentElement.querySelector(`#${CONTAINER_ID}`)) return { element: heading.parentElement, selector: 'agencia-de-destino', mode: 'interactive' };
+
+    return {
+      element: heading.parentElement,
+      parent: heading.parentElement,
+      before: heading.nextElementSibling,
+      selector: 'agencia-de-destino',
+      mode: 'interactive',
+    };
   }
 
   function findServiceOrderInsertionTarget(): InjectionTarget | null {
@@ -473,6 +500,49 @@ export function createShalomContentController(dependencies: ContentControllerDep
     selectAgency(agency);
   }
 
+  /**
+   * Seleccion en la SPA nueva. Es asincrona porque hay que abrir la lista,
+   * filtrar y esperar a que el sitio confirme el cambio; el resto del flujo
+   * (mensajes, cierre de resultados) se mantiene igual que en el camino
+   * clasico.
+   */
+  async function selectAgencyInNewServiceOrder(
+    agency: Agency,
+    container: HTMLElement | null,
+    input: HTMLInputElement | null | undefined,
+    message: HTMLElement | null | undefined,
+  ): Promise<void> {
+    if (message) message.textContent = 'Seleccionando destino en Shalom Control…';
+
+    try {
+      const result = await selectAgencyInCombobox(document, agency);
+
+      if (result.success) {
+        if (message) message.textContent = result.alreadySelected ? 'Esa agencia ya estaba seleccionada como destino.' : '';
+        if (input) input.value = '';
+        if (container && !result.alreadySelected) closeResults(container);
+        return;
+      }
+
+      if (result.reason === 'option-not-found') {
+        infoOnce('select-agency-unavailable', '[CodeRED Shalom] La agencia seleccionada no está disponible actualmente en Shalom Control', {
+          agency: safeAgencyContext(agency),
+        });
+      } else {
+        warnOnce('select-agency-combobox', '[CodeRED Shalom] No se pudo seleccionar agencia en la SPA', {
+          reason: result.reason,
+          agency: safeAgencyContext(agency),
+          detail: result.message,
+        });
+      }
+
+      if (message) message.textContent = result.message;
+    } catch (error) {
+      console.error('[CodeRED Shalom] Error seleccionando destino', serializeSafeError(error));
+      if (message) message.textContent = 'No fue posible seleccionar el destino en Shalom Control.';
+    }
+  }
+
   function handleNeutralAgencyClick(agency: Agency): void {
     const container = document.getElementById(CONTAINER_ID);
     const message = container?.querySelector<HTMLElement>(`.${MESSAGE_CLASS}`);
@@ -491,6 +561,11 @@ export function createShalomContentController(dependencies: ContentControllerDep
       if (message) message.textContent = 'Esta página de Shalom solo permite consultar agencias.';
       return;
     }
+    if (capabilities.destinationSelector === 'combobox') {
+      void selectAgencyInNewServiceOrder(agency, container, input, message);
+      return;
+    }
+
     const requestedChannel = activeChannel ?? (capabilities.neutralChannel ? 'AUTO' : null);
     if (!requestedChannel) {
       if (message) message.textContent = 'No fue posible determinar el canal activo de Shalom todavía.';
@@ -537,6 +612,18 @@ export function createShalomContentController(dependencies: ContentControllerDep
   }
 
   async function refreshChannelDetection(forceLog = false): Promise<Exclude<ShalomChannel, 'AUTO'> | null> {
+    // En /service-order/items el canal son dos radios, no las pestanas del
+    // sitio antiguo, asi que la deteccion generica no lo encuentra.
+    if (isServiceOrderItemsPath(window.location.pathname)) {
+      const radioChannel = detectComboboxChannel(document);
+      if (radioChannel) {
+        if (radioChannel !== activeChannel) handleChannelChange(radioChannel);
+        channelDetectionPending = false;
+        channelRetryAttempts = 0;
+      }
+      return radioChannel;
+    }
+
     const detection = detectActiveShalomChannelState(document);
     if (detection.channel) {
       if (detection.channel !== activeChannel) handleChannelChange(detection.channel);
