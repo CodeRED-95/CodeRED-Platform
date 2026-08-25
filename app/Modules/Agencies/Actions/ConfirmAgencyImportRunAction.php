@@ -4,6 +4,7 @@ namespace App\Modules\Agencies\Actions;
 
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
+use App\Modules\Agencies\Support\AgencySyncFields;
 use App\Modules\Agencies\Models\AgencyImportRun;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -113,12 +114,7 @@ class ConfirmAgencyImportRunAction
 
     private function writableData(array $data): array
     {
-        return Arr::only($data, [
-            'external_id', 'code', 'name', 'department', 'province', 'district',
-            'address', 'latitude', 'longitude', 'schedule_general', 'schedule_sunday',
-            'classification_category', 'classification_sends_category', 'classification_receives_category',
-            'texto_chosen_terrestre', 'texto_chosen_aereo',
-        ]);
+        return Arr::only($data, AgencySyncFields::FIELDS);
     }
 
     private function matchAgencyForWrite(array $incoming): ?Agency

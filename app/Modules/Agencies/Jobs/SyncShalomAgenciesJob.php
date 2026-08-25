@@ -6,6 +6,7 @@ use App\Modules\Agencies\Actions\UpdateAgencyNameAction;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImportItem;
 use App\Modules\Agencies\Models\AgencyImportRun;
+use App\Modules\Agencies\Support\AgencySyncFields;
 use App\Modules\Agencies\Services\ChosenFileParser;
 use App\Services\Agencies\ShalomAgencyNormalizer;
 use Illuminate\Bus\Queueable;
@@ -98,8 +99,10 @@ class SyncShalomAgenciesJob implements ShouldQueue
                     $normalized['texto_chosen_aereo'] = $chosen['texto_chosen_aereo'] ?? $normalized['texto_chosen_aereo'] ?? null;
                 }
 
-                $normalized['latitude'] = $this->nullableFloat($normalized['latitude'] ?? null);
-                $normalized['longitude'] = $this->nullableFloat($normalized['longitude'] ?? null);
+                // A la escala real de la columna: si se compara con mas decimales
+                // de los que la base puede guardar, la diferencia es perpetua.
+                $normalized['latitude'] = AgencySyncFields::roundCoordinate($this->nullableFloat($normalized['latitude'] ?? null));
+                $normalized['longitude'] = AgencySyncFields::roundCoordinate($this->nullableFloat($normalized['longitude'] ?? null));
                 $normalized['place'] = $baseRow['place'] ?? $normalized['place'] ?? null;
                 $normalized['map_url'] = $this->resolveMapUrl($normalized, $row);
 
@@ -289,7 +292,11 @@ class SyncShalomAgenciesJob implements ShouldQueue
         }
 
         $differences = [];
-        foreach ($incoming as $field => $value) {
+        // Solo los campos que la confirmacion escribe de verdad: comparar el
+        // resto proponia cambios que ninguna importacion podia aplicar.
+        foreach (AgencySyncFields::FIELDS as $field) {
+            $value = $incoming[$field] ?? null;
+
             if ($value === null || $value === '') {
                 continue;
             }
@@ -300,7 +307,7 @@ class SyncShalomAgenciesJob implements ShouldQueue
                 $value = $nameAction->normalizeName((string) $value);
             }
 
-            if ($current !== $value) {
+            if (! AgencySyncFields::matches($field, $current, $value)) {
                 $differences[$field] = ['current' => $current, 'incoming' => $value];
             }
         }
