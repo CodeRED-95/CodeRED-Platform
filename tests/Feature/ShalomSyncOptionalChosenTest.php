@@ -8,11 +8,15 @@ use App\Livewire\Admin\Agencies\ShalomSync;
 use App\Livewire\Admin\Agencies\ShalomSyncRun;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Agencies\Actions\UpdateAgencyNameAction;
 use App\Modules\Agencies\Jobs\SyncShalomAgenciesJob;
+use App\Modules\Agencies\Services\ChosenFileParser;
+use App\Services\Agencies\ShalomAgencyNormalizer;
 use App\Modules\Agencies\Models\AgencyImportRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -95,6 +99,42 @@ class ShalomSyncOptionalChosenTest extends TestCase
         $job = new SyncShalomAgenciesJob(1);
 
         $this->assertNull($job->chosenPath);
+    }
+
+    public function test_sin_chosen_la_sincronizacion_no_propone_tocar_los_textos_chosen(): void
+    {
+        // El normalizador fabrica siempre un texto Chosen a partir de los datos
+        // de la agencia ("28 - CAJAMARCA - JAEN - JAEN - JAEN CO - TERRESTRE"),
+        // pero el valor real de Shalom no siempre tiene esa forma. Sin archivo
+        // no hay fuente fiable, asi que no debe viajar en la propuesta.
+        config(['services.shalom_extractor.enabled' => true]);
+
+        Http::fake([
+            '*/extract' => Http::response(['agencies' => [[
+                'external_id' => 28,
+                'code' => 'JAENCO',
+                'name' => 'JAEN CO',
+                'department' => 'CAJAMARCA',
+                'province' => 'JAEN',
+                'district' => 'JAEN',
+                'address' => 'AV SIEMPRE VIVA 123',
+            ]]], 200),
+        ]);
+
+        $run = AgencyImportRun::create(['type' => 'shalom_sync', 'status' => 'pending']);
+
+        (new SyncShalomAgenciesJob($run->id))->handle(
+            app(ChosenFileParser::class),
+            app(ShalomAgencyNormalizer::class),
+            app(UpdateAgencyNameAction::class),
+        );
+
+        $item = $run->items()->firstOrFail();
+
+        $this->assertNull($item->incoming_data['texto_chosen_terrestre'] ?? 'no-null');
+        $this->assertNull($item->incoming_data['texto_chosen_aereo'] ?? 'no-null');
+        // El resto de la agencia si viaja con normalidad.
+        $this->assertSame('JAEN CO', $item->incoming_data['name']);
     }
 
     private function admin(): User

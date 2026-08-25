@@ -93,7 +93,19 @@ class SyncShalomAgenciesJob implements ShouldQueue
                 $normalized = $normalizer->normalize($row);
                 $externalIdKey = $normalized['external_id'] ?? null;
 
-                if ($externalIdKey !== null && $chosenRows->has($externalIdKey)) {
+                if ($chosenFileContent === null) {
+                    // Sin archivo Chosen no hay fuente para estos textos. El
+                    // normalizador los fabrica a partir de los datos de la
+                    // agencia ("28 - CAJAMARCA - JAEN - JAEN - JAEN CO -
+                    // TERRESTRE"), pero el valor real de Shalom no siempre
+                    // tiene esa forma, asi que escribirlos sustituiria un dato
+                    // bueno por uno inventado. El buscador compara ese texto
+                    // letra a letra contra las opciones del selector, de modo
+                    // que un valor fabricado deja de seleccionar la agencia.
+                    // Se dejan en null: ni se comparan ni se escriben.
+                    $normalized['texto_chosen_terrestre'] = null;
+                    $normalized['texto_chosen_aereo'] = null;
+                } elseif ($externalIdKey !== null && $chosenRows->has($externalIdKey)) {
                     $chosen = $chosenRows->get($externalIdKey);
                     $normalized['texto_chosen_terrestre'] = $chosen['texto_chosen_terrestre'] ?? $normalized['texto_chosen_terrestre'] ?? null;
                     $normalized['texto_chosen_aereo'] = $chosen['texto_chosen_aereo'] ?? $normalized['texto_chosen_aereo'] ?? null;
