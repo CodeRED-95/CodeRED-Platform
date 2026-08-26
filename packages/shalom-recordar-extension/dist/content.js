@@ -21,6 +21,43 @@ function getContentState() {
     return globalState;
 }
 
+// El contexto de la extension se invalida al recargarla o actualizarla: el
+// content script viejo sigue vivo en la pagina pero `chrome.runtime` pasa a ser
+// undefined y cualquier sendMessage revienta. Se comprueba antes de usarlo y se
+// desmonta todo para dejar de escuchar en una pagina ya huerfana.
+function isExtensionContextValid() {
+    try {
+        return Boolean(globalThis.chrome && chrome.runtime && chrome.runtime.id);
+    } catch {
+        return false;
+    }
+}
+
+function teardownCapture() {
+    const state = getContentState();
+    if (state.torndown) return;
+    state.torndown = true;
+
+    for (const key of Object.keys(state.osDebounceTimers || {})) {
+        clearTimeout(state.osDebounceTimers[key]);
+    }
+    state.osDebounceTimers = {};
+    state.claveBuffer = {};
+
+    if (state.captureObserver) {
+        state.captureObserver.disconnect();
+        state.captureObserver = null;
+    }
+    state.captureObserverAttached = false;
+
+    if (state.documentListenerAttached) {
+        document.removeEventListener('input', handleCapture, true);
+        document.removeEventListener('change', handleCapture, true);
+        document.removeEventListener('blur', handleCapture, true);
+        state.documentListenerAttached = false;
+    }
+}
+
 function normalizeText(rawValue) {
     return String(rawValue ?? '').trim();
 }
@@ -98,13 +135,18 @@ function canSendCapture(state, dedupeKey, eventTimeStamp) {
 }
 
 function sendCapture(field, value, source, eventTimeStamp) {
+    if (!isExtensionContextValid()) {
+        teardownCapture();
+        return;
+    }
+
     const state = getContentState();
     const dedupeKey = [source, field, value].join('|');
     if (!canSendCapture(state, dedupeKey, eventTimeStamp)) {
         return;
     }
 
-    chrome.runtime.sendMessage({
+    const message = {
         action: 'saveData',
         data: {
             captureId: [source, field, value, String(eventTimeStamp ?? Date.now())].join('|'),
@@ -113,7 +155,16 @@ function sendCapture(field, value, source, eventTimeStamp) {
             source,
             timestamp: new Date().toISOString(),
         },
-    });
+    };
+
+    try {
+        // El callback consume chrome.runtime.lastError: sin el, un service
+        // worker dormido o sin receptor deja un error no capturado en consola.
+        chrome.runtime.sendMessage(message, () => void chrome.runtime.lastError);
+    } catch {
+        // El contexto pudo invalidarse entre la comprobacion y el envio.
+        teardownCapture();
+    }
 }
 
 function captureDocument(target, source, eventTimeStamp) {
@@ -273,7 +324,7 @@ function handleCapture(event) {
 
 function ensureDocumentListener() {
     const state = getContentState();
-    if (state.documentListenerAttached) return;
+    if (state.torndown || state.documentListenerAttached) return;
     state.documentListenerAttached = true;
     document.addEventListener('input', handleCapture, true);
     document.addEventListener('change', handleCapture, true);
@@ -282,13 +333,17 @@ function ensureDocumentListener() {
 
 function ensureMutationObserver() {
     const state = getContentState();
-    if (state.captureObserverAttached || typeof MutationObserver === 'undefined') return;
+    if (state.torndown || state.captureObserverAttached || typeof MutationObserver === 'undefined') return;
 
     const root = document.documentElement || document.body;
     if (!root) return;
 
     state.captureObserverAttached = true;
     const observer = new MutationObserver(() => {
+        if (!isExtensionContextValid()) {
+            teardownCapture();
+            return;
+        }
         ensureDocumentListener();
         checkEntregaConfirmation();
     });

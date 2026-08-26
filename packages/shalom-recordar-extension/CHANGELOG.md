@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.9.2 - 2026-08-26
+
+### Fixed
+
+- `content.js` lanzaba `Uncaught TypeError: Cannot read properties of undefined (reading 'sendMessage')` en cada pulsacion despues de recargar o actualizar la extension: el content script antiguo sigue vivo en la pagina pero su `chrome.runtime` queda invalidado. Ahora se comprueba el contexto antes de enviar, el envio va protegido, y el script se desmonta (listeners, observador y temporizadores) cuando el contexto ya no es valido.
+- `chrome.runtime.sendMessage` se llama con callback para consumir `chrome.runtime.lastError`, que dejaba errores no capturados en consola cuando el service worker estaba dormido o no habia receptor.
+- `npm run package` fallaba con exit 1 en Windows: `scripts/package-extension.mjs` invocaba el binario `zip`, inexistente ahi, y se tragaba el ENOENT sin mensaje. Ahora el ZIP se construye en Node (`scripts/zip.mjs`), modulo que comparte con `pack-crx.mjs` en lugar de duplicar la implementacion.
+
 ## 2.9.1 - 2026-08-26
 
 ### Changed

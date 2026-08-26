@@ -25,6 +25,10 @@ function registerListener(type, handler) {
     registrations.push(type);
 }
 
+function unregisterListener(type, handler) {
+    listeners[type] = (listeners[type] || []).filter((entry) => entry !== handler);
+}
+
 function emit(type, target, overrides = {}) {
     if (target?.id && sandboxState.claveFields[target.id]) {
         sandboxState.claveFields[target.id].value = target.value ?? '';
@@ -76,14 +80,22 @@ function createSandbox() {
     return {
         chrome: {
             runtime: {
-                sendMessage(message) {
+                // `id` solo existe mientras el contexto de la extension es
+                // valido; content.js lo usa como senal de vida.
+                id: 'extension-id-de-prueba',
+                lastError: undefined,
+                sendMessage(message, callback) {
                     messages.push(message);
+                    if (typeof callback === 'function') callback();
                 },
             },
         },
         document: {
             addEventListener(type, handler) {
                 registerListener(type, handler);
+            },
+            removeEventListener(type, handler) {
+                unregisterListener(type, handler);
             },
             documentElement: { nodeType: 1 },
             body: { nodeType: 1 },
@@ -516,6 +528,56 @@ test('mismo dato en una operación posterior vuelve a guardarse', () => {
     emit('input', { id: 'inputnombre', value: '00456879' }, { timeStamp: 5000 });
 
     assert.equal(messages.length, 2);
+});
+
+// Regresion: al recargar o actualizar la extension, el content script viejo
+// sigue vivo en la pagina pero chrome.runtime deja de existir. Antes esto
+// reventaba en cada tecla con "Cannot read properties of undefined (reading
+// 'sendMessage')".
+test('contexto invalidado: no lanza y deja de escuchar', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    sandbox.chrome.runtime = undefined;
+
+    assert.doesNotThrow(() => emit('input', { id: 'inputnombre', value: '00456879' }));
+    assert.equal(messages.length, 0);
+
+    // Tras el desmontaje ya no queda ningun listener activo.
+    sandbox.chrome.runtime = { id: 'x', sendMessage(message) { messages.push(message); } };
+    emit('input', { id: 'inputnombre', value: '00456879' }, { timeStamp: 5000 });
+    assert.equal(messages.length, 0);
+});
+
+test('contexto invalidado: el observador se desconecta sin lanzar', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    sandbox.chrome.runtime = undefined;
+
+    assert.doesNotThrow(() => appearEntregaForm());
+    assert.equal(messages.length, 0);
+});
+
+test('sendMessage que lanza al invalidarse no propaga el error', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    sandbox.chrome.runtime.sendMessage = () => {
+        throw new Error('Extension context invalidated.');
+    };
+
+    assert.doesNotThrow(() => emit('input', { id: 'inputnombre', value: '00456879' }));
+    assert.equal(messages.length, 0);
 });
 
 if (require.main === module) {
