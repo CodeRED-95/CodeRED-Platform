@@ -55,6 +55,12 @@ function reset() {
     timerSeq = 0;
     sandboxState.claveFields = {};
     sandboxState.confirmForm = null;
+    sandboxState.tipodoc = '';
+}
+
+// Simula la seleccion del desplegable de tipo de documento (tipodoclist).
+function setTipoDoc(value) {
+    sandboxState.tipodoc = value;
 }
 
 function loadContentScript(sandbox) {
@@ -101,6 +107,7 @@ function createSandbox() {
             body: { nodeType: 1 },
             getElementById(id) {
                 if (id === 'modalValidarCodigo') return modal;
+                if (id === 'tipodoclist') return sandboxState.tipodoc ? { value: sandboxState.tipodoc } : null;
                 if (sandboxState.confirmForm && id === sandboxState.confirmForm.id) return sandboxState.confirmForm;
                 if (sandboxState.claveFields[id]) return sandboxState.claveFields[id];
                 return null;
@@ -578,6 +585,68 @@ test('sendMessage que lanza al invalidarse no propaga el error', () => {
 
     assert.doesNotThrow(() => emit('input', { id: 'inputnombre', value: '00456879' }));
     assert.equal(messages.length, 0);
+});
+
+// El desplegable tipodoclist manda sobre la longitud: es lo que el usuario
+// declara como tipo real. Antes se clasificaba solo por digitos/longitud.
+test('desplegable PS captura el pasaporte alfanumerico', () => {
+    reset();
+    setTipoDoc('PS');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnombre', value: ' ab123456 ' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'PS');
+    assert.equal(messages[0].data.value, 'AB123456');
+});
+
+test('desplegable CE manda aunque la longitud no sea 9', () => {
+    reset();
+    setTipoDoc('CE');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    // 8 digitos: por longitud seria DNI, pero el desplegable dice CE.
+    emit('input', { id: 'inputnombre', value: '12345678' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'CE');
+    assert.equal(messages[0].data.value, '12345678');
+});
+
+test('desplegable RUC etiqueta como RUC segun la seleccion', () => {
+    reset();
+    setTipoDoc('RUC');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnombre', value: '20304526759' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'RUC');
+    assert.equal(messages[0].data.value, '20304526759');
+});
+
+test('sin desplegable disponible, cae al respaldo por longitud', () => {
+    reset(); // tipodoc = '' -> getElementById('tipodoclist') devuelve null
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnombre', value: '00456879' });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'DNI');
+    assert.equal(messages[0].data.value, '00456879');
 });
 
 // Regresion del "a veces deja de capturar": un formulario de confirmacion que

