@@ -21,6 +21,10 @@ const CONFIRMATION_FORMS = [
 ];
 const DEDUPE_WINDOW_MS = 1500;
 const OS_DEBOUNCE_MS = 650;
+// El documento (DNI/RUC/CE/PS) se captura tras una pausa al teclear, no en cada
+// pulsacion: asi se guarda el numero completo una sola vez y no un registro por
+// tecla. Mismo criterio que la OS.
+const DOC_DEBOUNCE_MS = 650;
 
 function getContentState() {
     const globalState = globalThis[CONTENT_STATE_KEY] || {};
@@ -49,6 +53,10 @@ function teardownCapture() {
         clearTimeout(state.osDebounceTimers[key]);
     }
     state.osDebounceTimers = {};
+    for (const key of Object.keys(state.docDebounceTimers || {})) {
+        clearTimeout(state.docDebounceTimers[key]);
+    }
+    state.docDebounceTimers = {};
     state.claveBuffer = {};
 
     if (state.captureObserver) {
@@ -203,6 +211,37 @@ function captureDocument(target, source, eventTimeStamp) {
         : classifyDocumentValue(getFieldValue(target));
     if (!classified) return;
     sendCapture(classified.field, classified.value, source, eventTimeStamp);
+}
+
+function getDocDebounceKey(source) {
+    return ['doc', source].join('|');
+}
+
+function clearDocDebounce(state, source) {
+    const key = getDocDebounceKey(source);
+    const timer = state.docDebounceTimers?.[key];
+    if (timer) {
+        clearTimeout(timer);
+        delete state.docDebounceTimers[key];
+    }
+}
+
+function saveDocFinalValue(target, source, eventTimeStamp) {
+    const state = getContentState();
+    clearDocDebounce(state, source);
+    captureDocument(target, source, eventTimeStamp);
+}
+
+function scheduleDocDebouncedSave(target, source, eventTimeStamp) {
+    const state = getContentState();
+    state.docDebounceTimers ||= {};
+    const key = getDocDebounceKey(source);
+
+    clearDocDebounce(state, source);
+    state.docDebounceTimers[key] = setTimeout(() => {
+        delete state.docDebounceTimers[key];
+        saveDocFinalValue(target, source, eventTimeStamp);
+    }, DOC_DEBOUNCE_MS);
 }
 
 function captureOs(target, source, eventTimeStamp) {
@@ -371,7 +410,13 @@ function handleCapture(event) {
     }
 
     if (isDocumentField(target)) {
-        captureDocument(target, source, event.timeStamp);
+        if (event.type === 'input') {
+            scheduleDocDebouncedSave(target, source, event.timeStamp);
+            return;
+        }
+
+        clearDocDebounce(getContentState(), source);
+        saveDocFinalValue(target, source, event.timeStamp);
     }
 }
 

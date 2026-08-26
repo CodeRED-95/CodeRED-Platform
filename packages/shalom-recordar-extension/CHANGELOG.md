@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9.5 - 2026-08-26
+
+### Changed
+
+- El documento del campo de busqueda (DNI/RUC/CE/PS) ahora se captura tras una breve pausa al teclear (debounce de 650 ms), no en cada pulsacion. Antes se enviaba un registro por cada tecla; ahora se guarda una sola vez el numero completo. Mismo criterio que ya tenia la OS. Al perder el foco (change) se captura de inmediato.
+
+
 ## 2.9.4 - 2026-08-26
 
 ### Changed

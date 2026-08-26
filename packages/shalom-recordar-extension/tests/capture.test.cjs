@@ -197,6 +197,7 @@ test('DNI por input guarda una vez', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'inputnombre', value: ' 00456879 ' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'DNI');
@@ -211,6 +212,7 @@ test('CE por input guarda una vez', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'inputnombre', value: '004568798' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'CE');
@@ -225,6 +227,7 @@ test('RUC por input guarda una vez', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'inputnombre', value: '20004568791' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'RUC');
@@ -531,8 +534,11 @@ test('mismo dato en una operación posterior vuelve a guardarse', () => {
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
+    // Dos operaciones distintas: cada una se cierra con su pausa (runTimers).
     emit('input', { id: 'inputnombre', value: '00456879' });
+    runTimers();
     emit('input', { id: 'inputnombre', value: '00456879' }, { timeStamp: 5000 });
+    runTimers();
 
     assert.equal(messages.length, 2);
 });
@@ -550,12 +556,15 @@ test('contexto invalidado: no lanza y deja de escuchar', () => {
 
     sandbox.chrome.runtime = undefined;
 
-    assert.doesNotThrow(() => emit('input', { id: 'inputnombre', value: '00456879' }));
+    // El documento se captura con debounce: runTimers dispara el envio, que al
+    // ver el contexto invalido desmonta la captura sin lanzar.
+    assert.doesNotThrow(() => { emit('input', { id: 'inputnombre', value: '00456879' }); runTimers(); });
     assert.equal(messages.length, 0);
 
     // Tras el desmontaje ya no queda ningun listener activo.
     sandbox.chrome.runtime = { id: 'x', sendMessage(message) { messages.push(message); } };
     emit('input', { id: 'inputnombre', value: '00456879' }, { timeStamp: 5000 });
+    runTimers();
     assert.equal(messages.length, 0);
 });
 
@@ -583,8 +592,28 @@ test('sendMessage que lanza al invalidarse no propaga el error', () => {
         throw new Error('Extension context invalidated.');
     };
 
-    assert.doesNotThrow(() => emit('input', { id: 'inputnombre', value: '00456879' }));
+    assert.doesNotThrow(() => { emit('input', { id: 'inputnombre', value: '00456879' }); runTimers(); });
     assert.equal(messages.length, 0);
+});
+
+// El documento se captura con debounce: al teclear el numero digito a digito,
+// solo debe guardarse UN registro con el numero completo, no uno por tecla.
+test('documento por input digito a digito guarda un solo registro completo', () => {
+    reset();
+    setTipoDoc('RUC');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    for (const parcial of ['2', '20', '203', '2030', '20304526759']) {
+        emit('input', { id: 'inputnombre', value: parcial });
+    }
+    runTimers();
+
+    assert.equal(messages.length, 1, 'debe capturar una sola vez, no por tecla');
+    assert.equal(messages[0].data.field, 'RUC');
+    assert.equal(messages[0].data.value, '20304526759');
 });
 
 // El desplegable tipodoclist manda sobre la longitud: es lo que el usuario
@@ -598,6 +627,7 @@ test('desplegable PS captura el pasaporte alfanumerico', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'inputnombre', value: ' ab123456 ' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'PS');
@@ -614,6 +644,7 @@ test('desplegable CE manda aunque la longitud no sea 9', () => {
 
     // 8 digitos: por longitud seria DNI, pero el desplegable dice CE.
     emit('input', { id: 'inputnombre', value: '12345678' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'CE');
@@ -629,6 +660,7 @@ test('desplegable RUC etiqueta como RUC segun la seleccion', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'inputnombre', value: '20304526759' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'RUC');
@@ -643,6 +675,7 @@ test('sin desplegable disponible, cae al respaldo por longitud', () => {
     loadContentScript(sandbox);
 
     emit('input', { id: 'inputnombre', value: '00456879' });
+    runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'DNI');
