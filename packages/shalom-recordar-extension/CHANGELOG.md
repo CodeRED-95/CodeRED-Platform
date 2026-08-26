@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.1 - 2026-08-26
+
+### Changed
+
+- La clave se considera correcta tambien cuando aparece la ventana "Comprobante" (`formPagoOS`, `action .../pagos/Generar`), ademas del formulario de entrega. Cualquiera de los dos confirma que el codigo fue valido.
+
 ## 2.9.0 - 2026-08-25
 
 ### Changed

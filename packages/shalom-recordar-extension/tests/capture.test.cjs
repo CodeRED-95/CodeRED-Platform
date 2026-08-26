@@ -50,7 +50,7 @@ function reset() {
     timers.clear();
     timerSeq = 0;
     sandboxState.claveFields = {};
-    sandboxState.entregaForm = null;
+    sandboxState.confirmForm = null;
 }
 
 function loadContentScript(sandbox) {
@@ -89,7 +89,7 @@ function createSandbox() {
             body: { nodeType: 1 },
             getElementById(id) {
                 if (id === 'modalValidarCodigo') return modal;
-                if (id === 'frmEntrega') return sandboxState.entregaForm || null;
+                if (sandboxState.confirmForm && id === sandboxState.confirmForm.id) return sandboxState.confirmForm;
                 if (sandboxState.claveFields[id]) return sandboxState.claveFields[id];
                 return null;
             },
@@ -126,14 +126,14 @@ function createSandbox() {
 // El codigo fue correcto: el servidor inyecta el formulario de entrega y
 // SweetAlert resetea las casillas del PIN. Ambas cosas a la vez, para que la
 // prueba refleje el DOM real: la clave solo puede salir del buffer.
-function appearEntregaForm() {
+function appearConfirmForm(id, action) {
     for (const field of Object.values(sandboxState.claveFields)) {
         field.value = '';
     }
-    sandboxState.entregaForm = {
-        id: 'frmEntrega',
+    sandboxState.confirmForm = {
+        id,
         getAttribute(name) {
-            if (name === 'action') return 'entrega/ajax';
+            if (name === 'action') return action;
             if (name === 'style') return '';
             return null;
         },
@@ -141,8 +141,11 @@ function appearEntregaForm() {
     fireRootObservers();
 }
 
+// Por defecto simula el formulario de entrega.
+function appearEntregaForm() { appearConfirmForm('frmEntrega', 'https://sysprovincia2.shalomcontrol.com/entrega/ajax'); }
+
 function removeEntregaForm() {
-    sandboxState.entregaForm = null;
+    sandboxState.confirmForm = null;
     fireRootObservers();
 }
 
@@ -151,7 +154,7 @@ function removeEntregaForm() {
 function fireRootObservers() {
     for (const observer of mutationObservers) {
         const targetId = observer.target && observer.target.id;
-        if (targetId === 'modalValidarCodigo' || targetId === 'frmEntrega') continue;
+        if (targetId === 'modalValidarCodigo' || targetId === 'frmEntrega' || targetId === 'formPagoOS') continue;
         observer.callback([{ type: 'childList' }]);
     }
 }
@@ -246,6 +249,23 @@ test('Clave envia el intento acertado tras un intento fallido', () => {
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'Clave');
     assert.equal(messages[0].data.value, '3535');
+});
+
+test('Clave se captura tambien con la ventana de comprobante (formPagoOS)', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'swal-input1', value: '4821' });
+    runTimers();
+    // No aparece el formulario de entrega, sino la ventana Comprobante.
+    appearConfirmForm('formPagoOS', 'https://sysprovincia2.shalomcontrol.com/pagos/Generar');
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '4821');
 });
 
 test('Clave por input guarda Clave', () => {

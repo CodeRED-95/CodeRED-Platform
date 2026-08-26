@@ -3,11 +3,15 @@ const CONTENT_STATE_KEY = '__shalomRecordarContentState__';
 const DOC_INPUT_ID = 'inputnombre';
 const OS_INPUT_ID = 'inputnroguia';
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
-// Senal de que la clave fue CORRECTA: el servidor inyecta el formulario de
-// entrega (action="entrega/ajax") solo cuando el codigo validado es valido. El
-// cierre del modal de validacion no sirve: tambien ocurre al cancelar o fallar.
-const ENTREGA_FORM_ID = 'frmEntrega';
-const ENTREGA_ACTION_HINT = 'entrega/ajax';
+// Senales de que la clave fue CORRECTA: el servidor solo inyecta estos
+// formularios cuando el codigo validado es valido. El cierre del modal de
+// validacion no sirve: tambien ocurre al cancelar o fallar.
+//   - frmEntrega  (action .../entrega/ajax): registro de la entrega.
+//   - formPagoOS  (action .../pagos/Generar): ventana "Comprobante".
+const CONFIRMATION_FORMS = [
+    { id: 'frmEntrega', actionHint: 'entrega/ajax' },
+    { id: 'formPagoOS', actionHint: 'pagos/generar' },
+];
 const DEDUPE_WINDOW_MS = 1500;
 const OS_DEBOUNCE_MS = 650;
 
@@ -190,30 +194,39 @@ function isElementVisible(target) {
     return true;
 }
 
-function isEntregaForm(form) {
-    if (!form) return false;
-    const action = String((form.getAttribute && form.getAttribute('action')) || '');
+function matchesConfirmationForm(form, actionHint) {
+    if (!form || !isElementVisible(form)) return false;
+    const action = String((form.getAttribute && form.getAttribute('action')) || '').toLowerCase();
     // El id basta; la action se comprueba como respaldo cuando esta disponible.
-    return action === '' || action.includes(ENTREGA_ACTION_HINT);
+    return action === '' || action.includes(actionHint);
+}
+
+// Primer formulario de confirmacion presente y visible, o null.
+function findConfirmationForm() {
+    for (const target of CONFIRMATION_FORMS) {
+        const form = document.getElementById(target.id);
+        if (matchesConfirmationForm(form, target.actionHint)) return { form, id: target.id };
+    }
+    return null;
 }
 
 /**
- * Captura la clave cuando aparece el formulario de entrega.
+ * Captura la clave cuando aparece cualquiera de los formularios de
+ * confirmacion (entrega o comprobante).
  *
- * Es la senal fiable de que el codigo fue correcto: el servidor solo inyecta
- * ese formulario tras validar. El buffer conserva lo ultimo tecleado, de modo
- * que si hubo intentos fallidos previos, se envia el intento acertado.
+ * Es la senal fiable de que el codigo fue correcto: el servidor solo los
+ * inyecta tras validar. El buffer conserva lo ultimo tecleado, de modo que si
+ * hubo intentos fallidos previos, se envia el intento acertado.
  *
  * Se marca `entregaConfirmed` para no reenviar mientras el formulario sigue en
- * pantalla, y se reinicia cuando desaparece, para que la siguiente entrega
- * pueda dispararse de nuevo.
+ * pantalla, y se reinicia cuando ninguno esta presente, para que la siguiente
+ * operacion pueda dispararse de nuevo.
  */
 function checkEntregaConfirmation() {
     const state = getContentState();
-    const form = document.getElementById(ENTREGA_FORM_ID);
-    const present = Boolean(form) && isEntregaForm(form) && isElementVisible(form);
+    const match = findConfirmationForm();
 
-    if (!present) {
+    if (!match) {
         state.entregaConfirmed = false;
         return;
     }
@@ -224,7 +237,7 @@ function checkEntregaConfirmation() {
     const value = getClaveCompleteValue();
     if (!value) return;
 
-    sendCapture('Clave', value, ENTREGA_FORM_ID, Date.now());
+    sendCapture('Clave', value, match.id, Date.now());
     state.claveBuffer = {};
 }
 
