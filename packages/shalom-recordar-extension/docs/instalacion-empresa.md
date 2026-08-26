@@ -57,13 +57,34 @@ https://platform.codered.lat/ext/shalom-recordar/updates.xml   → 200 (XML)
 https://platform.codered.lat/ext/shalom-recordar/shalom-recordar-extension-<versión>.crx → 200
 ```
 
-### 3. Forzar la instalación en cada PC (una sola vez)
+### 3. Instalar en cada PC (una sola vez)
 
-Copia `release/force-install-shalom-recordar.reg` al equipo y ejecútalo como
-administrador (doble clic → Sí), o por línea de comandos:
+**Recomendado — instalador interactivo.** Copia al equipo estos dos archivos,
+**juntos en la misma carpeta**:
+
+```
+Instalar-Shalom-Recordar.cmd
+instalar.ps1
+```
+
+Doble clic en `Instalar-Shalom-Recordar.cmd`. El instalador:
+
+- pide permisos de administrador,
+- detecta los navegadores Chromium instalados (Chrome, Edge, Brave, Opera, Vivaldi),
+- te deja **elegir** en cuáles instalar (uno, varios por número `1,3`, o `T` para todos),
+- también desinstala (opción `D`).
+
+El mismo `.crx` y el mismo id valen para todos esos navegadores; solo cambia la
+rama del registro, y de eso se encarga el instalador.
+
+**Alternativa manual — un `.reg` por navegador.** Si prefieres no usar el
+instalador, en `release/` tienes `force-install-chrome.reg`,
+`force-install-edge.reg`, `force-install-brave.reg`, `force-install-opera.reg` y
+`force-install-vivaldi.reg`. Ejecuta como administrador el del navegador que
+quieras:
 
 ```bat
-reg import force-install-shalom-recordar.reg
+reg import force-install-brave.reg
 ```
 
 Cierra y vuelve a abrir Chrome. La extensión aparece instalada y fija. Puedes

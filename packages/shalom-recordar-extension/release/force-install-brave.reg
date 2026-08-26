@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+; Fuerza la instalacion de "Registro de Actividad Shalom" en Brave.
+; Se ejecuta como administrador. La extension queda instalada, activa y fija.
+; No requiere modo desarrollador ni tienda de extensiones.
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\BraveSoftware\\Brave\ExtensionInstallForcelist]
+"1"="hfamlncmfjknhmoanoebbjjkgedkdghi;https://platform.codered.lat/ext/shalom-recordar/updates.xml"

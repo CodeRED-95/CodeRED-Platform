@@ -11,7 +11,7 @@
 //   o:  npm run pack:crx   (ejecuta el build antes)
 
 import { createHash, createSign, generateKeyPairSync, createPublicKey } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateRawSync, crc32 } from 'node:zlib';
@@ -191,17 +191,41 @@ const updatesXml = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 writeFileSync(join(releaseDir, 'updates.xml'), updatesXml);
 
-const reg = `Windows Registry Editor Version 5.00
+const updateUrl = `${BASE_URL}/updates.xml`;
+const forceValue = `${extensionId};${updateUrl}`;
 
-; Fuerza la instalacion de "Registro de Actividad Shalom" en Chrome.
-; Se ejecuta UNA VEZ por equipo, como administrador. La extension queda
-; instalada, activa y fija: el usuario no puede desactivarla ni quitarla.
-; No requiere modo desarrollador ni la Chrome Web Store.
+// Instalador interactivo: detecta los navegadores instalados y deja elegir.
+// Es lo que el usuario ejecuta (doble clic en el .cmd); no hace falta tocar
+// el registro a mano.
+const templatesDir = join(HERE, 'templates');
+const installerPs1 = readFileSync(join(templatesDir, 'instalar.ps1'), 'utf8')
+    .replaceAll('__EXTENSION_ID__', extensionId)
+    .replaceAll('__UPDATE_URL__', updateUrl);
+writeFileSync(join(releaseDir, 'instalar.ps1'), installerPs1);
+copyFileSync(join(templatesDir, 'Instalar-Shalom-Recordar.cmd'), join(releaseDir, 'Instalar-Shalom-Recordar.cmd'));
 
-[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\ExtensionInstallForcelist]
-"1"="${extensionId};${BASE_URL}/updates.xml"
+// Respaldo manual: un .reg por navegador, por si se prefiere aplicar la
+// politica sin el instalador. El .crx y el id son identicos en todos los
+// navegadores Chromium; solo cambia la rama del registro.
+const REG_TARGETS = [
+    { name: 'chrome', label: 'Google Chrome', keyPath: 'Google\\\\Chrome' },
+    { name: 'edge', label: 'Microsoft Edge', keyPath: 'Microsoft\\\\Edge' },
+    { name: 'brave', label: 'Brave', keyPath: 'BraveSoftware\\\\Brave' },
+    { name: 'opera', label: 'Opera', keyPath: 'Opera Software\\\\Opera' },
+    { name: 'vivaldi', label: 'Vivaldi', keyPath: 'Vivaldi' },
+];
+for (const target of REG_TARGETS) {
+    const reg = `Windows Registry Editor Version 5.00
+
+; Fuerza la instalacion de "Registro de Actividad Shalom" en ${target.label}.
+; Se ejecuta como administrador. La extension queda instalada, activa y fija.
+; No requiere modo desarrollador ni tienda de extensiones.
+
+[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\${target.keyPath}\\ExtensionInstallForcelist]
+"1"="${forceValue}"
 `;
-writeFileSync(join(releaseDir, 'force-install-shalom-recordar.reg'), reg);
+    writeFileSync(join(releaseDir, `force-install-${target.name}.reg`), reg);
+}
 
 // --- 6. Publicar en public/ext de la Plataforma (si el repo está al lado) -----
 const platformPublic = join(ROOT, '..', '..', 'public', 'ext', 'shalom-recordar');
@@ -216,7 +240,9 @@ console.log('');
 console.log('Extension id : ' + extensionId);
 console.log('CRX          : release/' + crxName);
 console.log('Update manif : release/updates.xml');
-console.log('Registro     : release/force-install-shalom-recordar.reg');
+console.log('Instalador   : release/Instalar-Shalom-Recordar.cmd (+ instalar.ps1)');
+console.log('Regs manuales: release/force-install-{chrome,edge,brave,opera,vivaldi}.reg');
 console.log('Base URL      : ' + BASE_URL);
 console.log('');
 console.log('Sube a ' + BASE_URL + '/ estos dos archivos: ' + crxName + ' y updates.xml');
+console.log('Reparte a cada PC: Instalar-Shalom-Recordar.cmd + instalar.ps1 (juntos).');
