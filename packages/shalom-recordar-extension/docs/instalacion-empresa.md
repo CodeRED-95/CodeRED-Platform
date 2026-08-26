@@ -7,6 +7,13 @@ requiere el modo desarrollador** («cargar sin empaquetar»).
 
 Sirve para tus propios equipos Windows, con permiso de administrador.
 
+> **IMPORTANTE:** esto solo funciona en equipos **gestionados** — unidos a un
+> dominio de Active Directory o enrolados en Chrome Browser Cloud Management /
+> Intune. En equipos **no gestionados** (un Windows normal, sin dominio),
+> Chrome, Edge y Brave **ignoran** las extensiones autoalojadas forzadas por
+> registro, por seguridad. Para esos equipos usa
+> `instalacion-sin-empaquetar.md`.
+
 ## Cómo funciona
 
 - El `.crx` va firmado con una clave RSA propia y estable
