@@ -11,7 +11,27 @@ modo desarrollador. La extensión lleva una clave fija en el manifest, así que 
 id es siempre `hfamlncmfjknhmoanoebbjjkgedkdghi` en todos los equipos, aunque se
 mueva la carpeta.
 
-## Pasos
+## Recomendado: instalador con actualización automática
+
+Copia al equipo estos tres archivos **juntos** (están en `release/`) y haz doble
+clic en `Instalar-Desempaquetada.cmd`:
+
+```
+Instalar-Desempaquetada.cmd
+instalar-desempaquetada.ps1
+actualizar.ps1
+```
+
+El instalador (sin admin):
+
+- descarga la extensión a `%LOCALAPPDATA%\CodeRED\shalom-recordar`,
+- registra una **Tarea Programada** que la mantiene al día (al iniciar sesión y a
+  diario): comprueba la versión publicada y, si hay una nueva, sobrescribe la
+  carpeta. El navegador la adopta al reabrirse,
+- abre la carpeta y te recuerda el único paso manual: **Cargar sin empaquetar**
+  esa carpeta una vez (pasos 2-4 de abajo).
+
+## Pasos manuales (o si prefieres sin actualización automática)
 
 1. Descomprime `shalom-recordar-unpacked-<versión>.zip` en una carpeta
    **permanente** del equipo, p. ej. `C:\CodeRED\shalom-recordar\`.
@@ -38,9 +58,10 @@ La extensión "Registro de Actividad Shalom" queda instalada y funcionando.
 - **El usuario puede quitarla** desde la página de extensiones. Si necesitas que
   quede fija y no se pueda quitar, hace falta que el equipo esté *gestionado*
   (ver `instalacion-empresa.md`, opción Cloud Management).
-- **No se actualiza sola.** Para pasar a una versión nueva: reemplaza el
-  contenido de la carpeta por el del zip nuevo y pulsa el botón de recargar
-  (↻) en la extensión, o quítala y vuelve a cargarla.
+- **Actualización:** si usaste el instalador con Tarea Programada, la carpeta se
+  mantiene al día sola y la versión nueva se aplica al reabrir el navegador. Si
+  hiciste la instalación manual, reemplaza el contenido de la carpeta por el del
+  zip nuevo (o quítala y vuelve a cargarla).
 
 ## ¿Y el force-install del registro?
 

@@ -227,13 +227,37 @@ for (const target of REG_TARGETS) {
     writeFileSync(join(releaseDir, `force-install-${target.name}.reg`), reg);
 }
 
+// --- Instalacion sin empaquetar + auto-actualizacion (equipos no gestionados) -
+// El .crx firmado NO se instala en equipos sin gestionar (Chrome/Edge lo
+// ignoran por seguridad), asi que ahi se carga "sin empaquetar" desde una
+// carpeta fija y una Tarea Programada la mantiene al dia.
+const unpackedZipName = `shalom-recordar-unpacked-${version}.zip`;
+writeFileSync(join(releaseDir, unpackedZipName), zip); // `zip` ya es dist comprimido
+
+const latestJson = `${JSON.stringify({ version, zip: `${BASE_URL}/${unpackedZipName}` }, null, 2)}\n`;
+writeFileSync(join(releaseDir, 'latest.json'), latestJson);
+
+// Ruta relativa bajo %LOCALAPPDATA%. El script la resuelve con Join-Path, asi
+// se expande de verdad (una cadena '...' en PowerShell no expandiria $env:...).
+const UNPACKED_FOLDER_REL = 'CodeRED\\shalom-recordar';
+const latestUrl = `${BASE_URL}/latest.json`;
+
+const renderPs = (name) => readFileSync(join(templatesDir, name), 'utf8')
+    .replaceAll('__FOLDER_REL__', UNPACKED_FOLDER_REL)
+    .replaceAll('__LATEST_URL__', latestUrl);
+writeFileSync(join(releaseDir, 'actualizar.ps1'), renderPs('actualizar.ps1'));
+writeFileSync(join(releaseDir, 'instalar-desempaquetada.ps1'), renderPs('instalar-desempaquetada.ps1'));
+copyFileSync(join(templatesDir, 'Instalar-Desempaquetada.cmd'), join(releaseDir, 'Instalar-Desempaquetada.cmd'));
+
 // --- 6. Publicar en public/ext de la Plataforma (si el repo está al lado) -----
 const platformPublic = join(ROOT, '..', '..', 'public', 'ext', 'shalom-recordar');
 if (existsSync(join(ROOT, '..', '..', 'public'))) {
     mkdirSync(platformPublic, { recursive: true });
     writeFileSync(join(platformPublic, crxName), crx);
     writeFileSync(join(platformPublic, 'updates.xml'), updatesXml);
-    console.log('Publicado en public/ext/shalom-recordar/ (' + crxName + ' + updates.xml)');
+    writeFileSync(join(platformPublic, unpackedZipName), zip);
+    writeFileSync(join(platformPublic, 'latest.json'), latestJson);
+    console.log('Publicado en public/ext/shalom-recordar/ (' + crxName + ', updates.xml, ' + unpackedZipName + ', latest.json)');
 }
 
 console.log('');
