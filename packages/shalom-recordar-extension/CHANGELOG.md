@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9.6 - 2026-08-26
+
+### Fixed
+
+- El documento (DNI/RUC/CE/PS) se guardaba dos veces cuando el usuario se demoraba entre teclear y salir del campo o buscar: capturaban tanto el debounce como el evento `change`, y el dedupe por ventana de 1500 ms ya no los unia. Ahora el `change` solo cierra un debounce pendiente; si el debounce ya envio el numero, no reenvia. Mismo arreglo aplicado a la OS, que tenia el mismo defecto latente.
+
+
 ## 2.9.5 - 2026-08-26
 
 ### Changed

@@ -404,8 +404,12 @@ function handleCapture(event) {
             return;
         }
 
-        clearOsDebounce(getContentState(), source);
-        saveOsFinalValue(target, source, event.timeStamp);
+        // change: solo cerrar un debounce pendiente. Si el debounce ya capturo
+        // (no hay timer), no se reenvia -> evita el doble registro.
+        const state = getContentState();
+        if (state.osDebounceTimers?.[getOsDebounceKey(source)]) {
+            saveOsFinalValue(target, source, event.timeStamp);
+        }
         return;
     }
 
@@ -415,8 +419,14 @@ function handleCapture(event) {
             return;
         }
 
-        clearDocDebounce(getContentState(), source);
-        saveDocFinalValue(target, source, event.timeStamp);
+        // change: igual que la OS. El evento change llega al salir del campo o
+        // al buscar; si el debounce ya envio el numero, capturar de nuevo aqui
+        // duplicaba el registro cuando el usuario se demoraba entre teclear y
+        // salir (el dedupe por ventana de 1500 ms ya no alcanzaba).
+        const state = getContentState();
+        if (state.docDebounceTimers?.[getDocDebounceKey(source)]) {
+            saveDocFinalValue(target, source, event.timeStamp);
+        }
     }
 }
 

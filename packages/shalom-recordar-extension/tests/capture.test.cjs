@@ -616,6 +616,60 @@ test('documento por input digito a digito guarda un solo registro completo', () 
     assert.equal(messages[0].data.value, '20304526759');
 });
 
+// El change que llega DESPUES de que el debounce ya capturo (al salir del campo
+// o buscar, con demora) no debe duplicar el registro. Vale para CE, RUC, etc.
+test('documento: change tras el debounce ya disparado no duplica (CE)', () => {
+    reset();
+    setTipoDoc('CE');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnombre', value: '123456789' });
+    runTimers(); // el debounce captura (1)
+    // change bastante despues, fuera de la ventana de dedupe (1500 ms).
+    emit('change', { id: 'inputnombre', value: '123456789' }, { timeStamp: 9000 });
+
+    assert.equal(messages.length, 1, 'el change tras el debounce no debe duplicar');
+    assert.equal(messages[0].data.field, 'CE');
+    assert.equal(messages[0].data.value, '123456789');
+});
+
+test('documento: change tras el debounce ya disparado no duplica (RUC)', () => {
+    reset();
+    setTipoDoc('RUC');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnombre', value: '20304526759' });
+    runTimers();
+    emit('change', { id: 'inputnombre', value: '20304526759' }, { timeStamp: 9000 });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'RUC');
+});
+
+// Salir del campo ANTES de que el debounce dispare si debe capturar: el change
+// vacia el debounce pendiente y guarda una sola vez.
+test('documento: change antes del debounce captura una sola vez', () => {
+    reset();
+    setTipoDoc('CE');
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnombre', value: '123456789' });
+    emit('change', { id: 'inputnombre', value: '123456789' }, { timeStamp: 1200 });
+    runTimers(); // ya no queda timer pendiente
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.value, '123456789');
+});
+
 // El desplegable tipodoclist manda sobre la longitud: es lo que el usuario
 // declara como tipo real. Antes se clasificaba solo por digitos/longitud.
 test('desplegable PS captura el pasaporte alfanumerico', () => {
