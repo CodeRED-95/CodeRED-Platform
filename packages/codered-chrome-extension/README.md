@@ -4,13 +4,13 @@ Extension Chrome Manifest V3 para inyectar un buscador de agencias dentro de Sha
 
 La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local` y sigue funcionando sin conexión con la ultima cache valida.
 
-## Version 2.3.5
+## Versión
 
-La version visible de la extension se define desde `package.json`. El build sincroniza automaticamente `src/shared/version.ts`, `manifest.json`, el popup y las pruebas con la misma version.
+La version visible de la extension es la de `package.json` (fuente unica de verdad). El build sincroniza automaticamente `src/shared/version.ts`, `manifest.json`, el popup y las pruebas con esa misma version.
 
 ### Popup compacto
 
-El popup v2.3.5 fue reconstruido desde cero como una sola columna de 360 px, tema oscuro CodeRED y altura dependiente del contenido. No contiene buscador de agencias, listado, tarjetas de resultados, paneles informativos extensos, datos tecnicos ni scroll interno.
+El popup fue reconstruido desde cero como una sola columna de 360 px, tema oscuro CodeRED y altura dependiente del contenido. No contiene buscador de agencias, listado, tarjetas de resultados, paneles informativos extensos, datos tecnicos ni scroll interno.
 
 Datos mostrados:
 
@@ -140,7 +140,7 @@ Cada regla define:
 - **Ventanas por dia**: lunes a sabado 08:00-20:05 y domingo 08:00-17:05 es un caso valido. Un dia sin ventana queda bloqueado el dia entero en modo permitido.
 - **Zona horaria**: `America/Lima` por defecto; los limites se calculan con `Intl`, no con un desfase fijo.
 
-El service worker descarga las reglas al instalar la extension, al arrancar el navegador, cada 30 minutos y en cada sincronizacion manual. Guarda la ultima copia en `chrome.storage.local` (`codered_block_rules`): si la red falla se conserva el bloqueo anterior y, si nunca se sincronizo nada, se aplica `DEFAULT_BLOCK_RULE_SET`, que reproduce el horario historico de Service Order.
+El service worker descarga las reglas al instalar la extension, al arrancar el navegador, cada 30 minutos y en cada sincronizacion manual. Guarda la ultima copia en `chrome.storage.local` (`codered_block_rules`): si la red falla se conserva el bloqueo anterior. Si nunca se sincronizo nada —o el token no tiene la ability y el endpoint responde 403— no hay reglas y no se bloquea nada: el control horario es opt-in, no hay horario de respaldo escrito en el codigo.
 
 El bloqueo manual y el desbloqueo forzoso del popup no cambian: el desbloqueo forzoso sigue caducando al llegar el proximo cambio de horario de la regla afectada.
 
@@ -156,6 +156,7 @@ El content script se carga en `https://*.shalomcontrol.com/*` (todo el dominio, 
 
 - `/listaordenservicio`
 - `/service-order`
+- `/service-order/items`
 - `/ordenservicio/listar`
 
 `https://platform.codered.lat/*` permanece en `host_permissions` para que el service worker sincronice con CodeRED Platform, pero no esta en `content_scripts.matches` y no recibe el buscador.

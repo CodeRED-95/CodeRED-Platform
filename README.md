@@ -150,8 +150,8 @@ Cada uno mantiene su propio versionado y documentación:
 |---|---|---|
 | [packages/codered-agent](packages/codered-agent/README.md) | Daemon de integración (Pairing, Discovery, Heartbeat) | 1.0.0 |
 | [packages/n8n-nodes-codered](packages/n8n-nodes-codered/README.md) | Nodo n8n de CodeRED | 1.1.0 |
-| [packages/codered-chrome-extension](packages/codered-chrome-extension/README.md) | Extensión "Buscador Shalom Control" | 2.3.5 |
-| [packages/shalom-recordar-extension](packages/shalom-recordar-extension/README.md) | Extensión "Shalom Recordar" | 2.7.16 |
+| [packages/codered-chrome-extension](packages/codered-chrome-extension/README.md) | Extensión "Buscador Shalom Control" | 2.9.0 |
+| [packages/shalom-recordar-extension](packages/shalom-recordar-extension/README.md) | Extensión "Shalom Recordar" | 2.9.1 |
 | [packages/ruc-tools](packages/ruc-tools/README.md) | Herramienta CLI local para backups RUC | 2.3.0 |
 
 ---
