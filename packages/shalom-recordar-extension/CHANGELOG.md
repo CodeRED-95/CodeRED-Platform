@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9.7 - 2026-08-26
+
+### Changed
+
+- Cada dato se captura solo cuando el numero esta COMPLETO segun su tipo, no con el numero a medias: DNI 8 digitos, CE 9, RUC 11, OS 8. El desplegable `tipodoclist` sigue decidiendo el tipo, pero la captura solo dispara al alcanzar la longitud exacta. El pasaporte (PS) es alfanumerico y de longitud variable, asi que se mantiene capturando el valor completo tras la pausa. Ajusta el criterio de la 2.9.4 (donde el desplegable capturaba aunque la longitud no cuadrara) y de la OS (que antes aceptaba de 1 a 8 digitos).
+
+
 ## 2.9.6 - 2026-08-26
 
 ### Fixed

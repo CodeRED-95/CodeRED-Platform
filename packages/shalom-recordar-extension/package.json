@@ -1,6 +1,6 @@
 {
   "name": "shalom-recordar-extension",
-  "version": "2.9.6",
+  "version": "2.9.7",
   "private": true,
   "type": "module",
   "description": "Extensión Shalom Recordar para CodeRED Platform.",

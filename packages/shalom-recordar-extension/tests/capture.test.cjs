@@ -384,12 +384,12 @@ test('OS por input guarda OS', () => {
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emit('input', { id: 'inputnroguia', value: '7121847' });
+    emit('input', { id: 'inputnroguia', value: '71218478' });
     runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'OS');
-    assert.equal(messages[0].data.value, '7121847');
+    assert.equal(messages[0].data.value, '71218478');
 });
 
 test('DNI sin cambio relevante no guarda', () => {
@@ -688,7 +688,7 @@ test('desplegable PS captura el pasaporte alfanumerico', () => {
     assert.equal(messages[0].data.value, 'AB123456');
 });
 
-test('desplegable CE manda aunque la longitud no sea 9', () => {
+test('desplegable CE solo captura con 9 digitos (menos se ignora)', () => {
     reset();
     setTipoDoc('CE');
     const sandbox = createSandbox();
@@ -696,13 +696,63 @@ test('desplegable CE manda aunque la longitud no sea 9', () => {
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    // 8 digitos: por longitud seria DNI, pero el desplegable dice CE.
+    // 8 digitos: incompleto para CE, no se captura.
     emit('input', { id: 'inputnombre', value: '12345678' });
     runTimers();
+    assert.equal(messages.length, 0, 'CE de 8 digitos no debe capturarse');
 
+    // 9 digitos: completo.
+    emit('input', { id: 'inputnombre', value: '123456789' });
+    runTimers();
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'CE');
-    assert.equal(messages[0].data.value, '12345678');
+    assert.equal(messages[0].data.value, '123456789');
+});
+
+test('cada tipo solo captura con su longitud exacta', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    // DNI = 8: 7 digitos se ignora, 8 captura.
+    setTipoDoc('DNI');
+    emit('input', { id: 'inputnombre', value: '1234567' });
+    runTimers();
+    assert.equal(messages.length, 0, 'DNI de 7 no captura');
+    emit('input', { id: 'inputnombre', value: '12345678' });
+    runTimers();
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'DNI');
+
+    // RUC = 11: 10 digitos se ignora, 11 captura.
+    setTipoDoc('RUC');
+    emit('input', { id: 'inputnombre', value: '2030452675' }, { timeStamp: 20000 });
+    runTimers();
+    assert.equal(messages.length, 1, 'RUC de 10 no captura');
+    emit('input', { id: 'inputnombre', value: '20304526759' }, { timeStamp: 21000 });
+    runTimers();
+    assert.equal(messages.length, 2);
+    assert.equal(messages[1].data.field, 'RUC');
+});
+
+test('OS menor de 8 digitos no se captura', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    emit('input', { id: 'inputnroguia', value: '7854123' }); // 7 digitos
+    runTimers();
+    assert.equal(messages.length, 0, 'OS de 7 no captura');
+
+    emit('input', { id: 'inputnroguia', value: '78541232' }, { timeStamp: 20000 }); // 8
+    runTimers();
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.field, 'OS');
+    assert.equal(messages[0].data.value, '78541232');
 });
 
 test('desplegable RUC etiqueta como RUC segun la seleccion', () => {
