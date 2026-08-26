@@ -580,6 +580,32 @@ test('sendMessage que lanza al invalidarse no propaga el error', () => {
     assert.equal(messages.length, 0);
 });
 
+// Regresion del "a veces deja de capturar": un formulario de confirmacion que
+// pasa el chequeo de visibilidad con el buffer aun vacio (animacion fade de
+// Bootstrap u otra operacion en curso) NO debe dejar el latch activado. Antes,
+// entregaConfirmed se marcaba antes de leer el buffer, de modo que la clave
+// tecleada despues no se capturaba nunca hasta que el modal se ocultaba.
+test('form visible con buffer vacio no latchea: captura al teclear despues', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    // El formulario aparece antes de que exista clave alguna.
+    appearEntregaForm();
+    assert.equal(messages.length, 0, 'no debe capturar con el buffer vacio');
+
+    // Ahora si se teclea la clave; el formulario sigue presente (nueva mutacion).
+    emit('input', { id: 'swal-input1', value: '3535' });
+    runTimers();
+    appearEntregaForm();
+
+    assert.equal(messages.length, 1, 'debe capturar cuando la clave llega despues');
+    assert.equal(messages[0].data.field, 'Clave');
+    assert.equal(messages[0].data.value, '3535');
+});
+
 if (require.main === module) {
     (async () => {
         for (const [name, fn] of tests) {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Registro de Actividad Shalom",
-  "version": "2.9.2",
+  "version": "2.9.3",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuNpXGI0TpmSab5A8i6REOmE+IaKxa8JbsRoKLVw2b9ixw8o7NsEsr/fnK5fwtgB/zH6Sm3TlEqNlcScA/v9XCwSmU7rMarYyyghu/9Ijr3KjjZyTyEx8mIOuuNPVQz5If0/GpPpx1vIBQ69AyHysJMcirkSciPqd2yvwUEmrqwdyH7LaJIk6uw3HxEWRqhZm2EekCng9XPJkHixUKSvQmLnslmlvlBBP4YnKiV7I4kjyX0t88p6Q6u5AAyHpoQg/hIELF6UBedR36MbHnSJGAIpgV1RU8Q5DWTp3+KwV+RJFW1a3iEW8vmlC1evtm0UbZQC+EW+3VexGb2AuY9Si/wIDAQAB",
   "permissions": [
     "storage",

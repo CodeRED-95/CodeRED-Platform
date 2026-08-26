@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.9.3 - 2026-08-26
+
+### Fixed
+
+- La clave "a veces dejaba de capturarse". `checkEntregaConfirmation` marcaba el latch `entregaConfirmed` ANTES de leer el buffer: si un modal de confirmacion (`frmEntrega`/`formPagoOS`) pasaba el chequeo de visibilidad con el buffer aun vacio -durante la animacion fade de Bootstrap, o con otra operacion en curso-, quedaba latcheado y la extension no reintentaba aunque la clave se tecleara despues, hasta que el modal se ocultara del todo. Ahora el latch se activa solo cuando de verdad se capturo una clave no vacia, asi que un formulario falso-visible con buffer vacio ya no bloquea la captura siguiente.
+- La heuristica de visibilidad (`isElementVisible`) solo miraba el `style` inline y `aria-hidden`, no el `display:none` que Bootstrap aplica desde la clase `.modal`. Daba falsos positivos de "visible" con el modal cerrado. Ahora comprueba tambien `display`/`visibility` calculados con `getComputedStyle` (con reserva al chequeo por atributos donde no existe, como en el DOM simulado de las pruebas).
+
+
 ## 2.9.2 - 2026-08-26
 
 ### Fixed
