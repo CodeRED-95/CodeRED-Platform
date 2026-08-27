@@ -1,6 +1,6 @@
 {
   "name": "shalom-recordar-extension",
-  "version": "2.9.7",
+  "version": "2.9.8",
   "private": true,
   "type": "module",
   "description": "Extensión Shalom Recordar para CodeRED Platform.",
@@ -13,6 +13,7 @@
     "validate:extension": "node scripts/validate-extension-build.mjs",
     "build:extension": "npm run build && npm run validate:extension",
     "package": "npm run build:extension && node scripts/package-extension.mjs",
+    "package:store": "npm run build:extension && node scripts/package-store.mjs",
     "pack:crx": "npm run build && node scripts/pack-crx.mjs"
   },
   "devDependencies": {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9.8 - 2026-08-26
+
+### Added
+
+- Script `npm run package:store`: genera `release/shalom-recordar-store-<version>.zip` para la Chrome Web Store, con el manifiesto limpio (sin `key` ni `update_url`). La Store rechaza el `key` ("No se admite el campo key en el archivo de manifiesto") y gestiona ella las actualizaciones. La instalacion autoalojada por `.crx`/unpacked, que si necesita esos campos, se sigue generando aparte con `npm run pack:crx`.
+
+
 ## 2.9.7 - 2026-08-26
 
 ### Changed
