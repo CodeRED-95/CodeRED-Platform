@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Public\BuscadorShalomLegalController;
 use App\Http\Controllers\Public\PublicTokenRequestController;
+use App\Http\Controllers\Public\ShalomRecordarLegalController;
 use App\Http\Middleware\EnsureApiDocumentationAccess;
 use App\Livewire\Account\ChangePassword;
 use App\Livewire\Account\Profile;
@@ -52,6 +53,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/privacy/buscador-shalom', [BuscadorShalomLegalController::class, 'privacy'])->name('public.buscador-shalom.privacy');
 Route::get('/support/buscador-shalom', [BuscadorShalomLegalController::class, 'support'])->name('public.buscador-shalom.support');
+
+// Paginas legales publicas de la extension "Registro de Actividad Shalom".
+// Chrome Web Store exige que la URL de privacidad responda 200 sin autenticacion.
+Route::get('/privacy/registro-actividad-shalom', [ShalomRecordarLegalController::class, 'privacy'])->name('public.registro-actividad-shalom.privacy');
+Route::get('/support/registro-actividad-shalom', [ShalomRecordarLegalController::class, 'support'])->name('public.registro-actividad-shalom.support');
 
 Route::get('/solicitar-token', [PublicTokenRequestController::class, 'create'])->middleware('throttle:public-token-request-form')->name('public.token-requests.create');
 Route::post('/solicitar-token', [PublicTokenRequestController::class, 'store'])->middleware('throttle:public-token-requests')->name('public.token-requests.store');

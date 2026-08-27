@@ -58,6 +58,10 @@
         .row { display: flex; gap: 6px; margin-top: 8px; }
         .row > button { flex: 1; margin: 0; }
         #status { font-size: 11px; min-height: 14px; margin-top: 8px; }
+        .legal-links { margin-top: 10px; text-align: center; font-size: 11px; }
+        .legal-links a { color: var(--muted); text-decoration: none; }
+        .legal-links a:hover { text-decoration: underline; }
+        .legal-links span { color: var(--muted); margin: 0 4px; }
         .hidden { display: none; }
         .pill {
             display: inline-flex; align-items: center; gap: 6px;
@@ -185,6 +189,13 @@
     </div>
 
     <p id="status"></p>
+    <!-- Enlaces legales exigidos por las politicas de Chrome Web Store: la
+         politica de privacidad debe ser accesible tambien desde el producto. -->
+    <p class="legal-links">
+        <a href="https://platform.codered.lat/privacy/registro-actividad-shalom" target="_blank" rel="noreferrer">Política de Privacidad</a>
+        <span>·</span>
+        <a href="https://platform.codered.lat/support/registro-actividad-shalom" target="_blank" rel="noreferrer">Soporte</a>
+    </p>
     <script src="db.js"></script>
     <script src="sync.js"></script>
     <script src="popup.js"></script>

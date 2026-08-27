@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.9.9 - 2026-08-27
+
+### Fixed
+
+- Chrome Web Store rechazo la version 2.9.8 por "Purple Nickel" (Privacidad de los datos del usuario): el vinculo a la politica de privacidad no funcionaba o no estaba disponible. La extension no tenia pagina de privacidad propia; la unica publicada era la de "Buscador Shalom". Ahora existe `https://platform.codered.lat/privacy/registro-actividad-shalom`, publica y sin autenticacion, junto con su pagina de soporte.
+
+### Added
+
+- El popup enlaza la Politica de Privacidad y la pagina de Soporte, para que sean accesibles desde el propio producto.
+- `description` y `homepage_url` en el manifiesto: la ficha de la Store ya no depende solo del texto del panel.
+
 ## 2.9.8 - 2026-08-26
 
 ### Added

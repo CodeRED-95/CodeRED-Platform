@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.33.0] - 2026-08-27
+
+### ℹ️ Nota
+
+- Paginas legales publicas de la extension Registro de Actividad Shalom (privacidad y soporte) exigidas por Chrome Web Store
+
+---
+
 ## [4.32.0] - 2026-08-27
 
 ### ℹ️ Nota
