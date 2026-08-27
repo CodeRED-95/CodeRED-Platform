@@ -37,7 +37,7 @@ only with `php artisan app:bump-version {major|minor|patch}`. See `docs-dev/VERS
 - **Docker Compose** — local dev, app/queue/scheduler/nginx/postgres/redis/n8n/agent
 - **PHP 8.3** — strict types, enums, match expressions
 - **Pint** — code formatting (Laravel standard)
-- **PHPStan Level 9** — static analysis
+- **PHPStan Level 5** — static analysis (`phpstan.neon.dist`, con `phpstan-baseline.neon`)
 - **PHPUnit 11** — testing
 
 ### Frontend
@@ -260,6 +260,19 @@ composer analyse
 composer check
 ```
 
+> **Estado real a 27/08/2026:** `composer analyse` termina con ~734 errores
+> preexistentes, casi todos `property.notFound` sobre columnas de modelos
+> Eloquent (`User::$email`, `User::$password`, …). El `phpstan-baseline.neon`
+> del repo no los cubre, así que parece desincronizado respecto a la versión
+> actual de larastan. `composer check` **no pasa hoy** por ese motivo, no por
+> los cambios que esté haciendo. Al tocar código, compruebe que sus archivos no
+> añaden errores nuevos (`composer analyse | grep SuArchivo`) en lugar de
+> esperar una salida limpia.
+>
+> `composer lint` tiene un matiz parecido en Windows: sin las reglas `eol=lf`
+> de `.gitattributes`, Pint marca `line_ending` en todo el repo. Esas reglas
+> cubren ya los scripts que se ejecutan en contenedores, pero no los `.php`.
+
 ### Database
 ```bash
 # Create/run migrations
@@ -382,12 +395,19 @@ See `.env.example` and `docs/ENVIRONMENT.md` for complete list.
 - `POST /api/v1/token-requests/{id}/reveal` — Reveal approved token
 - `POST /admin/ruc/imports` — Create RUC import
 - `GET /admin/ruc/imports/{id}/progress` — RUC progress (WebSocket via Livewire)
+- `GET /api/v1/dni/{dni}` — DNI lookup (ability `dni:consultar`)
+- `GET /api/v1/dni/name-search` — DNI by name (ability `dni:nombre`, referential)
+
+> El orden importa: `dni/name-search` **debe** registrarse antes que
+> `dni/{dni}`, que no declara restricción de parámetro y de lo contrario captura
+> `name-search` como si fuera un DNI. Ver `routes/api.php`.
 
 ### Web Routes
 - `GET /` — Home
 - `GET /solicitar-token` — Public token request form
 - `GET /admin` — Admin dashboard (requires auth + admin role)
 - `GET /admin/ruc/imports` — RUC import manager
+- `GET /admin/api-tools/dni-name-search` — DNI by name (Identidad; `dni-records.view`)
 
 ### Queue Jobs
 - `ProcessRucImportJobV3` — Main RUC processing (streaming, validation, insert, broadcasting)
@@ -457,6 +477,9 @@ See `.env.example` and `docs/ENVIRONMENT.md` for complete list.
 | PostgreSQL not healthy | Wait 30s; check `docker compose logs postgres` |
 | Rate limiting on OTP | Check `otp.max_attempts` in `config/token-requests.php` (default 5) |
 | Tests refuse to run: "La configuración está cacheada" | Intentional guard. Run `php artisan config:clear` first — see below |
+| `exec /usr/local/bin/codered-entrypoint: no such file or directory` y el contenedor en bucle | Clon de Windows con los `.sh` en CRLF: el shebang es `#!/bin/sh\r`. `.gitattributes` ya fuerza `eol=lf`; re-haga el checkout de esos archivos y reconstruya la imagen (el entrypoint va horneado) |
+| `vite manifest not found` en tests Feature | Faltan los assets. Compílelos sin tocar el `node_modules` del host: `docker compose run --rm --no-deps -v /var/www/html/node_modules --entrypoint "" app sh -c "npm ci && npm run build"` (los binarios nativos de rollup no son intercambiables entre Windows y Linux) |
+| `update.sh` muere a mitad tras un `git pull` | Bash lee el script por offset de byte. Desde 4.31.1 se re-ejecuta solo si el pull tocó `update.sh`; si sospecha de una versión anterior, haga `git pull` **antes** de invocarlo |
 
 ### ⚠️ Never run tests with the config cached
 
@@ -508,3 +531,5 @@ suite in that state; clear it first with `php artisan config:clear`.
 - **Documentación en Español:** Algunos archivos (.md) están traducidos al español de México (no rompe nada, es documentación pura).
 - **RUC v3.0 en producción:** Vea `docs-ruc/DEPLOYMENT.md` para pasos exactos de despliegue (incluido `./update.sh`).
 - **Métrica de éxito:** RUC v3.0 es 10x más rápido que v2.0 (1K → 10K registros/segundo), 4x menos memoria (512MB → 128MB pico).
+- **DNI por nombres (4.31.1):** El módulo vive en `Identidad → Buscar DNI por nombres` y comparte `DniNameSearchService` con el endpoint, así que panel y API dan el mismo resultado. Es **referencial**: viene de un formulario público de terceros, no de RENIEC. Requiere las dos banderas (`DNI_NAME_SEARCH_ENABLED` y `DNI_NAME_SEARCH_DNIPERU_ENABLED`). Ver `docs/DNI_NAME_SEARCH.md`.
+- **`DniPeruNameSearchProvider` envuelve todo en `catch (Throwable)`** y lo convierte en `provider_unavailable`. Es cómodo para el usuario pero **oculta bugs propios**: un desajuste de claves de array lo hizo fallar en toda consulta sin dejar rastro. Si el proveedor devuelve `provider_unavailable` de forma sistemática, revise `storage/logs` — el `report($e)` sí registra la excepción real.

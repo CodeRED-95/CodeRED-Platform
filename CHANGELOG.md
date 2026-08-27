@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.31.2] - 2026-08-27
+
+### ℹ️ Nota
+
+- Documentacion de DNI por nombres y correccion del nivel de PHPStan en CLAUDE.md
+
+---
+
 ## [4.31.1] - 2026-08-27
 
 ### ℹ️ Nota

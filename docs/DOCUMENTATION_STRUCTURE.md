@@ -25,6 +25,7 @@ CodeRED-Platform/
 │   ├── importacion-shalom.md   # Sincronización Shalom (extractor + cola)
 │   ├── RUC_MODULE.md           # Módulo RUC (padrón, backup y restore)
 │   ├── DNI_LEGACY_MIGRATION.md # Migración del proveedor DNI
+│   ├── DNI_NAME_SEARCH.md      # DNI por nombres (módulo del panel + endpoint)
 │   ├── TESTING.md · development-testing.md
 │   ├── TROUBLESHOOTING.md · FAQ.md · ROADMAP.md
 │   ├── DESIGN_SYSTEM.md · USERS.md · CONTRIBUTING.md
