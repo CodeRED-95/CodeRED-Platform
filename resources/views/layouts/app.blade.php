@@ -71,6 +71,7 @@
                             ],
                             'Identidad' => [
                                 ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tools.dni.test')],
+                                ['label' => 'Buscar DNI por nombres', 'route' => 'admin.api-tools.dni-name-search', 'icon' => '⌗', 'can' => ! $isViewerOnly && $menuUser->hasPermission('dni-records.view')],
                                 ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('settings.dni.view')],
                                 // Sin el filtro !$isViewerOnly que usan los demás enlaces de este
                                 // grupo: un viewer puro SÍ tiene declaracion-jurada.view por
@@ -268,6 +269,7 @@
                             ],
                             'Identidad' => [
                                 ['label' => 'Probar API DNI', 'route' => 'admin.api-tools.dni', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-tools.dni.test')],
+                                ['label' => 'Buscar DNI por nombres', 'route' => 'admin.api-tools.dni-name-search', 'icon' => '⌗', 'can' => ! $isViewerOnly && $menuUser->hasPermission('dni-records.view')],
                                 ['label' => 'Configuración DNI', 'route' => 'admin.settings.dni', 'icon' => '⚙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('settings.dni.view')],
                                 // Sin el filtro !$isViewerOnly que usan los demás enlaces de este
                                 // grupo: un viewer puro SÍ tiene declaracion-jurada.view por

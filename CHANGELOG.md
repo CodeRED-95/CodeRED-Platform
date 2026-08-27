@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.30.0] - 2026-08-26
+
+### ℹ️ Nota
+
+- Modulo de busqueda de DNI por nombres en el panel, seccion Identidad
+
+---
+
 ## [4.29.0] - 2026-08-26
 
 ### ℹ️ Nota

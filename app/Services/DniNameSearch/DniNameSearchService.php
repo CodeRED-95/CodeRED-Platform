@@ -20,6 +20,13 @@ final class DniNameSearchService
         $paterno = $this->normalize($paterno);
         $materno = $this->normalize($materno);
 
+        // Interruptor maestro de la funcionalidad. Va antes que el del proveedor
+        // para que DNI_NAME_SEARCH_ENABLED=false apague la búsqueda completa
+        // aunque un proveedor concreto siga habilitado.
+        if (! (bool) config('dni.name_search.enabled', false)) {
+            return DniNameSearchResult::failed('provider_disabled', 503, 'La búsqueda de DNI por nombres está desactivada.');
+        }
+
         if (! $this->provider->isEnabled()) {
             return DniNameSearchResult::failed('provider_disabled', 503, 'El proveedor de DNI por nombres no está disponible.');
         }

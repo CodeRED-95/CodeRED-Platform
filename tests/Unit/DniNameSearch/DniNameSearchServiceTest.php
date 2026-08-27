@@ -27,7 +27,7 @@ final class DniNameSearchServiceTest extends TestCase
             }
         };
 
-        config(['dni.name_search.cache_enabled' => false]);
+        config(['dni.name_search.enabled' => true, 'dni.name_search.cache_enabled' => false]);
         $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore())));
         $result = $service->search('  Juan   Carlos ', 'Pérez', ' Gómez ');
 
@@ -46,7 +46,7 @@ final class DniNameSearchServiceTest extends TestCase
             }
         };
 
-        config(['dni.name_search.cache_enabled' => true, 'dni.name_search.cache_ttl_seconds' => 3600]);
+        config(['dni.name_search.enabled' => true, 'dni.name_search.cache_enabled' => true, 'dni.name_search.cache_ttl_seconds' => 3600]);
         $cache = new DniNameSearchCacheService(new Repository(new ArrayStore()));
         $cache->put('JUAN', 'PEREZ', 'GOMEZ', [new DniNameMatch('12345678', 'JUAN', 'PEREZ', 'GOMEZ')]);
 
@@ -54,5 +54,29 @@ final class DniNameSearchServiceTest extends TestCase
 
         self::assertTrue($result->cacheHit);
         self::assertSame('12345678', $result->matches[0]->dni);
+    }
+
+    public function test_master_switch_disables_the_search_even_with_an_enabled_provider(): void
+    {
+        $provider = new class implements DniNameSearchProviderInterface
+        {
+            public function isEnabled(): bool
+            {
+                return true;
+            }
+
+            public function search(string $nombres, string $paterno, string $materno): DniNameSearchResult
+            {
+                throw new \RuntimeException('provider should not be called');
+            }
+        };
+
+        config(['dni.name_search.enabled' => false, 'dni.name_search.cache_enabled' => false]);
+        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore())));
+
+        $result = $service->search('Juan', 'Perez', 'Gomez');
+
+        self::assertSame('provider_disabled', $result->status);
+        self::assertSame(503, $result->statusCode);
     }
 }

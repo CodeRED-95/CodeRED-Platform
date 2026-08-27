@@ -20,6 +20,21 @@ DNI_NAME_SEARCH_DNIPERU_RETRIES=1
 
 La ability pública es `dni:nombre` y para sesiones de usuario se asocia al permiso RBAC existente `dni-records.view`.
 
+## Módulo del panel
+
+`Identidad → Buscar DNI por nombres` (`/admin/api-tools/dni-name-search`).
+
+Usa el mismo `DniNameSearchService` que el endpoint, así que comparte proveedor,
+caché y estados: lo que se ve en el panel es lo que devolvería un token con la
+ability `dni:nombre`.
+
+Se autoriza con el permiso RBAC `dni-records.view` —el mismo al que se mapea la
+ability—, de modo que retirar el permiso corta a la vez el acceso por panel y
+por API. No introduce permisos nuevos.
+
+Cada búsqueda queda en `api_request_logs` con `request_type=admin_test`,
+`service=dni-name-search` y el mismo hash de la combinación que usa el endpoint.
+
 ## Endpoint
 
 `GET /api/v1/dni/name-search`
