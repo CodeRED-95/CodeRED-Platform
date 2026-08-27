@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.30.1] - 2026-08-26
+
+### ℹ️ Nota
+
+- update.sh ya no aborta cuando el token de Declaracion Jurada esta al dia
+
+---
+
 ## [4.30.0] - 2026-08-26
 
 ### ℹ️ Nota

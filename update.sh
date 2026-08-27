@@ -586,7 +586,12 @@ fi
 # abilities correctas, el comando no imprime ningún token y este bloque no
 # toca nada — pero la parte de RBAC ya corrió de todas formas.
 DJ_TOKEN_OUTPUT="$(docker compose exec -T app php artisan declaracion-jurada:setup 2>&1)"
-DJ_TOKEN_VALUE="$(printf '%s\n' "$DJ_TOKEN_OUTPUT" | grep -E '^[0-9]+\|[A-Za-z0-9]+$' | head -1)"
+# `|| true` es obligatorio, no defensivo: bajo `set -Eeuo pipefail` un grep sin
+# coincidencias devuelve 1 y aborta el despliegue entero. Y "sin coincidencias"
+# es justamente el camino normal descrito arriba -el token vigente ya tiene las
+# abilities correctas y el comando no imprime nada-, de modo que un despliegue
+# rutinario moria aqui: despues de migrar, pero antes de recachear la config.
+DJ_TOKEN_VALUE="$(printf '%s\n' "$DJ_TOKEN_OUTPUT" | grep -E '^[0-9]+\|[A-Za-z0-9]+$' | head -1 || true)"
 if [[ -n "$DJ_TOKEN_VALUE" ]]; then
     set_env DECLARACION_JURADA_CODERED_API_TOKEN "$DJ_TOKEN_VALUE"
     docker compose up -d --force-recreate --no-deps declaracion-jurada
@@ -765,8 +770,11 @@ fi
 # ini_get() devuelve notación "5G"/"5100M" de PHP, hay que convertirla).
 to_mib(){
     local raw="${1:-0}" num unit
-    num="$(echo "$raw" | grep -oE '^[0-9]+')"
-    unit="$(echo "$raw" | grep -oE '[GgMmKk]$')"
+    # Mismo `|| true` que en DJ_TOKEN_VALUE: sin el, un valor sin digitos aborta
+    # el despliegue en vez de caer al `echo 0` de la linea siguiente, que es
+    # justo el caso que esa guarda ya contempla.
+    num="$(echo "$raw" | grep -oE '^[0-9]+' || true)"
+    unit="$(echo "$raw" | grep -oE '[GgMmKk]$' || true)"
     [[ -n "$num" ]] || { echo 0; return; }
     case "$unit" in
         [Gg]) echo $((num * 1024)) ;;
@@ -776,7 +784,7 @@ to_mib(){
 }
 UPLOAD_MAX_MIB="$(to_mib "$(docker compose exec -T app php -r 'echo ini_get("upload_max_filesize");' 2>/dev/null)")"
 POST_MAX_MIB="$(to_mib "$(docker compose exec -T app php -r 'echo ini_get("post_max_size");' 2>/dev/null)")"
-NGINX_MAX_MIB="$(to_mib "$(docker compose exec -T nginx sh -c "grep -h client_max_body_size /etc/nginx/conf.d/*.conf 2>/dev/null | head -1" | grep -oE '[0-9]+[GgMmKk]')")"
+NGINX_MAX_MIB="$(to_mib "$(docker compose exec -T nginx sh -c "grep -h client_max_body_size /etc/nginx/conf.d/*.conf 2>/dev/null | head -1" | grep -oE '[0-9]+[GgMmKk]' || true)")"
 if ((UPLOAD_MAX_MIB >= 90 && POST_MAX_MIB >= 90 && NGINX_MAX_MIB >= 90)); then
     ok "Límites de subida suficientes para partes de 90 MiB (upload_max_filesize=${UPLOAD_MAX_MIB}MiB, post_max_size=${POST_MAX_MIB}MiB, nginx client_max_body_size=${NGINX_MAX_MIB}MiB)."
 else
