@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.30.2] - 2026-08-26
+
+### ℹ️ Nota
+
+- update.sh ya no aborta al comprobar la tabla transitoria ruc_records_next
+
+---
+
 ## [4.30.1] - 2026-08-26
 
 ### ℹ️ Nota

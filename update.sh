@@ -747,8 +747,18 @@ fi
 
 # Restos de una restauración troceada interrumpida. Solo se informa: decidir
 # entre reanudar, descartar o revertir es del operador, nunca del deploy.
-RUC_STAGING_ROWS="$(docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -tAc \
-    "SELECT CASE WHEN to_regclass('public.ruc_records_next') IS NULL THEN '' ELSE (SELECT count(*)::text FROM ruc_records_next) END;" 2>/dev/null | tr -d '[:space:]')"
+# En dos consultas a proposito. Un unico CASE ... ELSE (SELECT count(*) FROM
+# ruc_records_next) no sirve: PostgreSQL planifica la sentencia entera antes de
+# ejecutarla, asi que la referencia a la tabla debe resolverse aunque esa rama
+# nunca se evalue. Con la tabla ausente -el estado normal, porque es transitoria
+# de una restauracion- la consulta fallaba siempre y, bajo pipefail, tumbaba el
+# despliegue en un bloque que segun el comentario de arriba "solo se informa".
+RUC_STAGING_ROWS=""
+if docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -tAc \
+    "SELECT to_regclass('public.ruc_records_next') IS NOT NULL;" 2>/dev/null | grep -q t; then
+    RUC_STAGING_ROWS="$(docker compose exec -T postgres psql -U "$(get_env POSTGRES_USER)" -d "$(get_env POSTGRES_DB)" -tAc \
+        "SELECT count(*) FROM ruc_records_next;" 2>/dev/null | tr -d '[:space:]' || true)"
+fi
 if [[ -n "$RUC_STAGING_ROWS" ]]; then
     warn "Existe ruc_records_next con $RUC_STAGING_ROWS filas: hay una restauración troceada sin terminar."
     warn "  Reanudar:  docker compose exec -T app php artisan ruc:restore <id> --resume"
