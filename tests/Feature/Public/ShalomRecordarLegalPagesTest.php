@@ -41,7 +41,7 @@ class ShalomRecordarLegalPagesTest extends TestCase
         $response->assertSee('AES-256-GCM');
         $response->assertSee('contraseña nunca se guarda', false);
         $response->assertSee(config('codered.legal_name'));
-        $response->assertSee(config('codered.privacy_updated_at'));
+        $response->assertSee(config('codered.registro_actividad_privacy_updated_at'));
     }
 
     #[Test]

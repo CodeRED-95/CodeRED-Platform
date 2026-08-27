@@ -77,7 +77,7 @@
             <h2>5. Contacto</h2>
             <p>
                 ¿Necesita ayuda? Escríbanos a
-                <a href="mailto:{{ $supportEmail }}">{{ $supportEmail }}</a> indicando la versión de la extensión y una
+                <!--email_off--><a href="mailto:{{ $supportEmail }}">{{ $supportEmail }}</a><!--/email_off--> indicando la versión de la extensión y una
                 descripción del problema.
             </p>
         </section>

@@ -171,7 +171,7 @@
             </ul>
             <p>
                 Para ejercer estos derechos escríbanos a
-                <a href="mailto:{{ $supportEmail }}">{{ $supportEmail }}</a>. Atendemos las solicitudes en un plazo
+                <!--email_off--><a href="mailto:{{ $supportEmail }}">{{ $supportEmail }}</a><!--/email_off-->. Atendemos las solicitudes en un plazo
                 razonable conforme a la normativa de protección de datos personales aplicable en {{ $legalCountry }}.
             </p>
         </section>
@@ -180,7 +180,7 @@
             <h2>11. Contacto</h2>
             <p>
                 Responsable del tratamiento: <strong>{{ $legalName }}</strong>.
-                Correo de contacto: <a href="mailto:{{ $supportEmail }}">{{ $supportEmail }}</a>.
+                Correo de contacto: <!--email_off--><a href="mailto:{{ $supportEmail }}">{{ $supportEmail }}</a><!--/email_off-->.
             </p>
         </section>
 

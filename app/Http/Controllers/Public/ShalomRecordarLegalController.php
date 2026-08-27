@@ -19,7 +19,7 @@ class ShalomRecordarLegalController extends Controller
             'legalName' => config('codered.legal_name'),
             'legalCountry' => config('codered.legal_country'),
             'supportEmail' => config('codered.support_email'),
-            'privacyUpdatedAt' => config('codered.privacy_updated_at'),
+            'privacyUpdatedAt' => config('codered.registro_actividad_privacy_updated_at'),
         ]);
     }
 
