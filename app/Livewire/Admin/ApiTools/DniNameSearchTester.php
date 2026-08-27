@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\ApiTools;
 
 use App\Core\Api\Enums\ApiRequestType;
+use App\Domain\DniNameSearch\Data\DniNameMatch;
 use App\Domain\DniNameSearch\Data\DniNameSearchResult;
 use App\Models\ApiRequestLog;
 use App\Services\DniNameSearch\DniNameSearchService;
@@ -90,7 +91,7 @@ class DniNameSearchTester extends Component
             return;
         }
 
-        $data = array_map(static fn ($match): array => $match->toArray(), $result->matches);
+        $data = array_map(static fn (DniNameMatch $match): array => $match->toArray(), $result->matches);
         $this->matches = $data;
         $this->copyDataText = ClipboardPayloadFormatter::readable($data);
         $this->copyJson = ClipboardPayloadFormatter::json([
@@ -98,7 +99,7 @@ class DniNameSearchTester extends Component
             'data' => $data,
             'meta' => ['provider' => 'dniperu', 'official' => false, 'referential' => true, 'count' => count($data)],
         ]);
-        $this->technical = $this->technical($status, $elapsed, $result, count($data));
+        $this->technical = $this->technicalDetails($status, $elapsed, $result, count($data));
     }
 
     public function clear(): void
@@ -153,18 +154,20 @@ class DniNameSearchTester extends Component
         $this->matches = null;
         $this->copyJson = null;
         $this->copyDataText = null;
-        $this->technical = $this->technical($status, $elapsed, $result, 0);
+        $this->technical = $this->technicalDetails($status, $elapsed, $result, 0);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function technical(int $status, ?int $elapsed, ?DniNameSearchResult $result, int $count): array
+    private function technicalDetails(int $status, ?int $elapsed, ?DniNameSearchResult $result, int $count): array
     {
         return [
             'http_status' => $status,
             'response_time_ms' => $elapsed,
-            'result_status' => $result?->status ?? 'rate_limited',
+            // $result solo es null cuando cortamos por rate limit antes de
+            // llegar al servicio; en cualquier otro caso status siempre existe.
+            'result_status' => $result === null ? 'rate_limited' : $result->status,
             'provider_status_code' => $result?->statusCode,
             'cache_hit' => (bool) $result?->cacheHit,
             'provider_called' => $result !== null && $result->status !== 'provider_disabled' && ! $result->cacheHit,

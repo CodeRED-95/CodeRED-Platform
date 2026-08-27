@@ -2,3 +2,19 @@
 # regla, el paquete de 4.14.0 incluiría el ZIP de 4.13.0 —y ése ya incluye los
 # suyos—, así que cada release arrastraría el peso de todas las anteriores.
 /release export-ignore
+
+# Todo lo que acaba ejecutandose dentro de un contenedor (o en la Steam Deck)
+# tiene que llegar con LF pase lo que pase. En un clon de Windows con
+# core.autocrlf=true, git reescribe estos archivos con CRLF al hacer checkout y
+# el shebang pasa a ser `#!/bin/sh\r`: el kernel busca literalmente un
+# interprete llamado "/bin/sh\r", no lo encuentra, y el contenedor entra en
+# bucle de reinicio con "exec ...: no such file or directory". En Linux no se
+# reproduce, asi que el fallo solo aparece al clonar desde Windows.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+docker/**/entrypoint* text eol=lf
+docker/**/*.conf text eol=lf
+docker/**/*.ini text eol=lf
+bin/git-hooks/** text eol=lf
+artisan text eol=lf

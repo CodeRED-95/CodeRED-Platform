@@ -17,18 +17,25 @@ final class DniNameSearchServiceTest extends TestCase
 {
     public function test_normalizes_input_and_returns_provider_matches(): void
     {
-        $provider = new class implements DniNameSearchProviderInterface {
+        $provider = new class implements DniNameSearchProviderInterface
+        {
             public array $received = [];
-            public function isEnabled(): bool { return true; }
+
+            public function isEnabled(): bool
+            {
+                return true;
+            }
+
             public function search(string $nombres, string $paterno, string $materno): DniNameSearchResult
             {
                 $this->received = [$nombres, $paterno, $materno];
+
                 return DniNameSearchResult::found([new DniNameMatch('12345678', $nombres, $paterno, $materno)]);
             }
         };
 
         config(['dni.name_search.enabled' => true, 'dni.name_search.cache_enabled' => false]);
-        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore())));
+        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore)));
         $result = $service->search('  Juan   Carlos ', 'Pérez', ' Gómez ');
 
         self::assertSame(['JUAN CARLOS', 'PÉREZ', 'GÓMEZ'], $provider->received);
@@ -38,8 +45,13 @@ final class DniNameSearchServiceTest extends TestCase
 
     public function test_cache_hit_is_reported(): void
     {
-        $provider = new class implements DniNameSearchProviderInterface {
-            public function isEnabled(): bool { return true; }
+        $provider = new class implements DniNameSearchProviderInterface
+        {
+            public function isEnabled(): bool
+            {
+                return true;
+            }
+
             public function search(string $nombres, string $paterno, string $materno): DniNameSearchResult
             {
                 throw new \RuntimeException('provider should not be called');
@@ -47,7 +59,7 @@ final class DniNameSearchServiceTest extends TestCase
         };
 
         config(['dni.name_search.enabled' => true, 'dni.name_search.cache_enabled' => true, 'dni.name_search.cache_ttl_seconds' => 3600]);
-        $cache = new DniNameSearchCacheService(new Repository(new ArrayStore()));
+        $cache = new DniNameSearchCacheService(new Repository(new ArrayStore));
         $cache->put('JUAN', 'PEREZ', 'GOMEZ', [new DniNameMatch('12345678', 'JUAN', 'PEREZ', 'GOMEZ')]);
 
         $result = (new DniNameSearchService($provider, $cache))->search('Juan', 'Perez', 'Gomez');
@@ -72,7 +84,7 @@ final class DniNameSearchServiceTest extends TestCase
         };
 
         config(['dni.name_search.enabled' => false, 'dni.name_search.cache_enabled' => false]);
-        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore())));
+        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore)));
 
         $result = $service->search('Juan', 'Perez', 'Gomez');
 

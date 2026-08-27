@@ -33,19 +33,23 @@ final class DniNameSearchService
 
         if ((bool) config('dni.name_search.cache_enabled', true)) {
             $cached = $this->cache->get($nombres, $paterno, $materno);
-            if ($cached !== null) return DniNameSearchResult::found($cached, 200, true);
+            if ($cached !== null) {
+                return DniNameSearchResult::found($cached, 200, true);
+            }
         }
 
         $result = $this->provider->search($nombres, $paterno, $materno);
         if ($result->status === 'found' && (bool) config('dni.name_search.cache_enabled', true)) {
             $this->cache->put($nombres, $paterno, $materno, $result->matches);
         }
+
         return $result;
     }
 
     private function normalize(string $value): string
     {
         $value = trim(preg_replace('/\\s+/u', ' ', $value) ?? $value);
+
         return mb_strtoupper($value);
     }
 }

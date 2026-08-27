@@ -31,7 +31,7 @@ final class DniPeruNameSearchProviderTest extends TestCase
 HTML;
 
         Http::fakeSequence()->push($html, 200, ['Content-Type' => 'text/html'])->push($html, 200, ['Content-Type' => 'text/html']);
-        $result = (new DniPeruNameSearchProvider())->search('JUAN', 'PEREZ', 'GOMEZ');
+        $result = (new DniPeruNameSearchProvider)->search('JUAN', 'PEREZ', 'GOMEZ');
 
         self::assertSame('found', $result->status);
         self::assertSame('12345678', $result->matches[0]->dni);

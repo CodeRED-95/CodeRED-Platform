@@ -15,10 +15,14 @@ final class DniNameSearchCacheService
     public function get(string $nombres, string $paterno, string $materno): ?array
     {
         $value = $this->cache->get($this->key($nombres, $paterno, $materno));
-        if (! is_array($value)) return null;
+        if (! is_array($value)) {
+            return null;
+        }
         $result = [];
         foreach ($value as $item) {
-            if (! is_array($item)) continue;
+            if (! is_array($item)) {
+                continue;
+            }
             $result[] = new DniNameMatch(
                 (string) ($item['dni'] ?? ''),
                 (string) ($item['nombres'] ?? ''),
@@ -26,6 +30,7 @@ final class DniNameSearchCacheService
                 (string) ($item['apellido_materno'] ?? ''),
             );
         }
+
         return $result;
     }
 
@@ -39,6 +44,7 @@ final class DniNameSearchCacheService
     private function key(string $nombres, string $paterno, string $materno): string
     {
         $normalized = implode('|', [mb_strtoupper(trim($nombres)), mb_strtoupper(trim($paterno)), mb_strtoupper(trim($materno))]);
+
         return 'dni-name-search:v1:'.hash('sha256', $normalized);
     }
 }

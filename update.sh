@@ -440,6 +440,27 @@ git pull --ff-only || die "git pull falló. Resuelva cambios locales o sincroniz
 NEW_HEAD="$(git rev-parse HEAD)"
 NEW_VERSION="$(read_project_version)"
 ok "Repositorio actualizado: $OLD_HEAD -> $NEW_HEAD"
+
+# Bash NO lee el script entero de golpe: lo va leyendo por offset de byte segun
+# lo ejecuta. Si el pull acaba de reescribir este mismo archivo, el resto se
+# sigue leyendo del fichero NUEVO desde la posicion vieja, asi que basta con que
+# el cambio altere el numero de bytes para saltar a mitad de una linea y
+# ejecutar algo que nadie escribio. Un `git pull` que toque update.sh obliga
+# entonces a reiniciar el proceso con la version recien traida.
+#
+# CODERED_UPDATE_REEXEC corta la recursion: tras el re-exec el arbol ya esta en
+# NEW_HEAD, de modo que el pull siguiente no vuelve a cambiar nada, pero el
+# guardia hace explicito que solo se reintenta una vez.
+if [[ "$OLD_HEAD" != "$NEW_HEAD" ]] \
+    && git diff --name-only "$OLD_HEAD" "$NEW_HEAD" -- update.sh | grep -q .; then
+    if [[ -n "${CODERED_UPDATE_REEXEC:-}" ]]; then
+        warn "update.sh cambio de nuevo tras el re-exec; se continua con la version en memoria."
+    else
+        info "update.sh ha cambiado en este pull: reiniciando el despliegue con la version nueva."
+        export CODERED_UPDATE_REEXEC=1
+        exec "$0" "$@"
+    fi
+fi
 if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
     info "Versión de CodeRED Platform: $NEW_VERSION (sin cambios)."
 else

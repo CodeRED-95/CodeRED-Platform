@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Core\Api\Enums\ApiRequestType;
 use App\Domain\DniNameSearch\Contracts\DniNameSearchProviderInterface;
 use App\Domain\DniNameSearch\Data\DniNameMatch;
 use App\Domain\DniNameSearch\Data\DniNameSearchResult;
@@ -57,9 +58,12 @@ class DniNameSearchTesterTest extends TestCase
 
         $log = ApiRequestLog::query()->where('service', 'dni-name-search')->sole();
 
-        self::assertSame('admin_test', $log->request_type);
-        self::assertSame(200, (int) $log->status_code);
-        self::assertSame(hash('sha256', 'JUAN CARLOS|PEREZ|GOMEZ'), $log->identifier_hash);
+        // getAttribute() y no ->request_type: el modelo no declara @property y
+        // larastan no infiere las columnas, asi que el acceso dinamico seria un
+        // error de PHPStan que solo se puede callar metiendolo al baseline.
+        self::assertSame(ApiRequestType::AdminTest, $log->getAttribute('request_type'));
+        self::assertSame(200, (int) $log->getAttribute('status_code'));
+        self::assertSame(hash('sha256', 'JUAN CARLOS|PEREZ|GOMEZ'), $log->getAttribute('identifier_hash'));
 
         // El log no debe contener los nombres en claro por ningún campo.
         self::assertStringNotContainsStringIgnoringCase('PEREZ', json_encode($log->toArray(), JSON_THROW_ON_ERROR));
