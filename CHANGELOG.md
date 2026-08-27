@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.32.0] - 2026-08-27
+
+### ℹ️ Nota
+
+- Busqueda de DNI por nombres: contrato features en /auth/me y flujo AJAX del proveedor
+
+---
+
 ## [4.31.2] - 2026-08-27
 
 ### ℹ️ Nota
