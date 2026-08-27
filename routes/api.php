@@ -236,11 +236,17 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
             Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])->name('read');
         });
+        // Fuera del grupo de /dni/{dni} a proposito. Anidada dentro heredaba
+        // ademas throttle:api-dni, api.audit:dni y access:dni:consultar, de modo
+        // que exigia las DOS abilities -no solo dni:nombre, como documenta
+        // docs/DNI_NAME_SEARCH.md-, escribia dos filas en api_request_logs
+        // -una con identifier_hash nulo, porque ahi no hay parametro {dni}- y
+        // consumia dos cubos de rate limit en cada peticion.
+        Route::get('/dni/name-search', DniNameSearchController::class)
+            ->middleware(['throttle:api-dni-name-search', 'api.audit:dni-name-search', 'api.delegate-user', 'access:dni:nombre'])
+            ->name('dni.name-search');
         Route::middleware(['throttle:api-dni', 'api.audit:dni', 'api.delegate-user', 'access:dni:consultar'])->group(function (): void {
             Route::get('/dni/{dni}', DniApiController::class)->name('dni.show');
-        Route::get('/dni/name-search', DniNameSearchController::class)
-            ->middleware(['throttle:api-dni-name-search', 'api.audit:dni-name-search', 'access:dni:nombre'])
-            ->name('dni.name-search');
         });
         Route::get('/ruc/buscar', RucSearchApiController::class)->middleware(['throttle:ruc-search', 'api.audit:ruc', 'access:ruc:buscar'])->name('ruc.search');
         Route::get('/ruc/{ruc}', RucApiController::class)->middleware(['throttle:ruc-lookup', 'api.audit:ruc', 'access:ruc:consultar'])->name('ruc.show');
