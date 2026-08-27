@@ -11,9 +11,9 @@ use DOMDocument;
 use DOMElement;
 use DOMNode;
 use DOMXPath;
+use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
-use GuzzleHttp\Cookie\CookieJar;
 use Throwable;
 
 /**
@@ -40,7 +40,7 @@ final class DniPeruNameSearchProvider implements DniNameSearchProviderInterface
         $retries = max((int) config('dni.name_search.providers.dniperu.retries', 1), 0);
 
         try {
-            $jar = new CookieJar();
+            $jar = new CookieJar;
             $client = Http::withOptions(['cookies' => $jar])
                 ->accept('text/html,application/xhtml+xml')
                 ->withUserAgent((string) config('dni.name_search.providers.dniperu.user_agent'))
@@ -71,6 +71,7 @@ final class DniPeruNameSearchProvider implements DniNameSearchProviderInterface
             $form = $this->discoverForm($body);
             if ($form === null) {
                 $tokenResult = $this->searchViaAjax($client, $nombres, $apellidoPaterno, $apellidoMaterno, $url);
+
                 return $tokenResult ?? DniNameSearchResult::failed('provider_parse_error', 502, 'No se pudo identificar el formulario público de consulta.');
             }
 

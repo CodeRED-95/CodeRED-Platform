@@ -7,6 +7,7 @@ namespace Tests\Unit\DniNameSearch;
 use App\Domain\DniNameSearch\Contracts\DniNameSearchProviderInterface;
 use App\Domain\DniNameSearch\Data\DniNameMatch;
 use App\Domain\DniNameSearch\Data\DniNameSearchResult;
+use App\Services\DniNameSearch\DniNameSearchAvailability;
 use App\Services\DniNameSearch\DniNameSearchCacheService;
 use App\Services\DniNameSearch\DniNameSearchService;
 use Illuminate\Cache\ArrayStore;
@@ -35,7 +36,7 @@ final class DniNameSearchServiceTest extends TestCase
         };
 
         config(['dni.name_search.enabled' => true, 'dni.name_search.cache_enabled' => false]);
-        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore)));
+        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore)), new DniNameSearchAvailability($provider));
         $result = $service->search('  Juan   Carlos ', 'Pérez', ' Gómez ');
 
         self::assertSame(['JUAN CARLOS', 'PÉREZ', 'GÓMEZ'], $provider->received);
@@ -62,7 +63,7 @@ final class DniNameSearchServiceTest extends TestCase
         $cache = new DniNameSearchCacheService(new Repository(new ArrayStore));
         $cache->put('JUAN', 'PEREZ', 'GOMEZ', [new DniNameMatch('12345678', 'JUAN', 'PEREZ', 'GOMEZ')]);
 
-        $result = (new DniNameSearchService($provider, $cache))->search('Juan', 'Perez', 'Gomez');
+        $result = (new DniNameSearchService($provider, $cache, new DniNameSearchAvailability($provider)))->search('Juan', 'Perez', 'Gomez');
 
         self::assertTrue($result->cacheHit);
         self::assertSame('12345678', $result->matches[0]->dni);
@@ -84,7 +85,7 @@ final class DniNameSearchServiceTest extends TestCase
         };
 
         config(['dni.name_search.enabled' => false, 'dni.name_search.cache_enabled' => false]);
-        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore)));
+        $service = new DniNameSearchService($provider, new DniNameSearchCacheService(new Repository(new ArrayStore)), new DniNameSearchAvailability($provider));
 
         $result = $service->search('Juan', 'Perez', 'Gomez');
 

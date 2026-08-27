@@ -8,6 +8,7 @@ use App\Core\Api\Enums\ApiRequestType;
 use App\Domain\DniNameSearch\Data\DniNameMatch;
 use App\Domain\DniNameSearch\Data\DniNameSearchResult;
 use App\Models\ApiRequestLog;
+use App\Services\DniNameSearch\DniNameSearchAvailability;
 use App\Services\DniNameSearch\DniNameSearchService;
 use App\Support\ClipboardPayloadFormatter;
 use Illuminate\Contracts\View\View;
@@ -110,9 +111,15 @@ class DniNameSearchTester extends Component
 
     public function render(): View
     {
+        // Mismo DniNameSearchAvailability que usan el servicio y /auth/me, en
+        // vez de releer la config aquí: el aviso del panel no puede decir una
+        // cosa y el endpoint hacer otra. Además, la comprobación del proveedor
+        // deja de estar cableada a `dniperu` y pasa por la interfaz.
+        $availability = app(DniNameSearchAvailability::class);
+
         return view('livewire.admin.api-tools.dni-name-search-tester', [
-            'featureEnabled' => (bool) config('dni.name_search.enabled', false),
-            'providerEnabled' => (bool) config('dni.name_search.providers.dniperu.enabled', false),
+            'featureEnabled' => $availability->featureEnabled(),
+            'providerEnabled' => $availability->providerEnabled(),
             'cacheEnabled' => (bool) config('dni.name_search.cache_enabled', true),
         ])->layout('layouts.app', ['pageTitle' => 'Buscar DNI por nombres']);
     }

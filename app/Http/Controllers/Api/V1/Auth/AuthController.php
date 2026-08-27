@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Auth;
 
+use App\Enums\ClientApplication;
 use App\Exceptions\InvalidRefreshTokenException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Auth\LoginRequest;
@@ -11,6 +12,7 @@ use App\Models\ClientSession;
 use App\Models\Permission;
 use App\Models\User;
 use App\Services\Auth\AuthAuditor;
+use App\Services\Auth\ClientFeatures;
 use App\Services\Auth\ClientSessionManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +30,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly ClientSessionManager $sessions,
         private readonly AuthAuditor $auditor,
+        private readonly ClientFeatures $features,
     ) {}
 
     public function login(LoginRequest $request): JsonResponse
@@ -167,7 +170,7 @@ class AuthController extends Controller
      * Sólo lo imprescindible para construir la interfaz. Nunca hashes de
      * contraseña, tokens, secretos ni columnas internas.
      *
-     * @return array{user:array{id:int,name:string,email:string},roles:list<string>,permissions:list<string>,applications:list<string>}
+     * @return array{user:array{id:int,name:string,email:string},roles:list<string>,permissions:list<string>,applications:list<string>,features:array<string,bool>}
      */
     private function identityPayload(User $user): array
     {
@@ -184,9 +187,14 @@ class AuthController extends Controller
             // Atajo para que el cliente sepa a qué aplicaciones puede entrar sin
             // tener que conocer la convención de nombres de los permisos.
             'applications' => array_values(array_filter(
-                \App\Enums\ClientApplication::values(),
+                ClientApplication::values(),
                 static fn (string $app): bool => in_array($app.'.access', $permissions, true),
             )),
+            // Qué tiene encendido la INSTALACIÓN, frente a `permissions`, que es
+            // lo que puede la PERSONA. Desktop y Mobile necesitan las dos para
+            // decidir si pintan un módulo: con el permiso pero la función
+            // apagada en el servidor, la llamada respondería 503.
+            'features' => $this->features->all(),
         ];
     }
 
