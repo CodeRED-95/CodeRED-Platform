@@ -13,6 +13,7 @@ use DOMNode;
 use DOMXPath;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use GuzzleHttp\Cookie\CookieJar;
 use Throwable;
 
 /**
@@ -39,8 +40,11 @@ final class DniPeruNameSearchProvider implements DniNameSearchProviderInterface
         $retries = max((int) config('dni.name_search.providers.dniperu.retries', 1), 0);
 
         try {
-            $client = Http::accept('text/html,application/xhtml+xml')
+            $jar = new CookieJar();
+            $client = Http::withOptions(['cookies' => $jar])
+                ->accept('text/html,application/xhtml+xml')
                 ->withUserAgent((string) config('dni.name_search.providers.dniperu.user_agent'))
+                ->withHeaders(['Referer' => $url])
                 ->timeout($timeout)
                 ->connectTimeout($connectTimeout)
                 ->retry($retries, 500, throw: false);
@@ -56,16 +60,33 @@ final class DniPeruNameSearchProvider implements DniNameSearchProviderInterface
                 return DniNameSearchResult::failed('provider_unavailable', $page->status());
             }
 
-            $form = $this->discoverForm($page->body());
-            if ($form === null) {
-                return DniNameSearchResult::failed('provider_parse_error', 502, 'No se pudo identificar el formulario público de consulta.');
+            $body = $page->body();
+            if ($this->usesAjaxTokenFlow($body)) {
+                $tokenResult = $this->searchViaAjax($client, $nombres, $apellidoPaterno, $apellidoMaterno, $url);
+                if ($tokenResult !== null) {
+                    return $tokenResult;
+                }
             }
 
+            $form = $this->discoverForm($body);
+            if ($form === null) {
+                $tokenResult = $this->searchViaAjax($client, $nombres, $apellidoPaterno, $apellidoMaterno, $url);
+                return $tokenResult ?? DniNameSearchResult::failed('provider_parse_error', 502, 'No se pudo identificar el formulario público de consulta.');
+            }
+
+            $payload = $this->buildPayload($form, $nombres, $apellidoPaterno, $apellidoMaterno);
             $response = $client->send(
                 $form['method'],
                 $form['action'],
-                $form['method'] === 'GET' ? ['query' => $this->buildPayload($form, $nombres, $apellidoPaterno, $apellidoMaterno)] : ['form_params' => $this->buildPayload($form, $nombres, $apellidoPaterno, $apellidoMaterno)],
+                $form['method'] === 'GET' ? ['query' => $payload] : ['form_params' => $payload],
             );
+
+            if ($this->requiresToken($response->body())) {
+                $tokenResult = $this->searchViaAjax($client, $nombres, $apellidoPaterno, $apellidoMaterno, $url);
+                if ($tokenResult !== null) {
+                    return $tokenResult;
+                }
+            }
 
             if ($response->status() === 429) {
                 return DniNameSearchResult::failed('rate_limited', 429, 'El proveedor limitó temporalmente las consultas.');
@@ -87,6 +108,73 @@ final class DniPeruNameSearchProvider implements DniNameSearchProviderInterface
 
             return DniNameSearchResult::failed('provider_unavailable', 503, 'No fue posible consultar el proveedor.');
         }
+    }
+
+    private function searchViaAjax($client, string $nombres, string $apellidoPaterno, string $apellidoMaterno, string $referer): ?DniNameSearchResult
+    {
+        $tokenResponse = $client->asForm()->post($this->ajaxUrl($referer), [
+            'action' => 'cc_get_tokens',
+            'context' => 'buscar_dni',
+            'company' => '',
+        ]);
+
+        if (! $tokenResponse->successful()) {
+            return null;
+        }
+
+        $tokenData = $tokenResponse->json('data');
+        $ccToken = is_array($tokenData) ? (string) ($tokenData['cc_token'] ?? '') : '';
+        $ccSig = is_array($tokenData) ? (string) ($tokenData['cc_sig'] ?? '') : '';
+        if ($ccToken === '' || $ccSig === '') {
+            return null;
+        }
+
+        $searchResponse = $client->asForm()->post($this->ajaxUrl($referer), [
+            'action' => 'buscar_dni',
+            'nombres' => $nombres,
+            'apellido_paterno' => $apellidoPaterno,
+            'apellido_materno' => $apellidoMaterno,
+            'company' => '',
+            'cc_token' => $ccToken,
+            'cc_sig' => $ccSig,
+        ]);
+
+        if ($searchResponse->status() === 429) {
+            return DniNameSearchResult::failed('rate_limited', 429, 'El proveedor limitó temporalmente las consultas.');
+        }
+        if (in_array($searchResponse->status(), [401, 403], true)) {
+            return DniNameSearchResult::failed('provider_blocked', $searchResponse->status(), 'El proveedor no permite realizar la consulta en este momento.');
+        }
+        if (! $searchResponse->successful()) {
+            return DniNameSearchResult::failed('provider_unavailable', $searchResponse->status());
+        }
+
+        $payload = $searchResponse->json();
+        if (! is_array($payload)) {
+            $payload = json_decode((string) $searchResponse->body(), true);
+        }
+        $results = is_array($payload) ? data_get($payload, 'data.resultados', []) : [];
+        if (! is_array($results) || $results === []) {
+            return DniNameSearchResult::notFound($searchResponse->status());
+        }
+
+        $matches = [];
+        foreach ($results as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $dni = (string) ($item['numero'] ?? '');
+            $itemNombres = (string) ($item['nombres'] ?? '');
+            $itemPaterno = (string) ($item['apellido_paterno'] ?? '');
+            $itemMaterno = (string) ($item['apellido_materno'] ?? '');
+            if ($dni === '' || $itemNombres === '' || $itemPaterno === '' || $itemMaterno === '') {
+                continue;
+            }
+
+            $matches[] = new DniNameMatch($dni, $itemNombres, $itemPaterno, $itemMaterno);
+        }
+
+        return $matches === [] ? DniNameSearchResult::notFound($searchResponse->status()) : DniNameSearchResult::found($matches, $searchResponse->status());
     }
 
     /** @return array{method:string,action:string,inputs:list<array{name:string,value:string,type:string}>,field_names:array{nombres:string,paterno:string,materno:string}}|null */
@@ -215,6 +303,30 @@ final class DniPeruNameSearchProvider implements DniNameSearchProviderInterface
         $payload[$form['field_names']['materno']] = $materno;
 
         return $payload;
+    }
+
+    private function requiresToken(string $body): bool
+    {
+        return str_contains($body, '"code":"token_required"') || str_contains($body, 'Token requerido');
+    }
+
+    private function usesAjaxTokenFlow(string $body): bool
+    {
+        return str_contains($body, 'js-cc-dni-form')
+            || str_contains($body, 'cc_token_vars')
+            || str_contains($body, 'token_context')
+            || str_contains($body, 'buscar_dni');
+    }
+
+    private function ajaxUrl(string $referer): string
+    {
+        $parts = parse_url($referer);
+        $origin = (($parts['scheme'] ?? 'https').'://'.($parts['host'] ?? ''));
+        if (isset($parts['port'])) {
+            $origin .= ':'.$parts['port'];
+        }
+
+        return $origin.'/wp-admin/admin-ajax.php';
     }
 
     /** @return list<DniNameMatch> */

@@ -1,6 +1,8 @@
 # Consulta DNI por nombres
 
 CodeRED Platform 4.29.0 incorpora una capa de proveedores para consulta de DNI por nombres. El primer proveedor es DNIPERU y se limita al formulario público configurado.
+Ese sitio usa un flujo AJAX con token de sesión: primero solicita `cc_get_tokens`
+y luego ejecuta `buscar_dni` en `admin-ajax.php`.
 
 ## Activación
 
