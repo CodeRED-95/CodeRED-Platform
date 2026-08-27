@@ -19,8 +19,13 @@ class AuditApiRequest
         $owner = $request->user();
         $token = method_exists($owner, 'currentAccessToken') ? $owner->currentAccessToken() : null;
         $dniAudit = json_decode((string) ($request->route('_dni_audit') ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+        $dniNameAudit = json_decode((string) ($request->route('_dni_name_audit') ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
         $rucAudit = json_decode((string) ($request->route('_ruc_audit') ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
-        $serviceAudit = $service === 'ruc' ? $rucAudit : $dniAudit;
+        $serviceAudit = match ($service) {
+            'ruc' => $rucAudit,
+            'dni-name-search' => $dniNameAudit,
+            default => $dniAudit,
+        };
         $delegatedUser = $request->attributes->get('delegated_user');
         // Id de correlación opcional (p. ej. X-Request-Id de Declaración
         // Jurada): permite detectar reintentos del mismo request lógico —
@@ -41,7 +46,7 @@ class AuditApiRequest
             'status_code' => $response->getStatusCode(),
             'ip_address' => $request->ip(),
             'user_agent' => mb_substr((string) $request->userAgent(), 0, 500) ?: null,
-            'identifier_hash' => in_array($service, ['dni', 'ruc'], true) && is_string($request->route($service)) ? hash('sha256', $request->route($service)) : null,
+            'identifier_hash' => $this->identifierHash($request, $service),
             'response_time_ms' => (int) round((hrtime(true) - $startedAt) / 1_000_000),
             'source' => $serviceAudit['source'] ?? null,
             'provider_called' => (bool) ($serviceAudit['provider_called'] ?? false),
@@ -53,4 +58,24 @@ class AuditApiRequest
 
         return $response;
     }
+    private function identifierHash(Request $request, string $service): ?string
+    {
+        if (in_array($service, ['dni', 'ruc'], true) && is_string($request->route($service))) {
+            return hash('sha256', $request->route($service));
+        }
+
+        if ($service === 'dni-name-search') {
+            $values = array_map(static fn (mixed $value): string => mb_strtoupper(trim((string) $value)), [
+                $request->input('nombres'),
+                $request->input('apellido_paterno'),
+                $request->input('apellido_materno'),
+            ]);
+            if (implode('', $values) !== '') {
+                return hash('sha256', implode('|', $values));
+            }
+        }
+
+        return null;
+    }
+
 }

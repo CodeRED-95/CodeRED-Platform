@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Domain\Dni\Contracts\DniProviderInterface;
+use App\Domain\DniNameSearch\Contracts\DniNameSearchProviderInterface;
 use App\Events\TokenRequestCreated;
 use App\Listeners\SendTokenRequestCreatedWebhook;
 use App\Models\ApiToken;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Observers\UserObserver;
 use App\Policies\UserPolicy;
 use App\Services\Dni\PeruDevsDniProvider;
+use App\Services\DniNameSearch\DniPeruNameSearchProvider;
 use App\Services\Events\Contracts\EventDeliveryContract;
 use App\Services\Events\Contracts\EventDispatcherContract;
 use App\Services\Events\Contracts\EventDispatchRepositoryContract;
@@ -36,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(DniProviderInterface::class, PeruDevsDniProvider::class);
+        $this->app->bind(DniNameSearchProviderInterface::class, DniPeruNameSearchProvider::class);
         $this->app->singleton(UuidGeneratorContract::class, UuidV7Generator::class);
         $this->app->singleton(EventFactory::class);
         $this->app->singleton(EventDispatchRepositoryContract::class, EloquentEventDispatchRepository::class);
@@ -59,6 +62,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-mobile', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.mobile_rate_limit_per_minute'), 1), 'mobile'));
         RateLimiter::for('api-admin', fn (Request $request): Limit => $this->tokenLimit($request, 30, 'admin'));
         RateLimiter::for('api-dni', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('dni.rate_limit_per_minute'), 1), 'dni'));
+        RateLimiter::for('api-dni-name-search', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('dni.name_search.rate_limit_per_minute'), 1), 'dni-name-search'));
         RateLimiter::for('ruc-lookup', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('ruc.rate_limit_per_minute'), 1), 'ruc'));
         RateLimiter::for('ruc-search', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('ruc.search_rate_limit_per_minute'), 1), 'ruc-search'));
         RateLimiter::for('ruc-admin-test', fn (Request $request): Limit => Limit::perMinute(20)->by('ruc-admin:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));

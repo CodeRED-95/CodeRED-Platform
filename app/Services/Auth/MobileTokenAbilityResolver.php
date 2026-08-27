@@ -15,7 +15,7 @@ class MobileTokenAbilityResolver
      */
     private const PERMISSION_TO_ABILITIES = [
         'agencies.view' => ['agencias:consultar', 'agencies:read'],
-        'dni-records.view' => ['dni:consultar'],
+        'dni-records.view' => ['dni:consultar', 'dni:nombre'],
         'ruc.view' => ['ruc:consultar'],
         'declaracion-jurada.view' => ['declaraciones:gestionar'],
         // Áreas de administración. La ability abre el área; el permiso concreto

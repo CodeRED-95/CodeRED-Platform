@@ -21,6 +21,7 @@ return [
     'abilities' => [
         'agencias:consultar' => 'Solo Agencias',
         'dni:consultar' => 'Solo DNI',
+        'dni:nombre' => 'Solo DNI · Buscar por nombres y apellidos',
         'ruc:consultar' => 'RUC · Consultar por número',
         'ruc:buscar' => 'RUC · Buscar por razón social',
         'agencies:read' => 'Consultar agencias (compatibilidad)',

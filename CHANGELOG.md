@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.29.0] - 2026-08-26
+
+### ℹ️ Nota
+
+- Consulta de DNI por nombres y apellidos con proveedor DNIPERU
+
+---
+
 ## [4.27.0] - 2026-08-17
 
 ### ℹ️ Nota

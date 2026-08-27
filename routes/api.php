@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\DeclarationController;
 use App\Http\Controllers\Api\V1\DesktopUpdateController;
 use App\Http\Controllers\Api\V1\DniApiController;
+use App\Http\Controllers\Api\V1\DniNameSearchController;
 use App\Http\Controllers\Api\V1\ExtensionBlockRulesController;
 use App\Modules\ExtensionControl\Support\BlockingAbility;
 use App\Http\Controllers\Api\V1\ExtensionChromeConfigController;
@@ -237,6 +238,9 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         });
         Route::middleware(['throttle:api-dni', 'api.audit:dni', 'api.delegate-user', 'access:dni:consultar'])->group(function (): void {
             Route::get('/dni/{dni}', DniApiController::class)->name('dni.show');
+        Route::get('/dni/name-search', DniNameSearchController::class)
+            ->middleware(['throttle:api-dni-name-search', 'api.audit:dni-name-search', 'access:dni:nombre'])
+            ->name('dni.name-search');
         });
         Route::get('/ruc/buscar', RucSearchApiController::class)->middleware(['throttle:ruc-search', 'api.audit:ruc', 'access:ruc:buscar'])->name('ruc.search');
         Route::get('/ruc/{ruc}', RucApiController::class)->middleware(['throttle:ruc-lookup', 'api.audit:ruc', 'access:ruc:consultar'])->name('ruc.show');

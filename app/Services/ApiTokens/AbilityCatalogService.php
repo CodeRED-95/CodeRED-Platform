@@ -22,6 +22,7 @@ class AbilityCatalogService
         $fallbackLabels = [
             'agencias:consultar' => 'Consultar agencias',
             'dni:consultar' => 'Consultar DNI',
+            'dni:nombre' => 'Consultar DNI por nombres',
             'ruc:consultar' => 'Consultar RUC por número',
             'ruc:buscar' => 'Buscar RUC por razón social',
             'agencies:read' => 'Consultar agencias',
@@ -73,6 +74,7 @@ class AbilityCatalogService
             'agencies:read' => ['agencies.view'],
             'agencies:map' => ['agencies.map'],
             'dni:consultar' => ['dni-records.view'],
+            'dni:nombre' => ['dni-records.view'],
             'ruc:consultar' => ['ruc.view'],
             'ruc:buscar' => ['ruc.view'],
             'profile:read' => ['api-tokens.view-own'],

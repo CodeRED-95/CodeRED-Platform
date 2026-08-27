@@ -34,6 +34,7 @@ final class AbilityPermissionMap
     private const ABILITY_TO_PERMISSION = [
         // Consulta funcional
         'dni:consultar' => 'dni-records.view',
+        'dni:nombre' => 'dni-records.view',
         'ruc:consultar' => 'ruc.view',
         'ruc:buscar' => 'ruc.view',
         'agencias:consultar' => 'agencies.view',
