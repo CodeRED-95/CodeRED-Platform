@@ -42,11 +42,18 @@
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
                         <span class="mb-2 block text-sm font-medium">Las horas configuradas son…</span>
-                        <select wire:model.live="windowMode"
-                            class="focus-ring w-full rounded-[var(--radius-control)] border-0 bg-[color:var(--color-surface)] px-3 py-2.5 text-sm ring-1 ring-inset ring-[color:var(--color-border)]">
-                            <option value="allowed">Horario permitido (fuera de él se bloquea)</option>
-                            <option value="blocked">Horario bloqueado (fuera de él se permite)</option>
-                        </select>
+                        <div class="grid gap-2" role="radiogroup" aria-label="Modo de horario">
+                            <button type="button" wire:click="$set('windowMode', 'allowed')"
+                                class="focus-ring rounded-[var(--radius-control)] px-3 py-2 text-left text-sm ring-1 ring-inset {{ $windowMode === 'allowed' ? 'bg-[color:var(--color-primary)] text-white ring-[color:var(--color-primary)]' : 'bg-[color:var(--color-surface)] ring-[color:var(--color-border)]' }}"
+                                role="radio" aria-checked="{{ $windowMode === 'allowed' ? 'true' : 'false' }}">
+                                Horario permitido (fuera de él se bloquea)
+                            </button>
+                            <button type="button" wire:click="$set('windowMode', 'blocked')"
+                                class="focus-ring rounded-[var(--radius-control)] px-3 py-2 text-left text-sm ring-1 ring-inset {{ $windowMode === 'blocked' ? 'bg-[color:var(--color-primary)] text-white ring-[color:var(--color-primary)]' : 'bg-[color:var(--color-surface)] ring-[color:var(--color-border)]' }}"
+                                role="radio" aria-checked="{{ $windowMode === 'blocked' ? 'true' : 'false' }}">
+                                Horario bloqueado (fuera de él se permite)
+                            </button>
+                        </div>
                         <p class="mt-2 text-xs text-[color:var(--color-text-muted)]">
                             El comportamiento actual de la extensión es «horario permitido»: 08:00–20:05 se trabaja, el resto queda bloqueado.
                         </p>
