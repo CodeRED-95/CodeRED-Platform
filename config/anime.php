@@ -1,0 +1,24 @@
+<?php
+
+return [
+    'enabled' => (bool) env('ANIME_ENABLED', true),
+    'default_language' => env('ANIME_DEFAULT_LANGUAGE', 'es'),
+    'request_timeout' => (int) env('ANIME_REQUEST_TIMEOUT', 15),
+    'connect_timeout' => (int) env('ANIME_CONNECT_TIMEOUT', 10),
+    'cache' => [
+        'enabled' => (bool) env('ANIME_CACHE_ENABLED', true),
+        'search_ttl' => (int) env('ANIME_CACHE_SEARCH_TTL', 3600),
+        'metadata_ttl' => (int) env('ANIME_CACHE_METADATA_TTL', 86400),
+        'episodes_ttl' => (int) env('ANIME_CACHE_EPISODES_TTL', 3600),
+        'servers_ttl' => (int) env('ANIME_CACHE_SERVERS_TTL', 300),
+    ],
+    'server_priority' => array_values(array_filter(array_map('trim', explode(',', (string) env('ANIME_SERVER_PRIORITY', 'desu,magi'))))),
+    'providers' => [
+        'jkanime' => [
+            'enabled' => (bool) env('JKANIME_ENABLED', true),
+            'base_url' => env('JKANIME_BASE_URL', 'https://jkanime.net'),
+            'allowed_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('JKANIME_ALLOWED_HOSTS', 'jkanime.net,www.jkanime.net'))))),
+            'user_agent' => env('JKANIME_USER_AGENT', 'CodeRED-Platform/4.x Anime Provider'),
+        ],
+    ],
+];

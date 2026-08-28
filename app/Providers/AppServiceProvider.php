@@ -10,6 +10,8 @@ use App\Models\ApiToken;
 use App\Models\User;
 use App\Observers\UserObserver;
 use App\Policies\UserPolicy;
+use App\Services\Anime\Contracts\AnimeProviderInterface;
+use App\Services\Anime\Providers\JkAnimeProvider;
 use App\Services\Dni\PeruDevsDniProvider;
 use App\Services\DniNameSearch\DniPeruNameSearchProvider;
 use App\Services\Events\Contracts\EventDeliveryContract;
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(DniProviderInterface::class, PeruDevsDniProvider::class);
         $this->app->bind(DniNameSearchProviderInterface::class, DniPeruNameSearchProvider::class);
+        $this->app->bind(AnimeProviderInterface::class, JkAnimeProvider::class);
         $this->app->singleton(UuidGeneratorContract::class, UuidV7Generator::class);
         $this->app->singleton(EventFactory::class);
         $this->app->singleton(EventDispatchRepositoryContract::class, EloquentEventDispatchRepository::class);
