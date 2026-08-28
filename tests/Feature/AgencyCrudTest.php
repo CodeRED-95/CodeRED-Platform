@@ -153,7 +153,7 @@ class AgencyCrudTest extends TestCase
         $this->assertSame(AgencyStatus::Active, $agency->status);
     }
 
-    public function test_create_validates_normalized_unique_code_and_slug(): void
+    public function test_create_allows_repeated_shalom_code_but_validates_normalized_unique_slug(): void
     {
         $this->actingAs($this->superAdmin());
         Agency::factory()->create([
@@ -165,7 +165,8 @@ class AgencyCrudTest extends TestCase
             ->set('code', ' ag-200 ')
             ->set('slug', ' Agencia Repetida ')
             ->call('save')
-            ->assertHasErrors(['code' => 'unique', 'slug' => 'unique']);
+            ->assertHasErrors(['slug' => 'unique'])
+            ->assertHasNoErrors(['code']);
     }
 
     public function test_create_validates_required_location_coordinates_and_contact(): void

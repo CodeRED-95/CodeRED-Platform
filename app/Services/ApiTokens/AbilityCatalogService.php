@@ -74,16 +74,18 @@ class AbilityCatalogService
         }
 
         $catalog = $this->options();
+
+        // Cada ability se otorga si el usuario tiene AL MENOS UNO de los permisos listados.
         $map = [
             'agencias:consultar' => ['agencies.view'],
             'agencies:read' => ['agencies.view'],
             'agencies:map' => ['agencies.map'],
-            'anime:read' => ['api-tokens.view-own'],
+            'anime:read' => ['api-tokens.view-own', 'api-tokens.create-for-users'],
             'dni:consultar' => ['dni-records.view'],
             'dni:nombre' => ['dni-records.view'],
             'ruc:consultar' => ['ruc.view'],
             'ruc:buscar' => ['ruc.view'],
-            'profile:read' => ['api-tokens.view-own'],
+            'profile:read' => ['api-tokens.view-own', 'api-tokens.create-for-users'],
             'mobile' => ['mobile'],
             'admin:tokens' => ['api-tokens.view-any'],
             'admin:solicitudes' => ['api-token-requests.view'],
@@ -99,7 +101,7 @@ class AbilityCatalogService
                     return false;
                 }
 
-                return collect($permissions)->every(fn (string $permission): bool => method_exists($user, 'hasPermission') && $user->hasPermission($permission));
+                return collect($permissions)->contains(fn (string $permission): bool => method_exists($user, 'hasPermission') && $user->hasPermission($permission));
             })
             ->map(fn (array $option): string => $option['ability'])
             ->values()

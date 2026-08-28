@@ -147,6 +147,9 @@ class ApiTokenManagementTest extends TestCase
     {
         $manager = User::factory()->create();
         $role = Role::query()->firstOrCreate(['slug' => 'token-manager'], ['name' => 'Token Manager', 'is_system' => false]);
+        foreach (['api-tokens.create-for-users', 'api-tokens.view-any', 'dni-records.view'] as $slug) {
+            Permission::query()->firstOrCreate(['slug' => $slug], ['name' => $slug, 'description' => $slug, 'group' => 'API']);
+        }
         $role->permissions()->sync(Permission::query()->whereIn('slug', ['api-tokens.create-for-users', 'api-tokens.view-any', 'dni-records.view'])->pluck('id'));
         $manager->roles()->attach($role);
         $token = $manager->createToken('Admin API', ['admin:tokens'])->plainTextToken;
@@ -243,9 +246,12 @@ class ApiTokenManagementTest extends TestCase
 
         $this->assertIsString($view);
         $this->assertIsString($script);
-        $this->assertStringContainsString('codeRedTokenCopy(@js($plainTextToken))', $view);
-        $this->assertStringContainsString('x-on:click="copy"', $view);
-        $this->assertStringContainsString('x-on:click="select"', $view);
+        $this->assertStringContainsString('plain-token-alert', $view);
+        $partial = file_get_contents(resource_path('views/livewire/admin/api-tokens/partials/plain-token-alert.blade.php'));
+        $this->assertIsString($partial);
+        $this->assertStringContainsString('codeRedTokenCopy(@js($plainTextToken))', $partial);
+        $this->assertStringContainsString('x-on:click="copy"', $partial);
+        $this->assertStringContainsString('x-on:click="select"', $partial);
         $this->assertStringContainsString('clipboard.writeText(token)', $script);
         $this->assertStringContainsString('selectNodeContents(element)', $script);
         $this->assertStringContainsString('Token copiado correctamente.', $script);

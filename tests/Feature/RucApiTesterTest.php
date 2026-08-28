@@ -55,7 +55,18 @@ class RucApiTesterTest extends TestCase
         Livewire::actingAs($super)->test(RucTester::class)
             ->set('ruc', '20123456789')->set('mode', 'endpoint')->set('tokenId', $rucToken->id)->call('consult')
             ->assertHasNoErrors()->assertSet('result.ruc', '20123456789')
-            ->assertSet('copyJson', ClipboardPayloadFormatter::json(['success' => true, 'message' => 'RUC encontrado.', 'data' => ['ruc' => '20123456789', 'razon_social' => 'EMPRESA LOCAL SAC', 'estado' => null, 'condicion' => null, 'ubigeo' => null, 'direccion' => null, 'departamento' => null, 'provincia' => null, 'distrito' => null]]))
+            ->assertSet('copyJson', function (string $json): bool {
+                $payload = json_decode($json, true);
+
+                return is_array($payload)
+                    && data_get($payload, 'success') === true
+                    && data_get($payload, 'message') === 'RUC encontrado.'
+                    && data_get($payload, 'data.ruc') === '20123456789'
+                    && data_get($payload, 'data.razon_social') === 'EMPRESA LOCAL SAC'
+                    && data_get($payload, 'meta.source') === 'internal'
+                    && data_get($payload, 'meta.cached') === false
+                    && is_int(data_get($payload, 'meta.response_time_ms'));
+            })
             ->assertSet('technical.ability_verified', true)->assertSet('technical.token_name', 'Token RUC');
 
         RucRecord::query()->create(['ruc' => '20123456780', 'razon_social' => 'EMPRESA OTRA SAC', 'estado' => 'ACTIVO']);

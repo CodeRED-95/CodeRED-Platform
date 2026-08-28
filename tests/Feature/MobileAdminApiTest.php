@@ -147,7 +147,7 @@ class MobileAdminApiTest extends TestCase
 
     public function test_crear_un_token_devuelve_el_valor_plano_una_sola_vez(): void
     {
-        $admin = $this->userWith('api-tokens.view-any', 'api-tokens.create-for-users');
+        $admin = $this->userWith('api-tokens.view-any', 'api-tokens.create-for-users', 'dni-records.view');
         $destinatario = $this->userWith('dni-records.view');
 
         Sanctum::actingAs($admin, ['admin:tokens']);
@@ -165,7 +165,7 @@ class MobileAdminApiTest extends TestCase
         $this->assertStringContainsString('Guarda este token ahora', $response->json('data.aviso'));
 
         // Las abilities las decide el tipo, no el cliente.
-        $this->assertSame(['dni:consultar'], $response->json('data.detalle.abilities'));
+        $this->assertSame(['dni:consultar', 'profile:read'], $response->json('data.detalle.abilities'));
 
         // Y al volver a listar ya no aparece por ningún lado.
         $this->assertStringNotContainsString($plano, $this->getJson('/api/v1/admin/tokens')->getContent());
