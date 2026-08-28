@@ -11,6 +11,7 @@ use App\Services\Anime\Data\Stream;
 use App\Services\Anime\Matching\AnimeMatcher;
 use App\Services\Anime\Providers\AniListProvider;
 use App\Services\Anime\Providers\JkAnimeProvider;
+use App\Services\Anime\Resolving\StreamResolver;
 
 final class AnimeCatalogService
 {
@@ -18,6 +19,7 @@ final class AnimeCatalogService
         private readonly JkAnimeProvider $streamingProvider,
         private readonly AniListProvider $metadataProvider,
         private readonly AnimeMatcher $matcher,
+        private readonly StreamResolver $streamResolver,
     ) {}
 
     /** @return list<Anime> */
@@ -87,7 +89,13 @@ final class AnimeCatalogService
 
     public function getStream(string $animeId, int $episode, string $server): ?Stream
     {
-        return $this->streamingProvider->getStream($animeId, $episode, $server);
+        $servers = $this->streamingProvider->getServers($animeId, $episode);
+
+        return $this->streamResolver->firstAvailable(
+            $servers,
+            fn (Server $candidate): ?Stream => $this->streamingProvider->getStream($animeId, $episode, $candidate->id),
+            $server,
+        );
     }
 
     private function mergeMetadata(Anime $anime, ?Anime $metadata): Anime
