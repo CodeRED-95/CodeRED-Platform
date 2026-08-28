@@ -18,15 +18,19 @@ $raiz = dirname(__DIR__);
 require $raiz.'/vendor/autoload.php';
 
 $app = require_once $raiz.'/bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
 use App\Models\ClientSession;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Auth\ClientSessionManager;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Laravel\Sanctum\PersonalAccessToken;
 
 $fallos = 0;
 
@@ -204,7 +208,7 @@ $antes = api('GET', '/api/v1/auth/me', [], $accesoMobile);
 comprobar('la sesión de Mobile funciona antes de revocar', $antes['status'] === 200, 'HTTP '.$antes['status']);
 
 $sesionMobile = ClientSession::where('uuid', $uuidMobile)->first();
-app(App\Services\Auth\ClientSessionManager::class)->revoke($sesionMobile, null, 'e2e');
+app(ClientSessionManager::class)->revoke($sesionMobile, null, 'e2e');
 
 $despues = api('GET', '/api/v1/auth/me', [], $accesoMobile);
 comprobar('tras revocar deja de servir de inmediato', $despues['status'] === 401, 'HTTP '.$despues['status']);
@@ -281,18 +285,18 @@ if ($tokenLegado !== null) {
 echo "\n=== Limpieza ===\n";
 
 ClientSession::where('user_id', $usuario->id)->delete();
-Laravel\Sanctum\PersonalAccessToken::where('tokenable_id', $usuario->id)->delete();
+PersonalAccessToken::where('tokenable_id', $usuario->id)->delete();
 $usuario->roles()->detach();
 
 // El observador de usuarios escribe una entrada de auditoria al borrar, y esa
 // entrada referencia al usuario que ya no existe. Se limpian primero sus
 // registros y se borra la fila sin pasar por el modelo.
-Illuminate\Support\Facades\DB::table('activity_logs')->where('user_id', $usuario->id)->delete();
-Illuminate\Support\Facades\DB::table('activity_logs')
-    ->where('auditable_type', App\Models\User::class)
+DB::table('activity_logs')->where('user_id', $usuario->id)->delete();
+DB::table('activity_logs')
+    ->where('auditable_type', User::class)
     ->where('auditable_id', $usuario->id)
     ->delete();
-Illuminate\Support\Facades\DB::table('users')->where('id', $usuario->id)->delete();
+DB::table('users')->where('id', $usuario->id)->delete();
 Role::where('slug', 'e2e-integral')->delete();
 
 echo "Usuario temporal eliminado.\n";

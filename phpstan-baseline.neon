@@ -37,6 +37,48 @@ parameters:
 			path: app/Actions/ApiTokenRequests/ShowProtectedDataAction.php
 
 		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:notify\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Actions/PermissionRequests/DecidePermissionRequestAction.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/V1/ActivityController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\ApiRequestLog\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Api/V1/ActivityController.php
+
+		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/V1/Auth/SessionController.php
+
+		-
+			message: '#^Cannot call method label\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/V1/Auth/SessionController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/V1/Auth/SessionController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\ClientSession\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Api/V1/Auth/SessionController.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_ciphertext\.$#'
 			identifier: property.notFound
 			count: 1
@@ -61,6 +103,96 @@ parameters:
 			path: app/Http/Controllers/Public/PublicTokenRequestController.php
 
 		-
+			message: '#^Cannot call method accessDeniedMessage\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Middleware/EnsurePermission.php
+
+		-
+			message: '#^Parameter \#2 \$application of method App\\Services\\Auth\\ClientSessionManager\:\:canAccess\(\) expects App\\Enums\\ClientApplication, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Middleware/EnsurePermission.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminPermissionRequestResource.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Api/V1/Admin/AdminPermissionRequestResource.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$roles\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminPermissionRequestResource.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Http/Resources/Api/V1/Admin/AdminPermissionRequestResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$delivery_method\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminTokenRequestResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$tracking_code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminTokenRequestResource.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminTokenRequestResource.php
+
+		-
+			message: '#^Cannot call method label\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminTokenRequestResource.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminTokenResource.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminTokenResource.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Resources/Api/V1/Admin/AdminUserResource.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Resources/Api/V1/MobileDeviceResource.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Http/Resources/Api/V1/PermissionRequestResource.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_revealed_at\.$#'
 			identifier: property.notFound
 			count: 1
@@ -79,6 +211,24 @@ parameters:
 			path: app/Livewire/Admin/ApiTokenRequests/Index.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$day_of_week\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Livewire/Admin/Settings/ExtensionBlocking.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Livewire/Admin/Settings/ExtensionBlocking.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_time\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Livewire/Admin/Settings/ExtensionBlocking.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_revealed_at\.$#'
 			identifier: property.notFound
 			count: 1
@@ -89,6 +239,12 @@ parameters:
 			identifier: return.type
 			count: 1
 			path: app/Models/ApiTokenRequest.php
+
+		-
+			message: '#^Cannot call method isPast\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Models/ClientRefreshToken.php
 
 		-
 			message: '#^Cannot call method isPast\(\) on string\.$#'
@@ -137,6 +293,36 @@ parameters:
 			identifier: nullCoalesce.variable
 			count: 1
 			path: app/Modules/Agencies/Services/AgencyRestoreService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$host_pattern\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ExtensionControl/Models/ExtensionBlockRule.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$path_pattern\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ExtensionControl/Models/ExtensionBlockRule.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$day_of_week\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ExtensionControl/Services/ExtensionBlockRuleService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ExtensionControl/Services/ExtensionBlockRuleService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_time\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/ExtensionControl/Services/ExtensionBlockRuleService.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>total_records" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
@@ -277,6 +463,24 @@ parameters:
 			path: app/Modules/ShalomRecordar/Services/ShalomRecordarSyncService.php
 
 		-
+			message: '#^Parameter \#2 \$devices of method App\\Notifications\\Channels\\FcmChannel\:\:dispatch\(\) expects Illuminate\\Support\\Collection\<int, App\\Models\\MobileDevice\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Notifications/Channels/FcmChannel.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Notifications/PermissionRequestReceived.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Notifications/PermissionRequestReceived.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 3
@@ -331,6 +535,48 @@ parameters:
 			path: app/Services/ApiTokens/OtpService.php
 
 		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Services/Auth/AuthAuditor.php
+
+		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Services/Auth/ClientSessionManager.php
+
+		-
+			message: '#^Cannot call method accessDeniedMessage\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Auth/ClientSessionManager.php
+
+		-
+			message: '#^Parameter \#2 \$application of method App\\Services\\Auth\\ClientSessionManager\:\:canAccess\(\) expects App\\Enums\\ClientApplication, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Auth/ClientSessionManager.php
+
+		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Services/Auth/IssuedSession.php
+
+		-
+			message: '#^Offset ''scope'' does not exist on array\{permission\: string, label\: string, description\: string\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Services/Permissions/MobileAccessManager.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between non\-falsy\-string and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Support/ClipboardPayloadFormatter.php
+
+		-
 			message: '#^Call to an undefined method Faker\\Generator\:\:state\(\)\.$#'
 			identifier: method.notFound
 			count: 1
@@ -365,6 +611,30 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: tests/Feature/ApiTokenRotationRequestTest.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type mixed\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: tests/Feature/ClientAuthTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Feature/ExtensionBlockRulesTest.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$abilities$#'
+			identifier: parameter.notFound
+			count: 1
+			path: tests/Feature/ExtensionBlockRulesTest.php
+
+		-
+			message: '#^PHPDoc tag @return with type array\<string, string\> is incompatible with native type void\.$#'
+			identifier: return.phpDocType
+			count: 1
+			path: tests/Feature/ExtensionBlockRulesTest.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$token_ciphertext\.$#'
@@ -411,8 +681,20 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\ApiTokenRequest\:\:\$tracking_code\.$#'
 			identifier: property.notFound
-			count: 3
+			count: 4
 			path: tests/Feature/PublicTokenRequestWebTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Feature/PushNotificationTest.php
+
+		-
+			message: '#^Parameter \#1 \$messaging of class App\\Notifications\\Channels\\FcmChannel constructor expects Kreait\\Firebase\\Contract\\Messaging, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 5
+			path: tests/Feature/PushNotificationTest.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
@@ -443,3 +725,9 @@ parameters:
 			identifier: method.alreadyNarrowedType
 			count: 1
 			path: tests/Feature/Ruc/RucPerformanceBenchmarkTest.php
+
+		-
+			message: '#^Offset ''name'' does not exist on string\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: tests/Feature/ShalomSyncOptionalChosenTest.php

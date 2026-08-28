@@ -11,6 +11,4 @@ use RuntimeException;
  * otro administrador se adelantó— o sobre la propia. El mensaje está escrito
  * para mostrarse tal cual a quien lo provocó.
  */
-class PermissionRequestTransitionException extends RuntimeException
-{
-}
+class PermissionRequestTransitionException extends RuntimeException {}

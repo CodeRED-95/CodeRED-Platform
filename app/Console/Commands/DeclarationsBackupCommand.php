@@ -44,7 +44,7 @@ class DeclarationsBackupCommand extends Command
 
         $declarations = Declaration::withTrashed()->with('items')->orderBy('id')->get();
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         if ($zip->open($absolute, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new RuntimeException('No se pudo crear el archivo de copia: '.$relative);

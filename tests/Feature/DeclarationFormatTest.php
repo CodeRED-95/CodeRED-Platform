@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -186,7 +187,7 @@ class DeclarationFormatTest extends TestCase
         return ['cero' => [0], 'uno' => [1], 'dos' => [2], 'tres' => [3]];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('cantidadesDeBienes')]
+    #[DataProvider('cantidadesDeBienes')]
     public function test_acepta_de_cero_a_tres_bienes(int $cuantos): void
     {
         $agency = $this->agencia();

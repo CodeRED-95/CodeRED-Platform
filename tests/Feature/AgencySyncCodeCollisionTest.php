@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Agencies\Actions\ConfirmAgencyImportRunAction;
+use App\Modules\Agencies\Jobs\SyncShalomAgenciesJob;
 use App\Modules\Agencies\Models\Agency;
 use App\Modules\Agencies\Models\AgencyImportItem;
 use App\Modules\Agencies\Models\AgencyImportRun;
@@ -77,7 +78,7 @@ class AgencySyncCodeCollisionTest extends TestCase
         // marcados para aplicar.
         $pisac = Agency::factory()->create(['external_id' => 521, 'code' => 'PSC', 'name' => 'PISAC']);
 
-        $job = new \App\Modules\Agencies\Jobs\SyncShalomAgenciesJob(1);
+        $job = new SyncShalomAgenciesJob(1);
         $method = new \ReflectionMethod($job, 'matchAgency');
         $method->setAccessible(true);
 
@@ -104,7 +105,7 @@ class AgencySyncCodeCollisionTest extends TestCase
         Agency::factory()->create(['external_id' => null, 'code' => 'DUP', 'name' => 'UNA']);
         Agency::factory()->create(['external_id' => null, 'code' => 'DUP', 'name' => 'OTRA']);
 
-        $job = new \App\Modules\Agencies\Jobs\SyncShalomAgenciesJob(1);
+        $job = new SyncShalomAgenciesJob(1);
         $method = new \ReflectionMethod($job, 'matchAgency');
         $method->setAccessible(true);
 

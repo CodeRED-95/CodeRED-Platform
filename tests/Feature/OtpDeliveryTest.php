@@ -7,10 +7,12 @@ namespace Tests\Feature;
 use App\Actions\ApiTokenRequests\CreateOtpTokenAction;
 use App\Mail\OtpCodeMail;
 use App\Models\ApiTokenRequest;
+use App\Models\OtpValidation;
 use App\Services\ApiTokens\OtpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -28,7 +30,7 @@ class OtpDeliveryTest extends TestCase
     private function request(array $attributes = []): ApiTokenRequest
     {
         return ApiTokenRequest::query()->create(array_merge([
-            'request_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'request_uuid' => (string) Str::uuid(),
             'tracking_code' => 'CR-'.strtoupper(bin2hex(random_bytes(5))),
             'requester_name' => 'Ada Lovelace',
             'requester_email' => 'ada@example.test',
@@ -111,7 +113,7 @@ class OtpDeliveryTest extends TestCase
         $request = $this->request();
         $this->action()->execute($request, '127.0.0.1', 'phpunit');
 
-        $guardado = \App\Models\OtpValidation::query()->firstOrFail();
+        $guardado = OtpValidation::query()->firstOrFail();
 
         // En la columna vive el hash; recuperar el código después es imposible
         // por diseño, y por eso el correo se envía en la misma petición.

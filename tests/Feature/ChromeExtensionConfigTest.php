@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\ApiTokenType;
-
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

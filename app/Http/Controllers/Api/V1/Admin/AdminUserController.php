@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Actions\Permissions\ChangeUserAccessAction;
 use App\Http\Resources\Api\V1\Admin\AdminUserResource;
 use App\Models\User;
+use App\Services\Permissions\MobileAccess;
+use App\Services\Permissions\MobileAccessManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use App\Actions\Permissions\ChangeUserAccessAction;
-use App\Services\Permissions\MobileAccessManager;
-use App\Services\Permissions\MobileAccess;
 use Symfony\Component\HttpFoundation\Response;
 
 /**

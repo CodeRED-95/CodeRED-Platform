@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\ClientApplication;
 use App\Livewire\Admin\Users\AccessAndSessions;
+use App\Livewire\Admin\Users\PasswordReset;
 use App\Models\ClientSession;
 use App\Models\Permission;
 use App\Models\Role;
@@ -14,6 +15,7 @@ use App\Services\Auth\ClientSessionManager;
 use App\Services\Permissions\MobileAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -136,7 +138,7 @@ class AdminAccessAndSessionsTest extends TestCase
             ->call('revokeAllSessions');
 
         // El token de integración sigue vivo: no representa a la persona.
-        $this->assertSame(1, \Laravel\Sanctum\PersonalAccessToken::query()
+        $this->assertSame(1, PersonalAccessToken::query()
             ->where('tokenable_id', $user->id)
             ->where('kind', 'integration')
             ->count());
@@ -150,13 +152,13 @@ class AdminAccessAndSessionsTest extends TestCase
         $user->createToken('n8n', ['ruc:consultar']);
 
         Livewire::actingAs($admin)
-            ->test(\App\Livewire\Admin\Users\PasswordReset::class, ['user' => $user])
+            ->test(PasswordReset::class, ['user' => $user])
             ->call('resetPassword');
 
         $this->assertSame(0, ClientSession::query()->active()->where('user_id', $user->id)->count());
 
         // Y de nuevo: los tokens de API siguen su propia política.
-        $this->assertSame(1, \Laravel\Sanctum\PersonalAccessToken::query()
+        $this->assertSame(1, PersonalAccessToken::query()
             ->where('tokenable_id', $user->id)
             ->where('kind', 'integration')
             ->count());

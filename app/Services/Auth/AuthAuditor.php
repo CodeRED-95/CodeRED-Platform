@@ -19,12 +19,19 @@ use Illuminate\Http\Request;
 final class AuthAuditor
 {
     public const LOGIN_SUCCESS = 'auth.login.success';
+
     public const LOGIN_FAILED = 'auth.login.failed';
+
     public const LOGIN_DENIED = 'auth.login.denied';
+
     public const REFRESH = 'auth.refresh';
+
     public const REFRESH_REUSE = 'auth.refresh.reuse_detected';
+
     public const LOGOUT = 'auth.logout';
+
     public const SESSION_REVOKED = 'auth.session.revoked';
+
     public const PASSWORD_CHANGED = 'auth.password.changed';
 
     /**

@@ -42,7 +42,7 @@ class DeclarationsRestoreCommand extends Command
             return self::FAILURE;
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         if ($zip->open($disk->path($relative)) !== true) {
             throw new RuntimeException('No se pudo abrir la copia: '.$relative);
@@ -110,7 +110,7 @@ class DeclarationsRestoreCommand extends Command
             unset($fila['items'], $fila['_archivos']);
 
             DB::transaction(function () use ($fila, $items, $archivos, $zip, $disk): void {
-                $declaration = new Declaration();
+                $declaration = new Declaration;
                 $declaration->forceFill($fila);
                 $declaration->save();
 

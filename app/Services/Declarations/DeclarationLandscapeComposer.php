@@ -35,8 +35,8 @@ final class DeclarationLandscapeComposer
 
     /**
      * @param  string  $portraitPdf  contenido binario del PDF vertical
-     * @param  string  $photoPath    ruta absoluta a la imagen ya validada
-     * @return string  contenido binario del PDF apaisado
+     * @param  string  $photoPath  ruta absoluta a la imagen ya validada
+     * @return string contenido binario del PDF apaisado
      */
     public function compose(string $portraitPdf, string $photoPath): string
     {

@@ -3,8 +3,10 @@
 namespace App\Actions\ApiTokenRequests;
 
 use App\Exceptions\OtpMaxResendsExceededException;
+use App\Mail\OtpCodeMail;
 use App\Models\ApiTokenRequest;
 use App\Services\ApiTokens\OtpService;
+use Illuminate\Support\Facades\Mail;
 
 class ResendOtpTokenAction
 {
@@ -41,8 +43,8 @@ class ResendOtpTokenAction
             throw new \RuntimeException('Esta solicitud no tiene un correo de entrega al que reenviar el codigo.');
         }
 
-        \Illuminate\Support\Facades\Mail::to($email)->send(
-            new \App\Mail\OtpCodeMail($request, $otp, self::maskEmail($email))
+        Mail::to($email)->send(
+            new OtpCodeMail($request, $otp, self::maskEmail($email))
         );
 
         return [

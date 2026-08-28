@@ -9,6 +9,7 @@ use App\Models\ClientSession;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Auth\ClientSessionManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -210,7 +211,7 @@ class ClientAuthTest extends TestCase
         $login = $this->login($user);
 
         $session = ClientSession::query()->where('user_id', $user->id)->firstOrFail();
-        app(\App\Services\Auth\ClientSessionManager::class)->revoke($session, null, 'test');
+        app(ClientSessionManager::class)->revoke($session, null, 'test');
 
         $this->postJson('/api/v1/auth/refresh', ['refresh_token' => $login['data']['refresh_token']])
             ->assertStatus(401);
@@ -294,7 +295,7 @@ class ClientAuthTest extends TestCase
         $this->asToken($token)->getJson('/api/v1/auth/me')->assertOk();
 
         $session = ClientSession::query()->where('user_id', $user->id)->firstOrFail();
-        app(\App\Services\Auth\ClientSessionManager::class)->revoke($session, null, 'admin');
+        app(ClientSessionManager::class)->revoke($session, null, 'admin');
 
         $this->asToken($token)
             ->getJson('/api/v1/auth/me')

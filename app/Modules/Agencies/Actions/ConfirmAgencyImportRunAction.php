@@ -4,8 +4,8 @@ namespace App\Modules\Agencies\Actions;
 
 use App\Modules\Agencies\Enums\AgencyStatus;
 use App\Modules\Agencies\Models\Agency;
-use App\Modules\Agencies\Support\AgencySyncFields;
 use App\Modules\Agencies\Models\AgencyImportRun;
+use App\Modules\Agencies\Support\AgencySyncFields;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

@@ -58,6 +58,7 @@ class AuditApiRequest
 
         return $response;
     }
+
     private function identifierHash(Request $request, string $service): ?string
     {
         if (in_array($service, ['dni', 'ruc'], true) && is_string($request->route($service))) {
@@ -77,5 +78,4 @@ class AuditApiRequest
 
         return null;
     }
-
 }

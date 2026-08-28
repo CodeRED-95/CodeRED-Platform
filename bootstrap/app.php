@@ -2,13 +2,13 @@
 
 use App\Http\Middleware\AuditApiRequest;
 use App\Http\Middleware\EnsureApiTokenNotExpired;
-use App\Http\Middleware\LandOnAccessibleHome;
 use App\Http\Middleware\EnsureApiTokenOwnerIsActive;
 use App\Http\Middleware\EnsureApiVersion;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsurePrivateApiCaching;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\LandOnAccessibleHome;
 use App\Http\Middleware\ResolveDelegatedUser;
 use App\Http\Middleware\SetApplicationLocale;
 use App\Http\Middleware\VerifyIntegrationRequest;

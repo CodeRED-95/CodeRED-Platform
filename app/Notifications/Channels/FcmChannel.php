@@ -8,6 +8,7 @@ use App\Models\MobileDevice;
 use App\Models\User;
 use App\Notifications\FcmPush;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Contract\Messaging;
 use Kreait\Firebase\Messaging\AndroidConfig;
@@ -74,7 +75,7 @@ class FcmChannel
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, MobileDevice>  $devices
+     * @param  Collection<int, MobileDevice>  $devices
      */
     private function dispatch(User $user, $devices, FcmPush $push): void
     {

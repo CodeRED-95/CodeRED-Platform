@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Livewire\Admin\ApiTokens\Index;
 use App\Livewire\Admin\Settings\ExtensionBlocking;
 use App\Models\Role;
 use App\Models\User;
@@ -116,9 +117,9 @@ class ExtensionBlockRulesTest extends TestCase
             ->test(ExtensionBlocking::class)
             ->call('create')
             ->set('label', 'Service Order')
-            ->set('hostPatterns', "sysnewos.shalomcontrol.com
+            ->set('hostPatterns', 'sysnewos.shalomcontrol.com
 sysprovincia2.shalomcontrol.com
-sysnewos.shalomcontrol.com")
+sysnewos.shalomcontrol.com')
             ->set('pathPattern', '/service-order')
             ->call('applyRange', 'all')
             ->call('save')
@@ -147,8 +148,8 @@ sysnewos.shalomcontrol.com")
             ->test(ExtensionBlocking::class)
             ->call('create')
             ->set('label', 'Service Order')
-            ->set('hostPatterns', "sysnewos.shalomcontrol.com
-https://sysprovincia2.shalomcontrol.com/ordenservicio/listar?x=1")
+            ->set('hostPatterns', 'sysnewos.shalomcontrol.com
+https://sysprovincia2.shalomcontrol.com/ordenservicio/listar?x=1')
             ->set('pathPattern', '/service-order')
             ->call('applyRange', 'all')
             ->call('save')
@@ -172,8 +173,8 @@ https://sysprovincia2.shalomcontrol.com/ordenservicio/listar?x=1")
             ->test(ExtensionBlocking::class)
             ->call('create')
             ->set('label', 'Dos rutas')
-            ->set('hostPatterns', "sysprovincia2.shalomcontrol.com/service-order
-sysprovincia2.shalomcontrol.com/ordenservicio/listar")
+            ->set('hostPatterns', 'sysprovincia2.shalomcontrol.com/service-order
+sysprovincia2.shalomcontrol.com/ordenservicio/listar')
             ->call('applyRange', 'all')
             ->call('save')
             ->assertHasNoErrors();
@@ -189,8 +190,8 @@ sysprovincia2.shalomcontrol.com/ordenservicio/listar")
             ->test(ExtensionBlocking::class)
             ->call('create')
             ->set('label', 'Mixta')
-            ->set('hostPatterns', "sysnewos.shalomcontrol.com
-www.youtube.com")
+            ->set('hostPatterns', 'sysnewos.shalomcontrol.com
+www.youtube.com')
             ->call('applyRange', 'all')
             ->call('save')
             ->assertHasErrors('hostPatterns');
@@ -284,13 +285,13 @@ www.youtube.com")
         $token = $owner->createToken('Extension', ['agencies:read', 'profile:read'])->accessToken;
 
         Livewire::actingAs($this->admin())
-            ->test(\App\Livewire\Admin\ApiTokens\Index::class)
+            ->test(Index::class)
             ->call('toggleBlockingAbility', $token->getKey());
 
         $this->assertContains(BlockingAbility::NAME, $token->fresh()->abilities);
 
         Livewire::actingAs($this->admin())
-            ->test(\App\Livewire\Admin\ApiTokens\Index::class)
+            ->test(Index::class)
             ->call('toggleBlockingAbility', $token->getKey());
 
         // Se retira sin tocar las demas abilities ni invalidar el token.
