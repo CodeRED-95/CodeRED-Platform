@@ -1,28 +1,28 @@
 <?php
 
 use App\Http\Controllers\Api\V1\ActivityController;
+use App\Http\Controllers\Api\V1\Admin\AdminPermissionRequestController;
 use App\Http\Controllers\Api\V1\Admin\AdminTokenController;
 use App\Http\Controllers\Api\V1\Admin\AdminTokenRequestController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\AgenciesController;
 use App\Http\Controllers\Api\V1\AgencyCatalogController;
 use App\Http\Controllers\Api\V1\AgencyChangesController;
+use App\Http\Controllers\Api\V1\AnimeController;
+use App\Http\Controllers\Api\V1\Auth\AuthController as ClientAuthController;
+use App\Http\Controllers\Api\V1\Auth\SessionController as ClientSessionController;
 use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\DeclarationController;
 use App\Http\Controllers\Api\V1\DesktopUpdateController;
 use App\Http\Controllers\Api\V1\DniApiController;
 use App\Http\Controllers\Api\V1\DniNameSearchController;
 use App\Http\Controllers\Api\V1\ExtensionBlockRulesController;
-use App\Modules\ExtensionControl\Support\BlockingAbility;
 use App\Http\Controllers\Api\V1\ExtensionChromeConfigController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Integrations\IntegrationDiscoveryController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTelegramPersonalCodeController;
 use App\Http\Controllers\Api\V1\Integrations\N8nTokenRequestController;
 use App\Http\Controllers\Api\V1\MeController;
-use App\Http\Controllers\Api\V1\Admin\AdminPermissionRequestController;
-use App\Http\Controllers\Api\V1\Auth\AuthController as ClientAuthController;
-use App\Http\Controllers\Api\V1\Auth\SessionController as ClientSessionController;
 use App\Http\Controllers\Api\V1\Mobile\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\V1\Mobile\PermissionRequestController;
 use App\Http\Controllers\Api\V1\MobileDeviceController;
@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\V1\ShalomRecordarAuthController;
 use App\Http\Controllers\Api\V1\SystemVersionController;
 use App\Http\Controllers\Api\V1\TokenRequestController as PublicTokenRequestController;
 use App\Http\Controllers\Api\V1\TokenRotationRequestController;
+use App\Modules\ExtensionControl\Support\BlockingAbility;
 use App\Modules\Ruc\Http\Controllers\RucApiController;
 use App\Modules\Ruc\Http\Controllers\RucSearchApiController;
 use App\Modules\Shalom\Http\Controllers\DeliveryRecordsExportController;
@@ -250,6 +251,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         });
         Route::get('/ruc/buscar', RucSearchApiController::class)->middleware(['throttle:ruc-search', 'api.audit:ruc', 'access:ruc:buscar'])->name('ruc.search');
         Route::get('/ruc/{ruc}', RucApiController::class)->middleware(['throttle:ruc-lookup', 'api.audit:ruc', 'access:ruc:consultar'])->name('ruc.show');
+        Route::prefix('anime')->name('anime.')->middleware(['api.audit:anime', 'access:anime:read'])->group(function (): void {
+            Route::get('/search', [AnimeController::class, 'search'])->middleware('throttle:api-anime-search')->name('search');
+            Route::get('/{id}', [AnimeController::class, 'show'])->middleware('throttle:api-anime-metadata')->name('show');
+            Route::get('/{id}/seasons', [AnimeController::class, 'seasons'])->middleware('throttle:api-anime-metadata')->name('seasons');
+            Route::get('/{id}/episodes', [AnimeController::class, 'episodes'])->middleware('throttle:api-anime-episodes')->name('episodes');
+            Route::get('/{id}/episodes/{episode}', [AnimeController::class, 'episode'])->whereNumber('episode')->middleware('throttle:api-anime-episodes')->name('episodes.show');
+            Route::get('/{id}/episodes/{episode}/servers', [AnimeController::class, 'servers'])->whereNumber('episode')->middleware('throttle:api-anime-episodes')->name('episodes.servers');
+            Route::get('/{id}/episodes/{episode}/stream', [AnimeController::class, 'stream'])->whereNumber('episode')->middleware('throttle:api-anime-stream')->name('episodes.stream');
+        });
         Route::middleware(['throttle:api', 'access:agencies:read'])->group(function (): void {
             Route::get('/agencies', [AgencyCatalogController::class, 'index'])->name('agencies.index');
             Route::get('/agencies/changes', AgencyChangesController::class)->name('agencies.changes');

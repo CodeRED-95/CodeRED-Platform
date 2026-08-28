@@ -27,6 +27,7 @@ class AbilityCatalogService
             'ruc:buscar' => 'Buscar RUC por razón social',
             'agencies:read' => 'Consultar agencias',
             'agencies:map' => 'Consultar mapa de agencias',
+            'anime:read' => 'Consultar CodeRED Anime',
             'profile:read' => 'Consultar propietario del token',
             'mobile' => 'Acceso móvil CodeRED',
             'admin:tokens' => 'Administración de tokens',
@@ -37,12 +38,16 @@ class AbilityCatalogService
         ];
 
         return collect($labels)
-            ->map(fn (string $label, string $ability): array => [
-                'ability' => $ability,
-                'label' => $permissions->get($ability)?->name ?? ($fallbackLabels[$ability] ?? $label),
-                'description' => $label,
-                'permission' => $permissions->has($ability) ? $ability : null,
-            ])
+            ->map(function (string $label, string $ability) use ($permissions, $fallbackLabels): array {
+                $permission = $permissions->get($ability);
+
+                return [
+                    'ability' => $ability,
+                    'label' => $permission !== null ? $permission->name : ($fallbackLabels[$ability] ?? $label),
+                    'description' => $label,
+                    'permission' => $permission !== null ? $ability : null,
+                ];
+            })
             ->values()
             ->all();
     }
@@ -73,6 +78,7 @@ class AbilityCatalogService
             'agencias:consultar' => ['agencies.view'],
             'agencies:read' => ['agencies.view'],
             'agencies:map' => ['agencies.map'],
+            'anime:read' => ['api-tokens.view-own'],
             'dni:consultar' => ['dni-records.view'],
             'dni:nombre' => ['dni-records.view'],
             'ruc:consultar' => ['ruc.view'],

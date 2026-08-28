@@ -15,6 +15,12 @@ return [
         'servers_ttl' => (int) env('ANIME_CACHE_SERVERS_TTL', 300),
     ],
     'server_priority' => array_values(array_filter(array_map('trim', explode(',', (string) env('ANIME_SERVER_PRIORITY', 'desu,magi'))))),
+    'rate_limits' => [
+        'search' => (int) env('ANIME_RATE_LIMIT_SEARCH', 30),
+        'metadata' => (int) env('ANIME_RATE_LIMIT_METADATA', 60),
+        'episodes' => (int) env('ANIME_RATE_LIMIT_EPISODES', 60),
+        'stream' => (int) env('ANIME_RATE_LIMIT_STREAM', 20),
+    ],
     'providers' => [
         'jkanime' => [
             'enabled' => (bool) env('JKANIME_ENABLED', true),

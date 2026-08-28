@@ -26,6 +26,7 @@ return [
         'ruc:buscar' => 'RUC · Buscar por razón social',
         'agencies:read' => 'Consultar agencias (compatibilidad)',
         'agencies:map' => 'Consultar datos cartográficos',
+        'anime:read' => 'Consultar CodeRED Anime',
         'profile:read' => 'Consultar propietario del token',
         'mobile' => 'Cliente móvil CodeRED Mobile',
         'admin:tokens' => 'Administración · Tokens de API',

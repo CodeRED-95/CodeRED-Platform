@@ -40,6 +40,7 @@ final class AbilityPermissionMap
         'agencias:consultar' => 'agencies.view',
         'agencies:read' => 'agencies.view',
         'agencies:map' => 'agencies.map',
+        'anime:read' => null,
         'declaraciones:gestionar' => 'declaracion-jurada.view',
         'shalom-recordar:sync' => 'shalom-recordar.sync',
         'shalom-recordar:read-own' => 'shalom-recordar.view-own',
