@@ -2,6 +2,7 @@
 
 namespace App\Services\Anime\Providers;
 
+use App\Services\Anime\Cache\ProviderCacheRepository;
 use App\Services\Anime\Contracts\AnimeProviderInterface;
 use App\Services\Anime\Data\Anime;
 use App\Services\Anime\Data\Episode;
@@ -9,7 +10,6 @@ use App\Services\Anime\Data\Server;
 use App\Services\Anime\Data\Stream;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -18,7 +18,10 @@ use Throwable;
 
 final class JkAnimeProvider implements AnimeProviderInterface
 {
-    public function __construct(private readonly JkAnimeHtmlParser $parser) {}
+    public function __construct(
+        private readonly JkAnimeHtmlParser $parser,
+        private readonly ProviderCacheRepository $cache,
+    ) {}
 
     public function search(string $query): array
     {
@@ -182,11 +185,7 @@ final class JkAnimeProvider implements AnimeProviderInterface
 
     private function remember(string $bucket, string $key, int $ttl, callable $callback): mixed
     {
-        if (! (bool) config('anime.cache.enabled')) {
-            return $callback();
-        }
-
-        return Cache::remember('anime:jkanime:'.$bucket.':'.$key, max($ttl, 1), $callback);
+        return $this->cache->remember('jkanime', $bucket, $key, $ttl, $callback);
     }
 
     private function slug(string $id): ?string

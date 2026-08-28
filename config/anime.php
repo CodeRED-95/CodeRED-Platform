@@ -7,6 +7,8 @@ return [
     'connect_timeout' => (int) env('ANIME_CONNECT_TIMEOUT', 10),
     'cache' => [
         'enabled' => (bool) env('ANIME_CACHE_ENABLED', true),
+        'store' => env('ANIME_CACHE_STORE', env('CACHE_STORE', 'redis')),
+        'mirror_database' => (bool) env('ANIME_CACHE_MIRROR_DATABASE', true),
         'search_ttl' => (int) env('ANIME_CACHE_SEARCH_TTL', 3600),
         'metadata_ttl' => (int) env('ANIME_CACHE_METADATA_TTL', 86400),
         'episodes_ttl' => (int) env('ANIME_CACHE_EPISODES_TTL', 3600),

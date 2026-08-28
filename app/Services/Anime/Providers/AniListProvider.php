@@ -2,6 +2,7 @@
 
 namespace App\Services\Anime\Providers;
 
+use App\Services\Anime\Cache\ProviderCacheRepository;
 use App\Services\Anime\Contracts\AnimeProviderInterface;
 use App\Services\Anime\Data\Anime;
 use App\Services\Anime\Data\Episode;
@@ -10,7 +11,6 @@ use App\Services\Anime\Data\Stream;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -60,6 +60,8 @@ query CodeREDAnimeSearch($search: String!, $page: Int!, $perPage: Int!) {
   }
 }
 GRAPHQL;
+
+    public function __construct(private readonly ProviderCacheRepository $cache) {}
 
     private const MEDIA_QUERY = <<<'GRAPHQL'
 query CodeREDAnimeMedia($id: Int!) {
@@ -206,11 +208,7 @@ GRAPHQL;
 
     private function remember(string $bucket, string $key, int $ttl, callable $callback): mixed
     {
-        if (! (bool) config('anime.cache.enabled')) {
-            return $callback();
-        }
-
-        return Cache::remember('anime:anilist:'.$bucket.':'.$key, max($ttl, 1), $callback);
+        return $this->cache->remember('anilist', $bucket, $key, $ttl, $callback);
     }
 
     private function anilistId(string $id): ?int
