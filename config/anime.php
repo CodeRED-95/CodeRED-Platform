@@ -20,5 +20,12 @@ return [
             'allowed_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('JKANIME_ALLOWED_HOSTS', 'jkanime.net,www.jkanime.net'))))),
             'user_agent' => env('JKANIME_USER_AGENT', 'CodeRED-Platform/4.x Anime Provider'),
         ],
+        'anilist' => [
+            'enabled' => (bool) env('ANILIST_ENABLED', true),
+            'base_url' => env('ANILIST_BASE_URL', 'https://graphql.anilist.co'),
+            'allowed_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('ANILIST_ALLOWED_HOSTS', 'graphql.anilist.co'))))),
+            'user_agent' => env('ANILIST_USER_AGENT', 'CodeRED-Platform/4.x Anime Metadata Provider'),
+            'search_limit' => (int) env('ANILIST_SEARCH_LIMIT', 10),
+        ],
     ],
 ];
