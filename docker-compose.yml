@@ -106,7 +106,7 @@ services:
     container_name: codered-queue
     restart: unless-stopped
     working_dir: /var/www/html
-    command: [ "php", "artisan", "queue:work", "redis", "--queue=agency-imports,default", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768" ]
+    command: [ "php", "artisan", "queue:work", "redis", "--queue=anime,agency-imports,default", "--sleep=2", "--tries=1", "--timeout=86400", "--max-time=172800", "--memory=768" ]
     # init reemplaza a PHP como PID 1 y reenvia las senales al worker. Con la
     # extension pcntl ya en la imagen, Laravel atiende SIGTERM: deja de tomar
     # trabajos nuevos, termina el que tenga entre manos y sale.
