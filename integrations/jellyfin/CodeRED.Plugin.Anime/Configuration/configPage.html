@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeRED Anime</title>
+</head>
+<body>
+    <div id="coderedAnimeConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="coderedAnimeConfigForm">
+                    <div class="sectionTitleContainer flex align-items-center">
+                        <h2 class="sectionTitle">CodeRED Anime</h2>
+                    </div>
+                    <p>Configure Jellyfin to read catalog, metadata, episodes and streams from CodeRED Anime API.</p>
+
+                    <div class="inputContainer">
+                        <input is="emby-input" type="url" id="CodeRedApiBaseUrl" label="CodeRED Anime API base URL" required />
+                        <div class="fieldDescription">Example: http://codered.local/api/v1/anime</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <input is="emby-input" type="password" id="ApiToken" label="API token with anime:read ability" />
+                        <div class="fieldDescription">Stored in Jellyfin plugin configuration. Do not use personal browser cookies.</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="PreferredServer" label="Preferred server" />
+                        <div class="fieldDescription">Example: desu or magi. CodeRED decides fallback order.</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="SearchBootstrapQuery" label="Default discovery search" />
+                        <div class="fieldDescription">Used to populate the channel root until Jellyfin search requests a specific title.</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <input is="emby-input" type="number" id="RequestTimeoutSeconds" label="Request timeout seconds" min="1" max="60" />
+                    </div>
+
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="EnablePlayback" />
+                        <span>Enable playback resolution</span>
+                    </label>
+
+                    <button is="emby-button" type="submit" class="raised button-submit block">
+                        <span>Save</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        <script type="text/javascript">
+            (() => {
+                const pluginId = '7f3d30cc-784d-4b70-9843-55ed6f8f3b2d';
+                const page = document.querySelector('#coderedAnimeConfigPage');
+
+                page.addEventListener('pageshow', () => {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then((config) => {
+                        page.querySelector('#CodeRedApiBaseUrl').value = config.CodeRedApiBaseUrl || '';
+                        page.querySelector('#ApiToken').value = config.ApiToken || '';
+                        page.querySelector('#PreferredServer').value = config.PreferredServer || 'desu';
+                        page.querySelector('#SearchBootstrapQuery').value = config.SearchBootstrapQuery || 'one piece';
+                        page.querySelector('#RequestTimeoutSeconds').value = config.RequestTimeoutSeconds || 15;
+                        page.querySelector('#EnablePlayback').checked = config.EnablePlayback !== false;
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+                page.querySelector('#coderedAnimeConfigForm').addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then((config) => {
+                        config.CodeRedApiBaseUrl = page.querySelector('#CodeRedApiBaseUrl').value;
+                        config.ApiToken = page.querySelector('#ApiToken').value;
+                        config.PreferredServer = page.querySelector('#PreferredServer').value;
+                        config.SearchBootstrapQuery = page.querySelector('#SearchBootstrapQuery').value;
+                        config.RequestTimeoutSeconds = Number(page.querySelector('#RequestTimeoutSeconds').value || 15);
+                        config.EnablePlayback = page.querySelector('#EnablePlayback').checked;
+
+                        ApiClient.updatePluginConfiguration(pluginId, config).then(() => {
+                            Dashboard.processPluginConfigurationUpdateResult();
+                        });
+                    });
+                    return false;
+                });
+            })();
+        </script>
+    </div>
+</body>
+</html>
