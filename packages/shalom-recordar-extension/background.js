@@ -97,8 +97,19 @@ async function bootstrap(reason = 'startup', now) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'saveData') {
-    handleSaveData(request.data);
-    return false;
+    // Se responde de forma asincrona (return true) para mantener VIVO el
+    // service worker hasta que la escritura en storage termine. Antes se hacia
+    // fire-and-forget con return false: Chrome daba el mensaje por atendido y
+    // podia terminar el worker MV3 antes de que `handleSaveData` completara su
+    // `chrome.storage` asincrono, perdiendo el dato. Solo mordia a la Clave:
+    // DNI/OS se capturan mientras el usuario teclea (mensajes seguidos que
+    // mantienen el worker despierto), pero la Clave es un unico mensaje aislado
+    // que llega tras varios segundos tecleando el PIN, cuando el worker ya se
+    // durmio; lo despertaba, retornaba false y lo mataba antes de guardar.
+    handleSaveData(request.data)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || 'No se pudo guardar la captura.' }));
+    return true; // sendResponse se llamara asincrónicamente
   }
 
   if (request.action === 'manualSync') {

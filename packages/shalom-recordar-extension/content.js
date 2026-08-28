@@ -466,7 +466,23 @@ function ensureMutationObserver() {
         checkEntregaConfirmation();
     });
 
-    observer.observe(root, { childList: true, subtree: true });
+    // Se observan tambien los ATRIBUTOS, no solo `childList`. La senal de "clave
+    // correcta" (aparicion de frmEntrega/formPagoOS o cierre del modal del PIN)
+    // no siempre llega como insercion/eliminacion de nodos: los modales de
+    // Bootstrap se muestran y ocultan cambiando `style` (display:block/none),
+    // las clases de la animacion (`fade`/`in`) y `aria-hidden` sobre nodos que
+    // YA existen en el DOM. Con un observador de solo `childList`, cuando el
+    // usuario terminaba de teclear el PIN y el modal `modalValidarCodigo` se
+    // ocultaba por `style="display:none"` (un cambio de atributo), no se
+    // disparaba ninguna mutacion, `checkEntregaConfirmation` no volvia a correr
+    // con el buffer lleno y la clave NO se capturaba. Filtramos a los atributos
+    // que de verdad cambian la visibilidad para no re-evaluar en cada retoque.
+    observer.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'aria-hidden', 'hidden'],
+    });
     state.captureObserver = observer;
     checkEntregaConfirmation();
 }

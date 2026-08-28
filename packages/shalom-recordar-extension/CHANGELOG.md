@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.9.11 - 2026-08-28
+
+### Fixed
+
+- **Causa raiz real de que la clave "volviera a dejar de detectarse"** (diagnosticada en vivo en el Chrome del usuario con una sonda visible). El `MutationObserver` de `content.js` solo observaba `childList`, pero la senal de "clave correcta" no llega como insercion/eliminacion de nodos: el modal del PIN (`modalValidarCodigo`) se oculta con `style="display:none"` y `frmEntrega`/`formPagoOS` se muestran cambiando `class`/`style`/`aria-hidden` sobre nodos que ya existen en el DOM. Al terminar de teclear el PIN, el buffer se llenaba (verificado: los eventos `input` llegan) pero el cierre del modal era un cambio de ATRIBUTO que el observador ignoraba, asi que `checkEntregaConfirmation` no volvia a correr con el buffer lleno y la clave nunca se enviaba. Ahora el observador tambien vigila los atributos `style`, `class`, `aria-hidden` y `hidden`. Esto explica por que a veces capturaba (cuando habia churn de nodos incidental) y a veces no.
+
+## 2.9.10 - 2026-08-28
+
+### Fixed
+
+- La **clave "volvia a dejar de detectarse"** (solo la clave; DNI/OS seguian guardandose). No era la deteccion en `content.js` -verificada en vivo contra el sitio: el DOM, los eventos `input` y la aparicion de `frmEntrega`/`formPagoOS` funcionan-, sino una condicion de carrera del service worker MV3 en `background.js`. El handler de `saveData` hacia `handleSaveData(data)` sin `await` y retornaba `false`: Chrome daba el mensaje por atendido y podia terminar el worker antes de que la escritura asincrona en `chrome.storage` completara. Solo mordia a la clave porque es un mensaje **unico y aislado** que llega tras varios segundos tecleando el PIN, cuando el worker ya se durmio; el DNI/OS se capturan durante el tecleo activo, con mensajes seguidos que lo mantienen despierto. Ahora el handler responde de forma asincrona (`return true` + `sendResponse`), que mantiene vivo al worker hasta terminar el guardado.
+
 ## 2.9.9 - 2026-08-27
 
 ### Fixed

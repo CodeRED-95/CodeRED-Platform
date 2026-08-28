@@ -812,6 +812,33 @@ test('form visible con buffer vacio no latchea: captura al teclear despues', () 
     assert.equal(messages[0].data.value, '3535');
 });
 
+// El modal del PIN se oculta con `style="display:none"` y frmEntrega se muestra
+// cambiando clases/estilo sobre nodos que ya existen: son cambios de ATRIBUTO,
+// no de nodos. El observador debe vigilarlos, o la clave nunca se captura
+// cuando la senal de confirmacion llega solo como cambio de atributo.
+test('el observador vigila cambios de atributo (style/class), no solo nodos', () => {
+    reset();
+    const sandbox = createSandbox();
+    sandbox.globalThis = sandbox;
+    vm.createContext(sandbox);
+    loadContentScript(sandbox);
+
+    const rootObserver = mutationObservers.find((obs) => {
+        const id = obs.target && obs.target.id;
+        return id !== 'modalValidarCodigo' && id !== 'frmEntrega' && id !== 'formPagoOS';
+    });
+    assert.ok(rootObserver, 'debe existir el observador de raiz');
+    assert.equal(rootObserver.options.childList, true);
+    assert.equal(rootObserver.options.subtree, true);
+    assert.equal(rootObserver.options.attributes, true, 'debe observar atributos');
+    assert.ok(
+        Array.isArray(rootObserver.options.attributeFilter)
+            && rootObserver.options.attributeFilter.includes('style')
+            && rootObserver.options.attributeFilter.includes('class'),
+        'debe filtrar por style y class (visibilidad de los modales)',
+    );
+});
+
 if (require.main === module) {
     (async () => {
         for (const [name, fn] of tests) {
