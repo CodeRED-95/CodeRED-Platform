@@ -10,7 +10,7 @@ Servicios actuales:
 | `nginx` | `nginx:1.27-alpine` | `8090:80` | Servidor web |
 | `postgres` | `postgres:16-alpine` | Ninguno expuesto al host en compose actual | Base de datos |
 | `redis` | `redis:7-alpine` | Ninguno expuesto al host en compose actual | Caché y colas |
-| `queue` | `docker/php/Dockerfile` | Ninguno | Worker de colas (`anime`, `agency-imports`, `default`) |
+| `queue` | `docker/php/Dockerfile` | Ninguno | Worker de colas (`agency-imports`, `default`) |
 | `scheduler` | `docker/php/Dockerfile` | Ninguno | Scheduler de Laravel |
 
 ## Volúmenes
@@ -177,40 +177,6 @@ docker compose exec app php-fpm -tt
 ## Imagen PHP compartida
 
 `app`, `queue` y `scheduler` reutilizan la misma imagen `docker/php/Dockerfile`. No se duplican imágenes específicas por servicio.
-
-## CodeRED Anime
-
-CodeRED Anime es un modulo Laravel dentro de `app`; no tiene contenedor propio
-en esta fase. La integracion Docker reutiliza los servicios existentes:
-
-- `app`: expone `/api/v1/anime` mediante PHP-FPM.
-- `nginx`: publica la API en el puerto `8090` junto al resto de CodeRED.
-- `postgres`: almacena tablas `anime`, `episodes`, `episode_servers`,
-  `anime_metadata` y `provider_cache`.
-- `redis`: cache de providers y rate limiting.
-- `queue`: procesa trabajos de la cola `anime` junto con `agency-imports` y
-  `default`.
-- `scheduler`: ejecuta el scheduler de Laravel compartido.
-
-No se crea `codered-anime`, `codered-anime-worker` ni
-`codered-anime-scheduler` porque duplicarian infraestructura ya saludable.
-
-Variables principales:
-
-```env
-ANIME_ENABLED=true
-ANIME_CACHE_STORE=redis
-ANIME_SERVER_PRIORITY=desu,magi
-JKANIME_BASE_URL=https://jkanime.net
-ANILIST_BASE_URL=https://graphql.anilist.co
-```
-
-Validacion enfocada:
-
-```bash
-docker compose config
-docker compose exec -T app php artisan test tests/Feature/AnimeDockerIntegrationTest.php
-```
 
 ## Desarrollo remoto con VS Code
 

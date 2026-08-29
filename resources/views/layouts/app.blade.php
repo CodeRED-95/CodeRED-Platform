@@ -90,7 +90,6 @@
                                 ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-token-requests.view')],
                                 ['label' => 'Solicitudes de acceso', 'route' => 'admin.permission-requests.index', 'icon' => '◈', 'can' => ! $isViewerOnly && $menuUser->hasPermission('permission-requests.view')],
                                 ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => $menuUser->hasPermission('shalom-recordar.view')],
-                                ['label' => 'Anime', 'route' => 'admin.anime.index', 'icon' => '▷', 'can' => ! $isViewerOnly && config('anime.enabled')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
                             'Administración' => $isViewerOnly ? [] : [
@@ -289,7 +288,6 @@
                                 ['label' => 'Solicitudes de tokens', 'route' => 'admin.api-token-requests.index', 'icon' => '◇', 'can' => ! $isViewerOnly && $menuUser->hasPermission('api-token-requests.view')],
                                 ['label' => 'Solicitudes de acceso', 'route' => 'admin.permission-requests.index', 'icon' => '◈', 'can' => ! $isViewerOnly && $menuUser->hasPermission('permission-requests.view')],
                                 ['label' => 'Shalom Recordar', 'route' => 'admin.shalom-recordar.index', 'icon' => '◫', 'can' => $menuUser->hasPermission('shalom-recordar.view')],
-                                ['label' => 'Anime', 'route' => 'admin.anime.index', 'icon' => '▷', 'can' => ! $isViewerOnly && config('anime.enabled')],
                                 ['label' => 'Documentación', 'route' => 'api.docs', 'icon' => '▤', 'can' => true],
                             ],
                             'Administración' => [

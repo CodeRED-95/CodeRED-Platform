@@ -10,8 +10,6 @@ use App\Models\ApiToken;
 use App\Models\User;
 use App\Observers\UserObserver;
 use App\Policies\UserPolicy;
-use App\Services\Anime\Contracts\AnimeProviderInterface;
-use App\Services\Anime\Providers\JkAnimeProvider;
 use App\Services\Dni\PeruDevsDniProvider;
 use App\Services\DniNameSearch\DniPeruNameSearchProvider;
 use App\Services\Events\Contracts\EventDeliveryContract;
@@ -41,7 +39,6 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(DniProviderInterface::class, PeruDevsDniProvider::class);
         $this->app->bind(DniNameSearchProviderInterface::class, DniPeruNameSearchProvider::class);
-        $this->app->bind(AnimeProviderInterface::class, JkAnimeProvider::class);
         $this->app->singleton(UuidGeneratorContract::class, UuidV7Generator::class);
         $this->app->singleton(EventFactory::class);
         $this->app->singleton(EventDispatchRepositoryContract::class, EloquentEventDispatchRepository::class);
@@ -64,10 +61,6 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-agencias', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.agency_rate_limit_per_minute'), 1), 'agencias'));
         RateLimiter::for('api-mobile', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('api.mobile_rate_limit_per_minute'), 1), 'mobile'));
         RateLimiter::for('api-admin', fn (Request $request): Limit => $this->tokenLimit($request, 30, 'admin'));
-        RateLimiter::for('api-anime-search', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('anime.rate_limits.search'), 1), 'anime-search'));
-        RateLimiter::for('api-anime-metadata', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('anime.rate_limits.metadata'), 1), 'anime-metadata'));
-        RateLimiter::for('api-anime-episodes', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('anime.rate_limits.episodes'), 1), 'anime-episodes'));
-        RateLimiter::for('api-anime-stream', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('anime.rate_limits.stream'), 1), 'anime-stream'));
         RateLimiter::for('api-dni', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('dni.rate_limit_per_minute'), 1), 'dni'));
         RateLimiter::for('api-dni-name-search', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('dni.name_search.rate_limit_per_minute'), 1), 'dni-name-search'));
         RateLimiter::for('ruc-lookup', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('ruc.rate_limit_per_minute'), 1), 'ruc'));

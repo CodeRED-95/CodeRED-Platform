@@ -1,7 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <JellyfinVersion Condition="'$(JellyfinVersion)' == ''">10.10.7</JellyfinVersion>
-    <LangVersion>latest</LangVersion>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-  </PropertyGroup>
-</Project>
