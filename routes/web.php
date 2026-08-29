@@ -16,6 +16,7 @@ use App\Livewire\Admin\Agencies\Map as AgenciesMap;
 use App\Livewire\Admin\Agencies\ShalomSync;
 use App\Livewire\Admin\Agencies\ShalomSyncRun;
 use App\Livewire\Admin\Agencies\Show as AgencyShow;
+use App\Livewire\Admin\Anime\Index as AnimeIndex;
 use App\Livewire\Admin\ApiDocumentation;
 use App\Livewire\Admin\ApiTokenRequests\Index as ApiTokenRequestsIndex;
 use App\Livewire\Admin\ApiTokens\Index as ApiTokensIndex;
@@ -109,6 +110,7 @@ Route::get('/admin/security/permission-requests', PermissionRequestsIndex::class
 Route::get('/admin/api-tools/dni', DniTester::class)->middleware(['auth'])->name('admin.api-tools.dni');
 Route::get('/admin/api-tools/dni-name-search', DniNameSearchTester::class)->middleware(['auth'])->name('admin.api-tools.dni-name-search');
 Route::get('/admin/api-tools/ruc', RucTester::class)->middleware(['auth', 'throttle:ruc-admin-test'])->name('admin.api-tools.ruc');
+Route::get('/admin/anime', AnimeIndex::class)->middleware(['auth'])->name('admin.anime.index');
 Route::get('/admin/ruc', RucRecords::class)->middleware(['auth'])->name('admin.ruc.records');
 Route::get('/admin/ruc/backups', [RucBackupController::class, 'index'])->middleware(['auth'])->name('admin.ruc.backups');
 Route::post('/admin/ruc/backups', [RucBackupController::class, 'store'])->middleware(['auth'])->name('admin.ruc.backups.store');
