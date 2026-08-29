@@ -46,6 +46,7 @@ final class JellyfinIntegrationTest extends TestCase
         self::assertStringNotContainsString('ChannelMediaInfo', $channel);
         self::assertStringContainsString('MediaBrowser.Controller.Plugins', $registrator);
         self::assertStringContainsString('RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)', $registrator);
+        self::assertStringContainsString('AddSingleton<IChannel, CodeRedAnimeChannel>', $registrator);
     }
 
     public function test_jellyfin_documentation_explains_installation_and_playback_flow(): void
