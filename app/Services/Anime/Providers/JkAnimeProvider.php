@@ -65,39 +65,101 @@ final class JkAnimeProvider implements AnimeProviderInterface
             return [];
         }
 
-        $page = max((int) ($page ?? 1), 1);
+        if ($page !== null) {
+            $page = max((int) $page, 1);
 
-        return $this->remember('episodes', $slug.':'.$page, (int) config('anime.cache.episodes_ttl'), function () use ($slug, $page): array {
-            $cookies = new CookieJar;
-            $animePage = $this->request('get_episode_index', ['anime_id' => $slug], fn (PendingRequest $http) => $http
-                ->withOptions(['cookies' => $cookies])
-                ->get($this->url('/'.$slug.'/')));
-            if ($animePage === null || ! $animePage->successful()) {
+            return $this->remember('episodes', $slug.':'.$page, (int) config('anime.cache.episodes_ttl'), fn (): array => array_values($this->fetchEpisodePage($slug, $page)['episodes']));
+        }
+
+        return $this->remember('episodes', $slug.':all', (int) config('anime.cache.episodes_ttl'), function () use ($slug): array {
+            $index = $this->episodeIndex($slug);
+            if ($index === null) {
                 return [];
             }
 
-            $externalId = $this->parser->externalAnimeId($animePage->body());
-            if ($externalId === null) {
-                return [];
+            $firstPage = $this->fetchEpisodePageFromIndex($slug, 1, $index['external_id'], $index['csrf'], $index['cookies']);
+            $episodes = $firstPage['episodes'];
+            $lastPage = min($firstPage['last_page'] ?? 1, max((int) config('anime.providers.jkanime.max_episode_pages', 120), 1));
+
+            for ($page = 2; $page <= $lastPage; $page++) {
+                $pageData = $this->fetchEpisodePageFromIndex($slug, $page, $index['external_id'], $index['csrf'], $index['cookies']);
+                foreach ($pageData['episodes'] as $episode) {
+                    $episodes[$episode->number] = $episode;
+                }
             }
 
-            $csrf = $this->parser->csrfToken($animePage->body());
-            $response = $this->request('get_episodes', ['anime_id' => $slug, 'page' => $page], function (PendingRequest $http) use ($cookies, $externalId, $page, $slug, $csrf) {
-                $request = $http->withOptions(['cookies' => $cookies])->withHeaders(array_filter([
-                    'Referer' => $this->url('/'.$slug.'/'),
-                    'X-Requested-With' => 'XMLHttpRequest',
-                    'X-CSRF-TOKEN' => $csrf,
-                ]));
+            ksort($episodes);
 
-                return $request->post($this->url('/ajax/episodes/'.$externalId.'/'.$page));
-            });
-
-            if ($response === null || ! $response->successful()) {
-                return [];
-            }
-
-            return $this->parser->parseEpisodes($response->body(), $slug, $page);
+            return array_values($episodes);
         });
+    }
+
+    /**
+     * @return array{episodes: array<int, Episode>, last_page: ?int}
+     */
+    private function fetchEpisodePage(string $slug, int $page): array
+    {
+        $index = $this->episodeIndex($slug);
+        if ($index === null) {
+            return ['episodes' => [], 'last_page' => null];
+        }
+
+        return $this->fetchEpisodePageFromIndex($slug, $page, $index['external_id'], $index['csrf'], $index['cookies']);
+    }
+
+    /**
+     * @return array{cookies: CookieJar, external_id: string, csrf: ?string}|null
+     */
+    private function episodeIndex(string $slug): ?array
+    {
+        $cookies = new CookieJar;
+        $animePage = $this->request('get_episode_index', ['anime_id' => $slug], fn (PendingRequest $http) => $http
+            ->withOptions(['cookies' => $cookies])
+            ->get($this->url('/'.$slug.'/')));
+        if ($animePage === null || ! $animePage->successful()) {
+            return null;
+        }
+
+        $externalId = $this->parser->externalAnimeId($animePage->body());
+        if ($externalId === null) {
+            return null;
+        }
+
+        return [
+            'cookies' => $cookies,
+            'external_id' => $externalId,
+            'csrf' => $this->parser->csrfToken($animePage->body()),
+        ];
+    }
+
+    /**
+     * @return array{episodes: array<int, Episode>, last_page: ?int}
+     */
+    private function fetchEpisodePageFromIndex(string $slug, int $page, string $externalId, ?string $csrf, CookieJar $cookies): array
+    {
+        $response = $this->request('get_episodes', ['anime_id' => $slug, 'page' => $page], function (PendingRequest $http) use ($cookies, $externalId, $page, $slug, $csrf) {
+            $request = $http->withOptions(['cookies' => $cookies])->withHeaders(array_filter([
+                'Referer' => $this->url('/'.$slug.'/'),
+                'X-Requested-With' => 'XMLHttpRequest',
+                'X-CSRF-TOKEN' => $csrf,
+            ]));
+
+            return $request->post($this->url('/ajax/episodes/'.$externalId.'/'.$page));
+        });
+
+        if ($response === null || ! $response->successful()) {
+            return ['episodes' => [], 'last_page' => null];
+        }
+
+        $episodes = [];
+        foreach ($this->parser->parseEpisodes($response->body(), $slug, $page) as $episode) {
+            $episodes[$episode->number] = $episode;
+        }
+
+        return [
+            'episodes' => $episodes,
+            'last_page' => $this->parser->episodeLastPage($response->body()),
+        ];
     }
 
     public function getEpisode(string $animeId, int $episode): ?Episode

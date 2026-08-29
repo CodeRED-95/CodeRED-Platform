@@ -25,6 +25,12 @@ final class Index extends Component
     /** @var list<array<string, mixed>> */
     public array $episodes = [];
 
+    /** @var list<array<string, mixed>> */
+    public array $seasons = [];
+
+    /** @var list<array<string, mixed>> */
+    public array $relations = [];
+
     /** @var array<string, mixed>|null */
     public ?array $episode = null;
 
@@ -39,6 +45,10 @@ final class Index extends Component
     public ?string $errorMessage = null;
 
     public bool $searched = false;
+
+    public bool $showAnimeModal = false;
+
+    public int $selectedSeason = 0;
 
     public function mount(): void
     {
@@ -92,14 +102,38 @@ final class Index extends Component
             }
 
             $this->anime = $anime->toArray();
-            $this->episodes = array_map(
+            $episodes = array_map(
                 static fn (Episode $episode): array => $episode->toArray(),
                 $catalog->getEpisodes($anime->id),
             );
+            $this->seasons = $this->buildSeasons((string) $this->anime['id'], $episodes);
+            $this->relations = $this->anime['metadata']['relations'] ?? [];
+            $this->selectedSeason = 0;
+            $this->episodes = $this->seasons[0]['episodes'] ?? [];
+            $this->showAnimeModal = true;
         } catch (Throwable $exception) {
             report($exception);
             $this->setError('No se pudieron cargar los episodios del anime.');
         }
+    }
+
+    public function selectSeason(int $index): void
+    {
+        if (! isset($this->seasons[$index])) {
+            $this->setError('La temporada seleccionada no es valida.');
+
+            return;
+        }
+
+        $this->selectedSeason = $index;
+        $this->episodes = $this->seasons[$index]['episodes'] ?? [];
+        $this->reset(['episode', 'servers', 'stream', 'selectedServer']);
+        $this->errorMessage = null;
+    }
+
+    public function closeAnimeModal(): void
+    {
+        $this->showAnimeModal = false;
     }
 
     public function selectEpisode(int $number, AnimeCatalogService $catalog): void
@@ -170,7 +204,7 @@ final class Index extends Component
 
     public function clear(): void
     {
-        $this->reset(['query', 'results', 'anime', 'episodes', 'episode', 'servers', 'stream', 'selectedServer', 'errorMessage', 'searched']);
+        $this->reset(['query', 'results', 'anime', 'episodes', 'seasons', 'relations', 'episode', 'servers', 'stream', 'selectedServer', 'errorMessage', 'searched', 'showAnimeModal', 'selectedSeason']);
         $this->resetValidation();
     }
 
@@ -182,7 +216,7 @@ final class Index extends Component
 
     private function resetSelection(): void
     {
-        $this->reset(['results', 'anime', 'episodes', 'episode', 'servers', 'stream', 'selectedServer', 'errorMessage']);
+        $this->reset(['results', 'anime', 'episodes', 'seasons', 'relations', 'episode', 'servers', 'stream', 'selectedServer', 'errorMessage', 'showAnimeModal', 'selectedSeason']);
     }
 
     private function setError(string $message): void
@@ -199,5 +233,24 @@ final class Index extends Component
     private function safeServerId(string $server): bool
     {
         return preg_match('/^[a-z0-9][a-z0-9:._\-]{0,180}$/i', $server) === 1;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $episodes
+     * @return list<array<string, mixed>>
+     */
+    private function buildSeasons(string $animeId, array $episodes): array
+    {
+        if ($episodes === []) {
+            return [];
+        }
+
+        return [[
+            'id' => $animeId.':season:1',
+            'number' => 1,
+            'title' => 'Temporada unica',
+            'episodes' => $episodes,
+            'episode_count' => count($episodes),
+        ]];
     }
 }

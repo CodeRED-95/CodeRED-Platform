@@ -27,6 +27,7 @@ return [
             'base_url' => env('JKANIME_BASE_URL', 'https://jkanime.net'),
             'allowed_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('JKANIME_ALLOWED_HOSTS', 'jkanime.net,www.jkanime.net'))))),
             'stream_allowed_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('JKANIME_STREAM_ALLOWED_HOSTS', 'jkanime.net,www.jkanime.net,playmudos.com,nika.playmudos.com'))))),
+            'max_episode_pages' => (int) env('JKANIME_MAX_EPISODE_PAGES', 120),
             'user_agent' => env('JKANIME_USER_AGENT', 'CodeRED-Platform/4.x Anime Provider'),
         ],
         'anilist' => [

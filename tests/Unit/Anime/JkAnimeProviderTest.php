@@ -3,6 +3,7 @@
 namespace Tests\Unit\Anime;
 
 use App\Services\Anime\Contracts\AnimeProviderInterface;
+use App\Services\Anime\Data\Episode;
 use App\Services\Anime\Data\Server;
 use App\Services\Anime\Providers\JkAnimeProvider;
 use Illuminate\Support\Facades\Cache;
@@ -124,6 +125,34 @@ final class JkAnimeProviderTest extends TestCase
         self::assertSame(1, $episodes[0]->number);
         self::assertSame('One Piece 1', $episodes[0]->title);
         self::assertNull($episodes[0]->thumbnail);
+    }
+
+    public function test_get_episodes_without_page_loads_all_paginated_pages(): void
+    {
+        Http::fake([
+            'jkanime.test/one-piece/' => Http::response($this->animeHtml(), 200, ['Content-Type' => 'text/html']),
+            'jkanime.test/ajax/episodes/201/1' => Http::response([
+                'current_page' => 1,
+                'last_page' => 2,
+                'data' => [
+                    ['id' => 4989, 'number' => 1, 'title' => 'One Piece 1'],
+                    ['id' => 4990, 'number' => 2, 'title' => 'One Piece 2'],
+                ],
+            ], 200, ['Content-Type' => 'application/json']),
+            'jkanime.test/ajax/episodes/201/2' => Http::response([
+                'current_page' => 2,
+                'last_page' => 2,
+                'data' => [
+                    ['id' => 4991, 'number' => 3, 'title' => 'One Piece 3'],
+                    ['id' => 4992, 'number' => 4, 'title' => 'One Piece 4'],
+                ],
+            ], 200, ['Content-Type' => 'application/json']),
+        ]);
+
+        $episodes = app(JkAnimeProvider::class)->getEpisodes('one-piece');
+
+        self::assertCount(4, $episodes);
+        self::assertSame([1, 2, 3, 4], array_map(static fn (Episode $episode): int => $episode->number, $episodes));
     }
 
     public function test_get_episode_returns_embed_servers_without_resolving_player_tokens(): void

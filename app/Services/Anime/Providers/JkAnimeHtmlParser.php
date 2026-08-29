@@ -240,6 +240,18 @@ final class JkAnimeHtmlParser
         return null;
     }
 
+    public function episodeLastPage(string $body): ?int
+    {
+        $payload = json_decode($body, true);
+        if (! is_array($payload) || ! isset($payload['last_page']) || ! is_numeric($payload['last_page'])) {
+            return null;
+        }
+
+        $lastPage = (int) $payload['last_page'];
+
+        return $lastPage > 0 ? $lastPage : null;
+    }
+
     private function parseAnimesVariable(string $html): array
     {
         if (! preg_match('/var\s+animes\s*=\s*(\{.*?\});/s', $html, $matches)) {

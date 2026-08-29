@@ -57,6 +57,8 @@ final class AnimeUiTest extends TestCase
             ->assertSet('results.0.id', 'jkanime:one-piece')
             ->call('selectAnime', 'jkanime:one-piece')
             ->assertSet('anime.id', 'jkanime:one-piece')
+            ->assertSet('showAnimeModal', true)
+            ->assertSet('seasons.0.title', 'Temporada unica')
             ->assertSet('episodes.0.number', 1175)
             ->call('selectEpisode', 1175)
             ->assertSet('episode.number', 1175)

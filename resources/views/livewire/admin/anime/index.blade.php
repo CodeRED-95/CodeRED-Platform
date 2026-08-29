@@ -87,6 +87,7 @@
                                                 @endforeach
                                             </div>
                                         @endif
+                                        <span class="mt-3 inline-flex text-sm font-semibold text-[color:var(--color-primary)]">Abrir detalle</span>
                                     </div>
                                 </div>
                             </button>
@@ -132,6 +133,20 @@
                 @if($episodes === [])
                     <p class="text-sm text-[color:var(--color-text-muted)]">Selecciona un anime para ver episodios.</p>
                 @else
+                    @if($seasons !== [])
+                        <div class="mb-4 flex flex-wrap gap-2">
+                            @foreach($seasons as $index => $season)
+                                <button
+                                    type="button"
+                                    wire:key="anime-season-pill-{{ $season['id'] }}"
+                                    wire:click="selectSeason({{ $index }})"
+                                    class="rounded-full border px-3 py-1 text-xs font-semibold transition {{ $selectedSeason === $index ? 'border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/15 text-white' : 'border-white/10 bg-white/[0.04] text-[color:var(--color-text-muted)] hover:border-white/25' }}"
+                                >
+                                    {{ $season['title'] }} - {{ $season['episode_count'] }}
+                                </button>
+                            @endforeach
+                        </div>
+                    @endif
                     <div class="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
                         @foreach($episodes as $item)
                             <button
@@ -198,4 +213,119 @@
             @endif
         </aside>
     </div>
+
+    @if($showAnimeModal && $anime)
+        <div class="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="anime-detail-title">
+            <button type="button" class="absolute inset-0 cursor-default" wire:click="closeAnimeModal" aria-label="Cerrar detalle"></button>
+
+            <section class="relative max-h-[calc(100dvh-2rem)] w-full max-w-7xl overflow-y-auto rounded-[var(--radius-modal)] border border-[color:var(--color-border)] bg-[color:var(--color-background-elevated)] shadow-2xl">
+                @if($anime['banner'] ?? null)
+                    <div class="h-48 rounded-t-[var(--radius-modal)] bg-cover bg-center opacity-70" style="background-image: linear-gradient(180deg, rgba(5,8,16,0.15), rgba(5,8,16,0.95)), url('{{ $anime['banner'] }}')"></div>
+                @endif
+
+                <div class="p-6">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--color-text-muted)]">Detalle CodeRED Anime</p>
+                            <h2 id="anime-detail-title" class="mt-2 text-2xl font-bold">{{ $anime['title'] }}</h2>
+                        </div>
+                        <x-ui.icon-button wire:click="closeAnimeModal" label="Cerrar detalle">X</x-ui.icon-button>
+                    </div>
+
+                    <div class="mt-6 grid gap-6 xl:grid-cols-[16rem_minmax(0,1fr)]">
+                        <div>
+                            @if($anime['poster'] ?? null)
+                                <img src="{{ $anime['poster'] }}" alt="" class="h-96 w-full rounded-[var(--radius-panel)] object-cover shadow-xl shadow-black/40">
+                            @else
+                                <div class="flex h-96 items-center justify-center rounded-[var(--radius-panel)] bg-white/10 text-[color:var(--color-text-muted)]">Sin poster</div>
+                            @endif
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="flex flex-wrap gap-2">
+                                <x-ui.badge>{{ $anime['id'] }}</x-ui.badge>
+                                @if(($anime['year'] ?? null) !== null)
+                                    <x-ui.badge tone="neutral">{{ $anime['year'] }}</x-ui.badge>
+                                @endif
+                                @if(($anime['status'] ?? null) !== null)
+                                    <x-ui.badge tone="neutral">{{ $anime['status'] }}</x-ui.badge>
+                                @endif
+                                @if($seasons !== [])
+                                    <x-ui.badge tone="success">{{ array_sum(array_column($seasons, 'episode_count')) }} episodios cargados</x-ui.badge>
+                                @endif
+                            </div>
+
+                            <p class="text-sm leading-6 text-[color:var(--color-text-muted)]">{{ $anime['description'] ?? 'Sin descripcion disponible.' }}</p>
+
+                            @if(($anime['genres'] ?? []) !== [])
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach($anime['genres'] as $genre)
+                                        <x-ui.badge tone="neutral">{{ $genre }}</x-ui.badge>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            <div class="grid gap-4 lg:grid-cols-2">
+                                <div class="rounded-[var(--radius-panel)] border border-white/10 bg-white/[0.03] p-4">
+                                    <h3 class="font-semibold">Temporadas</h3>
+                                    @if($seasons === [])
+                                        <p class="mt-2 text-sm text-[color:var(--color-text-muted)]">Sin episodios disponibles.</p>
+                                    @else
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            @foreach($seasons as $index => $season)
+                                                <button
+                                                    type="button"
+                                                    wire:key="anime-modal-season-{{ $season['id'] }}"
+                                                    wire:click="selectSeason({{ $index }})"
+                                                    class="rounded-full border px-3 py-1 text-xs font-semibold transition {{ $selectedSeason === $index ? 'border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/15 text-white' : 'border-white/10 bg-white/[0.04] text-[color:var(--color-text-muted)] hover:border-white/25' }}"
+                                                >
+                                                    {{ $season['title'] }} - {{ $season['episode_count'] }}
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="rounded-[var(--radius-panel)] border border-white/10 bg-white/[0.03] p-4">
+                                    <h3 class="font-semibold">Temporadas y relaciones conocidas</h3>
+                                    @if($relations === [])
+                                        <p class="mt-2 text-sm text-[color:var(--color-text-muted)]">AniList no devolvio relaciones para este titulo.</p>
+                                    @else
+                                        <div class="mt-3 max-h-40 space-y-2 overflow-y-auto pr-1">
+                                            @foreach($relations as $relation)
+                                                <div class="rounded-[var(--radius-control)] border border-white/10 bg-black/20 px-3 py-2">
+                                                    <p class="text-sm font-semibold">{{ $relation['title'] ?? 'Relacion sin titulo' }}</p>
+                                                    <p class="text-xs uppercase tracking-[0.16em] text-[color:var(--color-text-muted)]">{{ $relation['relation_type'] ?? 'relacion' }}</p>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="rounded-[var(--radius-panel)] border border-white/10 bg-white/[0.03] p-4">
+                                <div class="flex items-center justify-between gap-3">
+                                    <h3 class="font-semibold">Episodios de {{ $seasons[$selectedSeason]['title'] ?? 'la temporada' }}</h3>
+                                    <x-ui.badge tone="neutral">{{ count($episodes) }} episodios</x-ui.badge>
+                                </div>
+                                <div class="mt-4 grid max-h-96 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-4">
+                                    @foreach($episodes as $item)
+                                        <button
+                                            type="button"
+                                            wire:key="anime-modal-episode-{{ $item['number'] }}"
+                                            wire:click="selectEpisode({{ $item['number'] }})"
+                                            class="rounded-[var(--radius-control)] border px-3 py-2 text-left transition {{ ($episode['number'] ?? null) === $item['number'] ? 'border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/10' : 'border-white/10 bg-black/20 hover:border-white/25 hover:bg-white/[0.06]' }}"
+                                        >
+                                            <span class="block text-sm font-semibold">Episodio {{ $item['number'] }}</span>
+                                            <span class="mt-1 block truncate text-xs text-[color:var(--color-text-muted)]">{{ $item['title'] ?? 'Sin titulo' }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    @endif
 </div>
