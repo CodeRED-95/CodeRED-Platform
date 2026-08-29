@@ -15,6 +15,7 @@ final class AnimeIndexRequest extends FormRequest
     {
         return [
             'q' => ['required', 'string', 'min:2', 'max:120', 'regex:/^[\p{L}\p{N} .:\'!?&,+()-]+$/u'],
+            'playable' => ['sometimes', 'boolean'],
         ];
     }
 }

@@ -54,8 +54,18 @@ EnablePlayback=true
 
 ## Descubrimiento
 
-El canal usa `SearchBootstrapQuery` para poblar la raiz. Cada resultado se
-presenta como carpeta de anime. Al abrirlo se consultan episodios desde:
+El canal usa `SearchBootstrapQuery` para poblar la raiz y solicita:
+
+```http
+GET /api/v1/anime/search?q={query}&playable=1
+```
+
+Ese modo evita mostrar resultados que solo tienen metadata y no tienen episodios
+reproducibles. Si una busqueda existe en AniList pero no en el provider de
+streaming configurado, Jellyfin no la mostrara como carpeta reproducible.
+
+Cada resultado reproducible se presenta como carpeta de anime. Al abrirlo se
+consultan episodios desde:
 
 ```http
 GET /api/v1/anime/{id}/episodes

@@ -32,6 +32,7 @@ final class JellyfinIntegrationTest extends TestCase
         self::assertStringContainsString('anime:read', File::get($root.'/README.md'));
         self::assertStringContainsString('GetStreamAsync', $contents);
         self::assertStringContainsString('GetEpisodesAsync', $contents);
+        self::assertStringContainsString('&playable=1', $contents);
         self::assertStringNotContainsString('jkanime', strtolower($contents));
     }
 

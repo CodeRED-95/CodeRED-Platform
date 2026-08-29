@@ -8,6 +8,7 @@ use App\Services\Anime\Data\Anime;
 use App\Services\Anime\Data\Episode;
 use App\Services\Anime\Data\Server;
 use App\Services\Anime\Data\Stream;
+use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -67,7 +68,10 @@ final class JkAnimeProvider implements AnimeProviderInterface
         $page = max((int) ($page ?? 1), 1);
 
         return $this->remember('episodes', $slug.':'.$page, (int) config('anime.cache.episodes_ttl'), function () use ($slug, $page): array {
-            $animePage = $this->request('get_episode_index', ['anime_id' => $slug], fn (PendingRequest $http) => $http->get($this->url('/'.$slug.'/')));
+            $cookies = new CookieJar;
+            $animePage = $this->request('get_episode_index', ['anime_id' => $slug], fn (PendingRequest $http) => $http
+                ->withOptions(['cookies' => $cookies])
+                ->get($this->url('/'.$slug.'/')));
             if ($animePage === null || ! $animePage->successful()) {
                 return [];
             }
@@ -78,8 +82,8 @@ final class JkAnimeProvider implements AnimeProviderInterface
             }
 
             $csrf = $this->parser->csrfToken($animePage->body());
-            $response = $this->request('get_episodes', ['anime_id' => $slug, 'page' => $page], function (PendingRequest $http) use ($externalId, $page, $slug, $csrf) {
-                $request = $http->withHeaders(array_filter([
+            $response = $this->request('get_episodes', ['anime_id' => $slug, 'page' => $page], function (PendingRequest $http) use ($cookies, $externalId, $page, $slug, $csrf) {
+                $request = $http->withOptions(['cookies' => $cookies])->withHeaders(array_filter([
                     'Referer' => $this->url('/'.$slug.'/'),
                     'X-Requested-With' => 'XMLHttpRequest',
                     'X-CSRF-TOKEN' => $csrf,

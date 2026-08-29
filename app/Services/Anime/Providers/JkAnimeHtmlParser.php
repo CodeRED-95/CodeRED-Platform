@@ -25,6 +25,37 @@ final class JkAnimeHtmlParser
         }
 
         $results = [];
+        foreach ($xpath->query('//*[contains(concat(" ", normalize-space(@class), " "), " anime__item ")]') ?: [] as $card) {
+            if (! $card instanceof DOMElement) {
+                continue;
+            }
+
+            $link = $this->firstLink($card);
+            if (! $link instanceof DOMElement) {
+                continue;
+            }
+
+            $href = $this->absoluteUrl($baseUrl, $link->getAttribute('href'));
+            $slug = $this->slugFromUrl($href, $baseUrl);
+            if ($slug === null || isset($results[$slug]) || $this->isNavigationSlug($slug)) {
+                continue;
+            }
+
+            $title = $this->searchCardTitle($card, $link);
+            if ($title === '') {
+                continue;
+            }
+
+            $results[$slug] = new Anime(
+                id: 'jkanime:'.$slug,
+                slug: $slug,
+                title: $title,
+                titles: ['romaji' => $title],
+                poster: $this->searchCardPoster($card, $baseUrl),
+                metadata: new Metadata(externalIds: ['jkanime_slug' => $slug]),
+            );
+        }
+
         foreach ($xpath->query('//a[@href]') ?: [] as $link) {
             if (! $link instanceof DOMElement) {
                 continue;
@@ -41,7 +72,7 @@ final class JkAnimeHtmlParser
             if ($title === '' && $image instanceof DOMElement) {
                 $title = trim($image->getAttribute('alt'));
             }
-            if ($title === '' || $this->isNavigationSlug($slug)) {
+            if ($title === '' || $this->isNavigationSlug($slug) || ! $this->looksLikeSearchResult($link)) {
                 continue;
             }
 
@@ -101,6 +132,11 @@ final class JkAnimeHtmlParser
         $html = $body;
 
         if (is_array($payload)) {
+            $episodes = $this->parseEpisodePayload($payload, $slug);
+            if ($episodes !== []) {
+                return $episodes;
+            }
+
             $html = $this->firstHtmlString($payload) ?? '';
         }
 
@@ -250,6 +286,40 @@ final class JkAnimeHtmlParser
         return null;
     }
 
+    private function parseEpisodePayload(array $payload, string $slug): array
+    {
+        $items = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+        if ($items === []) {
+            return [];
+        }
+
+        $episodes = [];
+        foreach ($items as $item) {
+            if (! is_array($item) || ! isset($item['number']) || ! is_numeric($item['number'])) {
+                continue;
+            }
+
+            $number = (int) $item['number'];
+            if ($number < 1) {
+                continue;
+            }
+
+            $title = $this->nullableText($item['title'] ?? null) ?? 'Episodio '.$number;
+            $image = $this->nullableText($item['image'] ?? null);
+            $episodes[$number] = new Episode(
+                id: sprintf('jkanime:%s:%d', $slug, $number),
+                animeId: 'jkanime:'.$slug,
+                number: $number,
+                title: $title,
+                thumbnail: is_string($image) && preg_match('/^https?:\/\//i', $image) === 1 ? $image : null,
+            );
+        }
+
+        ksort($episodes);
+
+        return array_values($episodes);
+    }
+
     private function videoIframes(string $html): array
     {
         preg_match_all('/video\[(\d+)\]\s*=\s*[\'"](.+?)[\'"]\s*;/s', $html, $matches, PREG_SET_ORDER);
@@ -337,6 +407,52 @@ final class JkAnimeHtmlParser
         return null;
     }
 
+    private function firstLink(DOMElement $element): ?DOMElement
+    {
+        foreach ($element->getElementsByTagName('a') as $link) {
+            return $link;
+        }
+
+        return null;
+    }
+
+    private function searchCardTitle(DOMElement $card, DOMElement $fallbackLink): string
+    {
+        foreach (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as $tagName) {
+            foreach ($card->getElementsByTagName($tagName) as $heading) {
+                $title = $this->cleanText($heading->textContent);
+                if ($title !== '') {
+                    return $title;
+                }
+            }
+        }
+
+        $title = $this->cleanText($fallbackLink->getAttribute('title') ?: $fallbackLink->textContent);
+        if ($title !== '') {
+            return $title;
+        }
+
+        $image = $this->firstImage($card);
+
+        return $image instanceof DOMElement ? $this->cleanText($image->getAttribute('alt')) : '';
+    }
+
+    private function searchCardPoster(DOMElement $card, string $baseUrl): ?string
+    {
+        $image = $this->firstImage($card);
+        if ($image instanceof DOMElement && $image->getAttribute('src') !== '') {
+            return $this->absoluteUrl($baseUrl, $image->getAttribute('src'));
+        }
+
+        foreach ($card->getElementsByTagName('div') as $div) {
+            if ($div instanceof DOMElement && $div->getAttribute('data-setbg') !== '') {
+                return $this->absoluteUrl($baseUrl, $div->getAttribute('data-setbg'));
+            }
+        }
+
+        return null;
+    }
+
     private function slugFromUrl(string $url, string $baseUrl): ?string
     {
         $baseHost = parse_url($baseUrl, PHP_URL_HOST);
@@ -362,7 +478,43 @@ final class JkAnimeHtmlParser
 
     private function isNavigationSlug(string $slug): bool
     {
-        return in_array($slug, ['buscar', 'directorio', 'horario', 'comunidad', 'top', 'estrenos', 'aleatorio', 'aplicacion'], true);
+        return in_array($slug, [
+            'aleatorio',
+            'anime',
+            'animes',
+            'aplicacion',
+            'buscar',
+            'comunidad',
+            'directorio',
+            'estrenos',
+            'favoritos',
+            'horario',
+            'login',
+            'logout',
+            'notificaciones',
+            'perfil',
+            'registro',
+            'top',
+        ], true);
+    }
+
+    private function looksLikeSearchResult(DOMElement $link): bool
+    {
+        if ($this->firstImage($link) instanceof DOMElement) {
+            return true;
+        }
+
+        if ($link->getAttribute('data-setbg') !== '') {
+            return true;
+        }
+
+        foreach (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as $tagName) {
+            if ($link->getElementsByTagName($tagName)->length > 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function absoluteUrl(string $baseUrl, string $url): string

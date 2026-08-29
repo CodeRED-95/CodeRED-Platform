@@ -21,7 +21,7 @@ final class AnimeController
 {
     public function search(AnimeIndexRequest $request, AnimeCatalogService $catalog): JsonResponse
     {
-        $results = $catalog->search((string) $request->validated('q'));
+        $results = $catalog->search((string) $request->validated('q'), $request->boolean('playable'));
 
         return response()->json([
             'data' => AnimeResource::collection($results)->resolve(),

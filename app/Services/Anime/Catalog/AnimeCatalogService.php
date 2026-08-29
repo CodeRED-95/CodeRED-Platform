@@ -23,13 +23,13 @@ final class AnimeCatalogService
     ) {}
 
     /** @return list<Anime> */
-    public function search(string $query): array
+    public function search(string $query, bool $playableOnly = false): array
     {
         $streamingResults = $this->streamingProvider->search($query);
         $metadataResults = $this->metadataProvider->search($query);
 
         if ($streamingResults === []) {
-            return $metadataResults;
+            return $playableOnly ? [] : $metadataResults;
         }
 
         return array_map(

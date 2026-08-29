@@ -48,6 +48,34 @@ final class JkAnimeProviderTest extends TestCase
             && (string) $request->url() === 'https://jkanime.test/buscar?q=one%20piece');
     }
 
+    public function test_search_ignores_navigation_links_before_real_results(): void
+    {
+        Http::fake([
+            'jkanime.test/buscar?q=one%20punch%20man' => Http::response($this->searchHtmlWithNavigation(), 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $results = app(JkAnimeProvider::class)->search('one punch man');
+
+        self::assertCount(1, $results);
+        self::assertSame('jkanime:one-punch-man', $results[0]->id);
+        self::assertSame('One Punch Man', $results[0]->title);
+    }
+
+    public function test_search_parses_current_jkanime_card_markup(): void
+    {
+        Http::fake([
+            'jkanime.test/buscar?q=one%20piece' => Http::response($this->currentSearchCardHtml(), 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $results = app(JkAnimeProvider::class)->search('one piece');
+
+        self::assertCount(2, $results);
+        self::assertSame('jkanime:one-piece', $results[0]->id);
+        self::assertSame('One Piece', $results[0]->title);
+        self::assertSame('https://cdn.test/one-piece.jpg', $results[0]->poster);
+        self::assertSame('jkanime:one-piece-film-red', $results[1]->id);
+    }
+
     public function test_get_anime_discovers_external_episode_id_from_html(): void
     {
         Http::fake([
@@ -75,6 +103,27 @@ final class JkAnimeProviderTest extends TestCase
         Http::assertSent(fn ($request): bool => $request->method() === 'POST'
             && (string) $request->url() === 'https://jkanime.test/ajax/episodes/201/74'
             && $request->hasHeader('X-Requested-With', 'XMLHttpRequest'));
+    }
+
+    public function test_get_episodes_parses_current_paginated_json_payload(): void
+    {
+        Http::fake([
+            'jkanime.test/one-piece/' => Http::response($this->animeHtml(), 200, ['Content-Type' => 'text/html']),
+            'jkanime.test/ajax/episodes/201/1' => Http::response([
+                'current_page' => 1,
+                'data' => [
+                    ['id' => 4989, 'number' => 1, 'title' => 'One Piece 1', 'image' => 'jkvideo_1.jpg'],
+                    ['id' => 4990, 'number' => 2, 'title' => 'One Piece 2', 'image' => 'jkvideo_2.jpg'],
+                ],
+            ], 200, ['Content-Type' => 'application/json']),
+        ]);
+
+        $episodes = app(JkAnimeProvider::class)->getEpisodes('one-piece');
+
+        self::assertCount(2, $episodes);
+        self::assertSame(1, $episodes[0]->number);
+        self::assertSame('One Piece 1', $episodes[0]->title);
+        self::assertNull($episodes[0]->thumbnail);
     }
 
     public function test_get_episode_returns_embed_servers_without_resolving_player_tokens(): void
@@ -109,6 +158,50 @@ final class JkAnimeProviderTest extends TestCase
     <img src="https://cdn.test/one-piece.jpg" alt="One Piece">
     <h5>One Piece</h5>
 </a>
+</body></html>
+HTML;
+    }
+
+    private function searchHtmlWithNavigation(): string
+    {
+        return <<<'HTML'
+<html><body>
+<nav>
+    <a href="https://jkanime.test/notificaciones">Notificaciones</a>
+    <a href="https://jkanime.test/favoritos">Favoritos</a>
+</nav>
+<a href="https://jkanime.test/one-punch-man/">
+    <img src="https://cdn.test/one-punch-man.jpg" alt="One Punch Man">
+    <h5>One Punch Man</h5>
+</a>
+</body></html>
+HTML;
+    }
+
+    private function currentSearchCardHtml(): string
+    {
+        return <<<'HTML'
+<html><body>
+<div class="anime__page__content">
+    <div class="anime__item">
+        <a href="https://jkanime.test/one-piece/">
+            <div class="g-0 anime__item__pic set-bg" data-setbg="https://cdn.test/one-piece.jpg"></div>
+        </a>
+        <div class="anime__item__text">
+            <ul><li>En emision</li></ul>
+            <h5><a href="https://jkanime.test/one-piece/">One Piece</a></h5>
+        </div>
+    </div>
+    <div class="anime__item">
+        <a href="https://jkanime.test/one-piece-film-red/">
+            <div class="g-0 anime__item__pic set-bg" data-setbg="https://cdn.test/one-piece-film-red.jpg"></div>
+        </a>
+        <div class="anime__item__text">
+            <ul><li>Concluido</li></ul>
+            <h5><a href="https://jkanime.test/one-piece-film-red/">One Piece Film: Red</a></h5>
+        </div>
+    </div>
+</div>
 </body></html>
 HTML;
     }

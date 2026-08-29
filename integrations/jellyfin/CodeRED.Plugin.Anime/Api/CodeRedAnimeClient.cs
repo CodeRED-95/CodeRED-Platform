@@ -17,7 +17,7 @@ public sealed class CodeRedAnimeClient
     public async Task<IReadOnlyList<AnimeDto>> SearchAsync(string query, CancellationToken cancellationToken)
     {
         var response = await GetAsync<Envelope<IReadOnlyList<AnimeDto>>>(
-            "search?q=" + Uri.EscapeDataString(query),
+            "search?q=" + Uri.EscapeDataString(query) + "&playable=1",
             cancellationToken).ConfigureAwait(false);
 
         return response.Data ?? Array.Empty<AnimeDto>();

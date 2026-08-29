@@ -50,6 +50,27 @@ final class AnimeApiTest extends TestCase
             ->assertJsonPath('data.0.metadata.external_ids.anilist_id', 21);
     }
 
+    public function test_playable_search_does_not_return_metadata_only_results(): void
+    {
+        Http::fake([
+            'jkanime.test/buscar?q=reiwa%20no%20dara-san' => Http::response('<html><body></body></html>', 200, ['Content-Type' => 'text/html']),
+            'graphql.anilist.test' => Http::response([
+                'data' => [
+                    'Page' => ['media' => [$this->anilistMedia([
+                        'id' => 203880,
+                        'title' => ['romaji' => 'Reiwa no Dara-san', 'userPreferred' => 'Reiwa no Dara-san'],
+                    ])]],
+                ],
+            ]),
+        ]);
+
+        $this->withToken($this->token(['anime:read']))
+            ->getJson('/api/v1/anime/search?q=reiwa%20no%20dara-san&playable=1')
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.count', 0);
+    }
+
     public function test_metadata_endpoint_returns_anime_detail(): void
     {
         Http::fake([
@@ -214,9 +235,9 @@ video[0] = '<iframe class="player_conte" src="https://jkanime.test/media/one-pie
 HTML;
     }
 
-    private function anilistMedia(): array
+    private function anilistMedia(array $overrides = []): array
     {
-        return [
+        return array_replace_recursive([
             'id' => 21,
             'title' => [
                 'romaji' => 'One Piece',
@@ -236,6 +257,6 @@ HTML;
             'studios' => ['nodes' => [['id' => 18, 'name' => 'Toei Animation']]],
             'relations' => ['edges' => []],
             'characters' => ['edges' => []],
-        ];
+        ], $overrides);
     }
 }
