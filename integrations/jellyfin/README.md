@@ -23,11 +23,18 @@ servidor CodeRED decide metadata, episodios, servidores, fallback y streams.
 
 ## Build
 
-Requiere .NET SDK compatible con Jellyfin.
+Requiere .NET SDK compatible con `net8.0`. Se valido con .NET SDK `10.0.111`
+publicando contra Jellyfin `10.10.7`.
 
 ```bash
 cd integrations/jellyfin
 ./scripts/build.sh
+```
+
+El publish queda en:
+
+```text
+CodeRED.Plugin.Anime/bin/Release/net8.0/publish/
 ```
 
 La version de Jellyfin se puede ajustar sin editar el proyecto:

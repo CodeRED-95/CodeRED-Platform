@@ -6,6 +6,7 @@
     <AssemblyName>CodeRED.Plugin.Anime</AssemblyName>
     <RootNamespace>CodeRED.Plugin.Anime</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

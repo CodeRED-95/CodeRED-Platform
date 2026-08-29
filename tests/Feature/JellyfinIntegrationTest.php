@@ -35,6 +35,19 @@ final class JellyfinIntegrationTest extends TestCase
         self::assertStringNotContainsString('jkanime', strtolower($contents));
     }
 
+    public function test_jellyfin_channel_uses_current_media_info_contract(): void
+    {
+        $channel = File::get(base_path('integrations/jellyfin/CodeRED.Plugin.Anime/Channels/CodeRedAnimeChannel.cs'));
+        $registrator = File::get(base_path('integrations/jellyfin/CodeRED.Plugin.Anime/ServiceRegistrator.cs'));
+
+        self::assertStringContainsString('InternalChannelFeatures GetChannelFeatures()', $channel);
+        self::assertStringContainsString('ChannelParentalRating ParentalRating', $channel);
+        self::assertStringContainsString('Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo', $channel);
+        self::assertStringNotContainsString('ChannelMediaInfo', $channel);
+        self::assertStringContainsString('MediaBrowser.Controller.Plugins', $registrator);
+        self::assertStringContainsString('RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)', $registrator);
+    }
+
     public function test_jellyfin_documentation_explains_installation_and_playback_flow(): void
     {
         $documentation = File::get(base_path('docs/anime/jellyfin.md'));

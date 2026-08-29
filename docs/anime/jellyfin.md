@@ -104,12 +104,21 @@ info y debe reportar el error de reproduccion.
 
 ## Build
 
-La Steam Deck actual no tiene `dotnet` instalado, asi que en fase 8 se valida
-la estructura con tests estaticos del repositorio. Para compilar:
+El plugin compila contra Jellyfin `10.10.7` y `net8.0`. En la Steam Deck se
+valido con .NET SDK `10.0.111`; no requiere que el servidor Jellyfin conozca
+JkAnime ni ningun provider externo. Para compilar:
+
+El comando usa `dotnet publish` por medio del script del repositorio.
 
 ```bash
 cd integrations/jellyfin
 ./scripts/build.sh
+```
+
+La salida esperada queda en:
+
+```text
+integrations/jellyfin/CodeRED.Plugin.Anime/bin/Release/net8.0/publish/
 ```
 
 ## Instalacion
