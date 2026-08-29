@@ -123,7 +123,8 @@ final class AnimeApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.operation', 'stream')
             ->assertJsonPath('data.type', 'hls')
-            ->assertJsonPath('data.format', 'm3u8');
+            ->assertJsonPath('data.format', 'm3u8')
+            ->assertJsonPath('data.headers', []);
     }
 
     public function test_anime_api_requires_authentication_and_anime_ability(): void

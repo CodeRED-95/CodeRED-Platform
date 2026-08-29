@@ -13,6 +13,9 @@ final class StreamResource extends JsonResource
         /** @var Stream $stream */
         $stream = $this->resource;
 
-        return $stream->toArray();
+        return [
+            ...$stream->toArray(),
+            'headers' => (object) $stream->headers,
+        ];
     }
 }

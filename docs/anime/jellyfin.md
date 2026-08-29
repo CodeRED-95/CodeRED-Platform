@@ -99,6 +99,15 @@ Jellyfin plugin settings
   -> Play
 ```
 
+La barra de busqueda global de Jellyfin no envia el texto de busqueda a los
+plugins `IChannel` en Jellyfin `10.10.x`. El plugin puede poblar y navegar el
+canal `CodeRED Anime`, pero no puede ejecutar busquedas remotas en vivo desde
+esa barra sin una integracion mas profunda. Para que la barra global encuentre
+anime de CodeRED sin usar `Default discovery search`, se necesita una fase
+posterior de sincronizacion/indexacion que materialice los resultados de
+CodeRED Anime como items de una biblioteca Jellyfin o un provider remoto
+especializado.
+
 ## Metadata
 
 El plugin mapea desde CodeRED:

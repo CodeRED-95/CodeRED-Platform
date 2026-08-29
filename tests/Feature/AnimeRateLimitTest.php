@@ -23,6 +23,7 @@ final class AnimeRateLimitTest extends TestCase
             'anime.cache.enabled' => false,
             'anime.providers.jkanime.base_url' => 'https://jkanime.test',
             'anime.providers.jkanime.allowed_hosts' => ['jkanime.test'],
+            'anime.providers.jkanime.stream_allowed_hosts' => ['jkanime.test'],
             'anime.rate_limits.stream' => 1,
         ]);
     }

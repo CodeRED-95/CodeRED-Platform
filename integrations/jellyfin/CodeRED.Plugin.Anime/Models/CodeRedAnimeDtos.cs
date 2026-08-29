@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace CodeRED.Plugin.Anime.Models;
@@ -42,5 +43,25 @@ public sealed record StreamDto(
     [property: JsonPropertyName("url")] string Url,
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("format")] string Format,
-    [property: JsonPropertyName("headers")] IReadOnlyDictionary<string, string>? Headers,
-    [property: JsonPropertyName("expires_at")] string? ExpiresAt);
+    [property: JsonPropertyName("headers")] JsonElement? Headers,
+    [property: JsonPropertyName("expires_at")] string? ExpiresAt)
+{
+    public Dictionary<string, string> GetHeaders()
+    {
+        if (Headers is not { ValueKind: JsonValueKind.Object } headers)
+        {
+            return new Dictionary<string, string>();
+        }
+
+        var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var header in headers.EnumerateObject())
+        {
+            if (header.Value.ValueKind == JsonValueKind.String)
+            {
+                normalized[header.Name] = header.Value.GetString() ?? string.Empty;
+            }
+        }
+
+        return normalized;
+    }
+}

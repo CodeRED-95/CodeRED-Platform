@@ -7,6 +7,7 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Providers;
+using Jellyfin.Data.Enums;
 
 namespace CodeRED.Plugin.Anime.Channels;
 
@@ -103,19 +104,29 @@ public sealed class CodeRedAnimeChannel : IChannel, IRequiresMediaInfoCallback
             return Array.Empty<MediaSourceInfo>();
         }
 
+        var isHls = stream.Type.Equals("hls", StringComparison.OrdinalIgnoreCase)
+            || stream.Format.Equals("m3u8", StringComparison.OrdinalIgnoreCase);
+
         return new[]
         {
             new MediaSourceInfo
             {
+                Id = id,
+                Name = stream.Type.Equals("hls", StringComparison.OrdinalIgnoreCase)
+                    ? "CodeRED Anime HLS"
+                    : "CodeRED Anime",
                 Path = stream.Url,
                 Protocol = MediaProtocol.Http,
-                Container = stream.Format,
+                Type = MediaSourceType.Default,
+                Container = isHls ? "ts" : stream.Format,
                 IsRemote = true,
-                RequiredHttpHeaders = stream.Headers is null
-                    ? new Dictionary<string, string>()
-                    : new Dictionary<string, string>(stream.Headers),
+                RequiredHttpHeaders = stream.GetHeaders(),
                 SupportsDirectPlay = true,
-                SupportsDirectStream = true
+                SupportsDirectStream = true,
+                SupportsTranscoding = true,
+                SupportsProbing = true,
+                TranscodingContainer = isHls ? "ts" : stream.Format,
+                TranscodingSubProtocol = isHls ? MediaStreamProtocol.hls : MediaStreamProtocol.http
             }
         };
     }
