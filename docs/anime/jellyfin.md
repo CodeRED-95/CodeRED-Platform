@@ -71,6 +71,34 @@ consultan episodios desde:
 GET /api/v1/anime/{id}/episodes
 ```
 
+## Busqueda desde Jellyfin
+
+La pagina de configuracion del plugin incluye `Search and test playback`.
+Desde ahi Jellyfin llama a endpoints locales del plugin:
+
+```http
+GET /CodeRedAnime/Search?query={query}
+GET /CodeRedAnime/Episodes?animeId={id}
+GET /CodeRedAnime/Stream?animeId={id}&episode={number}&server={preferred}
+```
+
+El controlador del plugin usa internamente `CodeRED Anime API`; Jellyfin no
+consulta providers externos directamente. Al pulsar `Use as channel search`, el
+titulo se copia a `Default discovery search`; despues de guardar, el canal
+`CodeRED Anime` muestra esa busqueda como raiz. El flujo de usuario queda:
+
+```text
+Jellyfin plugin settings
+  -> Search anime
+  -> Load episodes
+  -> select episode to test stream
+  -> Use as channel search + Save
+  -> open CodeRED Anime channel
+  -> Anime
+  -> Episodes
+  -> Play
+```
+
 ## Metadata
 
 El plugin mapea desde CodeRED:

@@ -61,10 +61,11 @@ public sealed class CodeRedAnimeChannel : IChannel, IRequiresMediaInfoCallback
         {
             var search = Plugin.Instance?.Configuration.SearchBootstrapQuery ?? "one piece";
             var anime = await _client.SearchAsync(search, cancellationToken).ConfigureAwait(false);
+            var page = Page(anime, query.StartIndex, query.Limit);
 
             return new ChannelItemResult
             {
-                Items = anime.Select(ToSeriesItem).ToArray(),
+                Items = page.Select(ToSeriesItem).ToArray(),
                 TotalRecordCount = anime.Count
             };
         }
@@ -72,10 +73,11 @@ public sealed class CodeRedAnimeChannel : IChannel, IRequiresMediaInfoCallback
         if (TryParseSeries(query.FolderId, out var animeId))
         {
             var episodes = await _client.GetEpisodesAsync(animeId, cancellationToken).ConfigureAwait(false);
+            var page = Page(episodes, query.StartIndex, query.Limit);
 
             return new ChannelItemResult
             {
-                Items = episodes.Select(ToEpisodeItem).ToArray(),
+                Items = page.Select(ToEpisodeItem).ToArray(),
                 TotalRecordCount = episodes.Count
             };
         }
@@ -116,6 +118,14 @@ public sealed class CodeRedAnimeChannel : IChannel, IRequiresMediaInfoCallback
                 SupportsDirectStream = true
             }
         };
+    }
+
+    private static IReadOnlyList<T> Page<T>(IReadOnlyList<T> items, int? startIndex, int? limit)
+    {
+        var skip = Math.Max(startIndex ?? 0, 0);
+        var take = Math.Clamp(limit ?? items.Count, 1, 200);
+
+        return items.Skip(skip).Take(take).ToArray();
     }
 
     private static ChannelItemInfo ToSeriesItem(AnimeDto anime)

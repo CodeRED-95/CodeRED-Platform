@@ -15,6 +15,7 @@ final class JellyfinIntegrationTest extends TestCase
         self::assertFileExists($root.'/CodeRED.Plugin.Anime/Plugin.cs');
         self::assertFileExists($root.'/CodeRED.Plugin.Anime/Configuration/PluginConfiguration.cs');
         self::assertFileExists($root.'/CodeRED.Plugin.Anime/Api/CodeRedAnimeClient.cs');
+        self::assertFileExists($root.'/CodeRED.Plugin.Anime/Api/CodeRedAnimeController.cs');
         self::assertFileExists($root.'/CodeRED.Plugin.Anime/Channels/CodeRedAnimeChannel.cs');
         self::assertFileExists($root.'/scripts/build.sh');
         self::assertFileExists($root.'/scripts/install.sh');
@@ -44,10 +45,27 @@ final class JellyfinIntegrationTest extends TestCase
         self::assertStringContainsString('InternalChannelFeatures GetChannelFeatures()', $channel);
         self::assertStringContainsString('ChannelParentalRating ParentalRating', $channel);
         self::assertStringContainsString('Task<IEnumerable<MediaSourceInfo>> GetChannelItemMediaInfo', $channel);
+        self::assertStringContainsString('Page(episodes, query.StartIndex, query.Limit)', $channel);
         self::assertStringNotContainsString('ChannelMediaInfo', $channel);
         self::assertStringContainsString('MediaBrowser.Controller.Plugins', $registrator);
         self::assertStringContainsString('RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)', $registrator);
         self::assertStringContainsString('AddSingleton<IChannel, CodeRedAnimeChannel>', $registrator);
+    }
+
+    public function test_jellyfin_config_page_can_search_load_episodes_and_test_streams(): void
+    {
+        $page = File::get(base_path('integrations/jellyfin/CodeRED.Plugin.Anime/Configuration/configPage.html'));
+        $controller = File::get(base_path('integrations/jellyfin/CodeRED.Plugin.Anime/Api/CodeRedAnimeController.cs'));
+
+        self::assertStringContainsString('Search and test playback', $page);
+        self::assertStringContainsString('CodeRedAnime/Search?query=', $page);
+        self::assertStringContainsString('CodeRedAnime/Episodes?animeId=', $page);
+        self::assertStringContainsString('CodeRedAnime/Stream?animeId=', $page);
+        self::assertStringContainsString('Use as channel search', $page);
+        self::assertStringContainsString('[Route("CodeRedAnime")]', $controller);
+        self::assertStringContainsString('[HttpGet("Search")]', $controller);
+        self::assertStringContainsString('[HttpGet("Episodes")]', $controller);
+        self::assertStringContainsString('[HttpGet("Stream")]', $controller);
     }
 
     public function test_jellyfin_documentation_explains_installation_and_playback_flow(): void
