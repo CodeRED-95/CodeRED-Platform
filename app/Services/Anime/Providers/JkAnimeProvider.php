@@ -133,20 +133,49 @@ final class JkAnimeProvider implements AnimeProviderInterface
 
     public function getStream(string $animeId, int $episode, string $server): ?Stream
     {
+        $slug = $this->slug($animeId);
+        if ($slug === null || $episode < 1 || ! $this->isEnabled()) {
+            return null;
+        }
+
         $servers = $this->getServers($animeId, $episode);
         $selected = collect($servers)->first(fn (Server $candidate): bool => $candidate->id === $server || Str::lower($candidate->name) === Str::lower($server));
-        if (! $selected instanceof Server || $selected->type !== 'stream' || $selected->url === null) {
+        if (! $selected instanceof Server || $selected->url === null) {
             return null;
         }
 
-        if (! $this->isAllowedProviderUrl($selected->url) || ! $this->isDirectStreamUrl($selected->url)) {
+        if (! $this->isAllowedProviderUrl($selected->url) && ! $this->isAllowedStreamUrl($selected->url)) {
             return null;
         }
 
-        $format = Str::afterLast(parse_url($selected->url, PHP_URL_PATH) ?: '', '.');
+        $streamUrl = $selected->url;
+        if (! $this->isDirectStreamUrl($streamUrl)) {
+            if (! $this->isAllowedProviderUrl($streamUrl)) {
+                return null;
+            }
+
+            $response = $this->request('resolve_stream_embed', ['anime_id' => $slug, 'episode' => $episode, 'server' => $selected->name], fn (PendingRequest $http) => $http
+                ->withHeaders(['Referer' => $this->url('/'.$slug.'/'.$episode)])
+                ->get($streamUrl));
+
+            if ($response === null || ! $response->successful()) {
+                return null;
+            }
+
+            $streamUrl = $this->parser->firstDirectStreamUrl($response->body());
+            if ($streamUrl === null) {
+                return null;
+            }
+        }
+
+        if (! $this->isAllowedStreamUrl($streamUrl) || ! $this->isDirectStreamUrl($streamUrl)) {
+            return null;
+        }
+
+        $format = Str::afterLast(parse_url($streamUrl, PHP_URL_PATH) ?: '', '.');
 
         return new Stream(
-            url: $selected->url,
+            url: $streamUrl,
             type: in_array($format, ['m3u8', 'm3u'], true) ? 'hls' : 'file',
             format: $format,
             headers: [],
@@ -225,6 +254,15 @@ final class JkAnimeProvider implements AnimeProviderInterface
         $host = parse_url($url, PHP_URL_HOST);
         $scheme = parse_url($url, PHP_URL_SCHEME);
         $allowedHosts = config('anime.providers.jkanime.allowed_hosts', []);
+
+        return $scheme === 'https' && is_string($host) && in_array($host, $allowedHosts, true);
+    }
+
+    private function isAllowedStreamUrl(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        $allowedHosts = config('anime.providers.jkanime.stream_allowed_hosts', []);
 
         return $scheme === 'https' && is_string($host) && in_array($host, $allowedHosts, true);
     }

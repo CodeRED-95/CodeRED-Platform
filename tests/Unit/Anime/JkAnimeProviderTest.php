@@ -138,7 +138,23 @@ final class JkAnimeProviderTest extends TestCase
         self::assertSame('One Piece 1175', $episode->title);
         self::assertContainsOnlyInstancesOf(Server::class, $episode->servers);
         self::assertSame('embed', $episode->servers[0]->type);
-        self::assertNull(app(JkAnimeProvider::class)->getStream('one-piece', 1175, $episode->servers[0]->id));
+    }
+
+    public function test_get_stream_resolves_allowed_direct_source_from_embed_player(): void
+    {
+        config(['anime.providers.jkanime.stream_allowed_hosts' => ['jkanime.test', 'nika.playmudos.test']]);
+
+        Http::fake([
+            'jkanime.test/one-piece/1175' => Http::response($this->episodeHtml(), 200, ['Content-Type' => 'text/html']),
+            'jkanime.test/jkplayer/*' => Http::response($this->playerHtml(), 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $stream = app(JkAnimeProvider::class)->getStream('one-piece', 1175, 'magi');
+
+        self::assertNotNull($stream);
+        self::assertSame('hls', $stream->type);
+        self::assertSame('m3u8', $stream->format);
+        self::assertSame('https://nika.playmudos.test/live/one-piece.m3u8?st=signed&e=999', $stream->url);
     }
 
     public function test_provider_rejects_base_url_outside_allowlist_before_http_request(): void
@@ -235,10 +251,23 @@ HTML;
     {
         return <<<'HTML'
 <html><head><title>One Piece 1175 Sub Español Online gratis — JkAnime</title></head><body>
+<a data-id="0">Desu</a>
+<a data-id="1">Magi</a>
 <script>
 var video = [];
 video[0] = '<iframe class="player_conte" src="https://jkanime.test/jkplayer/um?e=temp&t=temp&op=temp"></iframe>';
 video[1] = '<iframe class="player_conte" src="https://jkanime.test/jkplayer/umv?e=temp&t=temp"></iframe>';
+</script>
+</body></html>
+HTML;
+    }
+
+    private function playerHtml(): string
+    {
+        return <<<'HTML'
+<html><body>
+<script>
+player.src({ src: "https://nika.playmudos.test/live/one-piece.m3u8?st=signed&e=999", type: "application/x-mpegURL" });
 </script>
 </body></html>
 HTML;

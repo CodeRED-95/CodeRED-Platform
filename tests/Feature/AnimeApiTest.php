@@ -24,6 +24,7 @@ final class AnimeApiTest extends TestCase
             'anime.providers.jkanime.enabled' => true,
             'anime.providers.jkanime.base_url' => 'https://jkanime.test',
             'anime.providers.jkanime.allowed_hosts' => ['jkanime.test'],
+            'anime.providers.jkanime.stream_allowed_hosts' => ['jkanime.test'],
             'anime.providers.jkanime.user_agent' => 'CodeRED-Test',
             'anime.providers.anilist.enabled' => true,
             'anime.providers.anilist.base_url' => 'https://graphql.anilist.test',

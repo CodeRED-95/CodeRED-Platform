@@ -157,4 +157,6 @@ docker restart jellyfin
 - El plugin no solicita credenciales de providers externos.
 - El token se limita a `anime:read`.
 - Las URLs de streams las decide CodeRED.
+- Las fuentes directas solo se aceptan si su host esta en
+  `JKANIME_STREAM_ALLOWED_HOSTS`.
 - No se implementan bypasses de DRM, autenticacion ni paywalls.

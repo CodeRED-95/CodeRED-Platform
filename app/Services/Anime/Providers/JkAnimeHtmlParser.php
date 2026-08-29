@@ -231,6 +231,15 @@ final class JkAnimeHtmlParser
         return null;
     }
 
+    public function firstDirectStreamUrl(string $html): ?string
+    {
+        if (preg_match('~https?:(?:\\\\/\\\\/|//)[^"\'<>\s]+?\.(?:m3u8?|m3u|mp4)(?:\?[^"\'<>\s]*)?~i', $html, $matches)) {
+            return str_replace(['\/', '\\u0026'], ['/', '&'], html_entity_decode($matches[0], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+
+        return null;
+    }
+
     private function parseAnimesVariable(string $html): array
     {
         if (! preg_match('/var\s+animes\s*=\s*(\{.*?\});/s', $html, $matches)) {
