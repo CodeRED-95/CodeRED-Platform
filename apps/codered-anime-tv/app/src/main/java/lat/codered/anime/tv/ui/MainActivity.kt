@@ -580,7 +580,6 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
                 FeaturedHero(
                     anime = anime,
                     onSelect = { viewModel.selectAnime(anime) },
-                    autoFocus = state.continueWatching.isEmpty() && state.selectedAnime == null && state.stream == null,
                 )
             }
         }
@@ -594,7 +593,6 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
                     onSelect = viewModel::resume,
                     badge = { "Episodio ${it.episodeNumber}" },
                     caption = { "Continua en ${formatWatchTime(it.positionMs)}" },
-                    autoFocusFirst = state.selectedAnime == null && state.stream == null,
                 )
             }
         }
