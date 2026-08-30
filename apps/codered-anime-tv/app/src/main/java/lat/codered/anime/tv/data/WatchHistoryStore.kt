@@ -17,14 +17,45 @@ class WatchHistoryStore(context: Context) {
         .take(12)
 
     fun markPlayed(anime: Anime, episode: Episode) {
+        upsert(anime, episode.number, episode.title, incrementPlayCount = true)
+    }
+
+    fun updateProgress(
+        anime: Anime,
+        episodeNumber: Int,
+        episodeTitle: String,
+        positionMs: Long,
+        durationMs: Long,
+        incrementPlayCount: Boolean = false,
+    ) {
+        upsert(
+            anime = anime,
+            episodeNumber = episodeNumber,
+            episodeTitle = episodeTitle,
+            positionMs = positionMs,
+            durationMs = durationMs,
+            incrementPlayCount = incrementPlayCount,
+        )
+    }
+
+    private fun upsert(
+        anime: Anime,
+        episodeNumber: Int,
+        episodeTitle: String,
+        positionMs: Long = 0L,
+        durationMs: Long = 0L,
+        incrementPlayCount: Boolean = false,
+    ) {
         val current = readAll().associateBy { "${it.anime.id}:${it.episodeNumber}" }.toMutableMap()
-        val key = "${anime.id}:${episode.number}"
+        val key = "${anime.id}:$episodeNumber"
         val previous = current[key]
         current[key] = WatchProgress(
             anime = anime,
-            episodeNumber = episode.number,
-            episodeTitle = episode.title,
-            playCount = (previous?.playCount ?: 0) + 1,
+            episodeNumber = episodeNumber,
+            episodeTitle = episodeTitle,
+            playCount = (previous?.playCount ?: 0) + if (incrementPlayCount) 1 else 0,
+            positionMs = positionMs.coerceAtLeast(0L),
+            durationMs = durationMs.coerceAtLeast(0L),
             updatedAt = System.currentTimeMillis(),
         )
 
@@ -42,6 +73,8 @@ class WatchHistoryStore(context: Context) {
                     .put("episode_number", progress.episodeNumber)
                     .put("episode_title", progress.episodeTitle)
                     .put("play_count", progress.playCount)
+                    .put("position_ms", progress.positionMs)
+                    .put("duration_ms", progress.durationMs)
                     .put("updated_at", progress.updatedAt),
             )
         }
@@ -72,6 +105,8 @@ class WatchHistoryStore(context: Context) {
                             episodeNumber = item.optInt("episode_number"),
                             episodeTitle = item.optString("episode_title", "Episodio ${item.optInt("episode_number")}"),
                             playCount = item.optInt("play_count", 1).coerceAtLeast(1),
+                            positionMs = item.optLong("position_ms", 0L).coerceAtLeast(0L),
+                            durationMs = item.optLong("duration_ms", 0L).coerceAtLeast(0L),
                             updatedAt = item.optLong("updated_at", 0L),
                         ),
                     )

@@ -25,6 +25,7 @@ data class AnimeTvState(
     val episodes: List<Episode> = emptyList(),
     val playingEpisode: Episode? = null,
     val stream: Stream? = null,
+    val playbackStartPositionMs: Long = 0L,
     val continueWatching: List<WatchProgress> = emptyList(),
     val newlyAdded: List<Anime> = emptyList(),
     val mostViewed: List<WatchProgress> = emptyList(),
@@ -124,15 +125,20 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun playEpisode(episode: Episode) {
+    fun playEpisode(episode: Episode, startPositionMs: Long = 0L) {
         val anime = state.value.selectedAnime ?: return
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, message = "Resolviendo episodio ${episode.number}...", playingEpisode = episode, stream = null) }
+            _state.update {
+                it.copy(
+                    loading = true,
+                    message = "Resolviendo episodio ${episode.number}...",
+                    playingEpisode = episode,
+                    stream = null,
+                    playbackStartPositionMs = startPositionMs.coerceAtLeast(0L),
+                )
+            }
             when (val result = client.getStream(anime.id, episode.number, preferredServer = "desu")) {
                 is AnimeResult.Success -> {
-                    if (result.value != null) {
-                        historyStore.markPlayed(anime, episode)
-                    }
                     _state.update {
                         it.copy(
                             loading = false,
@@ -148,7 +154,8 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun closePlayer() {
-        _state.update { it.copy(stream = null, playingEpisode = null, message = null) }
+        _state.update { it.copy(stream = null, playingEpisode = null, playbackStartPositionMs = 0L, message = null) }
+        refreshLocalShelves()
     }
 
     fun closeDetails() {
@@ -158,6 +165,7 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                 episodes = emptyList(),
                 stream = null,
                 playingEpisode = null,
+                playbackStartPositionMs = 0L,
                 message = null,
             )
         }
@@ -168,10 +176,45 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun resume(progress: WatchProgress) {
-        selectAnime(progress.anime)
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    loading = true,
+                    message = "Preparando ${progress.anime.title} episodio ${progress.episodeNumber}...",
+                    selectedAnime = progress.anime,
+                    episodes = emptyList(),
+                    stream = null,
+                    playingEpisode = null,
+                    playbackStartPositionMs = progress.positionMs,
+                )
+            }
+
+            val detailedAnime = when (val detail = client.getAnime(progress.anime.id)) {
+                is AnimeResult.Success -> detail.value ?: progress.anime
+                is AnimeResult.Failure -> progress.anime
+            }
+
+            when (val result = client.getEpisodes(progress.anime.id)) {
+                is AnimeResult.Success -> {
+                    val episode = result.value.firstOrNull { it.number == progress.episodeNumber }
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            selectedAnime = detailedAnime,
+                            episodes = result.value,
+                            message = if (episode == null) "No se encontro el episodio guardado." else null,
+                        )
+                    }
+                    episode?.let { playEpisode(it, progress.positionMs) }
+                }
+                is AnimeResult.Failure -> _state.update {
+                    it.copy(loading = false, selectedAnime = detailedAnime, message = result.message)
+                }
+            }
+        }
     }
 
-    private fun refreshLocalShelves() {
+    fun refreshLocalShelves() {
         _state.update {
             it.copy(
                 continueWatching = historyStore.continueWatching(),

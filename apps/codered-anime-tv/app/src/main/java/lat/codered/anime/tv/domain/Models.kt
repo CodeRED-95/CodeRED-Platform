@@ -15,6 +15,8 @@ data class WatchProgress(
     val episodeNumber: Int,
     val episodeTitle: String,
     val playCount: Int = 1,
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L,
     val updatedAt: Long = System.currentTimeMillis(),
 )
 

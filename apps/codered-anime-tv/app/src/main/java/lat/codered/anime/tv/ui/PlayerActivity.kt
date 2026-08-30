@@ -27,6 +27,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerView
+import lat.codered.anime.tv.data.WatchHistoryStore
+import lat.codered.anime.tv.domain.Anime
 import java.util.Locale
 
 class PlayerActivity : ComponentActivity() {
@@ -43,6 +45,11 @@ class PlayerActivity : ComponentActivity() {
     private var playPauseButton: Button? = null
     private var loading: ProgressBar? = null
     private var controlsVisible = true
+    private var watchHistoryStore: WatchHistoryStore? = null
+    private var playbackAnime: Anime? = null
+    private var playbackEpisodeNumber: Int = 0
+    private var playbackEpisodeTitle: String = ""
+    private var lastProgressSaveAtMs: Long = 0L
 
     private val hideControlsRunnable = Runnable {
         if (player?.isPlaying == true) {
@@ -78,14 +85,25 @@ class PlayerActivity : ComponentActivity() {
         runCatching {
             val exoPlayer = buildPlayer()
             val root = buildPlayerUi(exoPlayer)
+            val startPositionMs = intent.getLongExtra(EXTRA_START_POSITION_MS, 0L).coerceAtLeast(0L)
 
             player = exoPlayer
+            watchHistoryStore = WatchHistoryStore(applicationContext)
+            playbackAnime = buildPlaybackAnime()
+            playbackEpisodeNumber = intent.getIntExtra(EXTRA_EPISODE_NUMBER, 0)
+            playbackEpisodeTitle = intent.getStringExtra(EXTRA_EPISODE_TITLE)?.takeIf { it.isNotBlank() }
+                ?: intent.getStringExtra(EXTRA_TITLE)?.takeIf { it.isNotBlank() }
+                ?: "Episodio"
             mediaSession = runCatching { MediaSession.Builder(this, exoPlayer).build() }.getOrNull()
             setContentView(root)
 
             exoPlayer.setMediaItem(MediaItem.fromUri(streamUrl))
             exoPlayer.prepare()
+            if (startPositionMs > 0L) {
+                exoPlayer.seekTo(startPositionMs)
+            }
             exoPlayer.playWhenReady = true
+            savePlaybackProgress(incrementPlayCount = true)
             progressHandler.post(progressTicker)
             playPauseButton?.requestFocus()
             scheduleControlsAutoHide()
@@ -104,6 +122,7 @@ class PlayerActivity : ComponentActivity() {
     override fun onPause() {
         progressHandler.removeCallbacks(progressTicker)
         controlsHandler.removeCallbacks(hideControlsRunnable)
+        savePlaybackProgress()
         player?.pause()
         super.onPause()
     }
@@ -111,6 +130,7 @@ class PlayerActivity : ComponentActivity() {
     override fun onDestroy() {
         progressHandler.removeCallbacks(progressTicker)
         controlsHandler.removeCallbacks(hideControlsRunnable)
+        savePlaybackProgress()
         mediaSession?.release()
         player?.release()
         mediaSession = null
@@ -436,6 +456,9 @@ class PlayerActivity : ComponentActivity() {
         elapsedText?.text = formatTime(position)
         durationText?.text = if (duration > 0) formatTime(duration) else "--:--"
         seekBar?.progress = if (duration > 0) ((position * 1_000) / duration).toInt().coerceIn(0, 1_000) else 0
+        if (position - lastProgressSaveAtMs >= PROGRESS_SAVE_INTERVAL_MS) {
+            savePlaybackProgress()
+        }
     }
 
     private fun verticalScrim(startColor: Int, endColor: Int): GradientDrawable {
@@ -480,11 +503,54 @@ class PlayerActivity : ComponentActivity() {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
+    private fun buildPlaybackAnime(): Anime? {
+        val slug = intent.getStringExtra(EXTRA_ANIME_SLUG)?.takeIf { it.isNotBlank() } ?: return null
+        val title = intent.getStringExtra(EXTRA_ANIME_TITLE)?.takeIf { it.isNotBlank() } ?: return null
+        return Anime(
+            id = intent.getStringExtra(EXTRA_ANIME_ID)?.takeIf { it.isNotBlank() } ?: "jkanime:$slug",
+            slug = slug,
+            title = title,
+            description = intent.getStringExtra(EXTRA_ANIME_DESCRIPTION)?.takeIf { it.isNotBlank() },
+            posterUrl = intent.getStringExtra(EXTRA_ANIME_POSTER_URL)?.takeIf { it.isNotBlank() },
+            episodeCount = intent.getIntExtra(EXTRA_ANIME_EPISODE_COUNT, 0).takeIf { it > 0 },
+            status = intent.getStringExtra(EXTRA_ANIME_STATUS)?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    private fun savePlaybackProgress(incrementPlayCount: Boolean = false) {
+        val anime = playbackAnime ?: return
+        val episodeNumber = playbackEpisodeNumber.takeIf { it > 0 } ?: return
+        val currentPlayer = player ?: return
+        val position = currentPlayer.currentPosition.coerceAtLeast(0L)
+        val duration = currentPlayer.duration.takeIf { it > 0 } ?: 0L
+        lastProgressSaveAtMs = position
+        watchHistoryStore?.updateProgress(
+            anime = anime,
+            episodeNumber = episodeNumber,
+            episodeTitle = playbackEpisodeTitle,
+            positionMs = position,
+            durationMs = duration,
+            incrementPlayCount = incrementPlayCount,
+        )
+        setResult(RESULT_OK)
+    }
+
     companion object {
         private const val CONTROLS_HIDE_DELAY_MS = 4_000L
+        private const val PROGRESS_SAVE_INTERVAL_MS = 5_000L
         const val EXTRA_STREAM_URL = "lat.codered.anime.tv.extra.STREAM_URL"
         const val EXTRA_TITLE = "lat.codered.anime.tv.extra.TITLE"
         const val EXTRA_REFERER = "lat.codered.anime.tv.extra.REFERER"
         const val EXTRA_ORIGIN = "lat.codered.anime.tv.extra.ORIGIN"
+        const val EXTRA_START_POSITION_MS = "lat.codered.anime.tv.extra.START_POSITION_MS"
+        const val EXTRA_ANIME_ID = "lat.codered.anime.tv.extra.ANIME_ID"
+        const val EXTRA_ANIME_SLUG = "lat.codered.anime.tv.extra.ANIME_SLUG"
+        const val EXTRA_ANIME_TITLE = "lat.codered.anime.tv.extra.ANIME_TITLE"
+        const val EXTRA_ANIME_DESCRIPTION = "lat.codered.anime.tv.extra.ANIME_DESCRIPTION"
+        const val EXTRA_ANIME_POSTER_URL = "lat.codered.anime.tv.extra.ANIME_POSTER_URL"
+        const val EXTRA_ANIME_EPISODE_COUNT = "lat.codered.anime.tv.extra.ANIME_EPISODE_COUNT"
+        const val EXTRA_ANIME_STATUS = "lat.codered.anime.tv.extra.ANIME_STATUS"
+        const val EXTRA_EPISODE_NUMBER = "lat.codered.anime.tv.extra.EPISODE_NUMBER"
+        const val EXTRA_EPISODE_TITLE = "lat.codered.anime.tv.extra.EPISODE_TITLE"
     }
 }

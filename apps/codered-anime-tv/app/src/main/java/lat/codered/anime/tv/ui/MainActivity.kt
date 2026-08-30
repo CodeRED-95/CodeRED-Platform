@@ -3,6 +3,8 @@ package lat.codered.anime.tv.ui
 import android.os.Bundle
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -86,6 +88,9 @@ private fun AnimeTvApp(viewModel: AnimeTvViewModel = viewModel()) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val playerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        viewModel.refreshLocalShelves()
+    }
 
     LaunchedEffect(Unit) {
         focusManager.clearFocus(force = true)
@@ -102,9 +107,23 @@ private fun AnimeTvApp(viewModel: AnimeTvViewModel = viewModel()) {
             putExtra(PlayerActivity.EXTRA_TITLE, state.playingEpisode?.title ?: state.selectedAnime?.title ?: "CodeRED Anime TV")
             putExtra(PlayerActivity.EXTRA_REFERER, stream.headers["Referer"])
             putExtra(PlayerActivity.EXTRA_ORIGIN, stream.headers["Origin"])
+            putExtra(PlayerActivity.EXTRA_START_POSITION_MS, state.playbackStartPositionMs)
+            state.selectedAnime?.let { anime ->
+                putExtra(PlayerActivity.EXTRA_ANIME_ID, anime.id)
+                putExtra(PlayerActivity.EXTRA_ANIME_SLUG, anime.slug)
+                putExtra(PlayerActivity.EXTRA_ANIME_TITLE, anime.title)
+                putExtra(PlayerActivity.EXTRA_ANIME_DESCRIPTION, anime.description)
+                putExtra(PlayerActivity.EXTRA_ANIME_POSTER_URL, anime.posterUrl)
+                putExtra(PlayerActivity.EXTRA_ANIME_EPISODE_COUNT, anime.episodeCount ?: 0)
+                putExtra(PlayerActivity.EXTRA_ANIME_STATUS, anime.status)
+            }
+            state.playingEpisode?.let { episode ->
+                putExtra(PlayerActivity.EXTRA_EPISODE_NUMBER, episode.number)
+                putExtra(PlayerActivity.EXTRA_EPISODE_TITLE, episode.title)
+            }
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
-        runCatching { context.startActivity(intent) }
+        runCatching { playerLauncher.launch(intent) }
             .onFailure {
                 Toast.makeText(context, "No se pudo abrir el reproductor.", Toast.LENGTH_LONG).show()
                 viewModel.reportPlaybackError(it.message ?: "error al iniciar pantalla")
@@ -606,6 +625,14 @@ private fun ProgressCard(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(progress.anime.title, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, lineHeight = 22.sp)
                 Text(badge, color = Color(0xFFFFB4C8), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                if (progress.positionMs > 0L) {
+                    Text(
+                        "Continua en ${formatWatchTime(progress.positionMs)}",
+                        color = Color(0xFFD8DFF2),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                    )
+                }
                 Text(progress.episodeTitle, color = Color(0xFFC3CBE0), maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp, lineHeight = 18.sp)
             }
         }
@@ -743,4 +770,16 @@ private fun KeyEvent.isSelectRelease(): Boolean {
         Key.Spacebar,
         Key.Unknown,
     )
+}
+
+private fun formatWatchTime(milliseconds: Long): String {
+    val totalSeconds = (milliseconds / 1_000).coerceAtLeast(0)
+    val hours = totalSeconds / 3_600
+    val minutes = (totalSeconds % 3_600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
+    }
 }
