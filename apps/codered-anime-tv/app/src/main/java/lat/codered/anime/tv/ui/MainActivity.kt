@@ -9,6 +9,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -32,6 +33,17 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -46,13 +58,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import lat.codered.anime.tv.domain.Anime
@@ -81,6 +96,11 @@ import lat.codered.anime.tv.ui.theme.tvFocusScale
 private val SafeHorizontal = 44.dp
 private val SafeVertical = 26.dp
 
+/** Anchos del menu lateral: contraido deja solo la inicial de cada seccion. */
+private val RailCollapsed = 58.dp
+private val RailExpanded = 210.dp
+private val RailGap = 20.dp
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,16 +112,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class TvSection(val label: String) {
-    Home("Inicio"),
-    Continue("Continuar"),
-    Favorites("Favoritos"),
-    Directory("Directorio"),
-    Premieres("Estrenos"),
-    Top("Top"),
-    Schedule("Programacion"),
-    Watched("Vistos"),
-    History("Historial"),
+private enum class TvSection(val label: String, val icon: ImageVector) {
+    Home("Inicio", Icons.Filled.Home),
+    Continue("Continuar", Icons.Filled.PlayArrow),
+    Favorites("Favoritos", Icons.Filled.Favorite),
+    Directory("Directorio", Icons.Filled.List),
+    Premieres("Estrenos", Icons.Filled.Star),
+    Top("Top", Icons.Filled.ThumbUp),
+    Schedule("Programacion", Icons.Filled.DateRange),
+    Watched("Vistos", Icons.Filled.CheckCircle),
+    History("Historial", Icons.Filled.Refresh),
 }
 
 @Composable
@@ -210,31 +230,45 @@ private fun HomeShell(
     onDirectoryStatusChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(22.dp),
-    ) {
+    // El menu se expande solo cuando el foco entra en el y se contrae al salir,
+    // que es como se comportan los carriles de navegacion en Android TV.
+    var menuExpanded by remember { mutableStateOf(false) }
+    val railWidth by animateDpAsState(
+        targetValue = if (menuExpanded) RailExpanded else RailCollapsed,
+        animationSpec = tween(durationMillis = 180),
+        label = "railWidth",
+    )
+
+    Box(modifier = modifier) {
+        // El contenido reserva siempre el ancho contraido: al expandirse el menu
+        // se superpone en lugar de reflujar la parrilla entera.
+        Row(modifier = Modifier.fillMaxSize()) {
+            Spacer(Modifier.width(RailCollapsed + RailGap))
+            SectionContent(
+                state = state,
+                viewModel = viewModel,
+                activeSection = activeSection,
+                onSectionSelected = onSectionSelected,
+                directoryFilter = directoryFilter,
+                onDirectoryFilterChange = onDirectoryFilterChange,
+                directoryStatus = directoryStatus,
+                onDirectoryStatusChange = onDirectoryStatusChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            )
+        }
+
         SideMenu(
             state = state,
             activeSection = activeSection,
             onSectionSelected = onSectionSelected,
+            expanded = menuExpanded,
             modifier = Modifier
-                .width(198.dp)
-                .fillMaxHeight(),
-        )
-
-        SectionContent(
-            state = state,
-            viewModel = viewModel,
-            activeSection = activeSection,
-            onSectionSelected = onSectionSelected,
-            directoryFilter = directoryFilter,
-            onDirectoryFilterChange = onDirectoryFilterChange,
-            directoryStatus = directoryStatus,
-            onDirectoryStatusChange = onDirectoryStatusChange,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
+                .width(railWidth)
+                .fillMaxHeight()
+                .zIndex(1f)
+                .onFocusChanged { menuExpanded = it.hasFocus },
         )
     }
 }
@@ -244,6 +278,7 @@ private fun SideMenu(
     state: AnimeTvState,
     activeSection: TvSection,
     onSectionSelected: (TvSection) -> Unit,
+    expanded: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val counts = mapOf(
@@ -257,15 +292,21 @@ private fun SideMenu(
         TvSection.History to state.history.size,
     )
 
-    GlassPanel(modifier = modifier, padding = 14.dp) {
-        BrandMark()
-        Spacer(Modifier.size(18.dp))
+    GlassPanel(
+        modifier = modifier,
+        padding = 10.dp,
+        shadowElevation = if (expanded) 26.dp else 0.dp,
+    ) {
+        BrandMark(expanded = expanded)
+        Spacer(Modifier.size(16.dp))
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             TvSection.values().forEach { section ->
                 MenuButton(
                     label = section.label,
+                    icon = section.icon,
                     count = counts[section],
                     selected = section == activeSection,
+                    expanded = expanded,
                     onClick = { onSectionSelected(section) },
                 )
             }
@@ -274,8 +315,9 @@ private fun SideMenu(
 }
 
 @Composable
-private fun BrandMark() {
+private fun BrandMark(expanded: Boolean) {
     Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -288,15 +330,24 @@ private fun BrandMark() {
         ) {
             Text("CR", style = AnimeType.Label, color = Color.White)
         }
-        Column {
-            Text("CodeRED", style = AnimeType.CardTitle, color = Color.White, maxLines = 1)
-            Text("ANIME TV", style = AnimeType.Label, color = AnimeColors.AccentSoft, maxLines = 1)
+        if (expanded) {
+            Column {
+                Text("CodeRED", style = AnimeType.CardTitle, color = Color.White, maxLines = 1)
+                Text("ANIME TV", style = AnimeType.Label, color = AnimeColors.AccentSoft, maxLines = 1)
+            }
         }
     }
 }
 
 @Composable
-private fun MenuButton(label: String, count: Int?, selected: Boolean, onClick: () -> Unit) {
+private fun MenuButton(
+    label: String,
+    icon: ImageVector,
+    count: Int?,
+    selected: Boolean,
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
     val focus = rememberTvFocusState()
     val active = selected || focus.focused
     val container by animateColorAsState(
@@ -313,6 +364,15 @@ private fun MenuButton(label: String, count: Int?, selected: Boolean, onClick: (
         animationSpec = tween(140),
         label = "menuBorder",
     )
+    val iconTint by animateColorAsState(
+        targetValue = when {
+            focus.focused -> Color.White
+            selected -> AnimeColors.Accent
+            else -> AnimeColors.TextMuted
+        },
+        animationSpec = tween(140),
+        label = "menuIconTint",
+    )
 
     Surface(
         onClick = onClick,
@@ -325,34 +385,56 @@ private fun MenuButton(label: String, count: Int?, selected: Boolean, onClick: (
         border = BorderStroke(if (focus.focused) 2.dp else 1.dp, border),
         interactionSource = focus.interactionSource,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 10.dp, end = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Barra indicadora: marca la seccion activa incluso sin foco.
-            Box(
+        if (expanded) {
+            Row(
                 modifier = Modifier
-                    .size(width = 3.dp, height = if (active) 18.dp else 0.dp)
-                    .clip(AnimeShapes.Pill)
-                    .background(if (selected) AnimeColors.Accent else AnimeColors.AccentSoft),
-            )
-            Text(
-                text = label,
-                color = if (active) Color.White else AnimeColors.TextSecondary,
-                style = AnimeType.CardTitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            count?.takeIf { it > 0 }?.let {
-                Text(
-                    text = it.toString(),
-                    color = if (active) AnimeColors.AccentSoft else AnimeColors.TextMuted,
-                    style = AnimeType.Label,
+                    .fillMaxSize()
+                    .padding(start = 12.dp, end = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(19.dp),
                 )
+                Text(
+                    text = label,
+                    color = if (active) Color.White else AnimeColors.TextSecondary,
+                    style = AnimeType.CardTitle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                count?.takeIf { it > 0 }?.let {
+                    Text(
+                        text = it.toString(),
+                        color = if (active) AnimeColors.AccentSoft else AnimeColors.TextMuted,
+                        style = AnimeType.Label,
+                    )
+                }
+            }
+        } else {
+            // Contraido: el icono es lo unico legible a distancia, con un
+            // subrayado de acento cuando la seccion esta activa.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = iconTint,
+                    modifier = Modifier.size(21.dp),
+                )
+                if (selected) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 4.dp)
+                            .size(width = 14.dp, height = 2.dp)
+                            .clip(AnimeShapes.Pill)
+                            .background(AnimeColors.Accent),
+                    )
+                }
             }
         }
     }
@@ -495,7 +577,11 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
     ) {
         featured?.let { anime ->
             item {
-                FeaturedHero(anime = anime, onSelect = { viewModel.selectAnime(anime) })
+                FeaturedHero(
+                    anime = anime,
+                    onSelect = { viewModel.selectAnime(anime) },
+                    autoFocus = state.continueWatching.isEmpty() && state.selectedAnime == null && state.stream == null,
+                )
             }
         }
 
@@ -509,6 +595,17 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
                     badge = { "Episodio ${it.episodeNumber}" },
                     caption = { "Continua en ${formatWatchTime(it.positionMs)}" },
                     autoFocusFirst = state.selectedAnime == null && state.stream == null,
+                )
+            }
+        }
+
+        val recentSchedule = state.schedule.todayOrYesterdaySchedule()
+        if (recentSchedule.isNotEmpty()) {
+            item {
+                HomeScheduleShelf(
+                    items = recentSchedule,
+                    selected = state.selectedAnime,
+                    onSelect = viewModel::selectAnime,
                 )
             }
         }
@@ -544,7 +641,6 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
                 items = state.newlyAdded,
                 selected = state.selectedAnime,
                 onSelect = viewModel::selectAnime,
-                autoFocusFirst = state.continueWatching.isEmpty() && state.selectedAnime == null && state.stream == null,
             )
         }
 
@@ -575,13 +671,37 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
     }
 }
 
+@Composable
+private fun HomeScheduleShelf(items: List<Anime>, selected: Anime?, onSelect: (Anime) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionHeader(
+            title = "Programacion reciente",
+            subtitle = "Capitulos publicados hoy y ayer en JkAnime.",
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            items(items, key = { "${it.slug}:${it.scheduleEpisode}:${it.scheduleLabel}:home" }) { anime ->
+                ScheduleCard(
+                    anime = anime,
+                    selected = anime.id == selected?.id,
+                    onClick = { onSelect(anime) },
+                    modifier = Modifier.width(268.dp),
+                )
+            }
+        }
+    }
+}
+
 /** Banner destacado: da un punto de entrada visual y llena el vacio superior. */
 @Composable
-private fun FeaturedHero(anime: Anime, onSelect: () -> Unit) {
+private fun FeaturedHero(anime: Anime, onSelect: () -> Unit, autoFocus: Boolean = false) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(196.dp)
+            .height(168.dp)
             .clip(AnimeShapes.Panel)
             .background(AnimeColors.Surface),
     ) {
@@ -637,7 +757,7 @@ private fun FeaturedHero(anime: Anime, onSelect: () -> Unit) {
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                TvButton(label = "Ver capitulos", onClick = onSelect)
+                TvButton(label = "Ver capitulos", onClick = onSelect, autoFocus = autoFocus)
                 anime.episodeCount?.let { Pill("$it episodios") }
                 anime.status?.takeIf { it.isNotBlank() }?.let { Pill(it) }
             }
@@ -825,13 +945,13 @@ private fun SchedulePage(
 }
 
 @Composable
-private fun ScheduleCard(anime: Anime, selected: Boolean, onClick: () -> Unit) {
+private fun ScheduleCard(anime: Anime, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val focus = rememberTvFocusState()
     val active = selected || focus.focused
 
     Surface(
         onClick = onClick,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(150.dp)
             .tvFocusScale(focus.focused, scale = 1.045f, elevation = 16f),
@@ -1210,6 +1330,13 @@ private fun filterDirectory(items: List<Anime>, query: String, selectedStatus: S
         val matchesStatus = selectedStatus == null || anime.status == selectedStatus
         matchesText && matchesStatus
     }
+}
+
+private fun List<Anime>.todayOrYesterdaySchedule(): List<Anime> {
+    return filter { anime ->
+        anime.scheduleLabel.equals("Hoy", ignoreCase = true) ||
+            anime.scheduleLabel.equals("Ayer", ignoreCase = true)
+    }.take(16)
 }
 
 private fun formatWatchTime(milliseconds: Long): String {

@@ -50,6 +50,7 @@ import lat.codered.anime.tv.ui.theme.AnimeColors
 import lat.codered.anime.tv.ui.theme.AnimeShapes
 import lat.codered.anime.tv.ui.theme.AnimeType
 import lat.codered.anime.tv.ui.theme.rememberTvFocusState
+import lat.codered.anime.tv.ui.theme.requestFocusSoon
 import lat.codered.anime.tv.ui.theme.tvFocusScale
 
 /** Reproduce el manejo de tecla OK del mando tal como estaba en la version anterior. */
@@ -102,13 +103,16 @@ fun SectionHeader(
 fun GlassPanel(
     modifier: Modifier = Modifier,
     padding: Dp = 18.dp,
+    shadowElevation: Dp = 0.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
         modifier = modifier,
         shape = AnimeShapes.Panel,
-        color = AnimeColors.Surface.copy(alpha = 0.72f),
+        // Opaco al elevarse: el carril expandido se superpone al contenido.
+        color = AnimeColors.Surface.copy(alpha = if (shadowElevation > 0.dp) 0.97f else 0.82f),
         border = BorderStroke(1.dp, AnimeColors.Line),
+        shadowElevation = shadowElevation,
         content = {
             Column(modifier = Modifier.padding(padding), content = content)
         },
@@ -214,7 +218,7 @@ fun TvButton(
     )
 
     LaunchedEffect(autoFocus) {
-        if (autoFocus) runCatching { focusRequester.requestFocus() }
+        if (autoFocus) focusRequester.requestFocusSoon()
     }
 
     Surface(
@@ -269,7 +273,7 @@ fun PosterCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     width: Dp? = 160.dp,
-    posterHeight: Dp = 226.dp,
+    posterHeight: Dp = 202.dp,
     autoFocus: Boolean = false,
 ) {
     val focus = rememberTvFocusState()
@@ -286,7 +290,7 @@ fun PosterCard(
     )
 
     LaunchedEffect(autoFocus, anime.id) {
-        if (autoFocus) runCatching { focusRequester.requestFocus() }
+        if (autoFocus) focusRequester.requestFocusSoon()
     }
 
     Column(
@@ -408,7 +412,7 @@ fun ProgressCard(
     }
 
     LaunchedEffect(autoFocus, progress.anime.id, progress.episodeNumber) {
-        if (autoFocus) runCatching { focusRequester.requestFocus() }
+        if (autoFocus) focusRequester.requestFocusSoon()
     }
 
     Surface(
@@ -505,7 +509,7 @@ fun EpisodeRow(
     )
 
     LaunchedEffect(autoFocus, episode.id) {
-        if (autoFocus) runCatching { focusRequester.requestFocus() }
+        if (autoFocus) focusRequester.requestFocusSoon()
     }
 
     Surface(

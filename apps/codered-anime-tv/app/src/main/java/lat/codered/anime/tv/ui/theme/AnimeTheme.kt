@@ -14,7 +14,9 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -153,5 +155,17 @@ fun Modifier.tvFocusScale(focused: Boolean, scale: Float = 1.06f, elevation: Flo
         scaleX = animatedScale
         scaleY = animatedScale
         shadowElevation = animatedElevation
+    }
+}
+
+/**
+ * Pide el foco en cuanto el nodo esta disponible. Un unico intento en el primer
+ * frame falla cuando el contenido aun no ha llegado de la red y el destino
+ * todavia no esta adjunto, y el foco acaba cayendo en el menu lateral.
+ */
+suspend fun FocusRequester.requestFocusSoon(attempts: Int = 6) {
+    repeat(attempts) {
+        withFrameNanos { }
+        if (runCatching { requestFocus() }.isSuccess) return
     }
 }
