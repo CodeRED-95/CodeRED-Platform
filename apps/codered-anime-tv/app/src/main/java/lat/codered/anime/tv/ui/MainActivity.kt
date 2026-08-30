@@ -790,8 +790,20 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
     // Pedir foco en tactil no aporta nada y, peor, abre el teclado del sistema
     // en cuanto el campo de busqueda lo recibe.
     val idle = state.selectedAnime == null && state.stream == null && !LocalWindowForm.current.isCompact
-    val focusContinue = idle && state.continueWatching.isNotEmpty()
-    val focusBanner = idle && !focusContinue
+
+    // El autofoco es de un solo uso. Mientras seguia activo, cualquier
+    // recomposicion posterior -- el banner rota cada nueve segundos y recrea su
+    // boton -- volvia a pedir el foco y el selector saltaba de vuelta arriba.
+    var initialFocusPending by remember { mutableStateOf(true) }
+    val hasFocusTarget = state.continueWatching.isNotEmpty() || recentSchedule.isNotEmpty()
+    LaunchedEffect(hasFocusTarget) {
+        if (!hasFocusTarget || !initialFocusPending) return@LaunchedEffect
+        delay(2_000)
+        initialFocusPending = false
+    }
+
+    val focusContinue = idle && initialFocusPending && state.continueWatching.isNotEmpty()
+    val focusBanner = idle && initialFocusPending && !focusContinue
 
     LazyColumn(
         modifier = modifier,
