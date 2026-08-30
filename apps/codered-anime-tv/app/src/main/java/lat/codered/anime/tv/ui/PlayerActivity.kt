@@ -3,6 +3,7 @@ package lat.codered.anime.tv.ui
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -30,14 +31,24 @@ import java.util.Locale
 
 class PlayerActivity : ComponentActivity() {
     private val progressHandler = Handler(Looper.getMainLooper())
+    private val controlsHandler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
+    private var topControls: View? = null
+    private var bottomControls: View? = null
     private var seekBar: SeekBar? = null
     private var elapsedText: TextView? = null
     private var durationText: TextView? = null
     private var statusText: TextView? = null
     private var playPauseButton: Button? = null
     private var loading: ProgressBar? = null
+    private var controlsVisible = true
+
+    private val hideControlsRunnable = Runnable {
+        if (player?.isPlaying == true) {
+            setControlsVisible(false)
+        }
+    }
 
     private val progressTicker = object : Runnable {
         override fun run() {
@@ -77,6 +88,7 @@ class PlayerActivity : ComponentActivity() {
             exoPlayer.playWhenReady = true
             progressHandler.post(progressTicker)
             playPauseButton?.requestFocus()
+            scheduleControlsAutoHide()
         }.onFailure {
             closeWithMessage("No se pudo iniciar el reproductor.")
         }
@@ -86,16 +98,19 @@ class PlayerActivity : ComponentActivity() {
         super.onResume()
         player?.play()
         progressHandler.post(progressTicker)
+        scheduleControlsAutoHide()
     }
 
     override fun onPause() {
         progressHandler.removeCallbacks(progressTicker)
+        controlsHandler.removeCallbacks(hideControlsRunnable)
         player?.pause()
         super.onPause()
     }
 
     override fun onDestroy() {
         progressHandler.removeCallbacks(progressTicker)
+        controlsHandler.removeCallbacks(hideControlsRunnable)
         mediaSession?.release()
         player?.release()
         mediaSession = null
@@ -104,9 +119,19 @@ class PlayerActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        val wasHidden = !controlsVisible
+        showControlsTemporarily()
+
         return when (keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER,
-            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_ENTER -> {
+                if (wasHidden) {
+                    true
+                } else {
+                    togglePlayback()
+                    true
+                }
+            }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                 togglePlayback()
                 true
@@ -155,16 +180,19 @@ class PlayerActivity : ComponentActivity() {
                         }
                         updatePlayPauseLabel()
                         updateProgress()
+                        scheduleControlsAutoHide()
                     }
 
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         statusText?.text = if (isPlaying) "Reproduciendo" else "Pausado"
                         updatePlayPauseLabel()
+                        scheduleControlsAutoHide()
                     }
 
                     override fun onPlayerError(error: PlaybackException) {
                         loading?.visibility = View.GONE
                         statusText?.text = "Fuente no compatible"
+                        setControlsVisible(true)
                         Toast.makeText(
                             this@PlayerActivity,
                             "No se pudo reproducir esta fuente.",
@@ -180,6 +208,8 @@ class PlayerActivity : ComponentActivity() {
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             keepScreenOn = true
+            isFocusable = true
+            isFocusableInTouchMode = true
         }
 
         root.addView(PlayerView(this).apply {
@@ -191,8 +221,10 @@ class PlayerActivity : ComponentActivity() {
             )
         })
 
-        root.addView(topOverlay(title))
-        root.addView(bottomControls())
+        topControls = topOverlay(title)
+        bottomControls = bottomControls()
+        root.addView(topControls)
+        root.addView(bottomControls)
 
         loading = ProgressBar(this).apply {
             isIndeterminate = true
@@ -208,18 +240,18 @@ class PlayerActivity : ComponentActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(34), dp(26), dp(34), dp(20))
-            background = verticalScrim(0xD9000000.toInt(), 0x00000000)
+            setPadding(dp(56), dp(34), dp(56), dp(26))
+            background = verticalScrim(0xF2000000.toInt(), 0x00000000)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(150),
+                dp(180),
                 Gravity.TOP,
             )
 
             addView(TextView(this@PlayerActivity).apply {
                 text = title
                 setTextColor(Color.WHITE)
-                textSize = 26f
+                textSize = 29f
                 typeface = Typeface.DEFAULT_BOLD
                 maxLines = 2
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -232,11 +264,11 @@ class PlayerActivity : ComponentActivity() {
     private fun bottomControls(): View {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(34), dp(30), dp(34), dp(34))
-            background = verticalScrim(0x00000000, 0xE6000000.toInt())
+            setPadding(dp(56), dp(54), dp(56), dp(48))
+            background = verticalScrim(0x00000000, 0xF2000000.toInt())
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(300),
+                dp(350),
                 Gravity.BOTTOM,
             )
 
@@ -251,7 +283,7 @@ class PlayerActivity : ComponentActivity() {
             val timeline = LinearLayout(this@PlayerActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(14), 0, dp(10))
+                setPadding(0, dp(16), 0, dp(22))
             }
             elapsedText = timeLabel("0:00")
             durationText = timeLabel("--:--")
@@ -279,6 +311,7 @@ class PlayerActivity : ComponentActivity() {
             val buttons = LinearLayout(this@PlayerActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
+                dividerPadding = dp(10)
             }
             buttons.addView(controlButton("-10s") { seekBy(-10_000) })
             playPauseButton = controlButton("Pausa") { togglePlayback() }
@@ -296,9 +329,29 @@ class PlayerActivity : ComponentActivity() {
             isAllCaps = false
             setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
-            minWidth = dp(138)
-            minHeight = dp(58)
-            setOnClickListener { action() }
+            minWidth = dp(156)
+            minHeight = dp(64)
+            background = buttonBackground(false)
+            stateListAnimator = null
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(64),
+            ).apply {
+                marginStart = dp(8)
+                marginEnd = dp(8)
+            }
+            setOnFocusChangeListener { view, hasFocus ->
+                view.animate()
+                    .scaleX(if (hasFocus) 1.08f else 1f)
+                    .scaleY(if (hasFocus) 1.08f else 1f)
+                    .setDuration(140)
+                    .start()
+                view.background = buttonBackground(hasFocus)
+            }
+            setOnClickListener {
+                showControlsTemporarily()
+                action()
+            }
         }
     }
 
@@ -318,6 +371,7 @@ class PlayerActivity : ComponentActivity() {
             if (it.isPlaying) it.pause() else it.play()
             updatePlayPauseLabel()
             updateProgress()
+            scheduleControlsAutoHide()
         }
     }
 
@@ -333,6 +387,42 @@ class PlayerActivity : ComponentActivity() {
     private fun closeWithMessage(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         finish()
+    }
+
+    private fun showControlsTemporarily() {
+        setControlsVisible(true)
+        scheduleControlsAutoHide()
+    }
+
+    private fun scheduleControlsAutoHide() {
+        controlsHandler.removeCallbacks(hideControlsRunnable)
+        if (player?.isPlaying == true) {
+            controlsHandler.postDelayed(hideControlsRunnable, CONTROLS_HIDE_DELAY_MS)
+        } else {
+            setControlsVisible(true)
+        }
+    }
+
+    private fun setControlsVisible(visible: Boolean) {
+        if (controlsVisible == visible) return
+        controlsVisible = visible
+        listOfNotNull(topControls, bottomControls).forEach { controls ->
+            controls.animate().cancel()
+            controls.visibility = View.VISIBLE
+            controls.animate()
+                .alpha(if (visible) 1f else 0f)
+                .translationY(if (visible) 0f else if (controls == topControls) -dp(20).toFloat() else dp(24).toFloat())
+                .setDuration(if (visible) 160 else 260)
+                .withEndAction {
+                    if (!visible) {
+                        controls.visibility = View.INVISIBLE
+                    }
+                }
+                .start()
+        }
+        if (visible) {
+            playPauseButton?.requestFocus()
+        }
     }
 
     private fun updatePlayPauseLabel() {
@@ -355,6 +445,27 @@ class PlayerActivity : ComponentActivity() {
         )
     }
 
+    private fun buttonBackground(focused: Boolean): StateListDrawable {
+        val fill = if (focused) 0xFFE11D48.toInt() else 0xA6141A24.toInt()
+        val stroke = if (focused) 0xFFFFB4C8.toInt() else 0x66FFFFFF
+        return StateListDrawable().apply {
+            addState(
+                intArrayOf(android.R.attr.state_focused),
+                roundedDrawable(0xFFE11D48.toInt(), 0xFFFFB4C8.toInt()),
+            )
+            addState(intArrayOf(), roundedDrawable(fill, stroke))
+        }
+    }
+
+    private fun roundedDrawable(fillColor: Int, strokeColor: Int): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(18).toFloat()
+            setColor(fillColor)
+            setStroke(dp(1), strokeColor)
+        }
+    }
+
     private fun formatTime(milliseconds: Long): String {
         val totalSeconds = milliseconds / 1_000
         val hours = totalSeconds / 3_600
@@ -370,6 +481,7 @@ class PlayerActivity : ComponentActivity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
+        private const val CONTROLS_HIDE_DELAY_MS = 4_000L
         const val EXTRA_STREAM_URL = "lat.codered.anime.tv.extra.STREAM_URL"
         const val EXTRA_TITLE = "lat.codered.anime.tv.extra.TITLE"
         const val EXTRA_REFERER = "lat.codered.anime.tv.extra.REFERER"
