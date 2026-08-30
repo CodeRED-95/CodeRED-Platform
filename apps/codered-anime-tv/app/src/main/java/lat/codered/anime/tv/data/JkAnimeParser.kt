@@ -2,8 +2,11 @@ package lat.codered.anime.tv.data
 
 import lat.codered.anime.tv.domain.Anime
 import lat.codered.anime.tv.domain.Episode
+import lat.codered.anime.tv.domain.ScheduleDay
+import lat.codered.anime.tv.domain.ScheduleEntry
 import lat.codered.anime.tv.domain.Server
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import java.net.URI
 import java.util.Locale
 
@@ -17,19 +20,21 @@ class JkAnimeParser {
             val slug = slugFromUrl(link.absUrl("href"), baseUrl) ?: return@forEach
             if (slug in results || isNavigationSlug(slug)) return@forEach
 
-            val title = cleanText(
-                card.selectFirst(".anime__item__text h5 a, h5 a, a[title]")?.attr("title")
-                    ?: card.selectFirst(".anime__item__text h5 a, h5 a")?.text()
-                    ?: link.attr("title")
-                    ?: link.text(),
-            )
-            if (title.isBlank()) return@forEach
+            // Jsoup devuelve "" (no null) cuando el atributo no existe, asi que
+            // encadenar con ?: dejaba el titulo vacio y descartaba la tarjeta.
+            val title = firstNotBlank(
+                card.selectFirst(".anime__item__text h5 a, h5 a")?.text(),
+                card.selectFirst("a[title]")?.attr("title"),
+                link.attr("title"),
+                link.text(),
+            ) ?: return@forEach
 
             results[slug] = Anime(
                 id = "jkanime:$slug",
                 slug = slug,
                 title = title,
-                posterUrl = card.selectFirst("img")?.absUrl("src")?.ifBlank { null },
+                posterUrl = cardImageUrl(card),
+                status = firstNotBlank(card.selectFirst(".anime__item__text ul li")?.text()),
             )
         }
 
@@ -39,8 +44,7 @@ class JkAnimeParser {
             if (!looksLikeSearchResult(link.parent()?.className().orEmpty(), link.attr("class"))) return@forEach
 
             val image = link.selectFirst("img")
-            val title = cleanText(link.attr("title").ifBlank { image?.attr("alt").orEmpty() }.ifBlank { link.text() })
-            if (title.isBlank()) return@forEach
+            val title = firstNotBlank(link.attr("title"), image?.attr("alt"), link.text()) ?: return@forEach
 
             results[slug] = Anime(
                 id = "jkanime:$slug",
@@ -130,6 +134,47 @@ class JkAnimeParser {
         return results.values.toList()
     }
 
+    /**
+     * Top de votados (/top): tarjetas `.toplist` con el puesto en
+     * `.ranking[data-rank]` y los votos en `.card-badge`.
+     */
+    fun parseTop(html: String, baseUrl: String): List<Anime> {
+        val document = Jsoup.parse(html, baseUrl)
+        val results = linkedMapOf<String, Anime>()
+
+        document.select(".toplist").forEach { card ->
+            val link = card.selectFirst("a[href]") ?: return@forEach
+            val slug = slugFromUrl(link.absUrl("href"), baseUrl) ?: return@forEach
+            if (isNavigationSlug(slug)) return@forEach
+
+            val image = card.selectFirst("img")
+            val title = firstNotBlank(
+                card.selectFirst(".card-title")?.text(),
+                image?.attr("alt"),
+            ) ?: return@forEach
+
+            val rank = card.selectFirst(".ranking")?.attr("data-rank")?.toIntOrNull()
+            val votes = card.selectFirst(".card-badge")?.text()
+                ?.let { Regex("(\\d[\\d.,]*)").find(it)?.value }
+                ?.replace(Regex("[.,]"), "")
+                ?.toIntOrNull()
+
+            results[slug] = Anime(
+                id = "jkanime:$slug",
+                slug = slug,
+                title = title,
+                description = firstNotBlank(card.selectFirst(".card-synopsis")?.text()),
+                posterUrl = cardImageUrl(card),
+                topRank = rank,
+                topVotes = votes,
+            )
+        }
+
+        // El orden del documento ya es el del ranking, pero si el puesto viene
+        // en el marcado se respeta por si el proveedor lo reordena.
+        return results.values.sortedBy { it.topRank ?: Int.MAX_VALUE }
+    }
+
     fun parseSchedule(html: String, baseUrl: String): List<Anime> {
         val document = Jsoup.parse(html, baseUrl)
         val results = linkedMapOf<String, Anime>()
@@ -176,6 +221,57 @@ class JkAnimeParser {
         }
 
         return results.values.toList()
+    }
+
+    /**
+     * Horario semanal (/horario): un bloque `.box.semana` por dia, con un `h2`
+     * que lo nombra y tarjetas `.cajas > .box.img`. La pagina incluye un bloque
+     * extra de busqueda sin dia valido, que se descarta.
+     */
+    fun parseWeeklySchedule(html: String, baseUrl: String): List<ScheduleEntry> {
+        val document = Jsoup.parse(html, baseUrl)
+        val entries = linkedMapOf<String, ScheduleEntry>()
+
+        document.select(".box.semana").forEach { block ->
+            val day = ScheduleDay.fromLabel(cleanText(block.selectFirst("h2")?.text().orEmpty()))
+                ?: return@forEach
+
+            block.select(".cajas > .box").forEach { card ->
+                val link = card.selectFirst("a[href]") ?: return@forEach
+                val slug = slugFromUrl(link.absUrl("href"), baseUrl) ?: return@forEach
+                if (isNavigationSlug(slug)) return@forEach
+
+                val image = card.selectFirst("img")
+                // El h3 llega recortado con puntos suspensivos; el title de la
+                // imagen trae el nombre completo.
+                val title = cleanText(
+                    image?.attr("title")?.takeIf { it.isNotBlank() }
+                        ?: card.selectFirst("h3")?.text()
+                        ?: card.attr("title"),
+                )
+                if (title.isBlank()) return@forEach
+
+                val lastText = cleanText(card.selectFirst(".last span")?.text().orEmpty())
+                val lastEpisode = Regex("(\\d+)").find(lastText)?.value?.toIntOrNull()
+                val relative = cleanText(card.selectFirst(".last time")?.text().orEmpty()).ifBlank { null }
+
+                val key = "${day.name}:$slug"
+                entries[key] = ScheduleEntry(
+                    anime = Anime(
+                        id = "jkanime:$slug",
+                        slug = slug,
+                        title = title,
+                        posterUrl = image?.absUrl("src")?.ifBlank { null },
+                        episodeCount = lastEpisode,
+                    ),
+                    day = day,
+                    lastEpisode = lastEpisode,
+                    relativeTime = relative,
+                )
+            }
+        }
+
+        return entries.values.toList()
     }
 
     fun parseEpisodes(body: String, slug: String): Pair<List<Episode>, Int?> {
@@ -319,11 +415,53 @@ class JkAnimeParser {
 
     private fun looksLikeSearchResult(parentClass: String, linkClass: String): Boolean {
         val haystack = "$parentClass $linkClass".lowercase(Locale.ROOT)
+        // El menu del sitio usa clases como "mobile-bottom-nav__item", que
+        // contienen "item" y colaban Horario, Comunidad o Historial como si
+        // fueran resultados de busqueda.
+        if (listOf("nav", "menu", "footer", "header", "sidebar").any { haystack.contains(it) }) return false
         return listOf("anime", "item", "card", "result", "poster").any { haystack.contains(it) }
     }
 
     private fun isNavigationSlug(slug: String): Boolean {
-        return slug in setOf("directorio", "programacion", "ultimos-episodios", "peliculas", "ovas", "especiales")
+        return slug in setOf(
+            "directorio",
+            "programacion",
+            "ultimos-episodios",
+            "peliculas",
+            "ovas",
+            "especiales",
+            "horario",
+            "comunidad",
+            "aplicacion",
+            "historial",
+            "buscar",
+            "inicio",
+            "perfil",
+            "registro",
+            "login",
+            "logout",
+            "contacto",
+            "privacidad",
+            "terminos",
+            "mas",
+        )
+    }
+
+    /** Primer valor con contenido real, ya limpio. */
+    private fun firstNotBlank(vararg values: String?): String? {
+        return values.asSequence()
+            .filterNotNull()
+            .map(::cleanText)
+            .firstOrNull { it.isNotBlank() }
+    }
+
+    /**
+     * Las tarjetas del buscador no traen <img>: la portada viaja en el atributo
+     * data-setbg del contenedor con la imagen de fondo.
+     */
+    private fun cardImageUrl(card: Element): String? {
+        card.selectFirst("img")?.absUrl("src")?.takeIf { it.isNotBlank() }?.let { return it }
+        return card.selectFirst("[data-setbg]")?.attr("data-setbg")?.takeIf { it.isNotBlank() }
     }
 
     private fun firstIntAfterLabel(html: String, label: String): Int? {

@@ -11,6 +11,8 @@ data class Anime(
     val scheduleEpisode: Int? = null,
     val scheduleLabel: String? = null,
     val scheduleCategory: String? = null,
+    val topRank: Int? = null,
+    val topVotes: Int? = null,
 )
 
 data class WatchProgress(
@@ -23,6 +25,37 @@ data class WatchProgress(
     val watched: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis(),
 )
+
+/** Una emision del horario semanal de JkAnime (pagina /horario). */
+data class ScheduleEntry(
+    val anime: Anime,
+    val day: ScheduleDay,
+    val lastEpisode: Int? = null,
+    val relativeTime: String? = null,
+)
+
+enum class ScheduleDay(val label: String) {
+    Monday("Lunes"),
+    Tuesday("Martes"),
+    Wednesday("Miercoles"),
+    Thursday("Jueves"),
+    Friday("Viernes"),
+    Saturday("Sabado"),
+    Sunday("Domingo");
+
+    companion object {
+        /** Acepta el texto del proveedor con o sin acentos ("Miercoles"/"Miercoles"). */
+        fun fromLabel(value: String): ScheduleDay? {
+            val needle = value.trim().lowercase()
+                .replace('\u00e1', 'a')
+                .replace('\u00e9', 'e')
+                .replace('\u00ed', 'i')
+                .replace('\u00f3', 'o')
+                .replace('\u00fa', 'u')
+            return entries.firstOrNull { it.label.lowercase() == needle }
+        }
+    }
+}
 
 data class HomeShelves(
     val newlyAdded: List<Anime> = emptyList(),

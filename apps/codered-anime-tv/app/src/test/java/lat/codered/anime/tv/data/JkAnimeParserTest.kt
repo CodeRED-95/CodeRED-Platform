@@ -2,6 +2,7 @@ package lat.codered.anime.tv.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import lat.codered.anime.tv.domain.ScheduleDay
 import org.junit.Test
 
 class JkAnimeParserTest {
@@ -164,5 +165,81 @@ class JkAnimeParserTest {
 
         assertEquals(listOf("Desu", "Magi"), servers.map { it.name })
         assertEquals("https://jkanime.net/jkplayer/um?e=abc&t=token&op=123", servers.first().url)
+    }
+
+    @Test
+    fun parsesWeeklyScheduleByDay() {
+        // Estructura real de jkanime.net/horario: un bloque por dia mas un
+        // bloque extra de busqueda que no corresponde a ningun dia.
+        val html = """
+            <html><body>
+              <div class="box semana">
+                <h2><i class="ti ti-calendar-clock"></i> Miércoles</h2>
+                <div class="cajas">
+                  <div title="one piece" class="box img">
+                    <div class="boxx">
+                      <a href="https://jkanime.net/one-piece/">
+                        <img title="One Piece" src="https://cdn.test/one-piece.jpg">
+                      </a>
+                      <a class="shadowTitle" href="https://jkanime.net/one-piece/"><h3>One Pie...</h3></a>
+                    </div>
+                    <div class="last">
+                      <a href="https://jkanime.net/one-piece/">
+                        <span>Último capítulo: 1175 </span>
+                        <time>hace 5 horas </time>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="box semana">
+                <h2>Buscar anime</h2>
+                <div class="cajas"></div>
+              </div>
+            </body></html>
+        """.trimIndent()
+
+        val entries = parser.parseWeeklySchedule(html, "https://jkanime.net")
+
+        assertEquals(1, entries.size)
+        val entry = entries.first()
+        assertEquals(ScheduleDay.Wednesday, entry.day)
+        assertEquals("jkanime:one-piece", entry.anime.id)
+        // El h3 llega recortado; se toma el title completo de la imagen.
+        assertEquals("One Piece", entry.anime.title)
+        assertEquals(1175, entry.lastEpisode)
+        assertEquals("hace 5 horas", entry.relativeTime)
+    }
+
+    @Test
+    fun parsesSearchCardsWithoutTitleAttributeAndIgnoresMenuLinks() {
+        // Marcado real de /buscar: el enlace no lleva atributo title, la portada
+        // va en data-setbg y el menu del sitio usa clases con "item".
+        val html = """
+            <html><body>
+              <div class="anime__item">
+                <a href="https://jkanime.net/one-piece/">
+                  <div class="g-0 anime__item__pic set-bg" data-setbg="https://cdn.test/one-piece.jpg"></div>
+                </a>
+                <div class="anime__item__text">
+                  <ul><li>En emision</li><li class="anime">Serie</li></ul>
+                  <h5><a href="https://jkanime.net/one-piece/">One Piece</a></h5>
+                </div>
+              </div>
+              <div class="fullmenu_container d-bg">
+                <a class="mobile-bottom-nav__item" href="https://jkanime.net/historial">Historial</a>
+                <a class="mobile-bottom-nav__item" href="https://jkanime.net/comunidad">Comunidad</a>
+              </div>
+            </body></html>
+        """.trimIndent()
+
+        val results = parser.parseSearch(html, "https://jkanime.net")
+
+        assertEquals(1, results.size)
+        val anime = results.first()
+        assertEquals("jkanime:one-piece", anime.id)
+        assertEquals("One Piece", anime.title)
+        assertEquals("https://cdn.test/one-piece.jpg", anime.posterUrl)
+        assertEquals("En emision", anime.status)
     }
 }

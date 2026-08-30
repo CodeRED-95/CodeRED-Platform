@@ -39,6 +39,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,6 +50,7 @@ import lat.codered.anime.tv.domain.WatchProgress
 import lat.codered.anime.tv.ui.theme.AnimeColors
 import lat.codered.anime.tv.ui.theme.AnimeShapes
 import lat.codered.anime.tv.ui.theme.AnimeType
+import lat.codered.anime.tv.ui.theme.LocalWindowForm
 import lat.codered.anime.tv.ui.theme.rememberTvFocusState
 import lat.codered.anime.tv.ui.theme.requestFocusSoon
 import lat.codered.anime.tv.ui.theme.tvFocusScale
@@ -199,6 +201,8 @@ fun TvButton(
     modifier: Modifier = Modifier,
     primary: Boolean = true,
     autoFocus: Boolean = false,
+    /** Centra el texto ocupando todo el ancho; solo para botones estirados. */
+    fillWidth: Boolean = false,
 ) {
     val focus = rememberTvFocusState()
     val focusRequester = remember { FocusRequester() }
@@ -237,7 +241,13 @@ fun TvButton(
             color = Color.White,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 13.dp),
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
+                .padding(
+                    horizontal = if (LocalWindowForm.current.isCompact) 14.dp else 20.dp,
+                    vertical = 13.dp,
+                ),
         )
     }
 }
@@ -348,6 +358,19 @@ fun PosterCard(
                         Text("$count EP", style = AnimeType.Label, color = AnimeColors.AccentSoft)
                     }
                 }
+                // Puesto del top de votados, cuando el anime viene de /top.
+                anime.topRank?.let { rank ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .clip(AnimeShapes.Pill)
+                            .background(AnimeColors.Accent)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text("#$rank", style = AnimeType.Label, color = Color.White)
+                    }
+                }
                 if (focus.focused) {
                     Box(
                         modifier = Modifier
@@ -372,7 +395,9 @@ fun PosterCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = anime.status?.takeIf { it.isNotBlank() } ?: "Disponible",
+                text = anime.topVotes?.let { "$it votos" }
+                    ?: anime.status?.takeIf { it.isNotBlank() }
+                    ?: "Disponible",
                 style = AnimeType.Label,
                 color = if (active) AnimeColors.AccentSoft else AnimeColors.TextMuted,
                 maxLines = 1,
@@ -508,6 +533,8 @@ fun EpisodeRow(
         label = "episodeBorder",
     )
 
+    val compact = LocalWindowForm.current.isCompact
+
     LaunchedEffect(autoFocus, episode.id) {
         if (autoFocus) focusRequester.requestFocusSoon()
     }
@@ -555,19 +582,23 @@ fun EpisodeRow(
                     color = if (focus.focused) Color.White else AnimeColors.TextSecondary,
                 )
             }
-            Box(
-                modifier = Modifier
-                    .width(96.dp)
-                    .height(54.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(AnimeColors.SurfaceRaised),
-            ) {
-                AsyncImage(
-                    model = episode.thumbnailUrl,
-                    contentDescription = episode.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
+            // En telefono la miniatura se queda con el ancho que necesita el
+            // titulo del capitulo, asi que se omite.
+            if (!compact) {
+                Box(
+                    modifier = Modifier
+                        .width(96.dp)
+                        .height(54.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(AnimeColors.SurfaceRaised),
+                ) {
+                    AsyncImage(
+                        model = episode.thumbnailUrl,
+                        contentDescription = episode.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
@@ -585,8 +616,8 @@ fun EpisodeRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                TvButton(label = "Reproducir", onClick = onClick)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                TvButton(label = if (compact) "Ver" else "Reproducir", onClick = onClick)
                 TvButton(label = "Visto", onClick = onMarkWatched, primary = false)
             }
         }

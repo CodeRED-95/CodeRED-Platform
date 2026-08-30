@@ -35,14 +35,40 @@ Android TV UI
 
 ## Build
 
-Desde esta carpeta:
+El proyecto genera **dos APK** desde el mismo codigo, uno por formato de
+dispositivo (product flavors `tv` y `mobile`):
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assembleTvDebug :app:assembleMobileDebug
 ```
+
+| Variante | APK | Diferencias |
+|----------|-----|-------------|
+| `tv` | `app/build/outputs/apk/tv/debug/app-tv-debug.apk` | Exige leanback, se anuncia solo en el lanzador de Android TV, lleva banner y actua como receptor del envio desde el movil. Interfaz siempre en modo mando. |
+| `mobile` | `app/build/outputs/apk/mobile/debug/app-mobile-debug.apk` | Exige pantalla tactil, aparece en el lanzador normal y descubre televisores para enviarles capitulos. Interfaz compacta o de tablet segun el ancho. |
+
+Ambas comparten `applicationId`, asi que no pueden convivir en el mismo
+dispositivo; para instalar las dos a la vez (por ejemplo en una tablet de
+pruebas) hay que darle a una un `applicationIdSuffix`. Para publicar en Play
+como multi-APK, cada variante necesita ademas su propio `versionCode`.
+
+Lo que cambia por variante esta en `src/tv/AndroidManifest.xml`,
+`src/mobile/AndroidManifest.xml` y en `BuildConfig.IS_TV_BUILD`.
 
 Si no existe wrapper local, abrir `apps/codered-anime-tv` en Android Studio y
 dejar que genere/sincronice Gradle.
+
+## Enviar a la television
+
+La variante `tv` se anuncia en la red local por NSD (`_coderedtv._tcp`) y
+expone un servidor minimo con `/ping` y `/play`. La variante `mobile` la
+descubre y le manda que anime y capitulo abrir; la television resuelve el
+stream con su propio cliente, que es el unico que envia las cabeceras
+`Referer` y `Origin` que exige el proveedor.
+
+No es Google Cast: no aparece el icono estandar ni funciona con dongles. El
+servidor **no autentica**, asi que cualquiera dentro de la red local puede
+lanzar reproducciones en la television.
 
 ## Seguridad
 

@@ -4,20 +4,25 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import lat.codered.anime.tv.data.JkAnimeClient
+import lat.codered.anime.tv.data.LocalCast
+import lat.codered.anime.tv.data.LocalCastClient
 import lat.codered.anime.tv.data.WatchHistoryStore
 import lat.codered.anime.tv.domain.Anime
 import lat.codered.anime.tv.domain.AnimeResult
 import lat.codered.anime.tv.domain.Episode
+import lat.codered.anime.tv.domain.ScheduleEntry
 import lat.codered.anime.tv.domain.Stream
 import lat.codered.anime.tv.domain.WatchProgress
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class AnimeTvState(
-    val query: String = "one piece",
+    val query: String = "",
     val loading: Boolean = false,
     val message: String? = null,
     val results: List<Anime> = emptyList(),
@@ -35,14 +40,19 @@ data class AnimeTvState(
     val recommended: List<Anime> = emptyList(),
     val directory: List<Anime> = emptyList(),
     val schedule: List<Anime> = emptyList(),
+    val weeklySchedule: List<ScheduleEntry> = emptyList(),
+    val weeklyScheduleLoading: Boolean = false,
     val premieres: List<Anime> = emptyList(),
     val top: List<Anime> = emptyList(),
     val selectedAnimeIsFavorite: Boolean = false,
+    val castReceivers: List<LocalCast.Receiver> = emptyList(),
+    val connectedReceiver: LocalCast.Receiver? = null,
 )
 
 class AnimeTvViewModel(application: Application) : AndroidViewModel(application) {
     private val client = JkAnimeClient()
     private val historyStore = WatchHistoryStore(application.applicationContext)
+    private val castClient = LocalCastClient(application.applicationContext)
 
     private val _state = MutableStateFlow(AnimeTvState())
     val state: StateFlow<AnimeTvState> = _state.asStateFlow()
@@ -98,6 +108,32 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                 }
                 is AnimeResult.Failure -> _state.update {
                     it.copy(loading = false, message = "No se pudo cargar la portada: ${result.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Carga perezosa del horario: es una peticion extra a /horario y solo hace
+     * falta cuando el usuario abre la seccion.
+     */
+    fun loadWeeklySchedule(force: Boolean = false) {
+        val current = state.value
+        if (current.weeklyScheduleLoading) return
+        if (!force && current.weeklySchedule.isNotEmpty()) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(weeklyScheduleLoading = true) }
+            when (val result = client.getWeeklySchedule()) {
+                is AnimeResult.Success -> _state.update {
+                    it.copy(
+                        weeklyScheduleLoading = false,
+                        weeklySchedule = result.value,
+                        message = if (result.value.isEmpty()) "El horario no devolvio emisiones." else it.message,
+                    )
+                }
+                is AnimeResult.Failure -> _state.update {
+                    it.copy(weeklyScheduleLoading = false, message = result.message)
                 }
             }
         }
@@ -229,6 +265,127 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
+    }
+
+    /**
+     * Abre la ficha del anime y reproduce un capitulo concreto. Lo usa el
+     * banner de capitulos recientes, que conoce el numero pero no la lista.
+     */
+    fun playEpisodeNumber(anime: Anime, episodeNumber: Int) {
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    loading = true,
+                    message = "Preparando ${anime.title} episodio $episodeNumber...",
+                    selectedAnime = anime,
+                    selectedAnimeIsFavorite = historyStore.isFavorite(anime.id),
+                    episodes = emptyList(),
+                    stream = null,
+                    playingEpisode = null,
+                    playbackStartPositionMs = 0L,
+                )
+            }
+
+            val detailedAnime = when (val detail = client.getAnime(anime.id)) {
+                is AnimeResult.Success -> detail.value ?: anime
+                is AnimeResult.Failure -> anime
+            }
+
+            when (val result = client.getEpisodes(anime.id)) {
+                is AnimeResult.Success -> {
+                    val episode = result.value.firstOrNull { it.number == episodeNumber }
+                        ?: result.value.maxByOrNull { it.number }
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            selectedAnime = detailedAnime,
+                            selectedAnimeIsFavorite = historyStore.isFavorite(detailedAnime.id),
+                            episodes = result.value,
+                            message = if (episode == null) "No se encontro el capitulo $episodeNumber." else null,
+                        )
+                    }
+                    episode?.let { playEpisode(it) }
+                }
+                is AnimeResult.Failure -> _state.update {
+                    it.copy(loading = false, selectedAnime = detailedAnime, message = result.message)
+                }
+            }
+        }
+    }
+
+    /** Empieza a buscar televisores CodeRED en la red local. */
+    fun startCastDiscovery() {
+        castClient.startDiscovery(
+            onFound = { receiver ->
+                _state.update { current ->
+                    if (current.castReceivers.any { it.host == receiver.host && it.port == receiver.port }) {
+                        current
+                    } else {
+                        current.copy(castReceivers = current.castReceivers + receiver)
+                    }
+                }
+            },
+            onLost = { name ->
+                _state.update { current ->
+                    current.copy(
+                        castReceivers = current.castReceivers.filterNot { it.name == name },
+                        connectedReceiver = current.connectedReceiver?.takeIf { it.name != name },
+                    )
+                }
+            },
+        )
+    }
+
+    fun stopCastDiscovery() {
+        castClient.stopDiscovery()
+    }
+
+    fun toggleCastReceiver(receiver: LocalCast.Receiver?) {
+        _state.update { current ->
+            val next = if (current.connectedReceiver == receiver) null else receiver
+            current.copy(
+                connectedReceiver = next,
+                message = next?.let { "Conectado a ${it.name}." },
+            )
+        }
+    }
+
+    /**
+     * Manda el capitulo a la television conectada. Devuelve false si no habia
+     * receptor, para que la pantalla reproduzca en local.
+     */
+    fun sendToTelevision(anime: Anime, episodeNumber: Int): Boolean {
+        val receiver = state.value.connectedReceiver ?: return false
+        _state.update { it.copy(message = "Enviando a ${receiver.name}...") }
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                castClient.send(
+                    receiver,
+                    LocalCast.PlayRequest(
+                        animeId = anime.id,
+                        slug = anime.slug,
+                        title = anime.title,
+                        posterUrl = anime.posterUrl,
+                        episodeNumber = episodeNumber,
+                    ),
+                )
+            }
+            _state.update {
+                it.copy(
+                    message = if (ok) {
+                        "Capitulo $episodeNumber enviado a ${receiver.name}."
+                    } else {
+                        "No se pudo contactar con ${receiver.name}."
+                    },
+                )
+            }
+        }
+        return true
+    }
+
+    override fun onCleared() {
+        castClient.stopDiscovery()
+        super.onCleared()
     }
 
     fun toggleSelectedFavorite() {

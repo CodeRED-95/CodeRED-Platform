@@ -4,6 +4,7 @@ import lat.codered.anime.tv.domain.Anime
 import lat.codered.anime.tv.domain.AnimeResult
 import lat.codered.anime.tv.domain.Episode
 import lat.codered.anime.tv.domain.HomeShelves
+import lat.codered.anime.tv.domain.ScheduleEntry
 import lat.codered.anime.tv.domain.Server
 import lat.codered.anime.tv.domain.Stream
 import okhttp3.Cookie
@@ -47,19 +48,26 @@ class JkAnimeClient(
     suspend fun getHomeShelves(): AnimeResult<HomeShelves> = io {
         val homeHtml = get(providerUrl("/").toString())
         val directoryHtml = getOrEmpty(providerUrl("/directorio/").toString())
-        val premieresHtml = getOrEmpty(providerUrl("/ultimos-episodios/").toString())
+        val topHtml = getOrEmpty(providerUrl("/top").toString())
         val directory = parser.parseDirectoryAnimes(directoryHtml, config.baseUrl).take(24)
         val recommended = parser.parseRecommended(homeHtml, config.baseUrl).take(24)
         val schedule = parser.parseSchedule(homeHtml, config.baseUrl).take(48)
-        val premieres = parser.parseSearch(premieresHtml, config.baseUrl).ifEmpty { parser.parseRecommended(homeHtml, config.baseUrl) }.take(24)
+        // Top real de votados. Si la pagina falla se cae al comportamiento
+        // anterior para no dejar la seccion vacia.
+        val top = parser.parseTop(topHtml, config.baseUrl).ifEmpty { recommended.ifEmpty { directory } }.take(50)
         HomeShelves(
             newlyAdded = directory.take(20),
             recommended = recommended.take(20),
             directory = directory,
             schedule = schedule,
-            premieres = premieres,
-            top = recommended.ifEmpty { directory }.take(24),
+            // "Estrenos" esta desactivado: no se pide /ultimos-episodios.
+            premieres = emptyList(),
+            top = top,
         )
+    }
+
+    suspend fun getWeeklySchedule(): AnimeResult<List<ScheduleEntry>> = io {
+        parser.parseWeeklySchedule(get(providerUrl("/horario").toString()), config.baseUrl)
     }
 
     suspend fun getEpisodes(animeId: String): AnimeResult<List<Episode>> = io {

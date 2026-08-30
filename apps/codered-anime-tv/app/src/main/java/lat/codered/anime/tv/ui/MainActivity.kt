@@ -1,6 +1,7 @@
 package lat.codered.anime.tv.ui
 
 import android.os.Bundle
+import android.view.WindowManager
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,6 +16,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,8 +29,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
@@ -40,6 +44,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbUp
@@ -49,12 +54,15 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,11 +75,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.util.Calendar
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
+import lat.codered.anime.tv.BuildConfig
+import lat.codered.anime.tv.R
+import kotlinx.coroutines.flow.MutableStateFlow
+import lat.codered.anime.tv.data.LocalCast
+import lat.codered.anime.tv.data.LocalCastServer
 import lat.codered.anime.tv.domain.Anime
 import lat.codered.anime.tv.domain.Episode
+import lat.codered.anime.tv.domain.ScheduleDay
+import lat.codered.anime.tv.domain.ScheduleEntry
 import lat.codered.anime.tv.domain.WatchProgress
 import lat.codered.anime.tv.ui.components.EmptyState
 import lat.codered.anime.tv.ui.components.EpisodeRow
@@ -89,6 +106,10 @@ import lat.codered.anime.tv.ui.theme.AnimeColors
 import lat.codered.anime.tv.ui.theme.AnimeShapes
 import lat.codered.anime.tv.ui.theme.AnimeTvTheme
 import lat.codered.anime.tv.ui.theme.AnimeType
+import lat.codered.anime.tv.ui.theme.LocalAnimeMetrics
+import lat.codered.anime.tv.ui.theme.LocalWindowForm
+import lat.codered.anime.tv.ui.theme.WindowForm
+import lat.codered.anime.tv.ui.theme.metricsFor
 import lat.codered.anime.tv.ui.theme.rememberTvFocusState
 import lat.codered.anime.tv.ui.theme.tvFocusScale
 
@@ -102,41 +123,105 @@ private val RailExpanded = 210.dp
 private val RailGap = 20.dp
 
 class MainActivity : ComponentActivity() {
+    /** Solo en television: escucha ordenes de reproduccion del movil. */
+    private var castServer: LocalCastServer? = null
+    private val castRequests = MutableStateFlow<LocalCast.PlayRequest?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableCodeRedImmersiveMode()
+        // Si el campo de busqueda recibe el foco al arrancar, el teclado del
+        // sistema se comeria media pantalla en un telefono.
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+
+        // El APK de television es el unico que hace de receptor.
+        if (BuildConfig.IS_TV_BUILD) {
+            castServer = LocalCastServer(
+                deviceName = getString(R.string.app_name),
+                onPlay = { request -> castRequests.value = request },
+            ).also { it.start(applicationContext) }
+        }
+
         setContent {
             AnimeTvTheme {
-                AnimeTvApp()
+                AnimeTvApp(castRequests = castRequests)
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        enableCodeRedImmersiveMode()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) enableCodeRedImmersiveMode()
+    }
+
+    override fun onDestroy() {
+        castServer?.stop()
+        castServer = null
+        super.onDestroy()
+    }
 }
 
-private enum class TvSection(val label: String, val icon: ImageVector) {
+private enum class TvSection(
+    val label: String,
+    val icon: ImageVector,
+    /** Desactivada = no aparece en el menu. "Estrenos" esta en pausa. */
+    val enabled: Boolean = true,
+) {
     Home("Inicio", Icons.Filled.Home),
     Continue("Continuar", Icons.Filled.PlayArrow),
     Favorites("Favoritos", Icons.Filled.Favorite),
     Directory("Directorio", Icons.Filled.List),
-    Premieres("Estrenos", Icons.Filled.Star),
+    Premieres("Estrenos", Icons.Filled.Star, enabled = false),
     Top("Top", Icons.Filled.ThumbUp),
-    Schedule("Programacion", Icons.Filled.DateRange),
+    Calendar("Horario", Icons.Filled.DateRange),
+    Schedule("Programacion", Icons.Filled.Notifications),
     Watched("Vistos", Icons.Filled.CheckCircle),
     History("Historial", Icons.Filled.Refresh),
 }
 
 @Composable
-private fun AnimeTvApp(viewModel: AnimeTvViewModel = viewModel()) {
+private fun AnimeTvApp(
+    castRequests: MutableStateFlow<LocalCast.PlayRequest?> = remember { MutableStateFlow(null) },
+    viewModel: AnimeTvViewModel = viewModel(),
+) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var activeSection by remember { mutableStateOf(TvSection.Home) }
     var directoryFilter by remember { mutableStateOf("") }
     var directoryStatus by remember { mutableStateOf<String?>(null) }
-    val playerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    // Numero del capitulo que se envio al reproductor: al volver sirve para
+    // localizar el contiguo cuando el usuario pulsa anterior/siguiente.
+    var launchedEpisodeNumber by remember { mutableStateOf<Int?>(null) }
+    val playerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         viewModel.refreshLocalShelves()
+        val delta = result.data?.getIntExtra(PlayerActivity.EXTRA_RESULT_EPISODE_DELTA, 0) ?: 0
+        val current = launchedEpisodeNumber
+        if (delta != 0 && current != null) {
+            neighbourEpisode(state.episodes, current, delta)?.let { viewModel.playEpisode(it) }
+        }
+    }
+
+    // Ordenes que llegan del movil: abren la ficha y reproducen el capitulo.
+    val castRequest by castRequests.collectAsState()
+    LaunchedEffect(castRequest) {
+        val request = castRequest ?: return@LaunchedEffect
+        castRequests.value = null
+        viewModel.playEpisodeNumber(request.toAnime(), request.episodeNumber)
     }
 
     LaunchedEffect(Unit) {
+        // Dos pasadas: la primera limpia lo que haya, la segunda corrige el foco
+        // que el sistema asigna al primer campo cuando la ventana ya existe (lo
+        // que en tactil abriria el teclado nada mas entrar).
+        focusManager.clearFocus(force = true)
+        withFrameNanos { }
+        withFrameNanos { }
         focusManager.clearFocus(force = true)
     }
 
@@ -164,9 +249,18 @@ private fun AnimeTvApp(viewModel: AnimeTvViewModel = viewModel()) {
             state.playingEpisode?.let { episode ->
                 putExtra(PlayerActivity.EXTRA_EPISODE_NUMBER, episode.number)
                 putExtra(PlayerActivity.EXTRA_EPISODE_TITLE, episode.title)
+                putExtra(
+                    PlayerActivity.EXTRA_HAS_PREVIOUS,
+                    neighbourEpisode(state.episodes, episode.number, -1) != null,
+                )
+                putExtra(
+                    PlayerActivity.EXTRA_HAS_NEXT,
+                    neighbourEpisode(state.episodes, episode.number, 1) != null,
+                )
             }
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
+        launchedEpisodeNumber = state.playingEpisode?.number
         runCatching { playerLauncher.launch(intent) }
             .onFailure {
                 Toast.makeText(context, "No se pudo abrir el reproductor.", Toast.LENGTH_LONG).show()
@@ -179,19 +273,47 @@ private fun AnimeTvApp(viewModel: AnimeTvViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize(),
         color = AnimeColors.Base,
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(AmbientBackground)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().background(AmbientBackground)) {
+            // La television se reconoce por su modo de interfaz; el resto se
+            // reparte por ancho disponible, que es lo que dicta el layout.
+            // La variante de television siempre usa el layout de mando; la de
+            // movil se reparte por ancho para servir tambien a tablets.
+            val form = when {
+                BuildConfig.IS_TV_BUILD -> WindowForm.Television
+                maxWidth < 600.dp -> WindowForm.Compact
+                else -> WindowForm.Medium
+            }
+            val metrics = metricsFor(form)
+
+            // Buscar televisores solo tiene sentido desde el telefono.
+            DisposableEffect(form) {
+                if (!form.isTelevision) viewModel.startCastDiscovery()
+                onDispose { viewModel.stopCastDiscovery() }
+            }
+
+            CompositionLocalProvider(
+                LocalWindowForm provides form,
+                LocalAnimeMetrics provides metrics,
+            ) {
             Box(modifier = Modifier.fillMaxSize().background(AmbientGlow))
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = SafeHorizontal, vertical = SafeVertical),
+                    .padding(horizontal = metrics.safeHorizontal, vertical = metrics.safeVertical),
             ) {
                 if (state.selectedAnime != null) {
                     AnimeDetailScreen(
                         state = state,
+                        viewModel = viewModel,
                         onBack = viewModel::closeDetails,
-                        onPlay = viewModel::playEpisode,
+                        onPlay = { episode ->
+                            // Con television conectada el capitulo se manda alli.
+                            val anime = state.selectedAnime
+                            val sent = anime != null &&
+                                viewModel.sendToTelevision(anime, episode.number)
+                            if (!sent) viewModel.playEpisode(episode)
+                        },
                         onMarkWatched = viewModel::markEpisodeWatched,
                         onToggleFavorite = viewModel::toggleSelectedFavorite,
                         modifier = Modifier.fillMaxSize(),
@@ -213,6 +335,7 @@ private fun AnimeTvApp(viewModel: AnimeTvViewModel = viewModel()) {
                 if (state.loading) {
                     LoadingBadge(modifier = Modifier.align(Alignment.TopEnd))
                 }
+            }
             }
         }
     }
@@ -238,6 +361,32 @@ private fun HomeShell(
         animationSpec = tween(durationMillis = 180),
         label = "railWidth",
     )
+
+    // En movil el carril lateral se cambia por una barra inferior: con el
+    // pulgar se llega antes al borde de abajo que a un rail vertical.
+    if (LocalWindowForm.current.isCompact) {
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SectionContent(
+                state = state,
+                viewModel = viewModel,
+                activeSection = activeSection,
+                onSectionSelected = onSectionSelected,
+                directoryFilter = directoryFilter,
+                onDirectoryFilterChange = onDirectoryFilterChange,
+                directoryStatus = directoryStatus,
+                onDirectoryStatusChange = onDirectoryStatusChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
+            BottomMenu(
+                state = state,
+                activeSection = activeSection,
+                onSectionSelected = onSectionSelected,
+            )
+        }
+        return
+    }
 
     Box(modifier = modifier) {
         // El contenido reserva siempre el ancho contraido: al expandirse el menu
@@ -273,6 +422,59 @@ private fun HomeShell(
     }
 }
 
+/** Navegacion inferior para telefono. */
+@Composable
+private fun BottomMenu(
+    state: AnimeTvState,
+    activeSection: TvSection,
+    onSectionSelected: (TvSection) -> Unit,
+) {
+    val sections = TvSection.values().filter { it.enabled }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = AnimeShapes.Panel,
+        color = AnimeColors.Surface.copy(alpha = 0.96f),
+        border = BorderStroke(1.dp, AnimeColors.Line),
+    ) {
+        LazyRow(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            items(sections, key = { it.name }) { section ->
+                val active = section == activeSection
+                Surface(
+                    onClick = { onSectionSelected(section) },
+                    shape = AnimeShapes.Control,
+                    color = if (active) AnimeColors.SurfaceFocused else Color.Transparent,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .width(66.dp)
+                            .padding(vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        Icon(
+                            imageVector = section.icon,
+                            contentDescription = section.label,
+                            tint = if (active) AnimeColors.Accent else AnimeColors.TextMuted,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = section.label,
+                            style = AnimeType.Label,
+                            color = if (active) Color.White else AnimeColors.TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SideMenu(
     state: AnimeTvState,
@@ -287,6 +489,7 @@ private fun SideMenu(
         TvSection.Directory to directoryPool(state).size,
         TvSection.Premieres to state.premieres.size,
         TvSection.Top to state.top.size,
+        TvSection.Calendar to state.weeklySchedule.size,
         TvSection.Schedule to state.schedule.size,
         TvSection.Watched to state.watchedEpisodes.size,
         TvSection.History to state.history.size,
@@ -300,7 +503,7 @@ private fun SideMenu(
         BrandMark(expanded = expanded)
         Spacer(Modifier.size(16.dp))
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            TvSection.values().forEach { section ->
+            TvSection.values().filter { it.enabled }.forEach { section ->
                 MenuButton(
                     label = section.label,
                     icon = section.icon,
@@ -452,6 +655,10 @@ private fun SectionContent(
     onDirectoryStatusChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    LaunchedEffect(activeSection) {
+        if (activeSection == TvSection.Calendar) viewModel.loadWeeklySchedule()
+    }
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -519,6 +726,13 @@ private fun SectionContent(
                 onSelect = viewModel::selectAnime,
                 modifier = Modifier.weight(1f),
             )
+            TvSection.Calendar -> WeeklySchedulePage(
+                entries = state.weeklySchedule,
+                loading = state.weeklyScheduleLoading,
+                selected = state.selectedAnime,
+                onSelect = viewModel::selectAnime,
+                modifier = Modifier.weight(1f),
+            )
             TvSection.Schedule -> SchedulePage(
                 title = "Programacion",
                 subtitle = "La seccion Programacion de la portada de JkAnime.",
@@ -569,18 +783,38 @@ private fun MessageBanner(message: String) {
 
 @Composable
 private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modifier: Modifier = Modifier) {
-    val featured = state.premieres.firstOrNull() ?: state.top.firstOrNull() ?: state.newlyAdded.firstOrNull()
+    val recentSchedule = state.schedule.todayOrYesterdaySchedule()
+    val featured = state.top.firstOrNull() ?: state.newlyAdded.firstOrNull()
+    // El foco de arranque va a lo primero accionable: retomar lo que estabas
+    // viendo, y si no hay nada guardado, al banner de capitulos recientes.
+    // Pedir foco en tactil no aporta nada y, peor, abre el teclado del sistema
+    // en cuanto el campo de busqueda lo recibe.
+    val idle = state.selectedAnime == null && state.stream == null && !LocalWindowForm.current.isCompact
+    val focusContinue = idle && state.continueWatching.isNotEmpty()
+    val focusBanner = idle && !focusContinue
 
     LazyColumn(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        featured?.let { anime ->
+        if (recentSchedule.isNotEmpty()) {
             item {
-                FeaturedHero(
-                    anime = anime,
-                    onSelect = { viewModel.selectAnime(anime) },
+                RecentEpisodesBanner(
+                    items = recentSchedule,
+                    autoFocus = focusBanner,
+                    onDetails = viewModel::selectAnime,
+                    onPlay = { anime, episode -> viewModel.playEpisodeNumber(anime, episode) },
                 )
+            }
+        } else {
+            featured?.let { anime ->
+                item {
+                    FeaturedHero(
+                        anime = anime,
+                        autoFocus = focusBanner,
+                        onSelect = { viewModel.selectAnime(anime) },
+                    )
+                }
             }
         }
 
@@ -593,11 +827,11 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
                     onSelect = viewModel::resume,
                     badge = { "Episodio ${it.episodeNumber}" },
                     caption = { "Continua en ${formatWatchTime(it.positionMs)}" },
+                    autoFocusFirst = focusContinue,
                 )
             }
         }
 
-        val recentSchedule = state.schedule.todayOrYesterdaySchedule()
         if (recentSchedule.isNotEmpty()) {
             item {
                 HomeScheduleShelf(
@@ -608,23 +842,11 @@ private fun HomeDashboard(state: AnimeTvState, viewModel: AnimeTvViewModel, modi
             }
         }
 
-        if (state.premieres.isNotEmpty()) {
-            item {
-                AnimeShelf(
-                    title = "Estrenos",
-                    subtitle = "Lo mas reciente detectado.",
-                    items = state.premieres,
-                    selected = state.selectedAnime,
-                    onSelect = viewModel::selectAnime,
-                )
-            }
-        }
-
         if (state.top.isNotEmpty()) {
             item {
                 AnimeShelf(
-                    title = "Top",
-                    subtitle = "Accesos rapidos a destacados.",
+                    title = "Top animes",
+                    subtitle = "Los mas votados en JkAnime.",
                     items = state.top,
                     selected = state.selectedAnime,
                     onSelect = viewModel::selectAnime,
@@ -677,16 +899,24 @@ private fun HomeScheduleShelf(items: List<Anime>, selected: Anime?, onSelect: (A
             subtitle = "Capitulos publicados hoy y ayer en JkAnime.",
         )
 
-        LazyRow(
+        // Tres filas: cabe mucho mas catalogo sin obligar a recorrer una fila
+        // interminable con el mando.
+        // En telefono tres filas dejarian el resto del inicio fuera de pantalla.
+        val rows = if (LocalWindowForm.current.isCompact) 2 else HomeScheduleRows
+        LazyHorizontalGrid(
+            rows = GridCells.Fixed(rows),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(HomeScheduleRowHeight * rows + 24.dp),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(items, key = { "${it.slug}:${it.scheduleEpisode}:${it.scheduleLabel}:home" }) { anime ->
-                ScheduleCard(
+            gridItems(items, key = { "${it.slug}:${it.scheduleEpisode}:${it.scheduleLabel}:home" }) { anime ->
+                ScheduleCompactCard(
                     anime = anime,
                     selected = anime.id == selected?.id,
                     onClick = { onSelect(anime) },
-                    modifier = Modifier.width(268.dp),
                 )
             }
         }
@@ -699,7 +929,7 @@ private fun FeaturedHero(anime: Anime, onSelect: () -> Unit, autoFocus: Boolean 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(168.dp)
+            .height(LocalAnimeMetrics.current.bannerHeight)
             .clip(AnimeShapes.Panel)
             .background(AnimeColors.Surface),
     ) {
@@ -893,6 +1123,198 @@ private fun AnimeGridPage(
 }
 
 @Composable
+private fun WeeklySchedulePage(
+    entries: List<ScheduleEntry>,
+    loading: Boolean,
+    selected: Anime?,
+    onSelect: (Anime) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val today = remember { currentScheduleDay() }
+    var day by remember(today) { mutableStateOf<ScheduleDay?>(today) }
+    val byDay = remember(entries) { entries.groupBy { it.day } }
+    val visibleDays = remember(day) { day?.let { listOf(it) } ?: ScheduleDay.entries.toList() }
+    val listState = rememberLazyListState()
+
+    // Al cambiar de dia la lista conservaba el desplazamiento anterior y se
+    // abria por la mitad de otra jornada.
+    LaunchedEffect(day) {
+        listState.scrollToItem(0)
+    }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        SectionHeader(
+            title = "Horario semanal",
+            subtitle = "Dia de estreno de cada capitulo segun JkAnime.",
+        )
+
+        // Lista de dias: la semana completa mas una vista de agenda.
+        // En pantallas estrechas los siete dias no caben en una fila fija.
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 4.dp),
+        ) {
+            items(ScheduleDay.entries.toList(), key = { it.name }) { value ->
+                TvChip(
+                    label = if (value == today) "${value.label} - HOY" else value.label,
+                    selected = day == value,
+                ) { day = value }
+            }
+            item(key = "week") {
+                TvChip("Semana", selected = day == null) { day = null }
+            }
+        }
+
+        when {
+            loading && entries.isEmpty() -> EmptyState("Cargando horario...", modifier = Modifier.fillMaxWidth())
+            entries.isEmpty() -> EmptyState("El horario no esta disponible ahora mismo.", modifier = Modifier.fillMaxWidth())
+            else -> LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                visibleDays.forEach { value ->
+                    val dayEntries = byDay[value].orEmpty()
+                    // En vista de agenda se rotula cada dia; con un dia elegido
+                    // el chip ya dice cual es y el titulo sobraria.
+                    if (day == null) {
+                        item(key = "header-${value.name}") {
+                            DayHeader(day = value, today = value == today, count = dayEntries.size)
+                        }
+                    }
+                    if (dayEntries.isEmpty()) {
+                        item(key = "empty-${value.name}") {
+                            EmptyState("Sin estrenos anunciados para ${value.label}.")
+                        }
+                    } else {
+                        items(dayEntries, key = { "${value.name}:${it.anime.slug}" }) { entry ->
+                            ScheduleEntryRow(
+                                entry = entry,
+                                selected = entry.anime.id == selected?.id,
+                                // Con un dia elegido el chip ya lo indica; el dia
+                                // solo aporta en la vista de semana completa.
+                                showDay = day == null,
+                                onClick = { onSelect(entry.anime) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayHeader(day: ScheduleDay, today: Boolean, count: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = day.label.uppercase(),
+            style = AnimeType.Label,
+            color = if (today) AnimeColors.Accent else AnimeColors.TextSecondary,
+        )
+        if (today) Badge("HOY", AnimeColors.Accent)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(AnimeColors.Line),
+        )
+        Text(
+            text = if (count == 1) "1 estreno" else "$count estrenos",
+            style = AnimeType.Label,
+            color = AnimeColors.TextMuted,
+        )
+    }
+}
+
+@Composable
+private fun ScheduleEntryRow(
+    entry: ScheduleEntry,
+    selected: Boolean,
+    showDay: Boolean,
+    onClick: () -> Unit,
+) {
+    val focus = rememberTvFocusState()
+    val active = selected || focus.focused
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(96.dp)
+            .tvFocusScale(focus.focused, scale = 1.015f, elevation = 12f),
+        shape = AnimeShapes.Card,
+        color = if (focus.focused) AnimeColors.SurfaceFocused else AnimeColors.Surface.copy(alpha = 0.85f),
+        border = BorderStroke(if (active) 2.dp else 1.dp, if (active) AnimeColors.Accent else AnimeColors.Line),
+        interactionSource = focus.interactionSource,
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(56.dp)
+                    .fillMaxHeight()
+                    .clip(AnimeShapes.Poster)
+                    .background(AnimeColors.SurfaceRaised),
+            ) {
+                AsyncImage(
+                    model = entry.anime.posterUrl,
+                    contentDescription = entry.anime.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = entry.anime.title,
+                    style = AnimeType.CardTitle,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                entry.relativeTime?.let {
+                    Text(
+                        text = it,
+                        style = AnimeType.Label,
+                        color = if (active) AnimeColors.AccentSoft else AnimeColors.TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            entry.lastEpisode?.let { Badge("Cap. $it", AnimeColors.Accent) }
+            if (showDay) {
+                Text(
+                    text = entry.day.label,
+                    style = AnimeType.Label,
+                    color = AnimeColors.TextMuted,
+                )
+            }
+        }
+    }
+}
+
+/** Dia de la semana del dispositivo, para preseleccionar la pestana de hoy. */
+private fun currentScheduleDay(): ScheduleDay = when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
+    Calendar.MONDAY -> ScheduleDay.Monday
+    Calendar.TUESDAY -> ScheduleDay.Tuesday
+    Calendar.WEDNESDAY -> ScheduleDay.Wednesday
+    Calendar.THURSDAY -> ScheduleDay.Thursday
+    Calendar.FRIDAY -> ScheduleDay.Friday
+    Calendar.SATURDAY -> ScheduleDay.Saturday
+    else -> ScheduleDay.Sunday
+}
+
+@Composable
 private fun SchedulePage(
     title: String,
     subtitle: String,
@@ -936,6 +1358,183 @@ private fun SchedulePage(
                     anime = anime,
                     selected = anime.id == selected?.id,
                     onClick = { onSelect(anime) },
+                )
+            }
+        }
+    }
+}
+
+private const val HomeScheduleRows = 3
+private val HomeScheduleRowHeight = 92.dp
+
+/** Tarjeta compacta de la parrilla de tres filas. */
+@Composable
+private fun ScheduleCompactCard(anime: Anime, selected: Boolean, onClick: () -> Unit) {
+    val focus = rememberTvFocusState()
+    val active = selected || focus.focused
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .width(LocalAnimeMetrics.current.scheduleCardWidth)
+            .height(HomeScheduleRowHeight)
+            .tvFocusScale(focus.focused, scale = 1.03f, elevation = 14f),
+        shape = AnimeShapes.Card,
+        color = if (focus.focused) AnimeColors.SurfaceFocused else AnimeColors.Surface.copy(alpha = 0.85f),
+        border = BorderStroke(if (active) 2.dp else 1.dp, if (active) AnimeColors.Accent else AnimeColors.Line),
+        interactionSource = focus.interactionSource,
+    ) {
+        Row(
+            modifier = Modifier.padding(9.dp),
+            horizontalArrangement = Arrangement.spacedBy(11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(52.dp)
+                    .fillMaxHeight()
+                    .clip(AnimeShapes.Poster)
+                    .background(AnimeColors.SurfaceRaised),
+            ) {
+                AsyncImage(
+                    model = anime.posterUrl,
+                    contentDescription = anime.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = anime.title,
+                    style = AnimeType.CardTitle,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = listOfNotNull(
+                        anime.scheduleEpisode?.let { "Cap. $it" },
+                        anime.scheduleLabel?.takeIf { it.isNotBlank() },
+                    ).joinToString("  -  ").ifBlank { anime.scheduleCategory ?: "Programacion" },
+                    style = AnimeType.Label,
+                    color = if (active) AnimeColors.AccentSoft else AnimeColors.TextMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Banner rotativo con los capitulos agregados recientemente. Se detiene
+ * mientras el usuario tiene el foco dentro para no cambiar bajo sus manos.
+ */
+@Composable
+private fun RecentEpisodesBanner(
+    items: List<Anime>,
+    autoFocus: Boolean,
+    onDetails: (Anime) -> Unit,
+    onPlay: (Anime, Int) -> Unit,
+) {
+    val slides = remember(items) { items.take(8) }
+    if (slides.isEmpty()) return
+
+    var index by remember(slides) { mutableStateOf(0) }
+    var hasFocus by remember { mutableStateOf(false) }
+    val current = slides[index.coerceIn(0, slides.lastIndex)]
+
+    LaunchedEffect(slides, hasFocus) {
+        if (hasFocus) return@LaunchedEffect
+        while (true) {
+            delay(9_000)
+            index = (index + 1) % slides.size
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(LocalAnimeMetrics.current.bannerHeight)
+            .clip(AnimeShapes.Panel)
+            .background(AnimeColors.Surface)
+            .onFocusChanged { hasFocus = it.hasFocus },
+    ) {
+        AsyncImage(
+            model = current.posterUrl,
+            contentDescription = current.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        0f to AnimeColors.ScrimStrong,
+                        0.58f to AnimeColors.ScrimSoft,
+                        1f to Color.Transparent,
+                    ),
+                ),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(0f to Color.Transparent, 1f to AnimeColors.ScrimStrong)),
+        )
+
+        val compact = LocalWindowForm.current.isCompact
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxWidth(if (compact) 0.9f else 0.66f)
+                .padding(horizontal = if (compact) 16.dp else 24.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 9.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("CAPITULOS RECIENTES", style = AnimeType.Label, color = AnimeColors.AccentSoft)
+                current.scheduleLabel?.takeIf { it.isNotBlank() }?.let { Badge(it, AnimeColors.Accent) }
+            }
+            Text(
+                text = current.title,
+                style = if (compact) AnimeType.Title else AnimeType.Display,
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!compact) {
+                current.scheduleEpisode?.let {
+                    Text("Capitulo $it disponible", style = AnimeType.Meta, color = AnimeColors.TextSecondary)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                current.scheduleEpisode?.let { episode ->
+                    TvButton(
+                        label = if (compact) "Ver cap. $episode" else "Ver ahora",
+                        onClick = { onPlay(current, episode) },
+                        autoFocus = autoFocus,
+                    )
+                }
+                if (!compact) {
+                    TvButton(label = "Detalles", onClick = { onDetails(current) }, primary = false)
+                }
+            }
+        }
+
+        // Indicadores: dicen cuantos capitulos hay y cual se esta mostrando.
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            slides.forEachIndexed { position, _ ->
+                Box(
+                    modifier = Modifier
+                        .size(width = if (position == index) 18.dp else 7.dp, height = 7.dp)
+                        .clip(AnimeShapes.Pill)
+                        .background(if (position == index) AnimeColors.Accent else Color.White.copy(alpha = 0.35f)),
                 )
             }
         }
@@ -1040,12 +1639,13 @@ private fun AnimeGrid(
         return
     }
 
+    val metrics = LocalAnimeMetrics.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(150.dp),
+        columns = GridCells.Adaptive(metrics.gridMinCell),
         modifier = modifier,
         contentPadding = PaddingValues(bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         gridItems(items, key = { it.id }) { anime ->
             PosterCard(
@@ -1053,7 +1653,7 @@ private fun AnimeGrid(
                 selected = anime.id == selected?.id,
                 onClick = { onSelect(anime) },
                 width = null,
-                posterHeight = 200.dp,
+                posterHeight = metrics.posterHeight,
             )
         }
     }
@@ -1061,6 +1661,27 @@ private fun AnimeGrid(
 
 @Composable
 private fun Header(state: AnimeTvState, viewModel: AnimeTvViewModel, onSearch: () -> Unit = viewModel::search) {
+    // En telefono el titulo se come una franja util: solo queda el buscador.
+    if (LocalWindowForm.current.isCompact) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = viewModel::updateQuery,
+                singleLine = true,
+                label = { Text("Buscar anime") },
+                colors = tvTextFieldColors(),
+                shape = AnimeShapes.Control,
+                modifier = Modifier.weight(1f),
+            )
+            TvButton(label = "Buscar", onClick = onSearch)
+        }
+        return
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -1112,6 +1733,7 @@ private fun tvTextFieldColors() = OutlinedTextFieldDefaults.colors(
 @Composable
 private fun AnimeDetailScreen(
     state: AnimeTvState,
+    viewModel: AnimeTvViewModel,
     onBack: () -> Unit,
     onPlay: (Episode) -> Unit,
     onMarkWatched: (Episode) -> Unit,
@@ -1119,6 +1741,21 @@ private fun AnimeDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     val anime = state.selectedAnime ?: return
+
+    if (LocalWindowForm.current.isCompact) {
+        CompactDetailScreen(
+            state = state,
+            viewModel = viewModel,
+            anime = anime,
+            onBack = onBack,
+            onPlay = onPlay,
+            onMarkWatched = onMarkWatched,
+            onToggleFavorite = onToggleFavorite,
+            modifier = modifier,
+        )
+        return
+    }
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -1129,7 +1766,7 @@ private fun AnimeDetailScreen(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            TvButton(label = "Volver", onClick = onBack, primary = false, modifier = Modifier.fillMaxWidth())
+            TvButton(label = "Volver", onClick = onBack, primary = false, fillWidth = true, modifier = Modifier.fillMaxWidth())
 
             Box(
                 modifier = Modifier
@@ -1173,6 +1810,7 @@ private fun AnimeDetailScreen(
                 label = if (state.selectedAnimeIsFavorite) "Quitar de favoritos" else "Agregar a favoritos",
                 onClick = onToggleFavorite,
                 primary = state.selectedAnimeIsFavorite.not(),
+                fillWidth = true,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -1189,35 +1827,249 @@ private fun AnimeDetailScreen(
                 MessageBanner(message)
             }
 
-            SectionHeader(
-                title = "Capitulos",
-                subtitle = if (state.episodes.isEmpty()) {
-                    "Cargando lista desde el proveedor."
-                } else {
-                    "${state.episodes.size} capitulos detectados."
-                },
+            EpisodesSection(
+                animeId = anime.id,
+                episodes = state.episodes,
+                onPlay = onPlay,
+                onMarkWatched = onMarkWatched,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             )
+        }
+    }
+}
 
-            if (state.episodes.isEmpty()) {
-                EmptyState("Cargando capitulos o el proveedor todavia no publico episodios para este anime.")
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(9.dp),
-                ) {
-                    items(state.episodes, key = { it.id }) { episode ->
-                        EpisodeRow(
-                            episode = episode,
-                            autoFocus = episode.id == state.episodes.firstOrNull()?.id,
-                            onClick = { onPlay(episode) },
-                            onMarkWatched = { onMarkWatched(episode) },
-                        )
-                    }
+/** Capitulos por pagina. Con mas de una pagina aparece el paginador. */
+private const val EpisodesPerPage = 20
+
+@Composable
+private fun EpisodesSection(
+    animeId: String,
+    episodes: List<Episode>,
+    onPlay: (Episode) -> Unit,
+    onMarkWatched: (Episode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Las series largas se leen mejor por el final: lo que falta por ver esta
+    // arriba. En las cortas el orden natural sigue siendo del 1 en adelante.
+    val newestFirst = episodes.size > EpisodesPerPage
+    val ordered = remember(episodes, newestFirst) {
+        if (newestFirst) episodes.sortedByDescending { it.number } else episodes.sortedBy { it.number }
+    }
+    val pageCount = if (ordered.isEmpty()) 1 else (ordered.size + EpisodesPerPage - 1) / EpisodesPerPage
+    var page by remember(animeId) { mutableStateOf(0) }
+    val safePage = page.coerceIn(0, pageCount - 1)
+    val pageItems = remember(ordered, safePage) {
+        ordered.drop(safePage * EpisodesPerPage).take(EpisodesPerPage)
+    }
+    val listState = rememberLazyListState()
+    val compact = LocalWindowForm.current.isCompact
+
+    LaunchedEffect(safePage, animeId) {
+        listState.scrollToItem(0)
+    }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionHeader(
+            title = "Capitulos",
+            subtitle = when {
+                episodes.isEmpty() -> "Cargando lista desde el proveedor."
+                newestFirst -> "${episodes.size} capitulos - del mas reciente al primero."
+                else -> "${episodes.size} capitulos detectados."
+            },
+        )
+
+        if (episodes.isEmpty()) {
+            EmptyState("Cargando capitulos o el proveedor todavia no publico episodios para este anime.")
+            return@Column
+        }
+
+        if (pageCount > 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Los botones no se ocultan en los extremos: al desaparecer se
+                // llevarian el foco y el recorrido con el mando daria un salto.
+                TvButton(
+                    label = "Anteriores",
+                    onClick = { page = (safePage - 1).coerceAtLeast(0) },
+                    primary = false,
+                )
+                TvButton(
+                    label = "Siguientes",
+                    onClick = { page = (safePage + 1).coerceAtMost(pageCount - 1) },
+                    primary = false,
+                )
+                Pill("Pagina ${safePage + 1} de $pageCount", tone = AnimeColors.AccentSoft)
+                pageItems.firstOrNull()?.let { first ->
+                    val last = pageItems.last()
+                    Pill("Cap. ${first.number} - ${last.number}")
                 }
             }
+        }
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentPadding = PaddingValues(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            items(pageItems, key = { it.id }) { episode ->
+                EpisodeRow(
+                    episode = episode,
+                    autoFocus = !compact && episode.id == pageItems.firstOrNull()?.id,
+                    onClick = { onPlay(episode) },
+                    onMarkWatched = { onMarkWatched(episode) },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Ficha para telefono: cabecera fija y compacta arriba y la lista de capitulos
+ * ocupando el resto, que es lo unico que se recorre de verdad.
+ */
+@Composable
+private fun CompactDetailScreen(
+    state: AnimeTvState,
+    viewModel: AnimeTvViewModel,
+    anime: Anime,
+    onBack: () -> Unit,
+    onPlay: (Episode) -> Unit,
+    onMarkWatched: (Episode) -> Unit,
+    onToggleFavorite: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(92.dp)
+                    .height(132.dp)
+                    .clip(AnimeShapes.Card)
+                    .background(AnimeColors.Surface),
+            ) {
+                AsyncImage(
+                    model = anime.posterUrl,
+                    contentDescription = anime.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(132.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = anime.title,
+                    style = AnimeType.Title,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = listOfNotNull(
+                        anime.status?.takeIf { it.isNotBlank() },
+                        anime.episodeCount?.let { "$it episodios" },
+                    ).joinToString("  -  ").ifBlank { "JkAnime" },
+                    style = AnimeType.Label,
+                    color = AnimeColors.AccentSoft,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                anime.description?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        text = it,
+                        style = AnimeType.Meta,
+                        color = AnimeColors.TextSecondary,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+
+        // Los botones van a lo ancho: dentro de la columna del titulo el texto
+        // se recortaba a la mitad en pantallas de 360dp.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TvButton(
+                label = "Volver",
+                onClick = onBack,
+                primary = false,
+                fillWidth = true,
+                modifier = Modifier.weight(1f),
+            )
+            TvButton(
+                label = if (state.selectedAnimeIsFavorite) "Quitar de favoritos" else "Agregar a favoritos",
+                onClick = onToggleFavorite,
+                primary = state.selectedAnimeIsFavorite.not(),
+                fillWidth = true,
+                modifier = Modifier.weight(1.6f),
+            )
+        }
+
+        state.message?.let { MessageBanner(it) }
+
+        CastBar(
+            receivers = state.castReceivers,
+            connected = state.connectedReceiver,
+            onToggle = viewModel::toggleCastReceiver,
+        )
+
+        EpisodesSection(
+            animeId = anime.id,
+            episodes = state.episodes,
+            onPlay = onPlay,
+            onMarkWatched = onMarkWatched,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+        )
+    }
+}
+
+/**
+ * Selector de television. Cuando hay una conectada, reproducir manda el
+ * capitulo alli en vez de abrir el reproductor del telefono.
+ */
+@Composable
+private fun CastBar(
+    receivers: List<LocalCast.Receiver>,
+    connected: LocalCast.Receiver?,
+    onToggle: (LocalCast.Receiver?) -> Unit,
+) {
+    if (receivers.isEmpty()) return
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (connected == null) "Enviar a:" else "Enviando a:",
+            style = AnimeType.Label,
+            color = AnimeColors.TextMuted,
+        )
+        receivers.forEach { receiver ->
+            TvChip(
+                label = receiver.name,
+                selected = receiver == connected,
+            ) { onToggle(receiver) }
         }
     }
 }
@@ -1266,9 +2118,10 @@ private fun AnimeShelf(
             return@Column
         }
 
+        val metrics = LocalAnimeMetrics.current
         LazyRow(
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (metrics.posterWidth < 130.dp) 10.dp else 16.dp),
         ) {
             items(items, key = { it.id }) { anime ->
                 PosterCard(
@@ -1276,6 +2129,8 @@ private fun AnimeShelf(
                     selected = anime.id == selected?.id,
                     autoFocus = autoFocusFirst && anime.id == items.firstOrNull()?.id,
                     onClick = { onSelect(anime) },
+                    width = metrics.posterWidth,
+                    posterHeight = metrics.posterHeight,
                 )
             }
         }
@@ -1310,6 +2165,18 @@ private fun ProgressShelf(
                 )
             }
         }
+    }
+}
+
+/**
+ * Capitulo contiguo por numero, no por posicion en la lista: el proveedor
+ * devuelve los episodios en orden variable y a veces con huecos.
+ */
+private fun neighbourEpisode(episodes: List<Episode>, currentNumber: Int, delta: Int): Episode? {
+    return if (delta > 0) {
+        episodes.filter { it.number > currentNumber }.minByOrNull { it.number }
+    } else {
+        episodes.filter { it.number < currentNumber }.maxByOrNull { it.number }
     }
 }
 

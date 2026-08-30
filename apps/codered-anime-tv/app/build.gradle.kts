@@ -17,6 +17,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Dos APK del mismo codigo: uno por formato de dispositivo.
+    flavorDimensions += "form"
+
+    productFlavors {
+        create("tv") {
+            dimension = "form"
+            resValue("string", "app_name", "CodeRED Anime TV")
+            buildConfigField("boolean", "IS_TV_BUILD", "true")
+        }
+        create("mobile") {
+            dimension = "form"
+            resValue("string", "app_name", "CodeRED Anime")
+            buildConfigField("boolean", "IS_TV_BUILD", "false")
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true

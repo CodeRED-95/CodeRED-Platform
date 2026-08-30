@@ -10,6 +10,7 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -169,3 +171,70 @@ suspend fun FocusRequester.requestFocusSoon(attempts: Int = 6) {
         if (runCatching { requestFocus() }.isSuccess) return
     }
 }
+
+/**
+ * Forma de la ventana. La app naciendo para television usaba medidas fijas de
+ * apaisado; en movil hay que encoger tarjetas, margenes y navegacion.
+ */
+enum class WindowForm {
+    /** Telefono en vertical: una sola columna, navegacion inferior. */
+    Compact,
+
+    /** Tablet o telefono apaisado. */
+    Medium,
+
+    /** Television: distancias de tres metros y mando. */
+    Television;
+
+    val isCompact: Boolean get() = this == Compact
+    val isTelevision: Boolean get() = this == Television
+}
+
+val LocalWindowForm = compositionLocalOf { WindowForm.Television }
+
+/** Medidas que cambian entre television y movil. */
+data class AnimeMetrics(
+    val safeHorizontal: Dp,
+    val safeVertical: Dp,
+    val posterWidth: Dp,
+    val posterHeight: Dp,
+    val gridMinCell: Dp,
+    val bannerHeight: Dp,
+    val scheduleCardWidth: Dp,
+    val sectionSpacing: Dp,
+)
+
+fun metricsFor(form: WindowForm): AnimeMetrics = when (form) {
+    WindowForm.Compact -> AnimeMetrics(
+        safeHorizontal = 14.dp,
+        safeVertical = 10.dp,
+        posterWidth = 116.dp,
+        posterHeight = 158.dp,
+        gridMinCell = 108.dp,
+        bannerHeight = 168.dp,
+        scheduleCardWidth = 250.dp,
+        sectionSpacing = 14.dp,
+    )
+    WindowForm.Medium -> AnimeMetrics(
+        safeHorizontal = 24.dp,
+        safeVertical = 16.dp,
+        posterWidth = 140.dp,
+        posterHeight = 188.dp,
+        gridMinCell = 132.dp,
+        bannerHeight = 190.dp,
+        scheduleCardWidth = 300.dp,
+        sectionSpacing = 16.dp,
+    )
+    WindowForm.Television -> AnimeMetrics(
+        safeHorizontal = 44.dp,
+        safeVertical = 26.dp,
+        posterWidth = 160.dp,
+        posterHeight = 202.dp,
+        gridMinCell = 150.dp,
+        bannerHeight = 206.dp,
+        scheduleCardWidth = 330.dp,
+        sectionSpacing = 20.dp,
+    )
+}
+
+val LocalAnimeMetrics = compositionLocalOf { metricsFor(WindowForm.Television) }

@@ -10,7 +10,15 @@ import org.json.JSONObject
 class WatchHistoryStore(context: Context) {
     private val prefs = context.getSharedPreferences("codered_anime_history", Context.MODE_PRIVATE)
 
-    fun continueWatching(): List<WatchProgress> = readAll().sortedByDescending { it.updatedAt }.take(12)
+    /**
+     * Una tarjeta por anime: la del capitulo reproducido mas recientemente.
+     * Antes cada episodio ocupaba su propia tarjeta y la misma serie aparecia
+     * repetida varias veces en "Continuar viendo".
+     */
+    fun continueWatching(): List<WatchProgress> = readAll()
+        .sortedByDescending { it.updatedAt }
+        .distinctBy { it.anime.id }
+        .take(12)
 
     fun history(): List<WatchProgress> = readAll().sortedByDescending { it.updatedAt }.take(24)
 
