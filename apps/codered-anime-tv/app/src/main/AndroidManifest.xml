@@ -17,6 +17,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CodeRedAnimeTv">
         <activity
+            android:name=".ui.PlayerActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.CodeRedAnimeTv" />
+        <activity
             android:name=".ui.MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize"
             android:exported="true">

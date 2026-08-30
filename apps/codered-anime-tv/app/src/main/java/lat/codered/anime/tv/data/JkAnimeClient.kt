@@ -3,12 +3,16 @@ package lat.codered.anime.tv.data
 import lat.codered.anime.tv.domain.Anime
 import lat.codered.anime.tv.domain.AnimeResult
 import lat.codered.anime.tv.domain.Episode
+import lat.codered.anime.tv.domain.HomeShelves
 import lat.codered.anime.tv.domain.Server
 import lat.codered.anime.tv.domain.Stream
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.FormBody
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
@@ -17,10 +21,12 @@ class JkAnimeClient(
     private val parser: JkAnimeParser = JkAnimeParser(),
     httpClient: OkHttpClient? = null,
 ) {
+    private val cookieJar = MemoryCookieJar()
     private val client = httpClient ?: OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .followRedirects(true)
+        .cookieJar(cookieJar)
         .build()
 
     suspend fun search(query: String): AnimeResult<List<Anime>> = io {
@@ -36,6 +42,15 @@ class JkAnimeClient(
     suspend fun getAnime(id: String): AnimeResult<Anime?> = io {
         val slug = parser.slugFromId(id) ?: return@io null
         parser.parseAnime(get(providerUrl("/$slug/").toString()), slug, config.baseUrl)
+    }
+
+    suspend fun getHomeShelves(): AnimeResult<HomeShelves> = io {
+        val homeHtml = get(providerUrl("/").toString())
+        val directoryHtml = get(providerUrl("/directorio/").toString())
+        HomeShelves(
+            newlyAdded = parser.parseDirectoryAnimes(directoryHtml, config.baseUrl).take(20),
+            recommended = parser.parseRecommended(homeHtml, config.baseUrl).take(20),
+        )
     }
 
     suspend fun getEpisodes(animeId: String): AnimeResult<List<Episode>> = io {
@@ -77,6 +92,10 @@ class JkAnimeClient(
     }
 
     private fun fetchEpisodePage(slug: String, externalId: String, page: Int, csrf: String?): Pair<List<Episode>, Int?> {
+        val body = FormBody.Builder().apply {
+            if (!csrf.isNullOrBlank()) add("_token", csrf)
+        }.build()
+
         val request = Request.Builder()
             .url(providerUrl("/ajax/episodes/$externalId/$page"))
             .header("User-Agent", config.userAgent)
@@ -86,7 +105,7 @@ class JkAnimeClient(
             .apply {
                 if (!csrf.isNullOrBlank()) header("X-CSRF-TOKEN", csrf)
             }
-            .post(ByteArray(0).toRequestBody(null))
+            .post(body)
             .build()
 
         client.newCall(request).execute().use { response ->
@@ -98,11 +117,15 @@ class JkAnimeClient(
     private fun resolveServer(server: Server, animeId: String, episode: Int): Stream? {
         if (!isAllowedProviderUrl(server.url) && !isAllowedStreamUrl(server.url)) return null
 
+        val episodeUrl = providerUrl("/${parser.slugFromId(animeId)}/$episode").toString()
         var streamUrl = server.url
+        var streamReferer = episodeUrl
         if (!isDirectStreamUrl(streamUrl)) {
             if (!isAllowedProviderUrl(streamUrl)) return null
-            val html = get(streamUrl, referer = providerUrl("/${parser.slugFromId(animeId)}/$episode").toString())
+            val embedUrl = streamUrl
+            val html = get(embedUrl, referer = episodeUrl)
             streamUrl = parser.firstDirectStreamUrl(html) ?: return null
+            streamReferer = embedUrl
         }
 
         if (!isAllowedStreamUrl(streamUrl) || !isDirectStreamUrl(streamUrl)) return null
@@ -113,6 +136,7 @@ class JkAnimeClient(
             url = streamUrl,
             type = if (format == "m3u8" || format == "m3u") "hls" else "file",
             format = format,
+            headers = playbackHeaders(streamReferer),
         )
     }
 
@@ -149,6 +173,18 @@ class JkAnimeClient(
 
     private fun isAllowedStreamUrl(url: String): Boolean = isAllowedHttpsHost(url, config.streamHosts)
 
+    private fun playbackHeaders(referer: String): Map<String, String> {
+        val origin = runCatching {
+            val uri = URI(referer)
+            "${uri.scheme}://${uri.host}"
+        }.getOrNull()
+
+        return buildMap {
+            put("Referer", referer)
+            if (!origin.isNullOrBlank()) put("Origin", origin)
+        }
+    }
+
     private fun isAllowedHttpsHost(url: String, hosts: Set<String>): Boolean {
         val uri = runCatching { URI(url) }.getOrNull() ?: return false
         return uri.scheme == "https" && uri.host in hosts
@@ -156,8 +192,8 @@ class JkAnimeClient(
 
     private fun isDirectStreamUrl(url: String): Boolean = Regex("\\.(m3u8?|mp4)(?:[?#]|$)", RegexOption.IGNORE_CASE).containsMatchIn(url)
 
-    private suspend fun <T> io(block: () -> T): AnimeResult<T> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        runCatching(block)
+    private suspend fun <T> io(block: suspend () -> T): AnimeResult<T> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching { block() }
             .fold(
                 onSuccess = { AnimeResult.Success(it) },
                 onFailure = { AnimeResult.Failure(it.message ?: "No se pudo consultar JkAnime.", it) },
@@ -165,4 +201,19 @@ class JkAnimeClient(
     }
 
     private fun String.ensureLeadingSlash(): String = if (startsWith("/")) this else "/$this"
+
+    private class MemoryCookieJar : CookieJar {
+        private val cookies = mutableListOf<Cookie>()
+
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+            this.cookies.removeAll { stored -> cookies.any { it.name == stored.name && it.domain == stored.domain } }
+            this.cookies.addAll(cookies)
+        }
+
+        override fun loadForRequest(url: HttpUrl): List<Cookie> {
+            val now = System.currentTimeMillis()
+            cookies.removeAll { it.expiresAt < now }
+            return cookies.filter { it.matches(url) }
+        }
+    }
 }

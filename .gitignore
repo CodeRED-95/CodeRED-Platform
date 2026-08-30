@@ -1,6 +1,7 @@
 /vendor
 /node_modules
 /.idea
+apps/*/.idea/
 /.vscode/*
 !/.vscode/tasks.json
 !/.vscode/settings.json

@@ -10,6 +10,19 @@ data class Anime(
     val status: String? = null,
 )
 
+data class WatchProgress(
+    val anime: Anime,
+    val episodeNumber: Int,
+    val episodeTitle: String,
+    val playCount: Int = 1,
+    val updatedAt: Long = System.currentTimeMillis(),
+)
+
+data class HomeShelves(
+    val newlyAdded: List<Anime> = emptyList(),
+    val recommended: List<Anime> = emptyList(),
+)
+
 data class Episode(
     val id: String,
     val animeId: String,

@@ -1,0 +1,378 @@
+package lat.codered.anime.tv.ui
+
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.KeyEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.SeekBar
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.session.MediaSession
+import androidx.media3.ui.PlayerView
+import java.util.Locale
+
+class PlayerActivity : ComponentActivity() {
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private var player: ExoPlayer? = null
+    private var mediaSession: MediaSession? = null
+    private var seekBar: SeekBar? = null
+    private var elapsedText: TextView? = null
+    private var durationText: TextView? = null
+    private var statusText: TextView? = null
+    private var playPauseButton: Button? = null
+    private var loading: ProgressBar? = null
+
+    private val progressTicker = object : Runnable {
+        override fun run() {
+            updateProgress()
+            progressHandler.postDelayed(this, 1_000)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            )
+
+        val streamUrl = intent.getStringExtra(EXTRA_STREAM_URL)
+        if (streamUrl.isNullOrBlank()) {
+            closeWithMessage("No se recibio una fuente reproducible.")
+            return
+        }
+
+        runCatching {
+            val exoPlayer = buildPlayer()
+            val root = buildPlayerUi(exoPlayer)
+
+            player = exoPlayer
+            mediaSession = runCatching { MediaSession.Builder(this, exoPlayer).build() }.getOrNull()
+            setContentView(root)
+
+            exoPlayer.setMediaItem(MediaItem.fromUri(streamUrl))
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = true
+            progressHandler.post(progressTicker)
+            playPauseButton?.requestFocus()
+        }.onFailure {
+            closeWithMessage("No se pudo iniciar el reproductor.")
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        player?.play()
+        progressHandler.post(progressTicker)
+    }
+
+    override fun onPause() {
+        progressHandler.removeCallbacks(progressTicker)
+        player?.pause()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        progressHandler.removeCallbacks(progressTicker)
+        mediaSession?.release()
+        player?.release()
+        mediaSession = null
+        player = null
+        super.onDestroy()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                togglePlayback()
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT,
+            KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                seekBy(-10_000)
+                true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                seekBy(30_000)
+                true
+            }
+            KeyEvent.KEYCODE_BACK -> {
+                finish()
+                true
+            }
+            else -> super.onKeyDown(keyCode, event)
+        }
+    }
+
+    private fun buildPlayer(): ExoPlayer {
+        val requestHeaders = linkedMapOf<String, String>()
+        intent.getStringExtra(EXTRA_REFERER)?.takeIf { it.isNotBlank() }?.let { requestHeaders["Referer"] = it }
+        intent.getStringExtra(EXTRA_ORIGIN)?.takeIf { it.isNotBlank() }?.let { requestHeaders["Origin"] = it }
+
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("CodeRED-Anime-TV/0.1.0")
+            .setDefaultRequestProperties(requestHeaders)
+
+        return ExoPlayer.Builder(this)
+            .setSeekBackIncrementMs(10_000)
+            .setSeekForwardIncrementMs(30_000)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .build()
+            .apply {
+                addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        loading?.visibility = if (playbackState == Player.STATE_BUFFERING) View.VISIBLE else View.GONE
+                        statusText?.text = when (playbackState) {
+                            Player.STATE_BUFFERING -> "Cargando fuente..."
+                            Player.STATE_READY -> if (isPlaying) "Reproduciendo" else "Pausado"
+                            Player.STATE_ENDED -> "Finalizado"
+                            else -> "Preparando"
+                        }
+                        updatePlayPauseLabel()
+                        updateProgress()
+                    }
+
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        statusText?.text = if (isPlaying) "Reproduciendo" else "Pausado"
+                        updatePlayPauseLabel()
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        loading?.visibility = View.GONE
+                        statusText?.text = "Fuente no compatible"
+                        Toast.makeText(
+                            this@PlayerActivity,
+                            "No se pudo reproducir esta fuente.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                })
+            }
+    }
+
+    private fun buildPlayerUi(player: ExoPlayer): FrameLayout {
+        val title = intent.getStringExtra(EXTRA_TITLE)?.takeIf { it.isNotBlank() } ?: "CodeRED Anime TV"
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            keepScreenOn = true
+        }
+
+        root.addView(PlayerView(this).apply {
+            this.player = player
+            useController = false
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
+        })
+
+        root.addView(topOverlay(title))
+        root.addView(bottomControls())
+
+        loading = ProgressBar(this).apply {
+            isIndeterminate = true
+            visibility = View.VISIBLE
+            layoutParams = FrameLayout.LayoutParams(dp(72), dp(72), Gravity.CENTER)
+        }
+        root.addView(loading)
+
+        return root
+    }
+
+    private fun topOverlay(title: String): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(34), dp(26), dp(34), dp(20))
+            background = verticalScrim(0xD9000000.toInt(), 0x00000000)
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(150),
+                Gravity.TOP,
+            )
+
+            addView(TextView(this@PlayerActivity).apply {
+                text = title
+                setTextColor(Color.WHITE)
+                textSize = 26f
+                typeface = Typeface.DEFAULT_BOLD
+                maxLines = 2
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+
+            addView(controlButton("Cerrar") { finish() })
+        }
+    }
+
+    private fun bottomControls(): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(34), dp(30), dp(34), dp(34))
+            background = verticalScrim(0x00000000, 0xE6000000.toInt())
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(300),
+                Gravity.BOTTOM,
+            )
+
+            statusText = TextView(this@PlayerActivity).apply {
+                text = "Preparando"
+                setTextColor(0xFFFFB4C8.toInt())
+                textSize = 16f
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            addView(statusText)
+
+            val timeline = LinearLayout(this@PlayerActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(14), 0, dp(10))
+            }
+            elapsedText = timeLabel("0:00")
+            durationText = timeLabel("--:--")
+            seekBar = SeekBar(this@PlayerActivity).apply {
+                max = 1_000
+                progress = 0
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                        if (!fromUser) return
+                        val duration = this@PlayerActivity.player?.duration?.takeIf { it > 0 } ?: return
+                        this@PlayerActivity.player?.seekTo(duration * progress / 1_000)
+                    }
+
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+                })
+            }
+
+            timeline.addView(elapsedText)
+            timeline.addView(seekBar)
+            timeline.addView(durationText)
+            addView(timeline)
+
+            val buttons = LinearLayout(this@PlayerActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            buttons.addView(controlButton("-10s") { seekBy(-10_000) })
+            playPauseButton = controlButton("Pausa") { togglePlayback() }
+            buttons.addView(playPauseButton)
+            buttons.addView(controlButton("+30s") { seekBy(30_000) })
+            buttons.addView(controlButton("Inicio") { this@PlayerActivity.player?.seekTo(0) })
+            addView(buttons)
+        }
+    }
+
+    private fun controlButton(label: String, action: () -> Unit): Button {
+        return Button(this).apply {
+            text = label
+            textSize = 17f
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            minWidth = dp(138)
+            minHeight = dp(58)
+            setOnClickListener { action() }
+        }
+    }
+
+    private fun timeLabel(value: String): TextView {
+        return TextView(this).apply {
+            text = value
+            setTextColor(0xFFD8DFF2.toInt())
+            textSize = 15f
+            typeface = Typeface.MONOSPACE
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(82), LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+    }
+
+    private fun togglePlayback() {
+        player?.let {
+            if (it.isPlaying) it.pause() else it.play()
+            updatePlayPauseLabel()
+            updateProgress()
+        }
+    }
+
+    private fun seekBy(deltaMs: Long) {
+        player?.let {
+            val duration = it.duration.takeIf { value -> value > 0 } ?: Long.MAX_VALUE
+            val target = (it.currentPosition + deltaMs).coerceAtLeast(0).coerceAtMost(duration)
+            it.seekTo(target)
+            updateProgress()
+        }
+    }
+
+    private fun closeWithMessage(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        finish()
+    }
+
+    private fun updatePlayPauseLabel() {
+        playPauseButton?.text = if (player?.isPlaying == true) "Pausa" else "Play"
+    }
+
+    private fun updateProgress() {
+        val player = player ?: return
+        val duration = player.duration.takeIf { it > 0 } ?: 0
+        val position = player.currentPosition.coerceAtLeast(0)
+        elapsedText?.text = formatTime(position)
+        durationText?.text = if (duration > 0) formatTime(duration) else "--:--"
+        seekBar?.progress = if (duration > 0) ((position * 1_000) / duration).toInt().coerceIn(0, 1_000) else 0
+    }
+
+    private fun verticalScrim(startColor: Int, endColor: Int): GradientDrawable {
+        return GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(startColor, endColor),
+        )
+    }
+
+    private fun formatTime(milliseconds: Long): String {
+        val totalSeconds = milliseconds / 1_000
+        val hours = totalSeconds / 3_600
+        val minutes = (totalSeconds % 3_600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(Locale.ROOT, "%d:%02d", minutes, seconds)
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    companion object {
+        const val EXTRA_STREAM_URL = "lat.codered.anime.tv.extra.STREAM_URL"
+        const val EXTRA_TITLE = "lat.codered.anime.tv.extra.TITLE"
+        const val EXTRA_REFERER = "lat.codered.anime.tv.extra.REFERER"
+        const val EXTRA_ORIGIN = "lat.codered.anime.tv.extra.ORIGIN"
+    }
+}
