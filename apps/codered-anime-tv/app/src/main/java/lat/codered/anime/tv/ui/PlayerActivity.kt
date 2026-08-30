@@ -1,5 +1,6 @@
 package lat.codered.anime.tv.ui
 
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -30,6 +31,14 @@ import androidx.media3.ui.PlayerView
 import lat.codered.anime.tv.data.WatchHistoryStore
 import lat.codered.anime.tv.domain.Anime
 import java.util.Locale
+
+// Paleta compartida con la interfaz Compose (ui/theme/AnimeTheme.kt).
+private val PlayerAccent = 0xFFFF2E63.toInt()
+private val PlayerAccentDeep = 0xFFE11D48.toInt()
+private val PlayerAccentSoft = 0xFFFFB4C8.toInt()
+private val PlayerSurface = 0xCC0D1524.toInt()
+private val PlayerLine = 0x33FFFFFF
+private val PlayerTextSecondary = 0xFFB4BED4.toInt()
 
 class PlayerActivity : ComponentActivity() {
     private val progressHandler = Handler(Looper.getMainLooper())
@@ -265,7 +274,8 @@ class PlayerActivity : ComponentActivity() {
         loading = ProgressBar(this).apply {
             isIndeterminate = true
             visibility = View.VISIBLE
-            layoutParams = FrameLayout.LayoutParams(dp(72), dp(72), Gravity.CENTER)
+            indeterminateTintList = ColorStateList.valueOf(PlayerAccent)
+            layoutParams = FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER)
         }
         root.addView(loading)
 
@@ -273,25 +283,47 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun topOverlay(title: String): View {
+        val animeTitle = intent.getStringExtra(EXTRA_ANIME_TITLE)?.takeIf { it.isNotBlank() }
+        val episodeNumber = intent.getIntExtra(EXTRA_EPISODE_NUMBER, 0).takeIf { it > 0 }
+        val breadcrumb = listOfNotNull(animeTitle, episodeNumber?.let { "EPISODIO " + it })
+            .joinToString("   /   ")
+            .ifBlank { "CODERED ANIME TV" }
+
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(56), dp(34), dp(56), dp(26))
-            background = verticalScrim(0xF2000000.toInt(), 0x00000000)
+            setPadding(dp(52), dp(30), dp(52), dp(26))
+            background = verticalScrim(0xF2040610.toInt(), 0x00000000)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(180),
+                dp(168),
                 Gravity.TOP,
             )
 
-            addView(TextView(this@PlayerActivity).apply {
-                text = title
-                setTextColor(Color.WHITE)
-                textSize = 29f
-                typeface = Typeface.DEFAULT_BOLD
-                maxLines = 2
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
+            // Jerarquia en dos niveles: contexto arriba, titulo del capitulo abajo.
+            addView(
+                LinearLayout(this@PlayerActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+
+                    addView(TextView(this@PlayerActivity).apply {
+                        text = breadcrumb
+                        setTextColor(PlayerAccentSoft)
+                        textSize = 13f
+                        letterSpacing = 0.14f
+                        typeface = Typeface.DEFAULT_BOLD
+                        maxLines = 1
+                    })
+                    addView(TextView(this@PlayerActivity).apply {
+                        text = title
+                        setTextColor(Color.WHITE)
+                        textSize = 27f
+                        typeface = Typeface.DEFAULT_BOLD
+                        maxLines = 2
+                        setPadding(0, dp(6), 0, 0)
+                    })
+                },
+            )
 
             addView(controlButton("Cerrar") { finish() })
         }
@@ -300,33 +332,47 @@ class PlayerActivity : ComponentActivity() {
     private fun bottomControls(): View {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(56), dp(54), dp(56), dp(48))
-            background = verticalScrim(0x00000000, 0xF2000000.toInt())
+            setPadding(dp(52), dp(46), dp(52), dp(42))
+            background = verticalScrim(0x00000000, 0xF2040610.toInt())
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(350),
+                dp(322),
                 Gravity.BOTTOM,
             )
 
             statusText = TextView(this@PlayerActivity).apply {
                 text = "Preparando"
-                setTextColor(0xFFFFB4C8.toInt())
-                textSize = 16f
+                setTextColor(PlayerAccentSoft)
+                textSize = 13f
+                letterSpacing = 0.14f
                 typeface = Typeface.DEFAULT_BOLD
+                background = roundedDrawable(PlayerSurface, PlayerLine)
+                setPadding(dp(14), dp(7), dp(14), dp(7))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                )
             }
             addView(statusText)
 
             val timeline = LinearLayout(this@PlayerActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(16), 0, dp(22))
+                setPadding(0, dp(18), 0, dp(20))
             }
             elapsedText = timeLabel("0:00")
             durationText = timeLabel("--:--")
             seekBar = SeekBar(this@PlayerActivity).apply {
                 max = 1_000
                 progress = 0
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                // La barra por defecto se pierde sobre el video: se tinta con la marca.
+                progressTintList = ColorStateList.valueOf(PlayerAccent)
+                progressBackgroundTintList = ColorStateList.valueOf(0x59FFFFFF)
+                thumbTintList = ColorStateList.valueOf(PlayerAccentSoft)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(12)
+                    marginEnd = dp(12)
+                }
                 setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                         if (!fromUser) return
@@ -350,7 +396,7 @@ class PlayerActivity : ComponentActivity() {
                 dividerPadding = dp(10)
             }
             buttons.addView(controlButton("-10s") { seekBy(-10_000) })
-            playPauseButton = controlButton("Pausa") { togglePlayback() }
+            playPauseButton = controlButton("Pausa", primary = true) { togglePlayback() }
             buttons.addView(playPauseButton)
             buttons.addView(controlButton("+30s") { seekBy(30_000) })
             buttons.addView(controlButton("Inicio") { this@PlayerActivity.player?.seekTo(0) })
@@ -358,23 +404,23 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
-    private fun controlButton(label: String, action: () -> Unit): Button {
+    private fun controlButton(label: String, primary: Boolean = false, action: () -> Unit): Button {
         return Button(this).apply {
             text = label
-            textSize = 17f
+            textSize = 16f
             isAllCaps = false
             setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
-            minWidth = dp(156)
-            minHeight = dp(64)
-            background = buttonBackground(false)
+            minWidth = dp(148)
+            minHeight = dp(60)
+            background = buttonBackground(focused = false, primary = primary)
             stateListAnimator = null
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                dp(64),
+                dp(60),
             ).apply {
-                marginStart = dp(8)
-                marginEnd = dp(8)
+                marginStart = dp(7)
+                marginEnd = dp(7)
             }
             setOnFocusChangeListener { view, hasFocus ->
                 view.animate()
@@ -382,7 +428,7 @@ class PlayerActivity : ComponentActivity() {
                     .scaleY(if (hasFocus) 1.08f else 1f)
                     .setDuration(140)
                     .start()
-                view.background = buttonBackground(hasFocus)
+                view.background = buttonBackground(hasFocus, primary)
             }
             setOnClickListener {
                 showControlsTemporarily()
@@ -394,11 +440,11 @@ class PlayerActivity : ComponentActivity() {
     private fun timeLabel(value: String): TextView {
         return TextView(this).apply {
             text = value
-            setTextColor(0xFFD8DFF2.toInt())
-            textSize = 15f
+            setTextColor(PlayerTextSecondary)
+            textSize = 14f
             typeface = Typeface.MONOSPACE
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(dp(82), LinearLayout.LayoutParams.WRAP_CONTENT)
+            layoutParams = LinearLayout.LayoutParams(dp(78), LinearLayout.LayoutParams.WRAP_CONTENT)
         }
     }
 
@@ -484,24 +530,28 @@ class PlayerActivity : ComponentActivity() {
         )
     }
 
-    private fun buttonBackground(focused: Boolean): StateListDrawable {
-        val fill = if (focused) 0xFFE11D48.toInt() else 0xA6141A24.toInt()
-        val stroke = if (focused) 0xFFFFB4C8.toInt() else 0x66FFFFFF
+    private fun buttonBackground(focused: Boolean, primary: Boolean = false): StateListDrawable {
+        val fill = when {
+            focused -> PlayerAccent
+            primary -> PlayerAccentDeep
+            else -> PlayerSurface
+        }
+        val stroke = if (focused) PlayerAccentSoft else PlayerLine
         return StateListDrawable().apply {
             addState(
                 intArrayOf(android.R.attr.state_focused),
-                roundedDrawable(0xFFE11D48.toInt(), 0xFFFFB4C8.toInt()),
+                roundedDrawable(PlayerAccent, PlayerAccentSoft, strokeWidth = 2),
             )
             addState(intArrayOf(), roundedDrawable(fill, stroke))
         }
     }
 
-    private fun roundedDrawable(fillColor: Int, strokeColor: Int): GradientDrawable {
+    private fun roundedDrawable(fillColor: Int, strokeColor: Int, strokeWidth: Int = 1): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(18).toFloat()
+            cornerRadius = dp(16).toFloat()
             setColor(fillColor)
-            setStroke(dp(1), strokeColor)
+            setStroke(dp(strokeWidth), strokeColor)
         }
     }
 

@@ -95,6 +95,46 @@ class JkAnimeParserTest {
     }
 
     @Test
+    fun parsesHomeScheduleTabs() {
+        val html = """
+            <div class="tab-content">
+              <div class="tab-pane fade show active" id="animes">
+                <div class="card">
+                  <a href="https://jkanime.net/digimon-beatbreak/45/">
+                    <div class="d-thumb">
+                      <img src="https://cdn.test/jkvideo.jpg" data-animepic="https://cdn.test/digimon.jpg" alt="Digimon Beatbreak - 45">
+                      <div class="badges badges-top">
+                        <span class="badge badge-primary">Ep 45</span>
+                        <span class="badge ml-2 badge-secondary">Hoy</span>
+                      </div>
+                    </div>
+                    <h5 class="strlimit card-title">Digimon Beatbreak</h5>
+                  </a>
+                </div>
+              </div>
+              <div class="tab-pane fade" id="donghuas">
+                <div class="card">
+                  <a href="https://jkanime.net/douluo-dalu-ii-jueshi-tangmen/147/">
+                    <img src="https://cdn.test/douluo-video.jpg" alt="Douluo Dalu II: Jueshi Tangmen - 147">
+                    <div class="badges badges-top"><span class="badge badge-primary">Ep 147</span><span class="badge badge-secondary">Jueves 27</span></div>
+                    <h5 class="strlimit card-title">Douluo Dalu II: Jueshi Tangmen</h5>
+                  </a>
+                </div>
+              </div>
+            </div>
+        """.trimIndent()
+
+        val results = parser.parseSchedule(html, "https://jkanime.net")
+
+        assertEquals(2, results.size)
+        assertEquals("jkanime:digimon-beatbreak", results.first().id)
+        assertEquals(45, results.first().scheduleEpisode)
+        assertEquals("Hoy", results.first().scheduleLabel)
+        assertEquals("Animes", results.first().scheduleCategory)
+        assertEquals("Donghuas", results.last().scheduleCategory)
+    }
+
+    @Test
     fun rejectsInvalidSlugIds() {
         assertNull(parser.slugFromId("https://169.254.169.254/latest"))
     }

@@ -3,7 +3,9 @@
     <style name="Theme.CodeRedAnimeTv" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
-        <item name="android:windowBackground">#070A12</item>
-        <item name="android:colorAccent">#E11D48</item>
+        <item name="android:windowBackground">#04060D</item>
+        <item name="android:colorAccent">#FF2E63</item>
+        <item name="android:textColorPrimary">#F4F6FC</item>
+        <item name="android:textColorSecondary">#B4BED4</item>
     </style>
 </resources>

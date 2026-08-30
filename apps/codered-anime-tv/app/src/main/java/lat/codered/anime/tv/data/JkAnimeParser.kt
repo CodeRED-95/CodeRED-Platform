@@ -130,6 +130,54 @@ class JkAnimeParser {
         return results.values.toList()
     }
 
+    fun parseSchedule(html: String, baseUrl: String): List<Anime> {
+        val document = Jsoup.parse(html, baseUrl)
+        val results = linkedMapOf<String, Anime>()
+
+        listOf("animes" to "Animes", "donghuas" to "Donghuas", "ovas" to "Ovas").forEach { (tabId, category) ->
+            document.select("#$tabId .card a[href]").forEach { link ->
+                val href = link.absUrl("href")
+                val slug = slugFromUrl(href, baseUrl) ?: return@forEach
+                if (isNavigationSlug(slug)) return@forEach
+
+                val image = link.selectFirst("img")
+                val title = cleanText(
+                    link.selectFirst(".card-title")?.text()
+                        ?: image?.attr("alt")?.replace(Regex("\\s+-\\s+\\d+\\s*$"), "")
+                        ?: image?.attr("title")
+                        ?: link.attr("title")
+                        ?: link.text(),
+                )
+                if (title.isBlank()) return@forEach
+
+                val episode = Regex("/${Regex.escape(slug)}/(\\d+)/?", RegexOption.IGNORE_CASE)
+                    .find(href)
+                    ?.groupValues
+                    ?.get(1)
+                    ?.toIntOrNull()
+                    ?: image?.attr("alt")?.let { Regex("\\s+-\\s+(\\d+)\\s*$").find(it)?.groupValues?.get(1)?.toIntOrNull() }
+
+                val badges = link.select(".badges .badge").map { cleanText(it.text()) }.filter { it.isNotBlank() }
+                val label = badges.firstOrNull { !it.startsWith("Ep", ignoreCase = true) }
+
+                val key = "${slug}:${episode ?: 0}:$category"
+                results[key] = Anime(
+                    id = "jkanime:$slug",
+                    slug = slug,
+                    title = title,
+                    posterUrl = image?.absUrl("src")?.ifBlank { image?.attr("data-animepic") }?.ifBlank { null },
+                    episodeCount = episode,
+                    status = label ?: category,
+                    scheduleEpisode = episode,
+                    scheduleLabel = label,
+                    scheduleCategory = category,
+                )
+            }
+        }
+
+        return results.values.toList()
+    }
+
     fun parseEpisodes(body: String, slug: String): Pair<List<Episode>, Int?> {
         val lastPage = Regex("\"last_page\"\\s*:\\s*(\\d+)").find(body)?.groupValues?.get(1)?.toIntOrNull()
         val jsonEpisodes = parseEpisodeJsonData(body, slug)

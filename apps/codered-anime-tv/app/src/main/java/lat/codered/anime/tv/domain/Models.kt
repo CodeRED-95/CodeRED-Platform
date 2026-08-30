@@ -8,6 +8,9 @@ data class Anime(
     val posterUrl: String? = null,
     val episodeCount: Int? = null,
     val status: String? = null,
+    val scheduleEpisode: Int? = null,
+    val scheduleLabel: String? = null,
+    val scheduleCategory: String? = null,
 )
 
 data class WatchProgress(

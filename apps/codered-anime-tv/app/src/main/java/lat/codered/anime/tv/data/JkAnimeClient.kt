@@ -47,16 +47,16 @@ class JkAnimeClient(
     suspend fun getHomeShelves(): AnimeResult<HomeShelves> = io {
         val homeHtml = get(providerUrl("/").toString())
         val directoryHtml = getOrEmpty(providerUrl("/directorio/").toString())
-        val scheduleHtml = getOrEmpty(providerUrl("/programacion/").toString())
         val premieresHtml = getOrEmpty(providerUrl("/ultimos-episodios/").toString())
         val directory = parser.parseDirectoryAnimes(directoryHtml, config.baseUrl).take(24)
         val recommended = parser.parseRecommended(homeHtml, config.baseUrl).take(24)
+        val schedule = parser.parseSchedule(homeHtml, config.baseUrl).take(48)
         val premieres = parser.parseSearch(premieresHtml, config.baseUrl).ifEmpty { parser.parseRecommended(homeHtml, config.baseUrl) }.take(24)
         HomeShelves(
             newlyAdded = directory.take(20),
             recommended = recommended.take(20),
             directory = directory,
-            schedule = parser.parseSearch(scheduleHtml, config.baseUrl).take(24),
+            schedule = schedule,
             premieres = premieres,
             top = recommended.ifEmpty { directory }.take(24),
         )
