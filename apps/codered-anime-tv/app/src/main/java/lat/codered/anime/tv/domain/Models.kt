@@ -17,12 +17,17 @@ data class WatchProgress(
     val playCount: Int = 1,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
+    val watched: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis(),
 )
 
 data class HomeShelves(
     val newlyAdded: List<Anime> = emptyList(),
     val recommended: List<Anime> = emptyList(),
+    val directory: List<Anime> = emptyList(),
+    val schedule: List<Anime> = emptyList(),
+    val premieres: List<Anime> = emptyList(),
+    val top: List<Anime> = emptyList(),
 )
 
 data class Episode(

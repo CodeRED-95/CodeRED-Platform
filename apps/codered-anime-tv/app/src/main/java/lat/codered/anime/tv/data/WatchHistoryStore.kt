@@ -12,12 +12,65 @@ class WatchHistoryStore(context: Context) {
 
     fun continueWatching(): List<WatchProgress> = readAll().sortedByDescending { it.updatedAt }.take(12)
 
+    fun history(): List<WatchProgress> = readAll().sortedByDescending { it.updatedAt }.take(24)
+
+    fun watchedEpisodes(): List<WatchProgress> = readAll()
+        .filter { it.watched }
+        .sortedByDescending { it.updatedAt }
+        .take(24)
+
+    fun favorites(): List<Anime> {
+        val raw = prefs.getString(KEY_FAVORITES, "[]").orEmpty()
+        return runCatching {
+            val array = JSONArray(raw)
+            buildList {
+                for (index in 0 until array.length()) {
+                    val item = array.optJSONObject(index) ?: continue
+                    readAnime(item)?.let(::add)
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    fun isFavorite(animeId: String): Boolean = favorites().any { it.id == animeId }
+
+    fun toggleFavorite(anime: Anime): Boolean {
+        val current = favorites().associateBy { it.id }.toMutableMap()
+        val isNowFavorite = if (current.containsKey(anime.id)) {
+            current.remove(anime.id)
+            false
+        } else {
+            current[anime.id] = anime
+            true
+        }
+
+        prefs.edit().putString(
+            KEY_FAVORITES,
+            JSONArray().apply {
+                current.values.sortedBy { it.title }.forEach { put(it.toJson()) }
+            }.toString(),
+        ).apply()
+
+        return isNowFavorite
+    }
+
     fun mostViewed(): List<WatchProgress> = readAll()
         .sortedWith(compareByDescending<WatchProgress> { it.playCount }.thenByDescending { it.updatedAt })
         .take(12)
 
     fun markPlayed(anime: Anime, episode: Episode) {
         upsert(anime, episode.number, episode.title, incrementPlayCount = true)
+    }
+
+    fun markWatched(anime: Anime, episode: Episode) {
+        upsert(
+            anime = anime,
+            episodeNumber = episode.number,
+            episodeTitle = episode.title,
+            positionMs = 0L,
+            durationMs = 0L,
+            watched = true,
+        )
     }
 
     fun updateProgress(
@@ -28,6 +81,7 @@ class WatchHistoryStore(context: Context) {
         durationMs: Long,
         incrementPlayCount: Boolean = false,
     ) {
+        val watched = durationMs > 0L && positionMs >= (durationMs * WATCHED_THRESHOLD).toLong()
         upsert(
             anime = anime,
             episodeNumber = episodeNumber,
@@ -35,6 +89,7 @@ class WatchHistoryStore(context: Context) {
             positionMs = positionMs,
             durationMs = durationMs,
             incrementPlayCount = incrementPlayCount,
+            watched = watched,
         )
     }
 
@@ -45,6 +100,7 @@ class WatchHistoryStore(context: Context) {
         positionMs: Long = 0L,
         durationMs: Long = 0L,
         incrementPlayCount: Boolean = false,
+        watched: Boolean = false,
     ) {
         val current = readAll().associateBy { "${it.anime.id}:${it.episodeNumber}" }.toMutableMap()
         val key = "${anime.id}:$episodeNumber"
@@ -56,6 +112,7 @@ class WatchHistoryStore(context: Context) {
             playCount = (previous?.playCount ?: 0) + if (incrementPlayCount) 1 else 0,
             positionMs = positionMs.coerceAtLeast(0L),
             durationMs = durationMs.coerceAtLeast(0L),
+            watched = watched || previous?.watched == true,
             updatedAt = System.currentTimeMillis(),
         )
 
@@ -63,18 +120,13 @@ class WatchHistoryStore(context: Context) {
         current.values.sortedByDescending { it.updatedAt }.take(40).forEach { progress ->
             payload.put(
                 JSONObject()
-                    .put("anime_id", progress.anime.id)
-                    .put("slug", progress.anime.slug)
-                    .put("title", progress.anime.title)
-                    .put("description", progress.anime.description)
-                    .put("poster_url", progress.anime.posterUrl)
-                    .put("episode_count", progress.anime.episodeCount)
-                    .put("status", progress.anime.status)
+                    .putAnime(progress.anime)
                     .put("episode_number", progress.episodeNumber)
                     .put("episode_title", progress.episodeTitle)
                     .put("play_count", progress.playCount)
                     .put("position_ms", progress.positionMs)
                     .put("duration_ms", progress.durationMs)
+                    .put("watched", progress.watched)
                     .put("updated_at", progress.updatedAt),
             )
         }
@@ -89,24 +141,16 @@ class WatchHistoryStore(context: Context) {
             buildList {
                 for (index in 0 until array.length()) {
                     val item = array.optJSONObject(index) ?: continue
-                    val slug = item.optString("slug").takeIf { it.isNotBlank() } ?: continue
-                    val title = item.optString("title").takeIf { it.isNotBlank() } ?: continue
+                    val anime = readAnime(item) ?: continue
                     add(
                         WatchProgress(
-                            anime = Anime(
-                                id = item.optString("anime_id", "jkanime:$slug"),
-                                slug = slug,
-                                title = title,
-                                description = item.optString("description").takeIf { it.isNotBlank() },
-                                posterUrl = item.optString("poster_url").takeIf { it.isNotBlank() },
-                                episodeCount = item.optInt("episode_count").takeIf { it > 0 },
-                                status = item.optString("status").takeIf { it.isNotBlank() },
-                            ),
+                            anime = anime,
                             episodeNumber = item.optInt("episode_number"),
                             episodeTitle = item.optString("episode_title", "Episodio ${item.optInt("episode_number")}"),
                             playCount = item.optInt("play_count", 1).coerceAtLeast(1),
                             positionMs = item.optLong("position_ms", 0L).coerceAtLeast(0L),
                             durationMs = item.optLong("duration_ms", 0L).coerceAtLeast(0L),
+                            watched = item.optBoolean("watched", false),
                             updatedAt = item.optLong("updated_at", 0L),
                         ),
                     )
@@ -115,7 +159,33 @@ class WatchHistoryStore(context: Context) {
         }.getOrDefault(emptyList())
     }
 
+    private fun readAnime(item: JSONObject): Anime? {
+        val slug = item.optString("slug").takeIf { it.isNotBlank() } ?: return null
+        val title = item.optString("title").takeIf { it.isNotBlank() } ?: return null
+        return Anime(
+            id = item.optString("anime_id", "jkanime:$slug"),
+            slug = slug,
+            title = title,
+            description = item.optString("description").takeIf { it.isNotBlank() },
+            posterUrl = item.optString("poster_url").takeIf { it.isNotBlank() },
+            episodeCount = item.optInt("episode_count").takeIf { it > 0 },
+            status = item.optString("status").takeIf { it.isNotBlank() },
+        )
+    }
+
+    private fun Anime.toJson(): JSONObject = JSONObject().putAnime(this)
+
+    private fun JSONObject.putAnime(anime: Anime): JSONObject = put("anime_id", anime.id)
+        .put("slug", anime.slug)
+        .put("title", anime.title)
+        .put("description", anime.description)
+        .put("poster_url", anime.posterUrl)
+        .put("episode_count", anime.episodeCount)
+        .put("status", anime.status)
+
     private companion object {
         const val KEY_HISTORY = "history"
+        const val KEY_FAVORITES = "favorites"
+        const val WATCHED_THRESHOLD = 0.9
     }
 }

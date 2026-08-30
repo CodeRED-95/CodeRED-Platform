@@ -156,16 +156,32 @@ class PlayerActivity : ComponentActivity() {
                 togglePlayback()
                 true
             }
-            KeyEvent.KEYCODE_DPAD_LEFT,
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                if (wasHidden) {
+                    seekBy(-10_000)
+                    true
+                } else {
+                    super.onKeyDown(keyCode, event)
+                }
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                if (wasHidden) {
+                    seekBy(30_000)
+                    true
+                } else {
+                    super.onKeyDown(keyCode, event)
+                }
+            }
             KeyEvent.KEYCODE_MEDIA_REWIND -> {
                 seekBy(-10_000)
                 true
             }
-            KeyEvent.KEYCODE_DPAD_RIGHT,
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
                 seekBy(30_000)
                 true
             }
+            KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN -> super.onKeyDown(keyCode, event)
             KeyEvent.KEYCODE_BACK -> {
                 finish()
                 true

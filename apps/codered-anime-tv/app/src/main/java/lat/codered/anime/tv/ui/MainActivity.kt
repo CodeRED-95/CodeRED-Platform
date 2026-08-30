@@ -151,6 +151,8 @@ private fun AnimeTvApp(viewModel: AnimeTvViewModel = viewModel()) {
                     state = state,
                     onBack = viewModel::closeDetails,
                     onPlay = viewModel::playEpisode,
+                    onMarkWatched = viewModel::markEpisodeWatched,
+                    onToggleFavorite = viewModel::toggleSelectedFavorite,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -202,6 +204,66 @@ private fun HomeScreen(state: AnimeTvState, viewModel: AnimeTvViewModel, modifie
             }
         }
 
+        if (state.favorites.isNotEmpty()) {
+            item {
+                AnimeShelf(
+                    title = "Animes favoritos",
+                    subtitle = "Tus titulos guardados en este Android TV.",
+                    items = state.favorites,
+                    selected = state.selectedAnime,
+                    onSelect = viewModel::selectAnime,
+                )
+            }
+        }
+
+        if (state.watchedEpisodes.isNotEmpty()) {
+            item {
+                ProgressShelf(
+                    title = "Capitulos vistos",
+                    subtitle = "Episodios marcados automaticamente al llegar al final.",
+                    items = state.watchedEpisodes,
+                    onSelect = viewModel::resume,
+                    badge = { "Visto" },
+                )
+            }
+        }
+
+        if (state.history.isNotEmpty()) {
+            item {
+                ProgressShelf(
+                    title = "Historial",
+                    subtitle = "Tus reproducciones recientes.",
+                    items = state.history,
+                    onSelect = viewModel::resume,
+                    badge = { "Episodio ${it.episodeNumber}" },
+                )
+            }
+        }
+
+        if (state.premieres.isNotEmpty()) {
+            item {
+                AnimeShelf(
+                    title = "Estrenos",
+                    subtitle = "Ultimos episodios publicados por JkAnime.",
+                    items = state.premieres,
+                    selected = state.selectedAnime,
+                    onSelect = viewModel::selectAnime,
+                )
+            }
+        }
+
+        if (state.top.isNotEmpty()) {
+            item {
+                AnimeShelf(
+                    title = "Top",
+                    subtitle = "Titulos destacados detectados en portada.",
+                    items = state.top,
+                    selected = state.selectedAnime,
+                    onSelect = viewModel::selectAnime,
+                )
+            }
+        }
+
         item {
             AnimeShelf(
                 title = "Nuevos agregados",
@@ -217,7 +279,19 @@ private fun HomeScreen(state: AnimeTvState, viewModel: AnimeTvViewModel, modifie
             item {
                 MostViewedShelf(
                     items = state.mostViewed,
-                    onSelect = { viewModel.selectAnime(it.anime) },
+                    onSelect = viewModel::resume,
+                )
+            }
+        }
+
+        if (state.schedule.isNotEmpty()) {
+            item {
+                AnimeShelf(
+                    title = "Programacion",
+                    subtitle = "Salidas de capitulos anunciadas por JkAnime.",
+                    items = state.schedule,
+                    selected = state.selectedAnime,
+                    onSelect = viewModel::selectAnime,
                 )
             }
         }
@@ -230,6 +304,18 @@ private fun HomeScreen(state: AnimeTvState, viewModel: AnimeTvViewModel, modifie
                 selected = state.selectedAnime,
                 onSelect = viewModel::selectAnime,
             )
+        }
+
+        if (state.directory.isNotEmpty()) {
+            item {
+                AnimeShelf(
+                    title = "Directorio de animes",
+                    subtitle = "Catalogo general para explorar.",
+                    items = state.directory,
+                    selected = state.selectedAnime,
+                    onSelect = viewModel::selectAnime,
+                )
+            }
         }
 
         if (state.results.isNotEmpty()) {
@@ -290,6 +376,8 @@ private fun AnimeDetailScreen(
     state: AnimeTvState,
     onBack: () -> Unit,
     onPlay: (Episode) -> Unit,
+    onMarkWatched: (Episode) -> Unit,
+    onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val anime = state.selectedAnime ?: return
@@ -349,7 +437,11 @@ private fun AnimeDetailScreen(
             verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
             item {
-                DetailHero(anime = anime)
+                DetailHero(
+                    anime = anime,
+                    isFavorite = state.selectedAnimeIsFavorite,
+                    onToggleFavorite = onToggleFavorite,
+                )
             }
 
             state.message?.let { message ->
@@ -368,6 +460,7 @@ private fun AnimeDetailScreen(
                     anime = anime,
                     episodes = state.episodes,
                     onPlay = onPlay,
+                    onMarkWatched = onMarkWatched,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -376,7 +469,7 @@ private fun AnimeDetailScreen(
 }
 
 @Composable
-private fun DetailHero(anime: Anime) {
+private fun DetailHero(anime: Anime, isFavorite: Boolean, onToggleFavorite: () -> Unit) {
     Panel(
         title = anime.title,
         subtitle = "Selecciona un capitulo para reproducirlo en pantalla completa.",
@@ -395,6 +488,10 @@ private fun DetailHero(anime: Anime) {
             DetailPill(anime.status ?: "Estado no disponible")
             DetailPill(anime.episodeCount?.let { "$it episodios publicados" } ?: "Episodios en vivo")
             DetailPill("Fuente: JkAnime")
+        }
+        Spacer(Modifier.size(18.dp))
+        Button(onClick = onToggleFavorite) {
+            Text(if (isFavorite) "Quitar de favoritos" else "Agregar a favoritos")
         }
     }
 }
@@ -471,6 +568,24 @@ private fun MostViewedShelf(items: List<WatchProgress>, onSelect: (WatchProgress
         LazyRow(contentPadding = PaddingValues(8.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             items(items, key = { "${it.anime.id}:${it.episodeNumber}:views" }) { progress ->
                 ProgressCard(progress = progress, onClick = { onSelect(progress) }, badge = "${progress.playCount} vistas")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgressShelf(
+    title: String,
+    subtitle: String,
+    items: List<WatchProgress>,
+    onSelect: (WatchProgress) -> Unit,
+    badge: (WatchProgress) -> String,
+    modifier: Modifier = Modifier,
+) {
+    Panel(title = title, subtitle = subtitle, modifier = modifier.height(270.dp)) {
+        LazyRow(contentPadding = PaddingValues(8.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            items(items, key = { "${it.anime.id}:${it.episodeNumber}:$title" }) { progress ->
+                ProgressCard(progress = progress, onClick = { onSelect(progress) }, badge = badge(progress))
             }
         }
     }
@@ -640,7 +755,13 @@ private fun ProgressCard(
 }
 
 @Composable
-private fun EpisodesPanel(anime: Anime?, episodes: List<Episode>, onPlay: (Episode) -> Unit, modifier: Modifier = Modifier) {
+private fun EpisodesPanel(
+    anime: Anime?,
+    episodes: List<Episode>,
+    onPlay: (Episode) -> Unit,
+    onMarkWatched: (Episode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Panel(title = "Capitulos", subtitle = anime?.let { "Lista detectada para ${it.title}." } ?: "Elige un capitulo para reproducir.", modifier = modifier.height(760.dp)) {
         if (episodes.isEmpty()) {
             EmptyShelf("Cargando capitulos o el proveedor todavia no publico episodios para este anime.")
@@ -653,6 +774,7 @@ private fun EpisodesPanel(anime: Anime?, episodes: List<Episode>, onPlay: (Episo
                     episode = episode,
                     autoFocus = episode.id == episodes.firstOrNull()?.id,
                     onClick = { onPlay(episode) },
+                    onMarkWatched = { onMarkWatched(episode) },
                 )
             }
         }
@@ -660,7 +782,7 @@ private fun EpisodesPanel(anime: Anime?, episodes: List<Episode>, onPlay: (Episo
 }
 
 @Composable
-private fun EpisodeCard(episode: Episode, autoFocus: Boolean = false, onClick: () -> Unit) {
+private fun EpisodeCard(episode: Episode, autoFocus: Boolean = false, onClick: () -> Unit, onMarkWatched: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val focusRequester = remember { FocusRequester() }
     val focused by interactionSource.collectIsFocusedAsState()
@@ -724,16 +846,14 @@ private fun EpisodeCard(episode: Episode, autoFocus: Boolean = false, onClick: (
                     fontWeight = if (focused) FontWeight.Black else FontWeight.SemiBold,
                 )
             }
-            Text(
-                text = "Reproducir",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(if (focused) Color(0xFFE11D48) else Color(0xFF263550))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onClick) {
+                    Text("Reproducir")
+                }
+                Button(onClick = onMarkWatched) {
+                    Text("Visto")
+                }
+            }
         }
     }
 }

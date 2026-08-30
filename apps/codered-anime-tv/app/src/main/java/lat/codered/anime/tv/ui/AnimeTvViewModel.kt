@@ -27,9 +27,17 @@ data class AnimeTvState(
     val stream: Stream? = null,
     val playbackStartPositionMs: Long = 0L,
     val continueWatching: List<WatchProgress> = emptyList(),
+    val history: List<WatchProgress> = emptyList(),
+    val watchedEpisodes: List<WatchProgress> = emptyList(),
+    val favorites: List<Anime> = emptyList(),
     val newlyAdded: List<Anime> = emptyList(),
     val mostViewed: List<WatchProgress> = emptyList(),
     val recommended: List<Anime> = emptyList(),
+    val directory: List<Anime> = emptyList(),
+    val schedule: List<Anime> = emptyList(),
+    val premieres: List<Anime> = emptyList(),
+    val top: List<Anime> = emptyList(),
+    val selectedAnimeIsFavorite: Boolean = false,
 )
 
 class AnimeTvViewModel(application: Application) : AndroidViewModel(application) {
@@ -82,6 +90,10 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                         message = null,
                         newlyAdded = result.value.newlyAdded,
                         recommended = result.value.recommended,
+                        directory = result.value.directory,
+                        schedule = result.value.schedule,
+                        premieres = result.value.premieres,
+                        top = result.value.top,
                     )
                 }
                 is AnimeResult.Failure -> _state.update {
@@ -98,6 +110,7 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                     loading = true,
                     message = "Cargando episodios de ${anime.title}...",
                     selectedAnime = anime,
+                    selectedAnimeIsFavorite = historyStore.isFavorite(anime.id),
                     episodes = emptyList(),
                     stream = null,
                     playingEpisode = null,
@@ -114,6 +127,7 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                     it.copy(
                         loading = false,
                         selectedAnime = detailedAnime,
+                        selectedAnimeIsFavorite = historyStore.isFavorite(detailedAnime.id),
                         episodes = result.value,
                         message = if (result.value.isEmpty()) "No se encontraron episodios." else null,
                     )
@@ -162,6 +176,7 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
         _state.update {
             it.copy(
                 selectedAnime = null,
+                selectedAnimeIsFavorite = false,
                 episodes = emptyList(),
                 stream = null,
                 playingEpisode = null,
@@ -182,6 +197,7 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                     loading = true,
                     message = "Preparando ${progress.anime.title} episodio ${progress.episodeNumber}...",
                     selectedAnime = progress.anime,
+                    selectedAnimeIsFavorite = historyStore.isFavorite(progress.anime.id),
                     episodes = emptyList(),
                     stream = null,
                     playingEpisode = null,
@@ -201,6 +217,7 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                         it.copy(
                             loading = false,
                             selectedAnime = detailedAnime,
+                            selectedAnimeIsFavorite = historyStore.isFavorite(detailedAnime.id),
                             episodes = result.value,
                             message = if (episode == null) "No se encontro el episodio guardado." else null,
                         )
@@ -214,10 +231,32 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun toggleSelectedFavorite() {
+        val anime = state.value.selectedAnime ?: return
+        val isFavorite = historyStore.toggleFavorite(anime)
+        _state.update {
+            it.copy(
+                selectedAnimeIsFavorite = isFavorite,
+                favorites = historyStore.favorites(),
+                message = if (isFavorite) "${anime.title} agregado a favoritos." else "${anime.title} quitado de favoritos.",
+            )
+        }
+    }
+
+    fun markEpisodeWatched(episode: Episode) {
+        val anime = state.value.selectedAnime ?: return
+        historyStore.markWatched(anime, episode)
+        refreshLocalShelves()
+        _state.update { it.copy(message = "Episodio ${episode.number} marcado como visto.") }
+    }
+
     fun refreshLocalShelves() {
         _state.update {
             it.copy(
                 continueWatching = historyStore.continueWatching(),
+                history = historyStore.history(),
+                watchedEpisodes = historyStore.watchedEpisodes(),
+                favorites = historyStore.favorites(),
                 mostViewed = historyStore.mostViewed(),
             )
         }

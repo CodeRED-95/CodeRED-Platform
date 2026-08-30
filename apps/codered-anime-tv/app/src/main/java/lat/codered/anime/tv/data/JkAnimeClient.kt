@@ -46,10 +46,19 @@ class JkAnimeClient(
 
     suspend fun getHomeShelves(): AnimeResult<HomeShelves> = io {
         val homeHtml = get(providerUrl("/").toString())
-        val directoryHtml = get(providerUrl("/directorio/").toString())
+        val directoryHtml = getOrEmpty(providerUrl("/directorio/").toString())
+        val scheduleHtml = getOrEmpty(providerUrl("/programacion/").toString())
+        val premieresHtml = getOrEmpty(providerUrl("/ultimos-episodios/").toString())
+        val directory = parser.parseDirectoryAnimes(directoryHtml, config.baseUrl).take(24)
+        val recommended = parser.parseRecommended(homeHtml, config.baseUrl).take(24)
+        val premieres = parser.parseSearch(premieresHtml, config.baseUrl).ifEmpty { parser.parseRecommended(homeHtml, config.baseUrl) }.take(24)
         HomeShelves(
-            newlyAdded = parser.parseDirectoryAnimes(directoryHtml, config.baseUrl).take(20),
-            recommended = parser.parseRecommended(homeHtml, config.baseUrl).take(20),
+            newlyAdded = directory.take(20),
+            recommended = recommended.take(20),
+            directory = directory,
+            schedule = parser.parseSearch(scheduleHtml, config.baseUrl).take(24),
+            premieres = premieres,
+            top = recommended.ifEmpty { directory }.take(24),
         )
     }
 
@@ -183,6 +192,10 @@ class JkAnimeClient(
             put("Referer", referer)
             if (!origin.isNullOrBlank()) put("Origin", origin)
         }
+    }
+
+    private fun getOrEmpty(url: String, referer: String? = null): String {
+        return runCatching { get(url, referer) }.getOrDefault("")
     }
 
     private fun isAllowedHttpsHost(url: String, hosts: Set<String>): Boolean {

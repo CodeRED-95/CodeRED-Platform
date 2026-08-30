@@ -262,8 +262,11 @@ class JkAnimeParser {
         val uri = runCatching { URI(url) }.getOrNull() ?: return null
         if (uri.host != baseHost && uri.host != "www.$baseHost") return null
         val parts = uri.path.trim('/').split('/').filter { it.isNotBlank() }
-        if (parts.size != 1) return null
-        return slugFromId(parts.first())
+        return when {
+            parts.size == 1 -> slugFromId(parts.first())
+            parts.size == 2 && parts[1].toIntOrNull() != null -> slugFromId(parts.first())
+            else -> null
+        }
     }
 
     private fun looksLikeSearchResult(parentClass: String, linkClass: String): Boolean {
