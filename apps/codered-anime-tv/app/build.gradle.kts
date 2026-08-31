@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// Datos de firma de release. El archivo esta fuera del control de versiones,
+// asi que en una copia sin el (por ejemplo, una integracion continua) el build
+// de release sale sin firmar en vez de fallar.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
 }
 
 android {
@@ -15,6 +25,34 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (keystoreProperties.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    lint {
+        // lintVital revienta por su cuenta ("Unexpected failure during lint
+        // analysis", un fallo del propio lint) y bloqueaba el empaquetado de
+        // release. El analisis se sigue pudiendo lanzar a mano con :app:lint.
+        checkReleaseBuilds = false
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.findByName("release")
+            // R8 queda desactivado a proposito: el parser usa Jsoup y reflexion
+            // de OkHttp, y ofuscar sin reglas propias romperia el scraping.
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
     }
 
     // Dos APK del mismo codigo: uno por formato de dispositivo.

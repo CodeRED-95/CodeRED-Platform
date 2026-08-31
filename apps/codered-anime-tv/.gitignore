@@ -2,3 +2,9 @@
 build/
 app/build/
 local.properties
+
+# Firma de release: la clave y sus contrasenas nunca van al repositorio.
+keystore/
+keystore.properties
+*.jks
+*.keystore
