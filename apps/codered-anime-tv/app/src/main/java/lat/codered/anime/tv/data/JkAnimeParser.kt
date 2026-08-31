@@ -1,6 +1,7 @@
 package lat.codered.anime.tv.data
 
 import lat.codered.anime.tv.domain.Anime
+import lat.codered.anime.tv.domain.DirectoryPage
 import lat.codered.anime.tv.domain.Episode
 import lat.codered.anime.tv.domain.ScheduleDay
 import lat.codered.anime.tv.domain.ScheduleEntry
@@ -75,6 +76,26 @@ class JkAnimeParser {
             episodeCount = firstIntAfterLabel(html, "Episodios"),
             status = Regex("data-status=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
                 .find(html)?.groupValues?.get(1)?.let(::cleanText),
+        )
+    }
+
+    /**
+     * Pagina del directorio. El listado viaja como JSON dentro de `var animes`
+     * e incluye `last_page` y `total`, que son los que permiten paginar de
+     * verdad en vez de quedarse con los primeros resultados.
+     */
+    fun parseDirectoryPage(html: String, baseUrl: String, page: Int): DirectoryPage {
+        val json = extractJsObject(html, "var animes")
+            ?: return DirectoryPage(items = parseSearch(html, baseUrl), page = page)
+
+        val lastPage = Regex("\"last_page\"\\s*:\\s*(\\d+)").find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 1
+        val total = Regex("\"total\"\\s*:\\s*(\\d+)").find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+        return DirectoryPage(
+            items = parseDirectoryAnimes(html, baseUrl),
+            page = page.coerceAtLeast(1),
+            lastPage = lastPage.coerceAtLeast(1),
+            total = total,
         )
     }
 

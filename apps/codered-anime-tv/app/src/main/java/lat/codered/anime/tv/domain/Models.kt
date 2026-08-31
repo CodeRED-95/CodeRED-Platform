@@ -57,6 +57,102 @@ enum class ScheduleDay(val label: String) {
     }
 }
 
+/** Una pagina del directorio, con lo necesario para paginar. */
+data class DirectoryPage(
+    val items: List<Anime> = emptyList(),
+    val page: Int = 1,
+    val lastPage: Int = 1,
+    val total: Int = 0,
+)
+
+/**
+ * Filtros del directorio de JkAnime. Cada campo viaja como parametro de la
+ * consulta; null significa "sin filtro".
+ */
+data class DirectoryFilters(
+    val genre: String? = null,
+    val type: String? = null,
+    val status: String? = null,
+    val year: String? = null,
+    val sort: String? = null,
+) {
+    val activeCount: Int
+        get() = listOfNotNull(genre, type, status, year, sort).size
+}
+
+/** Opciones que ofrece la propia pagina del proveedor. */
+object DirectoryCatalog {
+    /** Pares valor-etiqueta; el valor null es "sin filtro". */
+    val sorts: List<Pair<String?, String>> = listOf(
+        null to "Por fecha",
+        "nombre" to "Por nombre",
+        "popularidad" to "Por popularidad",
+    )
+
+    val statuses: List<Pair<String?, String>> = listOf(
+        null to "Todos",
+        "emision" to "En emision",
+        "finalizados" to "Finalizado",
+        "estrenos" to "Por estrenar",
+    )
+
+    val types: List<Pair<String?, String>> = listOf(
+        null to "Todos",
+        "animes" to "Animes",
+        "peliculas" to "Peliculas",
+        "especiales" to "Especiales",
+        "ovas" to "Ovas",
+        "onas" to "Onas",
+    )
+
+    val genres: List<Pair<String?, String>> = listOf(
+        null to "Todos",
+        "accion" to "Accion",
+        "aventura" to "Aventura",
+        "artes-marciales" to "Artes marciales",
+        "autos" to "Autos",
+        "colegial" to "Colegial",
+        "comedia" to "Comedia",
+        "cosas-de-la-vida" to "Cosas de la vida",
+        "demonios" to "Demonios",
+        "deportes" to "Deportes",
+        "drama" to "Drama",
+        "ecchi" to "Ecchi",
+        "fantasia" to "Fantasia",
+        "harem" to "Harem",
+        "historico" to "Historico",
+        "isekai" to "Isekai",
+        "josei" to "Josei",
+        "juegos" to "Juegos",
+        "latino" to "Latino",
+        "magia" to "Magia",
+        "mecha" to "Mecha",
+        "militar" to "Militar",
+        "misterio" to "Misterio",
+        "musica" to "Musica",
+        "nios" to "Ninos",
+        "parodia" to "Parodia",
+        "policial" to "Policial",
+        "psicologico" to "Psicologico",
+        "romance" to "Romance",
+        "samurai" to "Samurai",
+        "sci-fi" to "Sci-fi",
+        "seinen" to "Seinen",
+        "shoujo" to "Shoujo",
+        "shounen" to "Shounen",
+        "sobrenatural" to "Sobrenatural",
+        "space" to "Espacial",
+        "super-poderes" to "Superpoderes",
+        "terror" to "Terror",
+        "thriller" to "Thriller",
+        "vampiros" to "Vampiros",
+    )
+
+    /** Anos recientes; el proveedor acepta cualquiera de su lista. */
+    val years: List<Pair<String?, String>> = listOf(null to "Todos") +
+        (2026 downTo 2012).map { it.toString() to it.toString() }
+}
+
 data class HomeShelves(
     val newlyAdded: List<Anime> = emptyList(),
     val recommended: List<Anime> = emptyList(),

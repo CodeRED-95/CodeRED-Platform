@@ -1,6 +1,8 @@
 package lat.codered.anime.tv.data
 
 import lat.codered.anime.tv.domain.Anime
+import lat.codered.anime.tv.domain.DirectoryFilters
+import lat.codered.anime.tv.domain.DirectoryPage
 import lat.codered.anime.tv.domain.AnimeResult
 import lat.codered.anime.tv.domain.Episode
 import lat.codered.anime.tv.domain.HomeShelves
@@ -64,6 +66,24 @@ class JkAnimeClient(
             premieres = emptyList(),
             top = top,
         )
+    }
+
+    /**
+     * Una pagina del directorio con sus filtros. El proveedor devuelve 30
+     * titulos por pagina e informa del total, asi que la app puede recorrer
+     * el catalogo entero en vez de quedarse con la primera tanda.
+     */
+    suspend fun getDirectory(page: Int = 1, filters: DirectoryFilters = DirectoryFilters()): AnimeResult<DirectoryPage> = io {
+        val url = providerUrl("/directorio").newBuilder().apply {
+            if (page > 1) addQueryParameter("p", page.toString())
+            filters.genre?.let { addQueryParameter("genero", it) }
+            filters.type?.let { addQueryParameter("tipo", it) }
+            filters.status?.let { addQueryParameter("estado", it) }
+            filters.year?.let { addQueryParameter("fecha", it) }
+            filters.sort?.let { addQueryParameter("filtro", it) }
+        }.build()
+
+        parser.parseDirectoryPage(get(url.toString()), config.baseUrl, page)
     }
 
     suspend fun getWeeklySchedule(): AnimeResult<List<ScheduleEntry>> = io {

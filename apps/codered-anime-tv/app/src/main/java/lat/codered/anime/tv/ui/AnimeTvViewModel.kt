@@ -8,6 +8,8 @@ import lat.codered.anime.tv.data.LocalCast
 import lat.codered.anime.tv.data.LocalCastClient
 import lat.codered.anime.tv.data.WatchHistoryStore
 import lat.codered.anime.tv.domain.Anime
+import lat.codered.anime.tv.domain.DirectoryFilters
+import lat.codered.anime.tv.domain.DirectoryPage
 import lat.codered.anime.tv.domain.AnimeResult
 import lat.codered.anime.tv.domain.Episode
 import lat.codered.anime.tv.domain.ScheduleEntry
@@ -41,6 +43,9 @@ data class AnimeTvState(
     val directory: List<Anime> = emptyList(),
     val schedule: List<Anime> = emptyList(),
     val weeklySchedule: List<ScheduleEntry> = emptyList(),
+    val directoryPage: DirectoryPage = DirectoryPage(),
+    val directoryFilters: DirectoryFilters = DirectoryFilters(),
+    val directoryLoading: Boolean = false,
     val weeklyScheduleLoading: Boolean = false,
     val premieres: List<Anime> = emptyList(),
     val top: List<Anime> = emptyList(),
@@ -137,6 +142,55 @@ class AnimeTvViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
+    }
+
+    /**
+     * Carga una pagina del directorio. Es una peticion por pagina, asi que solo
+     * se dispara al abrir la seccion o al cambiar de pagina o de filtros.
+     */
+    fun loadDirectory(
+        page: Int = 1,
+        filters: DirectoryFilters = state.value.directoryFilters,
+        force: Boolean = false,
+    ) {
+        val current = state.value
+        if (current.directoryLoading) return
+        val alreadyLoaded = current.directoryPage.items.isNotEmpty() &&
+            current.directoryPage.page == page &&
+            current.directoryFilters == filters
+        if (!force && alreadyLoaded) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(directoryLoading = true, directoryFilters = filters) }
+            when (val result = client.getDirectory(page, filters)) {
+                is AnimeResult.Success -> _state.update {
+                    it.copy(
+                        directoryLoading = false,
+                        directoryPage = result.value,
+                        message = if (result.value.items.isEmpty()) {
+                            "No hay titulos con esos filtros."
+                        } else {
+                            null
+                        },
+                    )
+                }
+                is AnimeResult.Failure -> _state.update {
+                    it.copy(directoryLoading = false, message = result.message)
+                }
+            }
+        }
+    }
+
+    /** Cambiar un filtro reinicia la paginacion: la pagina 7 anterior ya no aplica. */
+    fun updateDirectoryFilters(filters: DirectoryFilters) {
+        loadDirectory(page = 1, filters = filters, force = true)
+    }
+
+    fun goToDirectoryPage(page: Int) {
+        val current = state.value.directoryPage
+        val target = page.coerceIn(1, current.lastPage)
+        if (target == current.page) return
+        loadDirectory(page = target, force = true)
     }
 
     fun selectAnime(anime: Anime) {

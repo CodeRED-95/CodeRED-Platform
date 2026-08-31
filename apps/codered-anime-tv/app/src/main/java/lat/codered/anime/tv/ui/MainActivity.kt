@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
@@ -86,6 +87,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import lat.codered.anime.tv.data.LocalCast
 import lat.codered.anime.tv.data.LocalCastServer
 import lat.codered.anime.tv.domain.Anime
+import lat.codered.anime.tv.domain.DirectoryCatalog
+import lat.codered.anime.tv.domain.DirectoryFilters
 import lat.codered.anime.tv.domain.Episode
 import lat.codered.anime.tv.domain.ScheduleDay
 import lat.codered.anime.tv.domain.ScheduleEntry
@@ -193,8 +196,6 @@ private fun AnimeTvApp(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var activeSection by remember { mutableStateOf(TvSection.Home) }
-    var directoryFilter by remember { mutableStateOf("") }
-    var directoryStatus by remember { mutableStateOf<String?>(null) }
     // Numero del capitulo que se envio al reproductor: al volver sirve para
     // localizar el contiguo cuando el usuario pulsa anterior/siguiente.
     var launchedEpisodeNumber by remember { mutableStateOf<Int?>(null) }
@@ -324,10 +325,6 @@ private fun AnimeTvApp(
                         viewModel = viewModel,
                         activeSection = activeSection,
                         onSectionSelected = { activeSection = it },
-                        directoryFilter = directoryFilter,
-                        onDirectoryFilterChange = { directoryFilter = it },
-                        directoryStatus = directoryStatus,
-                        onDirectoryStatusChange = { directoryStatus = it },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -347,10 +344,6 @@ private fun HomeShell(
     viewModel: AnimeTvViewModel,
     activeSection: TvSection,
     onSectionSelected: (TvSection) -> Unit,
-    directoryFilter: String,
-    onDirectoryFilterChange: (String) -> Unit,
-    directoryStatus: String?,
-    onDirectoryStatusChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // El menu se expande solo cuando el foco entra en el y se contrae al salir,
@@ -371,10 +364,6 @@ private fun HomeShell(
                 viewModel = viewModel,
                 activeSection = activeSection,
                 onSectionSelected = onSectionSelected,
-                directoryFilter = directoryFilter,
-                onDirectoryFilterChange = onDirectoryFilterChange,
-                directoryStatus = directoryStatus,
-                onDirectoryStatusChange = onDirectoryStatusChange,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -398,10 +387,6 @@ private fun HomeShell(
                 viewModel = viewModel,
                 activeSection = activeSection,
                 onSectionSelected = onSectionSelected,
-                directoryFilter = directoryFilter,
-                onDirectoryFilterChange = onDirectoryFilterChange,
-                directoryStatus = directoryStatus,
-                onDirectoryStatusChange = onDirectoryStatusChange,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
@@ -486,7 +471,7 @@ private fun SideMenu(
     val counts = mapOf(
         TvSection.Continue to state.continueWatching.size,
         TvSection.Favorites to state.favorites.size,
-        TvSection.Directory to directoryPool(state).size,
+        TvSection.Directory to state.directoryPage.total,
         TvSection.Premieres to state.premieres.size,
         TvSection.Top to state.top.size,
         TvSection.Calendar to state.weeklySchedule.size,
@@ -649,14 +634,11 @@ private fun SectionContent(
     viewModel: AnimeTvViewModel,
     activeSection: TvSection,
     onSectionSelected: (TvSection) -> Unit,
-    directoryFilter: String,
-    onDirectoryFilterChange: (String) -> Unit,
-    directoryStatus: String?,
-    onDirectoryStatusChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LaunchedEffect(activeSection) {
         if (activeSection == TvSection.Calendar) viewModel.loadWeeklySchedule()
+        if (activeSection == TvSection.Directory) viewModel.loadDirectory()
     }
 
     Column(
@@ -702,11 +684,8 @@ private fun SectionContent(
             )
             TvSection.Directory -> DirectoryPage(
                 state = state,
+                viewModel = viewModel,
                 selected = state.selectedAnime,
-                filter = directoryFilter,
-                onFilterChange = onDirectoryFilterChange,
-                selectedStatus = directoryStatus,
-                onStatusChange = onDirectoryStatusChange,
                 onSelect = viewModel::selectAnime,
                 modifier = Modifier.weight(1f),
             )
@@ -1047,68 +1026,149 @@ private fun ProgressPage(
 @Composable
 private fun DirectoryPage(
     state: AnimeTvState,
+    viewModel: AnimeTvViewModel,
     selected: Anime?,
-    filter: String,
-    onFilterChange: (String) -> Unit,
-    selectedStatus: String?,
-    onStatusChange: (String?) -> Unit,
     onSelect: (Anime) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val allItems = directoryPool(state)
-    val statuses = allItems.mapNotNull { it.status?.takeIf(String::isNotBlank) }.distinct().take(5)
-    val visibleItems = filterDirectory(allItems, filter, selectedStatus)
+    val page = state.directoryPage
+    val filters = state.directoryFilters
+    // Un solo grupo de opciones visible a la vez: con cinco dimensiones de
+    // filtro, mostrarlas todas dejaria la rejilla sin sitio en pantalla.
+    var openGroup by remember { mutableStateOf(DirectoryFilterGroup.Status) }
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        SectionHeader(
-            title = "Directorio de animes",
-            subtitle = "${visibleItems.size} titulos disponibles con los filtros actuales.",
-        )
+    AnimeGrid(
+        items = page.items,
+        selected = selected,
+        onSelect = onSelect,
+        emptyText = if (state.directoryLoading) "Cargando catalogo..." else "No hay titulos con esos filtros.",
+        modifier = modifier.fillMaxSize(),
+        header = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionHeader(
+                    title = "Directorio de animes",
+                    subtitle = when {
+                        state.directoryLoading && page.items.isEmpty() -> "Cargando catalogo..."
+                        page.total > 0 -> "${page.total} titulos - pagina ${page.page} de ${page.lastPage}"
+                        else -> "Catalogo completo de JkAnime."
+                    },
+                )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = filter,
-                onValueChange = onFilterChange,
-                singleLine = true,
-                label = { Text("Filtrar directorio") },
-                colors = tvTextFieldColors(),
-                shape = AnimeShapes.Control,
-                modifier = Modifier.width(280.dp),
-            )
-            TvChip("Todos", selectedStatus == null) { onStatusChange(null) }
-            statuses.forEach { status ->
-                TvChip(status, selectedStatus == status) { onStatusChange(status) }
+                // Que dimension se esta ajustando.
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp),
+                ) {
+                    items(DirectoryFilterGroup.entries.toList(), key = { it.name }) { group ->
+                        val value = group.valueOf(filters)
+                        TvChip(
+                            label = if (value == null) group.label else "${group.label}: ${group.labelFor(value)}",
+                            selected = openGroup == group,
+                        ) { openGroup = group }
+                    }
+                    item(key = "clear") {
+                        if (filters.activeCount > 0) {
+                            TvChip("Limpiar filtros", selected = false) {
+                                viewModel.updateDirectoryFilters(DirectoryFilters())
+                            }
+                        }
+                    }
+                }
+
+                // Opciones del grupo elegido.
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp),
+                ) {
+                    items(openGroup.options, key = { it.first ?: "todos" }) { (value, label) ->
+                        TvChip(
+                            label = label,
+                            selected = openGroup.valueOf(filters) == value,
+                        ) { viewModel.updateDirectoryFilters(openGroup.apply(filters, value)) }
+                    }
+                }
+
+                if (page.lastPage > 1) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TvButton(
+                            label = "Anteriores",
+                            onClick = { viewModel.goToDirectoryPage(page.page - 1) },
+                            primary = false,
+                        )
+                        TvButton(
+                            label = "Siguientes",
+                            onClick = { viewModel.goToDirectoryPage(page.page + 1) },
+                            primary = false,
+                        )
+                        Pill("Pagina ${page.page} de ${page.lastPage}", tone = AnimeColors.AccentSoft)
+                        if (state.directoryLoading) Pill("Cargando...")
+                    }
+                }
+
+                // La busqueda global deja sus resultados aqui: sin esta seccion,
+                // pulsar "Buscar" no tendria ningun efecto visible.
+                if (state.results.isNotEmpty()) {
+                    SectionHeader(
+                        title = "Resultados de busqueda",
+                        subtitle = "${state.results.size} coincidencias del proveedor.",
+                    )
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                    ) {
+                        items(state.results, key = { "result:${it.id}" }) { anime ->
+                            PosterCard(
+                                anime = anime,
+                                selected = anime.id == selected?.id,
+                                onClick = { onSelect(anime) },
+                                width = LocalAnimeMetrics.current.posterWidth,
+                                posterHeight = LocalAnimeMetrics.current.posterHeight,
+                            )
+                        }
+                    }
+                    SectionHeader(title = "Catalogo", subtitle = "Directorio completo del proveedor.")
+                }
             }
-        }
+        },
+    )
+}
 
-        if (state.results.isNotEmpty()) {
-            SectionHeader(title = "Resultados de busqueda", subtitle = "Coincidencias devueltas por el proveedor.")
-            AnimeGrid(
-                items = filterDirectory(state.results, filter, selectedStatus = null),
-                selected = selected,
-                onSelect = onSelect,
-                emptyText = "La busqueda no devolvio resultados visibles.",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp),
-            )
-            SectionHeader(title = "Catalogo", subtitle = "Todo lo detectado en esta sesion.")
-        }
+/** Dimensiones de filtro que ofrece el directorio del proveedor. */
+private enum class DirectoryFilterGroup(
+    val label: String,
+    val options: List<Pair<String?, String>>,
+) {
+    Status("Estado", DirectoryCatalog.statuses),
+    Type("Tipo", DirectoryCatalog.types),
+    Genre("Genero", DirectoryCatalog.genres),
+    Year("Ano", DirectoryCatalog.years),
+    Sort("Orden", DirectoryCatalog.sorts);
 
-        AnimeGrid(
-            items = visibleItems,
-            selected = selected,
-            onSelect = onSelect,
-            emptyText = "No hay animes con ese filtro.",
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-        )
+    fun valueOf(filters: DirectoryFilters): String? = when (this) {
+        Status -> filters.status
+        Type -> filters.type
+        Genre -> filters.genre
+        Year -> filters.year
+        Sort -> filters.sort
     }
+
+    fun apply(filters: DirectoryFilters, value: String?): DirectoryFilters = when (this) {
+        Status -> filters.copy(status = value)
+        Type -> filters.copy(type = value)
+        Genre -> filters.copy(genre = value)
+        Year -> filters.copy(year = value)
+        Sort -> filters.copy(sort = value)
+    }
+
+    fun labelFor(value: String?): String =
+        options.firstOrNull { it.first == value }?.second ?: value.orEmpty()
 }
 
 @Composable
@@ -1645,13 +1705,19 @@ private fun AnimeGrid(
     onSelect: (Anime) -> Unit,
     emptyText: String,
     modifier: Modifier = Modifier,
+    /**
+     * Cabecera opcional dentro de la propia rejilla. Fuera de ella se quedaba
+     * clavada arriba y, en television, dejaba una sola fila de posters visible.
+     */
+    header: (@Composable () -> Unit)? = null,
 ) {
-    if (items.isEmpty()) {
+    val metrics = LocalAnimeMetrics.current
+
+    if (items.isEmpty() && header == null) {
         EmptyState(emptyText, modifier = modifier)
         return
     }
 
-    val metrics = LocalAnimeMetrics.current
     LazyVerticalGrid(
         columns = GridCells.Adaptive(metrics.gridMinCell),
         modifier = modifier,
@@ -1659,6 +1725,14 @@ private fun AnimeGrid(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        header?.let { content ->
+            item(span = { GridItemSpan(maxLineSpan) }) { content() }
+        }
+
+        if (items.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) { EmptyState(emptyText) }
+        }
+
         gridItems(items, key = { it.id }) { anime ->
             PosterCard(
                 anime = anime,
@@ -2192,23 +2266,7 @@ private fun neighbourEpisode(episodes: List<Episode>, currentNumber: Int, delta:
     }
 }
 
-private fun directoryPool(state: AnimeTvState): List<Anime> {
-    return (state.directory + state.newlyAdded + state.recommended + state.premieres + state.top + state.favorites)
-        .distinctBy { it.id }
-        .sortedBy { it.title.lowercase() }
-}
-
-private fun filterDirectory(items: List<Anime>, query: String, selectedStatus: String?): List<Anime> {
-    val needle = query.trim().lowercase()
-    return items.filter { anime ->
-        val matchesText = needle.isBlank() ||
-            anime.title.lowercase().contains(needle) ||
-            anime.slug.lowercase().contains(needle)
-        val matchesStatus = selectedStatus == null || anime.status == selectedStatus
-        matchesText && matchesStatus
-    }
-}
-
+/** Capitulos publicados hoy o ayer, que es lo que muestra el inicio. */
 private fun List<Anime>.todayOrYesterdaySchedule(): List<Anime> {
     return filter { anime ->
         anime.scheduleLabel.equals("Hoy", ignoreCase = true) ||
