@@ -157,6 +157,7 @@ autoridad real es siempre el backend.
 | Permiso | Habilita |
 |---|---|
 | `platform.access` | Entrar a CodeRED Platform |
+| `store.access` | Entrar a CodeRED Store |
 | `mobile.access` | Entrar a CodeRED Mobile |
 | `desktop.access` | Entrar a CodeRED Desktop |
 

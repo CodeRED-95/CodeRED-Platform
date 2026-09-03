@@ -13,6 +13,7 @@ namespace App\Enums;
 enum ClientApplication: string
 {
     case Platform = 'platform';
+    case Store = 'store';
     case Mobile = 'mobile';
     case Desktop = 'desktop';
 
@@ -21,6 +22,7 @@ enum ClientApplication: string
     {
         return match ($this) {
             self::Platform => 'platform.access',
+            self::Store => 'store.access',
             self::Mobile => 'mobile.access',
             self::Desktop => 'desktop.access',
         };
@@ -30,6 +32,7 @@ enum ClientApplication: string
     {
         return match ($this) {
             self::Platform => 'CodeRED Platform',
+            self::Store => 'CodeRED Store',
             self::Mobile => 'CodeRED Mobile',
             self::Desktop => 'CodeRED Desktop',
         };

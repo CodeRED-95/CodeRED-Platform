@@ -31,6 +31,8 @@ final class MobileAccess
 
     public const PLATFORM_APP = 'platform.access';
 
+    public const STORE_APP = 'store.access';
+
     public const MOBILE_APP = 'mobile.access';
 
     public const DESKTOP_APP = 'desktop.access';
@@ -69,6 +71,13 @@ final class MobileAccess
             'role_name' => 'Acceso CodeRED Platform',
             'label' => 'CodeRED Platform',
             'description' => 'Entrar al panel web de CodeRED Platform.',
+            'scope' => self::SCOPE_APPLICATION,
+        ],
+        self::STORE_APP => [
+            'role' => 'acceso-store',
+            'role_name' => 'Acceso CodeRED Store',
+            'label' => 'CodeRED Store',
+            'description' => 'Iniciar sesión en CodeRED Store.',
             'scope' => self::SCOPE_APPLICATION,
         ],
         self::MOBILE_APP => [

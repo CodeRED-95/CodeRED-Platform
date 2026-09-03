@@ -89,7 +89,8 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'shalom-recordar.sync', 'name' => 'Sincronizar mis datos de Shalom Recordar'],
                 ['slug' => 'shalom-recordar.manage', 'name' => 'Gestionar Shalom Recordar'],
                 ['slug' => 'shalom-recordar:bootstrap', 'name' => 'Registrar instalación Shalom Recordar'],
-                ['slug' => 'shalom-recordar:sync', 'name' => 'Sincronizar Shalom Recordar'],
+
+                ['slug' => 'store.access', 'name' => 'Acceder a CodeRED Store'],
             ])
                 ->map(fn (array $item): array => [
                     'slug' => trim(strtolower($item['slug'])),
