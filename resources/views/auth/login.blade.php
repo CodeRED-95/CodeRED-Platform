@@ -58,6 +58,9 @@
         class="w-full rounded-[var(--radius-modal)] border border-[color:var(--color-border-subtle)] bg-[color:var(--color-background-elevated)]/95 px-5 py-6 shadow-2xl backdrop-blur sm:px-6 sm:py-7 lg:px-8 lg:py-7"
     >
         @csrf
+        @if ($redirect ?? null)
+            <input type="hidden" name="redirect" value="{{ $redirect }}">
+        @endif
 
         <div class="mx-auto mb-6 flex flex-col items-center gap-4 text-center lg:mb-6">
             <div class="flex size-16 items-center justify-center rounded-[var(--radius-card)] border border-white/10 bg-white/5 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
