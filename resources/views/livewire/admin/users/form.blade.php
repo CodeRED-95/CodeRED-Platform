@@ -11,7 +11,11 @@
             @if ($errors->any())
                 <x-ui.alert tone="danger">
                     <p class="font-medium">Revisa el formulario</p>
-                    Se encontraron errores de validación. Corrige los campos marcados antes de guardar.
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        @foreach ($errors->all() as $message)
+                            <li>{{ $message }}</li>
+                        @endforeach
+                    </ul>
                 </x-ui.alert>
             @endif
             <div class="mt-4 grid gap-4 md:grid-cols-2">
@@ -42,6 +46,12 @@
 
         <x-ui.card>
             <x-ui.section-header title="Roles" subtitle="Asignación por slug técnico." />
+            @error('roles')
+                <p class="mb-3 text-sm text-[color:var(--color-danger)]">{{ $message }}</p>
+            @enderror
+            @error('roles.*')
+                <p class="mb-3 text-sm text-[color:var(--color-danger)]">{{ $message }}</p>
+            @enderror
             <div class="mt-4 space-y-3">
                 @foreach ($availableRoles as $role)
                     <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border)] bg-white/5 px-4 py-3 transition hover:bg-white/10">

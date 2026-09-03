@@ -14,7 +14,10 @@ use Livewire\Component;
 
 class Form extends Component
 {
-    private const ALLOWED_ROLES = ['super-admin', 'viewer', 'editor'];
+    private const ALLOWED_ROLES = ['super-admin', 'viewer', 'editor', 'store-agency-user', 'store-supervisor', 'store-admin'];
+
+    /** @var list<string> */
+    private const ACCESS_ROLES = ['acceso-platform', 'acceso-store', 'acceso-mobile', 'acceso-desktop', 'acceso-ruc', 'acceso-dni'];
 
     public ?User $managedUser = null;
 
@@ -53,7 +56,7 @@ class Form extends Component
         if ($user) {
             $this->name = $user->name;
             $this->email = $user->email;
-            $this->roles = $user->roles()->pluck('slug')->all();
+            $this->roles = $user->roles()->whereIn('slug', self::ALLOWED_ROLES)->pluck('slug')->all();
             $this->status = $user->status ?? ($user->is_active ? 'active' : 'inactive');
             $this->email_verified = $user->email_verified_at !== null;
             $this->must_change_password = (bool) $user->must_change_password;
@@ -93,9 +96,13 @@ class Form extends Component
             }
 
             $security->canAssignRoles($actor, $this->managedUser, $validated['roles']);
-            $this->managedUser->roles()->sync(Role::query()->whereIn('slug', $validated['roles'])->pluck('id')->all());
+            $roleIds = Role::query()->whereIn('slug', $validated['roles'])->pluck('id')->all();
+            if ($this->mode === 'edit' && $this->managedUser instanceof User) {
+                $roleIds = array_merge($roleIds, $this->managedUser->roles()->whereIn('slug', self::ACCESS_ROLES)->pluck('id')->all());
+            }
+            $this->managedUser->roles()->sync(array_values(array_unique($roleIds)));
 
-            $newRoles = collect($validated['roles'])->sort()->values()->all();
+            $newRoles = $this->managedUser->roles()->pluck('slug')->sort()->values()->all();
             if ($previousRoles !== $newRoles) {
                 $auditLogger->log(
                     $this->managedUser,
@@ -118,7 +125,7 @@ class Form extends Component
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->managedUser?->id)],
             'password' => [$this->mode === 'create' ? 'required' : 'nullable', 'confirmed', 'min:12'],
             'password_confirmation' => [$this->mode === 'create' ? 'required' : 'nullable'],
-            'roles' => ['array', 'min:1'],
+            'roles' => ['array', $this->mode === 'create' ? 'min:1' : 'nullable'],
             'roles.*' => ['string', Rule::in(self::ALLOWED_ROLES)],
             'status' => ['required', Rule::in(['active', 'suspended', 'inactive'])],
             'email_verified' => ['boolean'],
