@@ -10,6 +10,8 @@
 
 ### Fixed
 
+- Se corrige globalmente el selector de paginas de Livewire para mantener contraste, estado activo, estados deshabilitados, foco y adaptacion movil sobre el tema oscuro.
+
 - Se aísla el entorno de pruebas para que las solicitudes de token no disparen notificaciones reales a n8n o Telegram durante `composer verify`.
 
 ## 2026-08-11

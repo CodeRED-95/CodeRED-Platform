@@ -354,3 +354,60 @@
     line-height: 1.45;
   }
 }
+
+/* Pagination: keep Livewire and Blade controls readable on the dark theme. */
+[role="navigation"][aria-label="Pagination Navigation"] [class~="bg-white"] {
+  background-color: var(--color-background-elevated) !important;
+}
+
+[role="navigation"][aria-label="Pagination Navigation"] [class~="border-gray-300"] {
+  border-color: var(--color-border) !important;
+}
+
+[role="navigation"][aria-label="Pagination Navigation"] [class~="text-gray-700"],
+[role="navigation"][aria-label="Pagination Navigation"] [class~="text-gray-500"],
+[role="navigation"][aria-label="Pagination Navigation"] [class~="text-gray-400"] {
+  color: var(--color-text-primary) !important;
+}
+
+[role="navigation"][aria-label="Pagination Navigation"] [aria-disabled="true"] [class~="text-gray-500"],
+[role="navigation"][aria-label="Pagination Navigation"] [class~="cursor-default"] {
+  color: var(--color-text-disabled) !important;
+}
+
+[role="navigation"][aria-label="Pagination Navigation"] [aria-current="page"] > span {
+  border-color: var(--color-brand) !important;
+  background-color: var(--color-brand) !important;
+  color: #ffffff !important;
+}
+
+[role="navigation"][aria-label="Pagination Navigation"] button:hover:not(:disabled) {
+  border-color: var(--color-brand) !important;
+  background-color: color-mix(in srgb, var(--color-brand) 16%, var(--color-background-elevated)) !important;
+  color: #ffffff !important;
+}
+
+[role="navigation"][aria-label="Pagination Navigation"] button:focus-visible {
+  outline: 2px solid var(--color-brand) !important;
+  outline-offset: 2px;
+}
+
+[role="navigation"][aria-label="Pagination Navigation"] button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 639px) {
+  [role="navigation"][aria-label="Pagination Navigation"] {
+    gap: 0.75rem;
+  }
+
+  [role="navigation"][aria-label="Pagination Navigation"] .hidden.sm\:flex-1 {
+    display: none;
+  }
+
+  [role="navigation"][aria-label="Pagination Navigation"] .sm\:hidden {
+    display: flex;
+    width: 100%;
+  }
+}
