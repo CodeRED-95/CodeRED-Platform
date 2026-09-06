@@ -1,5 +1,9 @@
 # CodeRED Platform
 
+## Versión
+
+Fuente única de verdad: `composer.json > extra.version` (`4.33.0`).
+
 CodeRED Platform es el centro de control modular para la administración y consulta
 de agencias Shalom, padrón RUC y datos DNI, con emisión de tokens de API (Sanctum)
 e integraciones empresariales. Está construido con **Laravel 12**, **Livewire 3**,
@@ -8,7 +12,7 @@ e integraciones empresariales. Está construido con **Laravel 12**, **Livewire 3
 workflows.
 
 - **Dominio productivo:** `platform.codered.lat`
-- **Versión:** ver `composer.json > extra.version` (fuente única) o `./bin/version.sh`
+- **Versión:** `4.33.0` en `composer.json > extra.version` o `./bin/version.sh`
 
 ---
 
@@ -23,7 +27,7 @@ workflows.
   rate limiting y auditoría.
 - **Integraciones** — n8n vía CodeRED Agent (Pairing, Discovery, Heartbeat,
   Challenge/Response, Capability Registry) y extensiones de navegador.
-- **API REST v1** documentada en `/docs` (agencias, RUC, DNI, Shalom Recordar y CodeRED Mobile).
+- **API REST v1** documentada en `docs/API.md` y los archivos del árbol `docs/` (agencias, RUC, DNI, Shalom Recordar y CodeRED Mobile).
 
 ---
 
@@ -151,7 +155,7 @@ Cada uno mantiene su propio versionado y documentación:
 | [packages/codered-agent](packages/codered-agent/README.md) | Daemon de integración (Pairing, Discovery, Heartbeat) | 1.0.0 |
 | [packages/n8n-nodes-codered](packages/n8n-nodes-codered/README.md) | Nodo n8n de CodeRED | 1.1.0 |
 | [packages/codered-chrome-extension](packages/codered-chrome-extension/README.md) | Extensión "Buscador Shalom Control" | 2.9.0 |
-| [packages/shalom-recordar-extension](packages/shalom-recordar-extension/README.md) | Extensión "Shalom Recordar" | 2.9.1 |
+| [packages/shalom-recordar-extension](packages/shalom-recordar-extension/README.md) | Extensión "Shalom Recordar" | 2.9.11 |
 | [packages/ruc-tools](packages/ruc-tools/README.md) | Herramienta CLI local para backups RUC | 2.3.0 |
 
 ---

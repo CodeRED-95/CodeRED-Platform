@@ -1,5 +1,9 @@
 # RUC Tool v2.3.0
 
+## Versión
+
+Fuente única de verdad: esta cabecera del README (`2.3.0`).
+
 > ## ⚠️ IMPORTANT — LOCAL TOOL ONLY
 >
 > **RUC Tools es una herramienta administrativa local (offline, de

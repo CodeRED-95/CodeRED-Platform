@@ -1,5 +1,9 @@
 # Shalom Recordar Extension
 
+## Versión
+
+Fuente única de verdad: `package.json` (`2.9.11`).
+
 Extensión Chrome para capturar y sincronizar datos de Shalom Recordar con CodeRED Platform.
 
 ## Qué hace

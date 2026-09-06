@@ -1,5 +1,9 @@
 # Buscador Shalom Control
 
+## Versión
+
+Fuente única de verdad: `package.json` (`2.9.0`).
+
 Extension Chrome Manifest V3 para inyectar un buscador de agencias dentro de Shalom Control y consultar agencias usando CodeRED Platform como unica fuente oficial.
 
 La extension no realiza scraping, no consume GitHub Gist y no usa JSON estatico como fuente principal. Despues de la primera sincronizacion correcta, la busqueda se ejecuta localmente desde `chrome.storage.local` y sigue funcionando sin conexión con la ultima cache valida.

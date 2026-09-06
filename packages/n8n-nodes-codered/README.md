@@ -1,5 +1,9 @@
 # @n8n-nodes-codered/codered
 
+## Versión
+
+Fuente única de verdad: `package.json` (`1.1.0`).
+
 Official self-hosted n8n connector for CodeRED Platform.
 
 The node never stores `shared_secret`, `integration_uuid` or `instance_uuid` in n8n credentials. Pair Instance talks only to the local CodeRED Agent; the agent owns identity, pairing, challenge, discovery, heartbeat and secret rotation.
