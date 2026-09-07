@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.33.5] - 2026-09-07
+
+### Corregido
+
+- Alineado el User-Agent predeterminado con un navegador real para evitar respuestas demoradas de SUNAT ante el cliente HTTP.
+
+---
+
 ## [4.33.4] - 2026-09-07
 
 ### Corregido
