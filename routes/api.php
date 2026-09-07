@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\V1\MobileDeviceController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ShalomRecordarAuthController;
 use App\Http\Controllers\Api\V1\SystemVersionController;
+use App\Http\Controllers\Api\V1\RucRepresentativeController;
 use App\Http\Controllers\Api\V1\TokenRequestController as PublicTokenRequestController;
 use App\Http\Controllers\Api\V1\TokenRotationRequestController;
 use App\Modules\ExtensionControl\Support\BlockingAbility;
@@ -249,6 +250,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/dni/{dni}', DniApiController::class)->name('dni.show');
         });
         Route::get('/ruc/buscar', RucSearchApiController::class)->middleware(['throttle:ruc-search', 'api.audit:ruc', 'access:ruc:buscar'])->name('ruc.search');
+        Route::get('/ruc/{ruc}/representantes', RucRepresentativeController::class)->middleware(['auth:sanctum', 'throttle:sunat-representatives', 'access:ruc:representantes'])->whereNumber('ruc')->name('ruc.representatives');
         Route::get('/ruc/{ruc}', RucApiController::class)->middleware(['throttle:ruc-lookup', 'api.audit:ruc', 'access:ruc:consultar'])->name('ruc.show');
         Route::middleware(['throttle:api', 'access:agencies:read'])->group(function (): void {
             Route::get('/agencies', [AgencyCatalogController::class, 'index'])->name('agencies.index');

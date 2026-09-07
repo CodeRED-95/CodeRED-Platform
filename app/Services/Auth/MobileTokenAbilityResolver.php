@@ -17,6 +17,7 @@ class MobileTokenAbilityResolver
         'agencies.view' => ['agencias:consultar', 'agencies:read'],
         'dni-records.view' => ['dni:consultar', 'dni:nombre'],
         'ruc.view' => ['ruc:consultar'],
+        'ruc.representantes' => ['ruc:representantes'],
         'declaracion-jurada.view' => ['declaraciones:gestionar'],
         // Áreas de administración. La ability abre el área; el permiso concreto
         // de cada acción (crear, revocar, aprobar, rechazar) lo comprueba el

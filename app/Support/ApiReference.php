@@ -269,7 +269,7 @@ final class ApiReference
             'id' => 'ruc',
             'title' => 'RUC',
             'icon' => '▦',
-            'description' => 'Consulta del padrón RUC por número exacto o por búsqueda. Requiere abilities ruc:consultar o ruc:buscar. Tiene su propio límite de '.$rucRate.' peticiones por minuto.',
+            'description' => 'Consulta del padrón RUC por número exacto, representantes legales o por búsqueda. Requiere abilities ruc:consultar, ruc:representantes o ruc:buscar. Tiene su propio límite de '.$rucRate.' peticiones por minuto.',
             'notes' => [],
             'endpoints' => [
                 [
@@ -285,6 +285,20 @@ final class ApiReference
                     'request' => self::curl('GET', '/ruc/20123456789'),
                     'response' => self::json(['success' => true, 'data' => ['ruc' => '20123456789', 'razon_social' => 'EMPRESA DEMO S.A.C.', 'estado' => 'ACTIVO', 'condicion' => 'HABIDO']]),
                     'errors' => ['401', '403', '404', '429'],
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/api/v1/ruc/{ruc}/representantes',
+                    'title' => 'Representantes legales del RUC',
+                    'ability' => 'ruc:representantes',
+                    'auth' => true,
+                    'description' => 'Devuelve solo los representantes legales consultando SUNAT. No expone ni recalcula los datos locales del contribuyente.',
+                    'params' => [
+                        ['name' => 'ruc', 'in' => 'path', 'type' => 'string', 'required' => true, 'description' => 'RUC de 11 dígitos.'],
+                    ],
+                    'request' => self::curl('GET', '/ruc/20123456789/representantes'),
+                    'response' => self::json(['success' => true, 'data' => ['ruc' => '20123456789', 'representantes' => [['tipo_documento' => 'DNI', 'numero_documento' => '12345678', 'nombre' => 'APELLIDOS NOMBRES', 'cargo' => 'GERENTE GENERAL', 'fecha_desde' => '2020-01-15']]], 'meta' => ['source' => 'sunat', 'cached' => false, 'consulted_at' => '2026-09-07T12:00:00Z']]),
+                    'errors' => ['401', '403', '404', '422', '429', '502', '503', '504'],
                 ],
                 [
                     'method' => 'GET',

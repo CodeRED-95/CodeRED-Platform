@@ -82,6 +82,7 @@ class AbilityCatalogService
             'dni:consultar' => ['dni-records.view'],
             'dni:nombre' => ['dni-records.view'],
             'ruc:consultar' => ['ruc.view'],
+            'ruc:representantes' => ['ruc.representantes'],
             'ruc:buscar' => ['ruc.view'],
             'profile:read' => ['api-tokens.view-own', 'api-tokens.create-for-users'],
             'mobile' => ['mobile'],

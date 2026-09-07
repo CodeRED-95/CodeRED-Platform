@@ -59,6 +59,7 @@ class PermissionsSeeder extends Seeder
                 ['slug' => 'permission-requests.manage', 'name' => 'Aprobar o rechazar solicitudes de acceso móvil'],
                 ['slug' => 'ruc.view', 'name' => 'Ver padrón RUC'],
                 ['slug' => 'ruc.test', 'name' => 'Probar API RUC'],
+                ['slug' => 'ruc.representantes', 'name' => 'Consultar representantes legales de RUC'],
                 ['slug' => 'ruc.backup.view', 'name' => 'Ver copias del padrón RUC'],
                 ['slug' => 'ruc.backup.create', 'name' => 'Crear/subir copias del padrón RUC'],
                 ['slug' => 'ruc.backup.restore', 'name' => 'Restaurar copias del padrón RUC'],

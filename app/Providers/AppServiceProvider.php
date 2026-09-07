@@ -65,6 +65,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-dni-name-search', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('dni.name_search.rate_limit_per_minute'), 1), 'dni-name-search'));
         RateLimiter::for('ruc-lookup', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('ruc.rate_limit_per_minute'), 1), 'ruc'));
         RateLimiter::for('ruc-search', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('ruc.search_rate_limit_per_minute'), 1), 'ruc-search'));
+        RateLimiter::for('sunat-representatives', fn (Request $request): Limit => $this->tokenLimit($request, max((int) config('sunat.representatives.rate_limit'), 1), 'sunat-representatives'));
         RateLimiter::for('ruc-admin-test', fn (Request $request): Limit => Limit::perMinute(20)->by('ruc-admin:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('public-token-request-form', fn (Request $request): Limit => Limit::perMinute(30)->by('token-form:'.hash_hmac('sha256', (string) $request->ip(), config('app.key'))));
         RateLimiter::for('public-token-requests', fn (Request $request): Limit => Limit::perHour((int) config('api.public_token_request_rate_limit', 5))->by('token-request:'.hash_hmac('sha256', implode('|', [(string) $request->ip(), (string) $request->input('installation_name'), (string) $request->input('delivery_destination')]), config('app.key'))));

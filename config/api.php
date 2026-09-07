@@ -23,6 +23,7 @@ return [
         'dni:consultar' => 'Solo DNI',
         'dni:nombre' => 'Solo DNI · Buscar por nombres y apellidos',
         'ruc:consultar' => 'RUC · Consultar por número',
+        'ruc:representantes' => 'RUC · Consultar representantes legales',
         'ruc:buscar' => 'RUC · Buscar por razón social',
         'agencies:read' => 'Consultar agencias (compatibilidad)',
         'agencies:map' => 'Consultar datos cartográficos',
