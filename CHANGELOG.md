@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.33.2] - 2026-09-07
+
+### Añadido
+
+- Buscador administrativo de representantes legales por RUC en SUNAT, protegido por la ability `ruc:representantes`.
+
+---
+
 ## [4.33.0] - 2026-08-27
 
 ### ℹ️ Nota

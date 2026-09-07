@@ -82,6 +82,7 @@
                             ],
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.test')],
+                                ['label' => 'Buscar Representantes', 'route' => 'admin.api-tools.ruc-representantes', 'icon' => '♙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.representantes')],
                                 ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.view')],
                                 ['label' => 'Backups RUC', 'route' => 'admin.ruc.backups', 'icon' => '⛁', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.backup.view')],
                             ],
@@ -280,6 +281,7 @@
                             ],
                             'Empresas y RUC' => [
                                 ['label' => 'Probar API RUC', 'route' => 'admin.api-tools.ruc', 'icon' => '⌕', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.test')],
+                                ['label' => 'Buscar Representantes', 'route' => 'admin.api-tools.ruc-representantes', 'icon' => '♙', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.representantes')],
                                 ['label' => 'Padrón RUC', 'route' => 'admin.ruc.records', 'icon' => '▦', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.view')],
                                 ['label' => 'Backups RUC', 'route' => 'admin.ruc.backups', 'icon' => '⛁', 'can' => ! $isViewerOnly && $menuUser->hasPermission('ruc.backup.view')],
                             ],

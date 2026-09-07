@@ -2,7 +2,7 @@
 
 ## Versión
 
-Fuente única de verdad: `composer.json > extra.version` (`4.33.0`).
+Fuente única de verdad: `composer.json > extra.version` (`4.33.2`).
 
 CodeRED Platform es el centro de control modular para la administración y consulta
 de agencias Shalom, padrón RUC y datos DNI, con emisión de tokens de API (Sanctum)
@@ -12,7 +12,7 @@ e integraciones empresariales. Está construido con **Laravel 12**, **Livewire 3
 workflows.
 
 - **Dominio productivo:** `platform.codered.lat`
-- **Versión:** `4.33.0` en `composer.json > extra.version` o `./bin/version.sh`
+- **Versión:** `4.33.2` en `composer.json > extra.version` o `./bin/version.sh`
 
 ---
 
