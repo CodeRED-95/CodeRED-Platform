@@ -31,8 +31,6 @@ class SunatRepresentativeClient
                 ->withOptions([
                     'allow_redirects' => true,
                     'cookies' => $cookies,
-                    'version' => 1.1,
-                    'force_ip_resolve' => 'v4',
                 ]);
 
             $landing = $http->get($baseUrl);

@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.33.6] - 2026-09-07
+
+### Corregido
+
+- Eliminadas las opciones forzadas de HTTP/1.1 e IPv4 que bloqueaban PHP-cURL al conectar con SUNAT desde Docker.
+
+---
+
 ## [4.33.5] - 2026-09-07
 
 ### Corregido
