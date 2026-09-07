@@ -34,7 +34,7 @@ class SunatRepresentativeClientTest extends TestCase
             return $request->method() === 'POST'
                 && $request->data()['accion'] === 'getRepLeg'
                 && $request->data()['desRuc'] === 'EMPRESA TEST'
-                && $request->header('Referer') === ['https://sunat.test/cl-ti-itmrconsruc/jcrS00Alias'];
+                && in_array('https://sunat.test/cl-ti-itmrconsruc/jcrS00Alias', (array) $request->header('Referer'), true);
         });
     }
 }
