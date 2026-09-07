@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.33.3] - 2026-09-07
+
+### Corregido
+
+- Aumentado el timeout configurable de la consulta de representantes legales para tolerar respuestas lentas de SUNAT.
+
+---
+
 ## [4.33.2] - 2026-09-07
 
 ### Añadido
