@@ -6,6 +6,14 @@ El formato se basa en [Mantener un Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [4.33.4] - 2026-09-07
+
+### Corregido
+
+- Añadido el encabezado `Referer` requerido por el flujo actual de SUNAT al obtener representantes legales.
+
+---
+
 ## [4.33.3] - 2026-09-07
 
 ### Corregido

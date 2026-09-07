@@ -33,7 +33,8 @@ class SunatRepresentativeClientTest extends TestCase
         Http::assertSent(function (Request $request): bool {
             return $request->method() === 'POST'
                 && $request->data()['accion'] === 'getRepLeg'
-                && $request->data()['desRuc'] === 'EMPRESA TEST';
+                && $request->data()['desRuc'] === 'EMPRESA TEST'
+                && $request->header('Referer') === ['https://sunat.test/cl-ti-itmrconsruc/jcrS00Alias'];
         });
     }
 }

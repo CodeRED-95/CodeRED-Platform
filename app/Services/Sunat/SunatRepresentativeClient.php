@@ -42,7 +42,8 @@ class SunatRepresentativeClient
                 return '<p>No se encontraron representantes legales.</p>';
             }
 
-            $result = $http->asForm()->post($this->resolveAction($baseUrl, 'jcrS00Alias'), [
+            $queryUrl = $this->resolveAction($baseUrl, 'jcrS00Alias');
+            $result = $http->withHeaders(['Referer' => $baseUrl])->asForm()->post($queryUrl, [
                 'accion' => 'consPorRuc',
                 'razSoc' => '',
                 'nroRuc' => $ruc,
@@ -59,7 +60,8 @@ class SunatRepresentativeClient
             }
 
             $representativeForm = $this->representativeForm($result->body());
-            $representatives = $http->asForm()->post($this->resolveAction($baseUrl, $representativeForm['action']), [
+            $representativesUrl = $this->resolveAction($baseUrl, $representativeForm['action']);
+            $representatives = $http->withHeaders(['Referer' => $queryUrl])->asForm()->post($representativesUrl, [
                 'accion' => 'getRepLeg',
                 'contexto' => $representativeForm['contexto'] ?: 'ti-it',
                 'modo' => $representativeForm['modo'] ?: '1',
