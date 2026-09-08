@@ -36,6 +36,11 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ### Fixed
 
+- Se incorpora correo transaccional con Resend, verificación OTP de cuentas,
+  recuperación de contraseña, registro de entregas y webhook firmado; los
+  usuarios existentes conservan su acceso hasta que se solicite verificar un
+  correo nuevo.
+
 - La pantalla administrativa de tokens quedó dividida en parciales para evitar el error de compilación de Livewire por regex demasiado grande.
 - El formulario de generación de tokens del panel ahora permite seleccionar múltiples abilities y valida que el usuario solo asigne permisos que administra.
 - Se corrigieron los botones de `Copiar JSON` y `Copiar datos` en los probadores administrativos de API DNI y API RUC para copiar el payload real y su versión legible, con fallback de clipboard y feedback de toast.

@@ -99,6 +99,6 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "extra": {
-        "version": "4.33.6"
+        "version": "4.33.7"
     }
 }
