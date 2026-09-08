@@ -48,15 +48,20 @@ class EmailVerificationTest extends TestCase
             'password' => 'Secret12345!@#', 'password_confirmation' => 'Secret12345!@#',
         ]);
         $user = User::query()->where('email', 'verify@example.test')->firstOrFail();
-        $job = Queue::pushed(SendTransactionalEmail::class)->first();
-        $this->assertNotNull($job);
+        $plainCode = null;
+        Queue::assertPushed(SendTransactionalEmail::class, function (SendTransactionalEmail $job) use (&$plainCode): bool {
+            $plainCode = $job->data['code'];
 
-        $this->withSession(['_token' => 'verify-csrf'])->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => $job->data['code']])->assertRedirect();
+            return true;
+        });
+        $this->assertIsString($plainCode);
+
+        $this->withSession(['_token' => 'verify-csrf'])->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => $plainCode])->assertRedirect();
         $user->refresh();
         $this->assertNotNull($user->email_verified_at);
         $this->assertFalse($user->requiresEmailVerification());
 
-        $this->withSession(['_token' => 'verify-csrf'])->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => $job->data['code']])->assertRedirect();
+        $this->withSession(['_token' => 'verify-csrf'])->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => $plainCode])->assertRedirect();
         $this->assertDatabaseCount('email_verification_codes', 1);
     }
 

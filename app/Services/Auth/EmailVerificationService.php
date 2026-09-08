@@ -11,6 +11,7 @@ use App\Models\EmailLog;
 use App\Models\EmailVerificationCode;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -37,6 +38,7 @@ final class EmailVerificationService
         $userAgent = $request?->userAgent();
         $now = now();
 
+        /** @var array{code:string|null,expires_at:Carbon,last_sent_at:Carbon,resent:bool} $result */
         $result = DB::transaction(function () use ($user, $ip, $now, $forceNew): array {
             $latest = EmailVerificationCode::query()
                 ->where('user_id', $user->getKey())
