@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Auth\ConfiguredAdminSyncService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
@@ -80,6 +81,7 @@ class SuperAdminAndViewerTest extends TestCase
      */
     private function register(array $payload)
     {
+        Queue::fake();
         $token = 'csrf-token-registro';
 
         return $this->withSession(['_token' => $token])
