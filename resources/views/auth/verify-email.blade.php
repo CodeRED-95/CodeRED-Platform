@@ -14,7 +14,7 @@
         <div class="mt-6 text-center text-sm text-[color:var(--color-text-secondary)]">
             <p>El código expira en {{ ceil(($status['expires_in'] ?? 0) / 60) }} minutos.</p>
             @if (($resendAvailableIn ?? $status['resend_available_in'] ?? 0) > 0)
-                <p class="mt-2">Reenviar código en {{ gmdate('i:s', $resendAvailableIn ?? $status['resend_available_in']) }}</p>
+                <p class="mt-2" data-email-verification-countdown="{{ (int) ($resendAvailableIn ?? $status['resend_available_in']) }}">Reenviar código en <span data-countdown-display>{{ gmdate('i:s', (int) ($resendAvailableIn ?? $status['resend_available_in'])) }}</span></p>
             @else
                 <form method="POST" action="{{ route('email.verify.resend') }}" class="mt-2">@csrf<button type="submit" class="font-semibold text-[color:var(--color-brand-light)] hover:underline">Reenviar código</button></form>
             @endif

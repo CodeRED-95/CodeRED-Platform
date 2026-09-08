@@ -6,8 +6,15 @@ import { codeRedApiDocs, createApiDocsAuthStore } from "./api-docs";
 import { registerClipboardListener } from "./clipboard";
 import { createRucRestoreProgress } from "./ruc-backup-restore-progress";
 import { createRucBackupMultipartUploader } from "./ruc-backup-multipart-uploader";
+import { initializeEmailVerificationCountdown } from "./email-verification-countdown";
 
 registerClipboardListener();
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => initializeEmailVerificationCountdown(), { once: true });
+} else {
+  initializeEmailVerificationCountdown();
+}
 
 document.addEventListener("alpine:init", () => {
   window.Alpine.data('sidebar', () => ({

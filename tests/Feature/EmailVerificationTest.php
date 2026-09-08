@@ -8,7 +8,9 @@ use App\Jobs\SendTransactionalEmail;
 use App\Models\EmailLog;
 use App\Models\EmailVerificationCode;
 use App\Models\User;
+use App\Services\Auth\EmailVerificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -81,6 +83,30 @@ class EmailVerificationTest extends TestCase
 
         $this->withSession(['_token' => 'verify-csrf'])->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => '000000'])->assertRedirect();
         $this->assertSame(1, EmailVerificationCode::query()->where('user_id', $user->id)->value('attempts'));
+    }
+
+    public function test_resend_status_returns_seconds_remaining_until_cooldown(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => null,
+            'email_verification_required' => true,
+        ]);
+        $sentAt = Carbon::parse('2026-09-08 10:00:00');
+        EmailVerificationCode::query()->create([
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'code_hash' => Hash::make('482731'),
+            'attempts' => 0,
+            'max_attempts' => 5,
+            'expires_at' => $sentAt->copy()->addMinutes(10),
+            'last_sent_at' => $sentAt,
+        ]);
+
+        Carbon::setTestNow($sentAt->copy()->addSeconds(12));
+        $status = app(EmailVerificationService::class)->status($user);
+        Carbon::setTestNow();
+
+        $this->assertSame(48, $status['resend_available_in']);
     }
 
     public function test_legacy_user_without_required_flag_keeps_access(): void

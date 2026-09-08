@@ -55,11 +55,13 @@ final class EmailVerificationService
                 ];
             }
 
-            if ($latest instanceof EmailVerificationCode
-                && $latest->last_sent_at !== null
-                && $latest->last_sent_at->diffInSeconds($now) < self::RESEND_COOLDOWN_SECONDS) {
+            $resendAvailableIn = $latest instanceof EmailVerificationCode && $latest->last_sent_at !== null
+                ? max(0, $latest->last_sent_at->timestamp + self::RESEND_COOLDOWN_SECONDS - $now->timestamp)
+                : 0;
+
+            if ($resendAvailableIn > 0) {
                 throw new EmailVerificationCooldownException(
-                    (int) max(0, ceil(self::RESEND_COOLDOWN_SECONDS - $latest->last_sent_at->diffInSeconds($now)))
+                    $resendAvailableIn
                 );
             }
 
@@ -106,8 +108,8 @@ final class EmailVerificationService
         });
 
         return [
-            'expires_in' => max(0, now()->diffInSeconds($result['expires_at'], false)),
-            'resend_available_in' => max(0, self::RESEND_COOLDOWN_SECONDS - now()->diffInSeconds($result['last_sent_at'])),
+            'expires_in' => max(0, $result['expires_at']->timestamp - now()->timestamp),
+            'resend_available_in' => max(0, $result['last_sent_at']->timestamp + self::RESEND_COOLDOWN_SECONDS - now()->timestamp),
             'resent' => $result['resent'],
         ];
     }
@@ -160,8 +162,8 @@ final class EmailVerificationService
         }
 
         return [
-            'expires_in' => max(0, now()->diffInSeconds($latest->expires_at, false)),
-            'resend_available_in' => max(0, self::RESEND_COOLDOWN_SECONDS - now()->diffInSeconds($latest->last_sent_at)),
+            'expires_in' => max(0, $latest->expires_at->timestamp - now()->timestamp),
+            'resend_available_in' => max(0, $latest->last_sent_at->timestamp + self::RESEND_COOLDOWN_SECONDS - now()->timestamp),
         ];
     }
 
