@@ -42,6 +42,10 @@ class SunatRepresentativeParser
 
         $representatives = [];
         foreach ($tables as $table) {
+            if (! $table instanceof DOMElement) {
+                continue;
+            }
+
             $representatives = array_merge($representatives, $this->parseTable($table));
         }
 

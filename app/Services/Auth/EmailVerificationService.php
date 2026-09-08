@@ -59,7 +59,7 @@ final class EmailVerificationService
                 && $latest->last_sent_at !== null
                 && $latest->last_sent_at->diffInSeconds($now) < self::RESEND_COOLDOWN_SECONDS) {
                 throw new EmailVerificationCooldownException(
-                    self::RESEND_COOLDOWN_SECONDS - $latest->last_sent_at->diffInSeconds($now)
+                    (int) max(0, ceil(self::RESEND_COOLDOWN_SECONDS - $latest->last_sent_at->diffInSeconds($now)))
                 );
             }
 
