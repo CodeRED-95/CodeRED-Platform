@@ -26,7 +26,7 @@ class SunatRepresentativeParser
         }
 
         libxml_use_internal_errors(true);
-        $dom = new DOMDocument();
+        $dom = new DOMDocument;
         $dom->loadHTML($html);
         $xpath = new DOMXPath($dom);
         $tables = $xpath->query('//table');
@@ -70,6 +70,7 @@ class SunatRepresentativeParser
 
             if ($index === 0 || $this->looksLikeHeader($cells)) {
                 $headers = $cells;
+
                 continue;
             }
 
@@ -172,6 +173,7 @@ class SunatRepresentativeParser
         }
 
         $timestamp = strtotime($value);
+
         return $timestamp !== false ? date('Y-m-d', $timestamp) : null;
     }
 }

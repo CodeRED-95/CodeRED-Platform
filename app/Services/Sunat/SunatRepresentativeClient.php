@@ -3,13 +3,13 @@
 namespace App\Services\Sunat;
 
 use App\Exceptions\SunatRepresentativeException;
+use DOMDocument;
+use DOMXPath;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use DOMDocument;
-use DOMXPath;
 
 class SunatRepresentativeClient
 {
@@ -17,7 +17,7 @@ class SunatRepresentativeClient
     public function fetch(string $ruc): string
     {
         $baseUrl = (string) config('sunat.representatives.url');
-        $cookies = new CookieJar();
+        $cookies = new CookieJar;
         $headers = [
             'User-Agent' => (string) config('sunat.representatives.user_agent'),
             'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -79,7 +79,7 @@ class SunatRepresentativeClient
     /** @return array{action: string, contexto: string, modo: string, desRuc: string} */
     private function representativeForm(string $html): array
     {
-        $dom = new DOMDocument();
+        $dom = new DOMDocument;
         libxml_use_internal_errors(true);
         $dom->loadHTML($html);
         $xpath = new DOMXPath($dom);

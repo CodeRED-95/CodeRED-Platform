@@ -57,6 +57,7 @@ class SunatRepresentativeService
 
         if ($data === []) {
             Log::info('sunat_representatives.not_found', ['ruc' => $ruc]);
+
             return ['data' => null, 'cached' => false, 'source' => 'sunat', 'consulted_at' => now()->toISOString()];
         }
 

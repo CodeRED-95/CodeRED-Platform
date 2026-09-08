@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Core\Auth\AuthenticatedHome;
 use App\Exceptions\EmailVerificationAttemptsExceededException;
 use App\Exceptions\EmailVerificationCooldownException;
 use App\Http\Controllers\Controller;
@@ -22,7 +23,7 @@ class EmailVerificationController extends Controller
         abort_unless($user instanceof User, 403);
 
         if (! $user->requiresEmailVerification()) {
-            return redirect()->intended(app(\App\Core\Auth\AuthenticatedHome::class)->route($user));
+            return redirect()->intended(app(AuthenticatedHome::class)->route($user));
         }
 
         return view('auth.verify-email', [
@@ -45,7 +46,7 @@ class EmailVerificationController extends Controller
         }
 
         if ($result['status'] === 'verified') {
-            return redirect()->intended(app(\App\Core\Auth\AuthenticatedHome::class)->route($user))
+            return redirect()->intended(app(AuthenticatedHome::class)->route($user))
                 ->with('success', 'Correo verificado correctamente.');
         }
 

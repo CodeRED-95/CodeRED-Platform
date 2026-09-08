@@ -6,9 +6,9 @@ use App\Exceptions\SunatRepresentativeException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RucRepresentativeRequest;
 use App\Services\Sunat\SunatRepresentativeService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\JsonResponse;
 
 class RucRepresentativeController extends Controller
 {

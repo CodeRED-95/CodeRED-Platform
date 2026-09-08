@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Sunat;
 
-use App\Services\Sunat\SunatRepresentativeParser;
 use App\Exceptions\SunatRepresentativeException;
+use App\Services\Sunat\SunatRepresentativeParser;
 use Tests\TestCase;
 
 class SunatRepresentativeParserTest extends TestCase
@@ -13,7 +13,7 @@ class SunatRepresentativeParserTest extends TestCase
     public function test_parsea_un_representante_y_normaliza_texto_y_fecha(): void
     {
         $html = file_get_contents(base_path('tests/Fixtures/ruc/sunat-representatives-sample.html'));
-        $data = (new SunatRepresentativeParser())->parse($html);
+        $data = (new SunatRepresentativeParser)->parse($html);
 
         $this->assertCount(2, $data);
         $this->assertSame('DNI', $data[0]->tipoDocumento);
@@ -27,13 +27,13 @@ class SunatRepresentativeParserTest extends TestCase
     {
         $this->expectException(SunatRepresentativeException::class);
 
-        (new SunatRepresentativeParser())->parse('<html><body>sin tablas</body></html>');
+        (new SunatRepresentativeParser)->parse('<html><body>sin tablas</body></html>');
     }
 
     public function test_parsea_fixture_real_de_sunat_con_multiples_representantes(): void
     {
         $html = file_get_contents(base_path('tests/Fixtures/ruc/sunat-representatives-real.html'));
-        $data = (new SunatRepresentativeParser())->parse($html);
+        $data = (new SunatRepresentativeParser)->parse($html);
 
         $this->assertCount(2, $data);
         $this->assertSame([

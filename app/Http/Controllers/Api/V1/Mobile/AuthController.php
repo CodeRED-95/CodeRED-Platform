@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Mobile;
 
-use App\Http\Controllers\Controller;
 use App\Exceptions\EmailVerificationCooldownException;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Mobile\LoginRequest;
 use App\Models\Permission;
 use App\Models\User;
-use App\Services\Auth\MobileTokenAbilityResolver;
 use App\Services\Auth\EmailVerificationService;
+use App\Services\Auth\MobileTokenAbilityResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;

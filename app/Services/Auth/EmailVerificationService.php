@@ -17,8 +17,11 @@ use Illuminate\Support\Facades\Hash;
 final class EmailVerificationService
 {
     public const CODE_LENGTH = 6;
+
     public const EXPIRES_MINUTES = 10;
+
     public const RESEND_COOLDOWN_SECONDS = 60;
+
     public const MAX_ATTEMPTS = 5;
 
     /**
@@ -34,7 +37,7 @@ final class EmailVerificationService
         $userAgent = $request?->userAgent();
         $now = now();
 
-        $result = DB::transaction(function () use ($user, $ip, $userAgent, $now, $forceNew): array {
+        $result = DB::transaction(function () use ($user, $ip, $now, $forceNew): array {
             $latest = EmailVerificationCode::query()
                 ->where('user_id', $user->getKey())
                 ->latest('id')

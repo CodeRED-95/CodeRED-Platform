@@ -2,20 +2,27 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmailLog extends Model
 {
     public const TYPE_EMAIL_VERIFICATION = 'email_verification';
+
     public const TYPE_PASSWORD_RESET = 'password_reset';
+
     public const TYPE_SECURITY_ALERT = 'security_alert';
 
     public const QUEUED = 'queued';
+
     public const SENT = 'sent';
+
     public const DELIVERED = 'delivered';
+
     public const BOUNCED = 'bounced';
+
     public const COMPLAINED = 'complained';
+
     public const FAILED = 'failed';
 
     protected $fillable = [

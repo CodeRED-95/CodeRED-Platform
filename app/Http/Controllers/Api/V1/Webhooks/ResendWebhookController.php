@@ -47,7 +47,7 @@ class ResendWebhookController extends Controller
         $data = is_array($event['data'] ?? null) ? $event['data'] : [];
         $providerMessageId = is_string($data['email_id'] ?? null) ? $data['email_id'] : null;
 
-        $processed = DB::transaction(function () use ($eventId, $event, $providerMessageId, $data): bool {
+        $processed = DB::transaction(function () use ($eventId, $event, $providerMessageId): bool {
             if (EmailWebhookEvent::query()->where('provider_event_id', $eventId)->exists()) {
                 return false;
             }

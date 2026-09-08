@@ -4,6 +4,4 @@ namespace App\Exceptions;
 
 use RuntimeException;
 
-class SunatRepresentativeException extends RuntimeException
-{
-}
+class SunatRepresentativeException extends RuntimeException {}
