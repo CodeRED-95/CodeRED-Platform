@@ -19,10 +19,14 @@ class SunatRepresentativeServiceTest extends TestCase
         Cache::flush();
         config(['sunat.representatives.cache_enabled' => true, 'sunat.representatives.cache_ttl' => 3600]);
 
+        /** @var SunatRepresentativeClient&Mockery\MockInterface $client */
         $client = Mockery::mock(SunatRepresentativeClient::class);
+        // @phpstan-ignore-next-line
         $client->shouldReceive('fetch')->once()->andReturn('<html></html>');
 
+        /** @var SunatRepresentativeParser&Mockery\MockInterface $parser */
         $parser = Mockery::mock(SunatRepresentativeParser::class);
+        // @phpstan-ignore-next-line
         $parser->shouldReceive('parse')->once()->andReturn([
             new SunatRepresentativeData('DNI', '12345678', 'NOMBRE', 'GERENTE', '2020-01-15'),
         ]);
@@ -42,10 +46,14 @@ class SunatRepresentativeServiceTest extends TestCase
             new SunatRepresentativeData('DNI', '12345678', 'NOMBRE', 'GERENTE', '2020-01-15'),
         ], 3600);
 
+        /** @var SunatRepresentativeClient&Mockery\MockInterface $client */
         $client = Mockery::mock(SunatRepresentativeClient::class);
+        // @phpstan-ignore-next-line
         $client->shouldNotReceive('fetch');
 
+        /** @var SunatRepresentativeParser&Mockery\MockInterface $parser */
         $parser = Mockery::mock(SunatRepresentativeParser::class);
+        // @phpstan-ignore-next-line
         $parser->shouldNotReceive('parse');
 
         $service = new SunatRepresentativeService($client, $parser);

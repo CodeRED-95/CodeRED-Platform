@@ -36,6 +36,7 @@ class RucRepresentativesTesterTest extends TestCase
     public function test_consulta_y_muestra_multiples_representantes(): void
     {
         $service = Mockery::mock(SunatRepresentativeService::class);
+        // @phpstan-ignore-next-line
         $service->shouldReceive('find')->once()->with('20512528458')->andReturn([
             'data' => [
                 new SunatRepresentativeData('DNI', '12345678', 'APELLIDOS NOMBRES', 'GERENTE GENERAL', '2020-01-15'),

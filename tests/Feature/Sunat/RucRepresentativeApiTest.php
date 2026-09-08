@@ -69,6 +69,7 @@ class RucRepresentativeApiTest extends TestCase
         config(['sunat.representatives.cache_enabled' => true, 'sunat.representatives.cache_ttl' => 3600]);
 
         $service = Mockery::mock(SunatRepresentativeService::class);
+        // @phpstan-ignore-next-line
         $service->shouldReceive('find')->once()->with('20512528458')->andReturn([
             'data' => [
                 new SunatRepresentativeData('DNI', '12345678', 'APELLIDOS NOMBRES', 'GERENTE GENERAL', '2020-01-15'),
@@ -94,6 +95,7 @@ class RucRepresentativeApiTest extends TestCase
     public function test_devuelve_404_si_sunat_no_tiene_representantes(): void
     {
         $service = Mockery::mock(SunatRepresentativeService::class);
+        // @phpstan-ignore-next-line
         $service->shouldReceive('find')->once()->andReturn([
             'data' => null,
             'cached' => false,
@@ -111,6 +113,7 @@ class RucRepresentativeApiTest extends TestCase
     public function test_mapea_timeout_y_html_invalido_como_errores_sin_exponer_el_html(): void
     {
         $service = Mockery::mock(SunatRepresentativeService::class);
+        // @phpstan-ignore-next-line
         $service->shouldReceive('find')->once()->andThrow(new ConnectionException('Connection timed out'));
         $this->app->instance(SunatRepresentativeService::class, $service);
         Sanctum::actingAs($this->userWithPermission('ruc.representantes'), ['ruc:representantes']);
@@ -120,6 +123,7 @@ class RucRepresentativeApiTest extends TestCase
             ->assertJsonMissingPath('html');
 
         $service = Mockery::mock(SunatRepresentativeService::class);
+        // @phpstan-ignore-next-line
         $service->shouldReceive('find')->once()->andThrow(new SunatRepresentativeException('<html>interno</html>'));
         $this->app->instance(SunatRepresentativeService::class, $service);
 
