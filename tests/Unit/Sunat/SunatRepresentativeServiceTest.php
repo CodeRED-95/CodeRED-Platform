@@ -48,12 +48,10 @@ class SunatRepresentativeServiceTest extends TestCase
 
         /** @var SunatRepresentativeClient&Mockery\MockInterface $client */
         $client = Mockery::mock(SunatRepresentativeClient::class);
-        // @phpstan-ignore-next-line
         $client->shouldNotReceive('fetch');
 
         /** @var SunatRepresentativeParser&Mockery\MockInterface $parser */
         $parser = Mockery::mock(SunatRepresentativeParser::class);
-        // @phpstan-ignore-next-line
         $parser->shouldNotReceive('parse');
 
         $service = new SunatRepresentativeService($client, $parser);
