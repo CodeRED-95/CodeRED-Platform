@@ -18,7 +18,7 @@ seis dígitos antes de acceder al panel o recibir un token Sanctum.
   intentos y backoff progresivo.
 - Resend es el proveedor transaccional oficial. La clave sólo vive en
   `RESEND_API_KEY` del backend. El remitente es
-  `CodeRED <no-reply@mail.codered.lat>`.
+  `CodeRED <no-reply@codered.lat>`.
 - `POST /api/v1/webhooks/resend` verifica el cuerpo crudo y las cabeceras
   `svix-id`, `svix-timestamp` y `svix-signature` con el SDK oficial de Resend.
   Los eventos se deduplican por `svix-id`.
@@ -46,7 +46,7 @@ Configurar en el `.env` productivo de Platform, sin versionarlo:
 
 ```dotenv
 MAIL_MAILER=resend
-MAIL_FROM_ADDRESS=no-reply@mail.codered.lat
+MAIL_FROM_ADDRESS=no-reply@codered.lat
 MAIL_FROM_NAME="CodeRED"
 RESEND_API_KEY=
 RESEND_WEBHOOK_SECRET=

@@ -33,7 +33,7 @@ return [
     ],
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'no-reply@mail.codered.lat'),
+        'address' => env('MAIL_FROM_ADDRESS', 'no-reply@codered.lat'),
         'name' => env('MAIL_FROM_NAME', 'CodeRED'),
     ],
 
