@@ -43,7 +43,7 @@ class EmailVerificationTest extends TestCase
     public function test_correct_code_verifies_once_and_old_code_cannot_be_reused(): void
     {
         Queue::fake();
-        $this->post(route('register.store'), [
+        $this->withSession(['_token' => 'register-csrf'])->post(route('register.store'), [
             '_token' => 'register-csrf', 'name' => 'Usuario OTP', 'email' => 'verify@example.test',
             'password' => 'Secret12345!@#', 'password_confirmation' => 'Secret12345!@#',
         ]);
@@ -51,12 +51,12 @@ class EmailVerificationTest extends TestCase
         $job = Queue::pushed(SendTransactionalEmail::class)->first();
         $this->assertNotNull($job);
 
-        $this->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => $job->data['code']])->assertRedirect();
+        $this->withSession(['_token' => 'verify-csrf'])->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => $job->data['code']])->assertRedirect();
         $user->refresh();
         $this->assertNotNull($user->email_verified_at);
         $this->assertFalse($user->requiresEmailVerification());
 
-        $this->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => $job->data['code']])->assertRedirect();
+        $this->withSession(['_token' => 'verify-csrf'])->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => $job->data['code']])->assertRedirect();
         $this->assertDatabaseCount('email_verification_codes', 1);
     }
 
@@ -74,7 +74,7 @@ class EmailVerificationTest extends TestCase
             '_token' => 'login-csrf', 'email' => $user->email, 'password' => 'Secret12345!',
         ])->assertRedirect(route('email.verify'));
 
-        $this->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => '000000'])->assertRedirect();
+        $this->withSession(['_token' => 'verify-csrf'])->actingAs($user)->post(route('email.verify.submit'), ['_token' => 'verify-csrf', 'code' => '000000'])->assertRedirect();
         $this->assertSame(1, EmailVerificationCode::query()->where('user_id', $user->id)->value('attempts'));
     }
 
