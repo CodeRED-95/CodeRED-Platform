@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Core\Auth\AuthenticatedHome;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Auth\EmailVerificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +23,7 @@ class RegisteredUserController extends Controller
         ]);
     }
 
-    public function store(RegisterRequest $request, AuthenticatedHome $home): RedirectResponse
+    public function store(RegisterRequest $request, EmailVerificationService $verification): RedirectResponse
     {
         $data = $request->validated();
 
@@ -31,6 +31,7 @@ class RegisteredUserController extends Controller
             $user = User::query()->create([
                 'name' => trim(preg_replace('/\s+/u', ' ', $data['name'])),
                 'email' => mb_strtolower(trim($data['email'])),
+                'email_verification_required' => true,
                 'password' => Hash::make($data['password']),
                 'status' => 'active',
                 'is_active' => true,
@@ -64,7 +65,8 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+        $verification->ensureCode($user, $request, true);
 
-        return redirect()->to($home->route($user))->with('success', 'Cuenta creada correctamente.');
+        return redirect()->route('email.verify')->with('success', 'Cuenta creada. Revisa tu correo para verificarla.');
     }
 }

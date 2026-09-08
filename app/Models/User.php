@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasRoles;
+use App\Jobs\SendTransactionalEmail;
+use App\Models\EmailLog;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarInstallation;
 use App\Modules\ShalomRecordar\Models\ShalomRecordarRecord;
 use Database\Factories\UserFactory;
@@ -13,17 +15,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Auth\CanResetPassword;
+use Illuminate\Auth\Passwords\CanResetPassword as CanResetPasswordTrait;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements CanResetPassword
 {
-    use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use CanResetPasswordTrait, HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'name',
         'email',
+        'email_verification_required',
         'password',
         'status',
         'is_active',
@@ -49,6 +54,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_required' => 'boolean',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
@@ -151,6 +157,16 @@ class User extends Authenticatable
         return $this->hasMany(ShalomRecordarRecord::class);
     }
 
+    public function emailVerificationCodes(): HasMany
+    {
+        return $this->hasMany(EmailVerificationCode::class);
+    }
+
+    public function emailLogs(): HasMany
+    {
+        return $this->hasMany(EmailLog::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');
@@ -190,5 +206,33 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function requiresEmailVerification(): bool
+    {
+        return (bool) $this->email_verification_required && $this->email_verified_at === null;
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $url = route('password.reset', [
+            'token' => $token,
+            'email' => $this->email,
+        ]);
+        $log = EmailLog::query()->create([
+            'user_id' => $this->getKey(),
+            'recipient' => (string) $this->email,
+            'type' => EmailLog::TYPE_PASSWORD_RESET,
+            'provider' => 'resend',
+            'status' => EmailLog::QUEUED,
+            'queued_at' => now(),
+        ]);
+
+        SendTransactionalEmail::dispatch(
+            $log->getKey(),
+            EmailLog::TYPE_PASSWORD_RESET,
+            (string) $this->email,
+            ['url' => $url],
+        )->afterCommit();
     }
 }

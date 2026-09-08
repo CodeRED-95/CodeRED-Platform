@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Core\Auth\AuthenticatedHome;
+use App\Exceptions\EmailVerificationCooldownException;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Services\Auth\EmailVerificationService;
 use App\Support\TrustedRedirect;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +28,7 @@ class AuthenticatedSessionController
         ]);
     }
 
-    public function store(LoginRequest $request, AuthenticatedHome $home): RedirectResponse
+    public function store(LoginRequest $request, AuthenticatedHome $home, EmailVerificationService $verification): RedirectResponse
     {
         $credentials = $request->validated();
 
@@ -58,6 +60,17 @@ class AuthenticatedSessionController
         ])->save();
 
         $request->session()->regenerate();
+
+        if ($user->requiresEmailVerification()) {
+            try {
+                $verification->ensureCode($user, $request);
+            } catch (EmailVerificationCooldownException) {
+                // El usuario ya tiene un código vigente; el redirect conserva
+                // el flujo sin disparar un correo adicional.
+            }
+
+            return redirect()->route('email.verify');
+        }
 
         if ($user->must_change_password) {
             return redirect()->route('account.change-password');

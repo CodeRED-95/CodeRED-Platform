@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -224,8 +225,9 @@ class AuthenticationFlowTest extends TestCase
             ->assertSessionHasErrors(['email', 'password', 'remember']);
     }
 
-    public function test_public_registration_assigns_viewer_role_and_redirects_to_agencies(): void
+    public function test_public_registration_assigns_viewer_role_and_requires_email_verification(): void
     {
+        Queue::fake();
         $token = 'csrf-register';
 
         $this->withSession(['_token' => $token])
@@ -236,10 +238,12 @@ class AuthenticationFlowTest extends TestCase
                 'password' => 'Secret12345!@#',
                 'password_confirmation' => 'Secret12345!@#',
             ])
-            ->assertRedirect(route('admin.agencies.index'));
+            ->assertRedirect(route('email.verify'));
 
         $user = User::query()->where('email', 'publico@example.test')->firstOrFail();
         $this->assertTrue($user->hasRole('viewer'));
+        $this->assertTrue($user->requiresEmailVerification());
+        $this->assertNull($user->email_verified_at);
         $this->assertAuthenticatedAs($user);
     }
 

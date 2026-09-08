@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Account;
 
+use App\Models\ClientSession;
 use App\Models\User;
+use App\Services\Auth\EmailVerificationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -29,7 +31,7 @@ class Profile extends Component
         $this->email = $user->email;
     }
 
-    public function updateProfile(): void
+    public function updateProfile(EmailVerificationService $verification): void
     {
         $user = $this->user();
         $validated = $this->validate([
@@ -44,13 +46,27 @@ class Profile extends Component
             'email' => $email,
         ]);
         if ($emailChanged) {
-            $user->email_verified_at = null;
+            $user->forceFill([
+                'email_verified_at' => null,
+                'email_verification_required' => true,
+            ]);
         }
         $user->save();
 
+        if ($emailChanged) {
+            ClientSession::query()->where('user_id', $user->getKey())->update([
+                'revoked_at' => now(),
+                'revocation_reason' => 'email_changed',
+            ]);
+            $user->tokens()->delete();
+            $verification->ensureCode($user, request(), true);
+        }
+
         $this->name = $user->name;
         $this->email = $user->email;
-        $this->dispatch('toast', type: 'success', message: 'Tu perfil fue actualizado correctamente.');
+        $this->dispatch('toast', type: 'success', message: $emailChanged
+            ? 'Perfil actualizado. Verifica tu nuevo correo para continuar.'
+            : 'Tu perfil fue actualizado correctamente.');
     }
 
     public function updatePassword(): void

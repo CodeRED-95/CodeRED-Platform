@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\ApiDocumentationSpecController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Public\BuscadorShalomLegalController;
 use App\Http\Controllers\Public\PublicTokenRequestController;
@@ -65,9 +67,18 @@ Route::post('/solicitar-token', [PublicTokenRequestController::class, 'store'])-
 Route::get('/', Dashboard::class)->middleware(['auth', 'home.landing'])->name('dashboard');
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:auth-login')->name('login.store');
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
-    Route::post('/register', [RegisteredUserController::class, 'store'])->name('register.store');
+    Route::post('/register', [RegisteredUserController::class, 'store'])->middleware('throttle:auth-register')->name('register.store');
+    Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'send'])->middleware('throttle:password-reset')->name('password.email');
+    Route::get('/reset-password/{token}/{email}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
+});
+Route::middleware('auth')->group(function (): void {
+    Route::get('/email/verify-code', [EmailVerificationController::class, 'show'])->name('email.verify');
+    Route::post('/email/verify-code', [EmailVerificationController::class, 'verify'])->middleware('throttle:email-verification-verify')->name('email.verify.submit');
+    Route::post('/email/verify-code/resend', [EmailVerificationController::class, 'resend'])->middleware('throttle:email-verification-send')->name('email.verify.resend');
 });
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth')->name('logout');
 Route::view('/404', 'errors.404')->name('error.404');

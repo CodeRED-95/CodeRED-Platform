@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Enums\ClientApplication;
+use App\Exceptions\EmailVerificationCooldownException;
 use App\Exceptions\InvalidRefreshTokenException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Auth\LoginRequest;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\Auth\AuthAuditor;
 use App\Services\Auth\ClientFeatures;
 use App\Services\Auth\ClientSessionManager;
+use App\Services\Auth\EmailVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -31,6 +33,7 @@ class AuthController extends Controller
         private readonly ClientSessionManager $sessions,
         private readonly AuthAuditor $auditor,
         private readonly ClientFeatures $features,
+        private readonly EmailVerificationService $verification,
     ) {}
 
     public function login(LoginRequest $request): JsonResponse
@@ -61,6 +64,21 @@ class AuthController extends Controller
             ]);
 
             return $this->failure('Tu cuenta no está activa.', 403);
+        }
+
+        if ($user->requiresEmailVerification()) {
+            try {
+                $status = $this->verification->ensureCode($user, $request);
+            } catch (EmailVerificationCooldownException $exception) {
+                $status = ['expires_in' => 600, 'resend_available_in' => $exception->retryAfter, 'resent' => false];
+            }
+
+            return response()->json([
+                'success' => false,
+                'verification_required' => true,
+                'message' => 'Debes verificar tu correo antes de iniciar sesión.',
+                'data' => $status,
+            ], 409);
         }
 
         // Autorización real de entrada, en backend. Ocultar el botón en el

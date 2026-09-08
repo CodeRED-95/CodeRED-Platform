@@ -78,6 +78,22 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(5)->by('auth-login-user:'.hash_hmac('sha256', mb_strtolower(trim((string) $request->input('email'))), config('app.key'))),
         ]);
         RateLimiter::for('auth-refresh', fn (Request $request): Limit => Limit::perMinute(30)->by('auth-refresh:'.$request->ip()));
+        RateLimiter::for('auth-register', fn (Request $request): array => [
+            Limit::perMinute(5)->by('auth-register-ip:'.$request->ip()),
+            Limit::perHour(10)->by('auth-register-email:'.hash_hmac('sha256', mb_strtolower(trim((string) $request->input('email'))), config('app.key'))),
+        ]);
+        RateLimiter::for('email-verification-send', fn (Request $request): array => [
+            Limit::perMinute(5)->by('email-verification-ip:'.$request->ip()),
+            Limit::perHour(10)->by('email-verification-email:'.hash_hmac('sha256', mb_strtolower(trim((string) $request->input('email'))), config('app.key'))),
+        ]);
+        RateLimiter::for('email-verification-verify', fn (Request $request): array => [
+            Limit::perMinute(10)->by('email-verification-verify-ip:'.$request->ip()),
+            Limit::perHour(30)->by('email-verification-verify-email:'.hash_hmac('sha256', mb_strtolower(trim((string) $request->input('email'))), config('app.key'))),
+        ]);
+        RateLimiter::for('password-reset', fn (Request $request): array => [
+            Limit::perMinute(3)->by('password-reset-ip:'.$request->ip()),
+            Limit::perHour(10)->by('password-reset-email:'.hash_hmac('sha256', mb_strtolower(trim((string) $request->input('email'))), config('app.key'))),
+        ]);
         RateLimiter::for('shalom-recordar', fn (Request $request): Limit => $this->tokenLimit($request, 60, 'shalom-recordar'));
     }
 

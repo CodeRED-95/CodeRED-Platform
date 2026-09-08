@@ -4,6 +4,7 @@ use App\Http\Middleware\AuditApiRequest;
 use App\Http\Middleware\EnsureApiTokenNotExpired;
 use App\Http\Middleware\EnsureApiTokenOwnerIsActive;
 use App\Http\Middleware\EnsureApiVersion;
+use App\Http\Middleware\EnsureEmailIsVerified;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsurePrivateApiCaching;
@@ -57,11 +58,13 @@ return Application::configure(basePath: dirname(__DIR__))
             // usuario y ability declarada para tokens de integracion.
             'access' => EnsurePermission::class,
             'home.landing' => LandOnAccessibleHome::class,
+            'email.verified' => EnsureEmailIsVerified::class,
         ]);
 
         $middleware->web(append: [
             SetApplicationLocale::class,
             EnsureUserIsActive::class,
+            EnsureEmailIsVerified::class,
             EnsurePasswordIsChanged::class,
         ]);
 

@@ -26,6 +26,8 @@ use App\Http\Controllers\Api\V1\Mobile\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\V1\Mobile\PermissionRequestController;
 use App\Http\Controllers\Api\V1\MobileDeviceController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
+use App\Http\Controllers\Api\V1\Webhooks\ResendWebhookController;
 use App\Http\Controllers\Api\V1\ShalomRecordarAuthController;
 use App\Http\Controllers\Api\V1\SystemVersionController;
 use App\Http\Controllers\Api\V1\RucRepresentativeController;
@@ -42,6 +44,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/health', HealthController::class)->name('health');
+    Route::post('/webhooks/resend', ResendWebhookController::class)->middleware('throttle:api')->name('webhooks.resend');
     Route::get('/version', SystemVersionController::class)->name('version');
     Route::get('/extension/chrome/config', ExtensionChromeConfigController::class)->middleware('throttle:api')->name('extension.chrome.config');
     // Canal de actualizacion de CodeRED Desktop. Publico a proposito: la
@@ -88,6 +91,9 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     // /mobile/* se conserva intacto mas abajo durante la migracion: los clientes
     // publicados siguen funcionando hasta que se actualicen.
     Route::prefix('auth')->name('auth.')->group(function (): void {
+        Route::post('/email/send-code', [EmailVerificationController::class, 'send'])->middleware('throttle:email-verification-send')->name('email.send-code');
+        Route::post('/email/verify-code', [EmailVerificationController::class, 'verify'])->middleware('throttle:email-verification-verify')->name('email.verify-code');
+        Route::post('/email/resend-code', [EmailVerificationController::class, 'resend'])->middleware('throttle:email-verification-send')->name('email.resend-code');
         Route::post('/login', [ClientAuthController::class, 'login'])->middleware('throttle:auth-login')->name('login');
         Route::post('/refresh', [ClientAuthController::class, 'refresh'])->middleware('throttle:auth-refresh')->name('refresh');
 

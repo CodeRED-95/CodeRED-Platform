@@ -77,6 +77,9 @@
                 <p class="font-medium text-[color:var(--color-danger)]">Revisa los campos marcados.</p>
             </x-ui.alert>
         @endif
+        @if (session('status'))
+            <x-ui.alert tone="success" class="mb-6 text-sm">{{ session('status') }}</x-ui.alert>
+        @endif
 
         <div class="space-y-4">
             <x-ui.input

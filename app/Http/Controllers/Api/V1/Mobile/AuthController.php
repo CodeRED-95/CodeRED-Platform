@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\EmailVerificationCooldownException;
 use App\Http\Requests\Api\V1\Mobile\LoginRequest;
 use App\Models\Permission;
 use App\Models\User;
 use App\Services\Auth\MobileTokenAbilityResolver;
+use App\Services\Auth\EmailVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -19,7 +21,7 @@ use Throwable;
 
 class AuthController extends Controller
 {
-    public function login(LoginRequest $request, MobileTokenAbilityResolver $abilityResolver): JsonResponse
+    public function login(LoginRequest $request, MobileTokenAbilityResolver $abilityResolver, EmailVerificationService $verification): JsonResponse
     {
         $user = $this->findUser((string) $request->input('email'));
 
@@ -34,6 +36,21 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Credenciales incorrectas.',
             ], 422);
+        }
+
+        if ($user->requiresEmailVerification()) {
+            try {
+                $status = $verification->ensureCode($user, $request);
+            } catch (EmailVerificationCooldownException $exception) {
+                $status = ['expires_in' => 600, 'resend_available_in' => $exception->retryAfter, 'resent' => false];
+            }
+
+            return response()->json([
+                'success' => false,
+                'verification_required' => true,
+                'message' => 'Debes verificar tu correo antes de iniciar sesión.',
+                'data' => $status,
+            ], 409);
         }
 
         $deviceName = trim((string) $request->input('device_name', ''));
