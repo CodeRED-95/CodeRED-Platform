@@ -32,6 +32,7 @@ verificar, `email_verified_at` queda registrado.
 
 ## API para clientes
 
+- `POST /api/v1/auth/register`
 - `POST /api/v1/auth/email/send-code`
 - `POST /api/v1/auth/email/verify-code`
 - `POST /api/v1/auth/email/resend-code`
@@ -39,6 +40,12 @@ verificar, `email_verified_at` queda registrado.
 Las respuestas nunca incluyen el código, su hash, la API key ni detalles del
 proveedor. El login de una cuenta pendiente devuelve HTTP 409 con
 `verification_required: true`, sin emitir tokens.
+
+Desktop y Mobile muestran sus propios formularios nativos. Después de registrar
+una cuenta, conservan la contraseña únicamente en memoria durante el paso OTP;
+al verificar el correo vuelven a llamar a `auth/login` para recibir la sesión.
+La web y los clientes oficiales comparten `UserRegistrationService`, las mismas
+reglas de validación y el mismo flujo de verificación.
 
 ## Operación
 

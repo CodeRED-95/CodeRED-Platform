@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Jobs\SendTransactionalEmail;
 use App\Models\ClientRefreshToken;
 use App\Models\ClientSession;
 use App\Models\Permission;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Services\Auth\ClientSessionManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\PersonalAccessToken;
 use Tests\TestCase;
 
@@ -89,6 +91,30 @@ class ClientAuthTest extends TestCase
     }
 
     // ---------------------------------------------------------------- login
+
+    public function test_registro_api_crea_cuenta_pendiente_y_envia_otp_sin_exponerlo(): void
+    {
+        Queue::fake();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Cuenta Cliente',
+            'email' => 'cliente-api@example.test',
+            'password' => 'Secret12345!@#',
+            'password_confirmation' => 'Secret12345!@#',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('verification_required', true)
+            ->assertJsonStructure(['data' => ['expires_in', 'resend_available_in']]);
+        $this->assertNull($response->json('data.code'));
+        $this->assertDatabaseHas('users', [
+            'email' => 'cliente-api@example.test',
+            'email_verification_required' => true,
+            'email_verified_at' => null,
+        ]);
+        Queue::assertPushed(SendTransactionalEmail::class);
+    }
 
     public function test_login_con_credenciales_correctas_abre_una_sesion(): void
     {

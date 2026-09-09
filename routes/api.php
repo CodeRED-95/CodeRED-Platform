@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\AgencyCatalogController;
 use App\Http\Controllers\Api\V1\AgencyChangesController;
 use App\Http\Controllers\Api\V1\Auth\AuthController as ClientAuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
+use App\Http\Controllers\Api\V1\Auth\RegisteredUserController as ClientRegisteredUserController;
 use App\Http\Controllers\Api\V1\Auth\SessionController as ClientSessionController;
 use App\Http\Controllers\Api\V1\CatalogMetadataController;
 use App\Http\Controllers\Api\V1\DeclarationController;
@@ -91,6 +92,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     // /mobile/* se conserva intacto mas abajo durante la migracion: los clientes
     // publicados siguen funcionando hasta que se actualicen.
     Route::prefix('auth')->name('auth.')->group(function (): void {
+        Route::post('/register', ClientRegisteredUserController::class)->middleware('throttle:auth-register')->name('register');
         Route::post('/email/send-code', [EmailVerificationController::class, 'send'])->middleware('throttle:email-verification-send')->name('email.send-code');
         Route::post('/email/verify-code', [EmailVerificationController::class, 'verify'])->middleware('throttle:email-verification-verify')->name('email.verify-code');
         Route::post('/email/resend-code', [EmailVerificationController::class, 'resend'])->middleware('throttle:email-verification-send')->name('email.resend-code');
