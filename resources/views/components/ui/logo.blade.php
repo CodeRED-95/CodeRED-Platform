@@ -6,9 +6,9 @@
 
 @php
     $source = match ($variant) {
-        'symbol' => asset('images/branding/codered-symbol.png'),
-        'square' => asset('images/branding/codered-square.png'),
-        default => asset('images/branding/codered-logo-full.png'),
+        'symbol' => asset('images/branding/codered-oni-diamond.png'),
+        'square' => asset('images/branding/codered-oni-ceremonial.png'),
+        default => asset('images/branding/codered-oni-kamon.png'),
     };
 @endphp
 

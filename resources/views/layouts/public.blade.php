@@ -16,7 +16,7 @@
     <meta property="og:url" content="@yield('ogUrl', url()->current())" />
     <meta property="og:image" content="{{ asset('images/branding/og-image.png') }}" />
 
-    <link rel="icon" href="{{ asset('images/branding/favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('images/branding/codered-oni-diamond.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="platform-public public-token-screen min-h-dvh bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]">

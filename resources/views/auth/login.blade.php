@@ -2,7 +2,7 @@
     <x-slot:promo>
         <div class="relative mx-auto w-full max-w-[clamp(18rem,24vw,29rem)]">
             <div class="pointer-events-none absolute inset-0 -z-10 translate-y-2 rounded-full bg-[radial-gradient(circle_at_center,rgba(225,29,72,0.34),rgba(225,29,72,0)_65%)] blur-2xl"></div>
-            <x-ui.logo variant="full" class="w-full h-auto drop-shadow-[0_0_30px_rgba(225,29,72,0.18)]" />
+            <x-ui.logo variant="square" class="login-ceremonial-logo w-full h-auto drop-shadow-[0_0_30px_rgba(225,29,72,0.18)]" />
         </div>
 
         <div class="mt-6 space-y-2.5 xl:mt-7 xl:space-y-3">

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name') }}</title>
-    <link rel="icon" href="{{ asset('images/branding/favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('images/branding/codered-oni-diamond.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
