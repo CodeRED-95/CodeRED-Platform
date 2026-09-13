@@ -131,7 +131,7 @@ Schedule::command('ruc:cleanup-backup-uploads')->hourly()->withoutOverlapping();
 // scheduler activo y uno que solo existe como contenedor saludable.
 Schedule::call(static function (): void {
     Cache::put('platform:scheduler:last_run_at', now()->toIso8601String(), now()->addMinutes(2));
-})->everyMinute()->withoutOverlapping()->name('platform-scheduler-heartbeat');
+})->everyMinute()->name('platform-scheduler-heartbeat')->withoutOverlapping();
 
 // Copia diaria de las declaraciones juradas. Son pocas y ocupan poco, pero son
 // documentos legales y hasta el 16/08/2026 no habia forma de recuperar una
