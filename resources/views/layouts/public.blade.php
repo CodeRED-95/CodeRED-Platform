@@ -19,9 +19,12 @@
     <link rel="icon" href="{{ asset('images/branding/favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-dvh bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]">
-    <main class="mx-auto flex min-h-dvh w-full max-w-3xl items-center px-4 py-10">
-        {{ $slot }}
+<body class="platform-public public-token-screen min-h-dvh bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]">
+    <div class="public-token-ornament" aria-hidden="true">赤</div>
+    <main class="mx-auto flex min-h-dvh w-full max-w-4xl items-center px-4 py-10 sm:px-6 lg:py-14">
+        <div class="public-token-frame w-full">
+            {{ $slot }}
+        </div>
     </main>
 </body>
 </html>

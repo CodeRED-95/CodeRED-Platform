@@ -9,7 +9,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="h-dvh overflow-hidden bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]">
+<body class="platform-app h-dvh overflow-hidden bg-[color:var(--color-background)] text-[color:var(--color-text-primary)]">
     <x-ui.toast-stack :messages="[
         ['tone' => 'success', 'message' => session('success')],
         ['tone' => 'danger', 'message' => session('error')],

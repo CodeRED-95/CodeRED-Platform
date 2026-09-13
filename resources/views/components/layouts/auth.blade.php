@@ -13,7 +13,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="auth-screen min-h-dvh overflow-x-hidden code-red-shell text-[color:var(--color-text-primary)]">
-<main class="auth-shell grid min-h-dvh w-full grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+<main class="auth-shell login-layout grid min-h-dvh w-full grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
     <section
         class="auth-promo relative hidden min-h-dvh min-w-0 overflow-hidden border-r border-white/10 px-6 py-6 lg:flex xl:px-8 xl:py-8"
     >

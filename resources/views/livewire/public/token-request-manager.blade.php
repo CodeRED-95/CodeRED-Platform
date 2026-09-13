@@ -1,5 +1,5 @@
 <div x-data="{ tab: @entangle('tab') }">
-    <section class="w-full rounded-2xl border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] p-6 shadow-xl md:p-8">
+    <section class="token-request-card w-full rounded-2xl border border-[color:var(--color-border-subtle)] bg-[color:var(--color-surface)] p-6 shadow-xl md:p-8">
         <div class="mb-6 flex items-center gap-3">
             <x-ui.logo variant="symbol" class="h-11 w-11 rounded-xl" />
             <div>

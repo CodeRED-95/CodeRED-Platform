@@ -9,7 +9,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="h-full code-red-shell text-[color:var(--color-text-primary)]">
+<body class="platform-public h-full code-red-shell text-[color:var(--color-text-primary)]">
     {{ $slot }}
     @livewireScripts
 </body>
