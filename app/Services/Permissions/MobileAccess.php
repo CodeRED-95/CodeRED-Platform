@@ -27,6 +27,8 @@ final class MobileAccess
 {
     public const RUC = 'ruc.view';
 
+    public const RUC_REPRESENTATIVES = 'ruc.representantes';
+
     public const DNI = 'dni-records.view';
 
     public const PLATFORM_APP = 'platform.access';
@@ -57,6 +59,13 @@ final class MobileAccess
             'role_name' => 'Acceso RUC',
             'label' => 'Consulta RUC',
             'description' => 'Consultar contribuyentes del padrón RUC desde la app.',
+            'scope' => self::SCOPE_MODULE,
+        ],
+        self::RUC_REPRESENTATIVES => [
+            'role' => 'acceso-ruc-representantes',
+            'role_name' => 'Acceso representantes legales',
+            'label' => 'Representantes legales',
+            'description' => 'Consultar los representantes legales publicados por SUNAT.',
             'scope' => self::SCOPE_MODULE,
         ],
         self::DNI => [

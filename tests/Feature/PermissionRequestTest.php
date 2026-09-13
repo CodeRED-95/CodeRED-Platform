@@ -29,6 +29,8 @@ class PermissionRequestTest extends TestCase
 
     private const RUC = MobileAccess::RUC;
 
+    private const RUC_REPRESENTATIVES = MobileAccess::RUC_REPRESENTATIVES;
+
     private const DNI = MobileAccess::DNI;
 
     private function userWith(string ...$permissions): User
@@ -76,6 +78,23 @@ class PermissionRequestTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.permission', self::RUC)
             ->assertJsonPath('data.acceso', 'Consulta RUC')
+            ->assertJsonPath('data.estado', 'pending');
+
+        $this->assertSame(1, PermissionRequest::query()->count());
+    }
+
+    public function test_un_usuario_sin_acceso_puede_solicitar_representantes(): void
+    {
+        $user = $this->userWith();
+        Sanctum::actingAs($user, ['mobile']);
+
+        $this->postJson('/api/v1/mobile/permission-requests', [
+            'permission' => self::RUC_REPRESENTATIVES,
+            'reason' => 'Necesito consultar los representantes legales de empresas.',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.permission', self::RUC_REPRESENTATIVES)
+            ->assertJsonPath('data.acceso', 'Representantes legales')
             ->assertJsonPath('data.estado', 'pending');
 
         $this->assertSame(1, PermissionRequest::query()->count());
@@ -164,6 +183,10 @@ class PermissionRequestTest extends TestCase
         $dni = $accesos->firstWhere('permission', self::DNI);
         $this->assertTrue($dni['granted']);
         $this->assertNull($dni['request']);
+
+        $representantes = $accesos->firstWhere('permission', self::RUC_REPRESENTATIVES);
+        $this->assertFalse($representantes['granted']);
+        $this->assertNull($representantes['request']);
     }
 
     /** IDOR: nadie ve lo de otro. */
@@ -331,6 +354,21 @@ class PermissionRequestTest extends TestCase
         $this->postJson("/api/v1/admin/permission-requests/{$solicitud->getKey()}/reject")->assertOk();
 
         $this->assertTrue($solicitante->fresh()->hasPermission(self::RUC));
+    }
+
+    public function test_aprobar_representantes_otorga_el_permiso_real(): void
+    {
+        $solicitante = $this->userWith();
+        $solicitud = $this->solicitud($solicitante, self::RUC_REPRESENTATIVES);
+        $admin = $this->userWith('permission-requests.view', 'permission-requests.manage');
+
+        Sanctum::actingAs($admin, ['mobile', 'admin:accesos']);
+
+        $this->postJson("/api/v1/admin/permission-requests/{$solicitud->getKey()}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.permission', self::RUC_REPRESENTATIVES);
+
+        $this->assertTrue($solicitante->fresh()->hasPermission(self::RUC_REPRESENTATIVES));
     }
 
     public function test_una_solicitud_inexistente_responde_404(): void

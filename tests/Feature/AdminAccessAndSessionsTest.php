@@ -186,6 +186,23 @@ class AdminAccessAndSessionsTest extends TestCase
         $this->assertFalse($user->fresh()->hasPermission('ruc.view'));
     }
 
+    public function test_el_panel_muestra_y_concede_representantes_legales(): void
+    {
+        $admin = $this->admin();
+        $user = $this->member();
+
+        $componente = Livewire::actingAs($admin)
+            ->test(AccessAndSessions::class, ['user' => $user])
+            ->assertSee(MobileAccess::label(MobileAccess::RUC_REPRESENTATIVES))
+            ->call('toggleAccess', MobileAccess::RUC_REPRESENTATIVES);
+
+        $this->assertTrue($user->fresh()->hasPermission(MobileAccess::RUC_REPRESENTATIVES));
+
+        $componente->call('toggleAccess', MobileAccess::RUC_REPRESENTATIVES);
+
+        $this->assertFalse($user->fresh()->hasPermission(MobileAccess::RUC_REPRESENTATIVES));
+    }
+
     public function test_retirar_un_modulo_no_cierra_la_sesion(): void
     {
         // Un módulo retirado deja de autorizar esa consulta en la siguiente
@@ -265,6 +282,8 @@ class AdminAccessAndSessionsTest extends TestCase
         $this->assertFalse(MobileAccess::isRequestable(MobileAccess::DESKTOP_APP));
         $this->assertTrue(MobileAccess::isGrantable(MobileAccess::DESKTOP_APP));
         $this->assertTrue(MobileAccess::isRequestable(MobileAccess::RUC));
+        $this->assertTrue(MobileAccess::isRequestable(MobileAccess::RUC_REPRESENTATIVES));
+        $this->assertTrue(MobileAccess::isGrantable(MobileAccess::RUC_REPRESENTATIVES));
         $this->assertNotContains(MobileAccess::MOBILE_APP, MobileAccess::requestable());
     }
 }
