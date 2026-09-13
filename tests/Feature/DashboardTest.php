@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Dashboard;
 use App\Models\ActivityLog;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Agencies\Enums\AgencyStatus;
@@ -262,6 +263,27 @@ class DashboardTest extends TestCase
         Livewire::actingAs($user)
             ->test(Dashboard::class)
             ->assertForbidden();
+    }
+
+    public function test_editor_sees_basic_dashboard_without_internal_operations(): void
+    {
+        $dashboard = Permission::query()->firstOrCreate(['slug' => 'dashboard.view'], ['name' => 'Ver dashboard']);
+        $agencies = Permission::query()->firstOrCreate(['slug' => 'agencies.view'], ['name' => 'Ver agencias']);
+        $role = Role::query()->create(['slug' => 'editor-basic', 'name' => 'Editor básico']);
+        $role->permissions()->sync([$dashboard->id, $agencies->id]);
+        $actor = User::factory()->create();
+        $actor->roles()->attach($role);
+        Agency::factory()->create();
+
+        Livewire::actingAs($actor)
+            ->test(Dashboard::class)
+            ->assertSee('Resumen de tu operación')
+            ->assertSee('Total de agencias')
+            ->assertSee('Todo listo para continuar')
+            ->assertSee('Abrir agencias')
+            ->assertDontSee('Salud del sistema')
+            ->assertDontSee('Integraciones n8n')
+            ->assertDontSee('Usuarios nuevos');
     }
 
     public function test_dashboard_handles_zero_agencies_and_missing_syncs_without_invalid_percentages(): void

@@ -127,6 +127,12 @@ Schedule::command('agencies:prune-sync-changes')->dailyAt('02:30')->withoutOverl
 Schedule::command('tokens:expire-pending-requests')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('ruc:cleanup-backup-uploads')->hourly()->withoutOverlapping();
 
+// Señal mínima y observable para que el dashboard pueda distinguir entre un
+// scheduler activo y uno que solo existe como contenedor saludable.
+Schedule::call(static function (): void {
+    Cache::put('platform:scheduler:last_run_at', now()->toIso8601String(), now()->addMinutes(2));
+})->everyMinute()->withoutOverlapping()->name('platform-scheduler-heartbeat');
+
 // Copia diaria de las declaraciones juradas. Son pocas y ocupan poco, pero son
 // documentos legales y hasta el 16/08/2026 no habia forma de recuperar una
 // borrada por error. Ver docs/DECLARACIONES_SEGURIDAD.md.

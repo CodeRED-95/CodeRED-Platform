@@ -37,21 +37,28 @@
         'danger' => ['text-rose-300', 'bg-rose-500/10', 'Requiere intervención'],
     ];
     $healthState = $statusStyle[$systemHealth['status']] ?? $statusStyle['healthy'];
+    $isBasicDashboard = ! $isSuperAdmin && ($canViewAgencies || $canViewUsers);
 @endphp
 
 <div class="mx-auto max-w-[1680px] space-y-5 overflow-x-clip">
-    <x-ui.page-header eyebrow="CENTRO OPERATIVO" title="Dashboard" subtitle="Resumen operativo de usuarios, agencias, RUC, integraciones y actividad del sistema.">
+    <x-ui.page-header
+        eyebrow="CENTRO OPERATIVO"
+        :title="$isBasicDashboard ? 'Resumen de tu operación' : 'Dashboard'"
+        :subtitle="$isBasicDashboard ? 'Consulta lo esencial de tus agencias y continúa tu trabajo.' : 'Resumen operativo de usuarios, agencias, RUC, integraciones y actividad del sistema.'"
+    >
         <x-slot:actions>
             <div class="flex flex-wrap items-end justify-end gap-3">
-                <div class="w-full min-w-[11rem] sm:w-56">
-                    <x-ui.dropdown-select
-                        id="dashboard-period"
-                        wire:model.live="period"
-                        label="Período"
-                        :value="$period"
-                        :options="[7 => 'Últimos 7 días', 30 => 'Últimos 30 días', 90 => 'Últimos 90 días']"
-                    />
-                </div>
+                @if ($isSuperAdmin)
+                    <div class="w-full min-w-[11rem] sm:w-56">
+                        <x-ui.dropdown-select
+                            id="dashboard-period"
+                            wire:model.live="period"
+                            label="Período"
+                            :value="$period"
+                            :options="[7 => 'Últimos 7 días', 30 => 'Últimos 30 días', 90 => 'Últimos 90 días']"
+                        />
+                    </div>
+                @endif
                 <div class="flex items-end gap-3">
                     <p class="pb-3 text-xs text-[color:var(--color-text-muted)]">
                         Actualizado
@@ -98,7 +105,7 @@
             </div>
         </section>
 
-        @if ($secondaryMetrics->isNotEmpty())
+        @if ($isSuperAdmin && $secondaryMetrics->isNotEmpty())
             <section aria-labelledby="dashboard-secondary-metrics">
                 <div class="mb-2 flex items-center justify-between gap-3">
                     <h2 id="dashboard-secondary-metrics" class="text-sm font-semibold text-white">Resumen secundario</h2>
@@ -118,7 +125,8 @@
             </section>
         @endif
 
-        <section aria-labelledby="dashboard-identity">
+        @if ($isSuperAdmin)
+            <section aria-labelledby="dashboard-identity">
             <h2 id="dashboard-identity" class="mb-3 text-sm font-semibold text-white">Identidad, empresas y plataforma</h2>
             <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 @if($canViewDniMetrics)
@@ -134,12 +142,31 @@
                     <x-ui.stat-card label="Tokens activos" :value="$platformMetrics['active_tokens']" tone="warning" description="Promedio {{ $platformMetrics['average_ms'] }} ms" />
                 @endif
             </div>
-        </section>
+            </section>
+        @endif
     @else
         <x-ui.empty-state title="No tienes indicadores disponibles" description="Tu cuenta no dispone de permisos para consultar métricas administrativas." icon="—" />
     @endif
 
-    @if ($canViewAgencies)
+    @if ($isBasicDashboard)
+        <section aria-labelledby="basic-dashboard-next-step">
+            <x-ui.card padding="p-5" class="relative overflow-hidden">
+                <div class="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-[color:var(--color-brand)]/10 blur-3xl" aria-hidden="true"></div>
+                <div class="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="max-w-2xl">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--color-brand-light)]">Vista operativa</p>
+                        <h2 id="basic-dashboard-next-step" class="mt-2 font-display text-xl font-semibold text-white">Todo listo para continuar</h2>
+                        <p class="mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">Aquí verás solo los indicadores necesarios para trabajar. Los detalles técnicos y las alertas internas están reservados para administración.</p>
+                    </div>
+                    @if ($canViewAgencies)
+                        <x-ui.button href="{{ route('admin.agencies.index') }}" variant="primary" class="shrink-0">Abrir agencias</x-ui.button>
+                    @endif
+                </div>
+            </x-ui.card>
+        </section>
+    @endif
+
+    @if ($isSuperAdmin && $canViewAgencies)
         <section class="grid gap-4 xl:grid-cols-[minmax(0,1.85fr)_minmax(19rem,1fr)]" aria-label="Visualizaciones de agencias" wire:loading.class="opacity-60" wire:target="period,refreshMetrics">
             <x-ui.card padding="p-5" aria-labelledby="agency-trend-title">
                 <div class="flex flex-wrap items-start justify-between gap-3">
@@ -265,7 +292,7 @@
                     </div>
                     <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
                         <dt class="text-xs text-[color:var(--color-text-muted)]">Jobs fallidos</dt>
-                        <dd class="mt-1 text-2xl font-semibold text-white">{{ number_format((int) ($systemHealth['failed_jobs'] ?? 0)) }}</dd>
+                        <dd class="mt-1 text-2xl font-semibold {{ ($systemHealth['failed_jobs'] ?? 0) > 0 ? 'text-rose-300' : 'text-white' }}">{{ number_format((int) ($systemHealth['failed_jobs'] ?? 0)) }}</dd>
                     </div>
                     <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
                         <dt class="text-xs text-[color:var(--color-text-muted)]">Integraciones conectadas</dt>
@@ -277,13 +304,34 @@
                     </div>
                     <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
                         <dt class="text-xs text-[color:var(--color-text-muted)]">Último scheduler</dt>
-                        <dd class="mt-1 text-sm font-medium text-white">{{ $systemHealth['scheduler_last_run'] ? \Illuminate\Support\Carbon::parse($systemHealth['scheduler_last_run'])->diffForHumans() : 'No disponible' }}</dd>
+                        <dd class="mt-1 text-sm font-medium {{ ($systemHealth['scheduler_healthy'] ?? false) ? 'text-emerald-300' : 'text-amber-300' }}">
+                            {{ ($systemHealth['scheduler_healthy'] ?? false) ? 'Activo' : ($systemHealth['scheduler_last_run'] ? 'Sin señal reciente' : 'Esperando señal') }}
+                        </dd>
                     </div>
                     <div class="rounded-[var(--radius-control)] border border-[color:var(--color-border-subtle)] bg-white/[0.02] p-3">
-                        <dt class="text-xs text-[color:var(--color-text-muted)]">Procesados 24 h</dt>
+                        <dt class="text-xs text-[color:var(--color-text-muted)]">Solicitudes API 24 h</dt>
                         <dd class="mt-1 text-sm font-medium text-white">{{ $systemHealth['processed_24h'] !== null ? number_format((int) $systemHealth['processed_24h']) : 'N/D' }}</dd>
                     </div>
                 </dl>
+
+                @if (($systemHealth['failed_jobs'] ?? 0) > 0)
+                    <div class="mt-4 rounded-[var(--radius-control)] border border-rose-400/25 bg-rose-500/[0.07] px-4 py-3">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-semibold text-rose-200">Revisión necesaria</p>
+                                <p class="mt-1 text-xs leading-5 text-rose-100/75">Hay {{ number_format((int) $systemHealth['failed_jobs']) }} tareas fallidas registradas. No se reintentaron ni eliminaron automáticamente.</p>
+                            </div>
+                            <span class="text-xs text-rose-100/65">{{ number_format((int) ($systemHealth['failed_jobs_24h'] ?? 0)) }} en 24 h</span>
+                        </div>
+                        @if (! empty($systemHealth['failed_job_queues']))
+                            <div class="mt-3 flex flex-wrap gap-2" aria-label="Jobs fallidos por cola">
+                                @foreach ($systemHealth['failed_job_queues'] as $queue)
+                                    <span class="rounded-full bg-black/20 px-2.5 py-1 text-[0.6875rem] text-rose-100/80">{{ $queue['queue'] }} · {{ number_format($queue['total']) }}</span>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                @endif
             </x-ui.card>
 
             <x-ui.card padding="p-5" aria-labelledby="shalom-sync-title">

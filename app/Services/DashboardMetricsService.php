@@ -297,16 +297,46 @@ class DashboardMetricsService
     {
         $failedJobs = Schema::hasTable('failed_jobs') ? DB::table('failed_jobs')->count() : 0;
         $pendingJobs = Schema::hasTable('jobs') ? DB::table('jobs')->count() : 0;
+        $failedJobs24h = Schema::hasTable('failed_jobs')
+            ? DB::table('failed_jobs')->where('failed_at', '>=', now()->subDay())->count()
+            : 0;
+        $failedJobsLatestAt = Schema::hasTable('failed_jobs')
+            ? DB::table('failed_jobs')->max('failed_at')
+            : null;
+        $failedJobQueues = Schema::hasTable('failed_jobs')
+            ? DB::table('failed_jobs')
+                ->select('queue', DB::raw('COUNT(*) as total'))
+                ->groupBy('queue')
+                ->orderByDesc('total')
+                ->get()
+                ->map(fn (object $row): array => [
+                    'queue' => (string) ($row->queue ?: 'default'),
+                    'total' => (int) $row->total,
+                ])
+                ->all()
+            : [];
         $activeRestore = RucBackupOperation::activeRestore();
         $latestRestore = RucBackupOperation::latestFinishedRestore();
         $integrationsConnected = Integration::query()->where('provider', 'n8n')->where('status', 'connected')->count();
+        $schedulerLastRun = Cache::get('platform:scheduler:last_run_at');
+        $schedulerLastRunAt = $schedulerLastRun !== null
+            ? \Illuminate\Support\Carbon::parse($schedulerLastRun)
+            : null;
+        $schedulerHealthy = $schedulerLastRunAt?->greaterThanOrEqualTo(now()->subMinutes(2)) ?? false;
+        $status = $failedJobs > 0
+            ? 'danger'
+            : ($activeRestore !== null || ($schedulerLastRunAt !== null && ! $schedulerHealthy) ? 'warning' : 'healthy');
 
         return [
-            'status' => $activeRestore !== null || $failedJobs > 0 ? ($activeRestore !== null ? 'warning' : 'danger') : 'healthy',
+            'status' => $status,
             'queue_pending' => $pendingJobs,
             'failed_jobs' => $failedJobs,
-            'processed_24h' => null,
-            'scheduler_last_run' => null,
+            'failed_jobs_24h' => $failedJobs24h,
+            'failed_jobs_latest_at' => $failedJobsLatestAt,
+            'failed_job_queues' => $failedJobQueues,
+            'processed_24h' => ApiRequestLog::query()->where('created_at', '>=', now()->subDay())->count(),
+            'scheduler_last_run' => $schedulerLastRunAt?->toIso8601String(),
+            'scheduler_healthy' => $schedulerHealthy,
             'active_restore' => $activeRestore?->toStatusPayload(),
             'last_restore' => $latestRestore?->toStatusPayload(),
             'integrations_connected' => $integrationsConnected,
