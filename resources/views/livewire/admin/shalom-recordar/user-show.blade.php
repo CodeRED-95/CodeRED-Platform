@@ -26,7 +26,7 @@
             <tr>
                 <td class="px-5 py-4 font-mono text-xs">{{ $installation->installation_uuid }}</td>
                 <td class="px-5 py-4">{{ $installation->extension_version }}</td>
-                <td class="px-5 py-4">{{ $installation->last_synced_at?->format('d/m/Y H:i') ?? '—' }}</td>
+                <td class="px-5 py-4">{{ $installation->last_synced_at?->timezone('America/Lima')->format('d/m/Y H:i') ?? '—' }}</td>
                 <td class="px-5 py-4">{{ $installation->records_count }}</td>
                 <td class="px-5 py-4 text-xs text-[color:var(--color-text-secondary)]">{{ $installation->syncToken?->name ?? 'Sin token' }}</td>
                 <td class="px-5 py-4">
@@ -48,7 +48,7 @@
         <tbody class="divide-y divide-white/5">
         @forelse ($records as $record)
             <tr>
-                <td class="px-5 py-4">{{ $record->recorded_at?->format('d/m/Y H:i') ?? '—' }}</td>
+                <td class="px-5 py-4">{{ $record->recorded_at?->timezone('America/Lima')->format('d/m/Y H:i') ?? '—' }}</td>
                 <td class="px-5 py-4 font-mono text-xs">{{ $record->installation_uuid }}</td>
                 <td class="px-5 py-4">{{ $record->field }}</td>
                 <td class="px-5 py-4">{{ $record->value }}</td>

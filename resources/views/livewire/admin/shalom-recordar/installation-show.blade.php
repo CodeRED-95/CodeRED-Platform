@@ -6,7 +6,7 @@
             <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Usuario</dt><dd class="mt-1 font-medium">{{ $installation->user->name }}</dd></div>
             <div><dt class="text-sm text-[color:var(--color-text-secondary)]">UUID</dt><dd class="mt-1 font-mono text-xs">{{ $installation->installation_uuid }}</dd></div>
             <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Versión</dt><dd class="mt-1 font-medium">{{ $installation->extension_version }}</dd></div>
-            <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Última sincronización</dt><dd class="mt-1 font-medium">{{ $installation->last_synced_at?->format('d/m/Y H:i') ?? '—' }}</dd></div>
+            <div><dt class="text-sm text-[color:var(--color-text-secondary)]">Última sincronización</dt><dd class="mt-1 font-medium">{{ $installation->last_synced_at?->timezone('America/Lima')->format('d/m/Y H:i') ?? '—' }}</dd></div>
         </dl>
         @if ($canManage)
             <div class="mt-6 flex flex-wrap gap-2">
@@ -58,7 +58,7 @@
                             <td class="p-3 font-mono text-xs">{{ Str::limit($batch->batch_id, 32) }}</td>
                             <td class="p-3">{{ $batch->records_count }}</td>
                             <td class="p-3 text-xs text-[color:var(--color-text-secondary)]">
-                                {{ \Illuminate\Support\Carbon::parse($batch->first_at)->format('d/m/Y H:i') }}
+                                {{ $batch->first_at ? \Illuminate\Support\Carbon::parse($batch->first_at)->timezone('America/Lima')->format('d/m/Y H:i') : '—' }}
                             </td>
                             <td class="p-3">
                                 @php($batchKey = base64_encode((string) $batch->batch_id))
@@ -110,7 +110,7 @@
                     <tbody class="divide-y divide-white/5">
                         @forelse ($batchRecords as $record)
                             <tr>
-                                <td class="p-3">{{ $record->recorded_at?->format('d/m/Y H:i') ?? '—' }}</td>
+                                <td class="p-3">{{ $record->recorded_at?->timezone('America/Lima')->format('d/m/Y H:i') ?? '—' }}</td>
                                 <td class="p-3">{{ $record->field }}</td>
                                 <td class="p-3">{{ $record->value }}</td>
                             </tr>

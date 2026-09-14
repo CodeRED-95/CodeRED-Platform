@@ -17,10 +17,11 @@
         <tbody class="divide-y divide-white/5">
         @forelse ($users as $user)
             <tr>
+                @php($lastSync = $user->shalom_recordar_installations_max_last_synced_at)
                 <td class="px-5 py-4"><div class="font-medium">{{ $user->name }}</div><div class="text-sm text-[color:var(--color-text-secondary)]">{{ $user->email }}</div></td>
                 <td class="px-5 py-4">{{ $user->shalom_recordar_installations_count }}</td>
                 <td class="px-5 py-4">{{ $user->shalom_recordar_records_count }}</td>
-                <td class="px-5 py-4">{{ $user->updated_at?->format('d/m/Y H:i') ?? '—' }}</td>
+                <td class="px-5 py-4">{{ $lastSync ? \Illuminate\Support\Carbon::parse($lastSync)->timezone('America/Lima')->format('d/m/Y H:i') : '—' }}</td>
                 <td class="px-5 py-4"><x-ui.button href="{{ route('admin.shalom-recordar.users.show', $user) }}" size="sm" variant="outline">Ver</x-ui.button></td>
             </tr>
         @empty

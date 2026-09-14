@@ -37,11 +37,12 @@ class Index extends Component
             ->when($this->ownOnly, fn (Builder $query): Builder => $query->whereKey(auth()->id()))
             ->whereHas('shalomRecordarInstallations')
             ->withCount(['shalomRecordarInstallations', 'shalomRecordarRecords'])
+            ->withMax('shalomRecordarInstallations', 'last_synced_at')
             ->when($this->search !== '', fn (Builder $query) => $query->where(function (Builder $sub): void {
                 $sub->where('name', 'like', '%'.$this->search.'%')
                     ->orWhere('email', 'like', '%'.$this->search.'%');
             }))
-            ->latest('updated_at')
+            ->latest('shalom_recordar_installations_max_last_synced_at')
             ->paginate($this->perPage);
 
         $baseQuery = ShalomRecordarRecord::query();
