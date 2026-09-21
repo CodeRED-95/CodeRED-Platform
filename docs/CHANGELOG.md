@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-20
+
+### Changed
+
+- Se alinea CodeRED Platform con la identidad oni aprobada: tinta, papel mineral,
+  bermellón, tipografía local y navegación con iconos SVG.
+- Se actualizan login, panel, referencias internas y documentación visual sin
+  modificar autenticación, permisos, rutas ni datos.
+
 ## 2026-08-12
 
 ### Changed

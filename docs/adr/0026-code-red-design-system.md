@@ -49,6 +49,14 @@ Esta estrategia mantiene la arquitectura Laravel existente, mejora la mantenibil
 - Los cambios de marca pueden hacerse desde tokens y componentes en lugar de tocar cada vista.
 - La documentación debe mantenerse sincronizada con el sistema visual.
 
+## Addendum 2026-09-20: identidad oni compartida
+
+El sistema se alinea con el rediseño aprobado de `codered.lat`. Los tokens
+oscuros pasan a tinta, superficies minerales y bermellón; se cargan Inter,
+Space Grotesk y JetBrains Mono de forma local. El cambio conserva los contratos
+Blade, Livewire, rutas, permisos y flujos de autenticación. La marca se expresa
+mediante emblemas oni existentes y SVG, sin glifos decorativos ni iconos emoji.
+
 ## Referencias
 
 - `resources/css/app.css`

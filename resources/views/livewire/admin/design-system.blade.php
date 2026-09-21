@@ -1,17 +1,17 @@
 <div class="space-y-8">
     <x-ui.page-header
         title="CodeRED Design System"
-        subtitle="Referencia interna para colores, componentes y patrones visuales del proyecto."
+        subtitle="Referencia interna de la identidad oni: tokens, componentes y patrones operativos."
     />
 
     <x-ui.card>
-        <x-ui.section-header title="Paleta oficial" description="Tokens semánticos usados por la interfaz." />
+        <x-ui.section-header title="Paleta oficial" description="Tinta, papel mineral y bermellón usados mediante tokens semánticos." />
         <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             @foreach ([
-                ['name' => 'Background', 'value' => 'var(--color-background)', 'class' => 'token-swatch-background'],
-                ['name' => 'Surface', 'value' => 'var(--color-surface)', 'class' => 'token-swatch-surface'],
-                ['name' => 'Brand', 'value' => 'var(--color-brand)', 'class' => 'token-swatch-brand'],
-                ['name' => 'Accent ivory', 'value' => 'var(--color-accent-ivory)', 'class' => 'token-swatch-ivory'],
+                ['name' => 'Tinta', 'value' => 'var(--color-background)', 'class' => 'token-swatch-background'],
+                ['name' => 'Superficie', 'value' => 'var(--color-surface)', 'class' => 'token-swatch-surface'],
+                ['name' => 'Bermellón', 'value' => 'var(--color-brand)', 'class' => 'token-swatch-brand'],
+                ['name' => 'Papel mineral', 'value' => 'var(--color-accent-ivory)', 'class' => 'token-swatch-ivory'],
             ] as $color)
                 <div class="rounded-[var(--radius-card)] border border-white/10 p-4">
                     <div class="h-20 rounded-[var(--radius-card)] border border-white/10 {{ $color['class'] }}"></div>

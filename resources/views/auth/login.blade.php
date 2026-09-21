@@ -1,49 +1,28 @@
 <x-layouts.auth page-title="{{ $pageTitle ?? 'Iniciar sesión' }}">
     <x-slot:promo>
         <div class="relative mx-auto w-full max-w-[clamp(18rem,24vw,29rem)]">
-            <div class="pointer-events-none absolute inset-0 -z-10 translate-y-2 rounded-full bg-[radial-gradient(circle_at_center,rgba(225,29,72,0.34),rgba(225,29,72,0)_65%)] blur-2xl"></div>
             <x-ui.logo variant="square" class="login-ceremonial-logo w-full h-auto drop-shadow-[0_0_30px_rgba(225,29,72,0.18)]" />
         </div>
 
-        <div class="mt-6 space-y-2.5 xl:mt-7 xl:space-y-3">
-            <p class="text-sm uppercase tracking-[0.32em] text-[color:var(--color-brand-light)]">CodeRED Platform</p>
-            <h1 class="font-display text-[clamp(2.5rem,3vw,3.8rem)] font-semibold leading-[0.96] tracking-tight">Tu centro de operaciones</h1>
+        <div class="mt-6 space-y-3 xl:mt-7">
+            <h1 class="font-display text-[clamp(2.5rem,3vw,3.8rem)] font-semibold leading-[0.96] tracking-[-0.03em]">Tu operación, más clara.</h1>
             <p class="max-w-xl text-[clamp(1rem,1.05vw,1.125rem)] leading-[1.55] text-[color:var(--color-text-secondary)]">
-                Administra agencias, RUC, integraciones y automatizaciones
-                desde una plataforma modular, segura y diseñada para
-                potenciar a tu equipo.
+                CodeRED Platform concentra las herramientas que tu equipo usa para administrar, consultar y conectar el ecosistema.
             </p>
         </div>
 
-        <div class="grid max-w-2xl gap-3 pt-5 xl:gap-4 xl:pt-6">
-            <div class="flex items-start gap-3 rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-white/3 p-3.5 shadow-[var(--shadow-card)] backdrop-blur xl:gap-4 xl:p-4">
-                <div class="flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--color-brand-soft)] text-[color:var(--color-brand-light)] xl:size-12">
-                    <x-ui.icon name="database" class="size-5" />
-                </div>
-                <div>
-                    <p class="text-[clamp(0.98rem,1vw,1.05rem)] font-semibold text-white">Administración centralizada</p>
-                    <p class="mt-0.5 text-sm leading-6 text-[color:var(--color-text-secondary)]">Gestiona agencias, usuarios y permisos en un solo lugar.</p>
-                </div>
+        <dl class="mt-8 grid max-w-2xl border-y border-[color:var(--color-border-subtle)] divide-y divide-[color:var(--color-border-subtle)] text-sm xl:mt-10">
+            <div class="grid gap-1 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
+                <dt class="font-semibold text-[color:var(--color-brand-light)]">Administración</dt>
+                <dd class="text-[color:var(--color-text-secondary)]">Agencias, usuarios y permisos en un solo lugar.</dd>
             </div>
-
-            <div class="flex items-start gap-3 rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-white/3 p-3.5 shadow-[var(--shadow-card)] backdrop-blur xl:gap-4 xl:p-4">
-                <div class="flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--color-brand-soft)] text-[color:var(--color-brand-light)] xl:size-12">
-                    <x-ui.icon name="shield" class="size-5" />
-                </div>
-                <div>
-                    <p class="text-[clamp(0.98rem,1vw,1.05rem)] font-semibold text-white">Integraciones seguras</p>
-                    <p class="mt-0.5 text-sm leading-6 text-[color:var(--color-text-secondary)]">Conecta n8n, servicios y herramientas con total confianza.</p>
-                </div>
+            <div class="grid gap-1 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
+                <dt class="font-semibold text-[color:var(--color-brand-light)]">Consulta</dt>
+                <dd class="text-[color:var(--color-text-secondary)]">Herramientas DNI y RUC para el trabajo diario.</dd>
             </div>
-
-            <div class="flex items-start gap-3 rounded-[var(--radius-card)] border border-[color:var(--color-border)] bg-white/3 p-3.5 shadow-[var(--shadow-card)] backdrop-blur xl:gap-4 xl:p-4">
-                <div class="flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-[color:var(--color-brand-soft)] text-[color:var(--color-brand-light)] xl:size-12">
-                    <x-ui.icon name="refresh" class="size-5" />
-                </div>
-                <div>
-                    <p class="text-[clamp(0.98rem,1vw,1.05rem)] font-semibold text-white">Datos y automatización</p>
-                    <p class="mt-0.5 text-sm leading-6 text-[color:var(--color-text-secondary)]">Procesos inteligentes para decisiones más rápidas.</p>
-                </div>
+            <div class="grid gap-1 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
+                <dt class="font-semibold text-[color:var(--color-brand-light)]">Conexión</dt>
+                <dd class="text-[color:var(--color-text-secondary)]">Tokens, servicios e integraciones del ecosistema.</dd>
             </div>
         </div>
 

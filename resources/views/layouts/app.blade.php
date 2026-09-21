@@ -128,7 +128,7 @@
                                             'bg-white/10 text-white': collapsed && active,
                                             'text-gray-400 hover:bg-white/5 hover:text-white': collapsed && !active
                                        }">
-                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-lg shrink-0">{{ $item['icon'] }}</span>
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-control)] shrink-0"><x-ui.icon :name="$item['icon']" class="size-4" /></span>
                                         <span class="font-medium text-sm" x-show="!collapsed" x-cloak>{{ $item['label'] }}</span>
                                     </a>
                                     <div x-show="collapsed" x-cloak
@@ -166,7 +166,7 @@
                     <div class="flex items-center justify-between gap-4 px-4 py-4 lg:px-8">
                         <div class="flex items-center gap-3">
                             <x-ui.icon-button class="h-11 w-11 lg:hidden" x-on:click="mobileOpen = true" label="Abrir menú">
-                                <span class="text-xl">☰</span>
+                                <x-ui.icon name="menu" class="size-5" />
                             </x-ui.icon-button>
                             <div>
                                 <p class="text-xs uppercase tracking-[0.24em] text-[color:var(--color-text-muted)]">CodeRED Platform</p>
@@ -204,12 +204,12 @@
                                         <div class="p-1.5" role="none">
                                             <a href="{{ route('profile.show') }}" role="menuitem"
                                                class="focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[color:var(--color-text-primary)] transition hover:bg-white/5">
-                                                <span aria-hidden="true">👤</span> Perfil
+                                                <x-ui.icon name="user" class="size-4" /> Perfil
                                             </a>
                                             @if ($menuUser->hasPermission('shalom-recordar.view-own') && ! $menuUser->hasPermission('shalom-recordar.view'))
                                                 <a href="{{ route('admin.shalom-recordar.users.show', $menuUser) }}" role="menuitem"
                                                    class="focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[color:var(--color-text-primary)] transition hover:bg-white/5">
-                                                    <span aria-hidden="true">🔄</span> Mis sincronizaciones
+                                                    <x-ui.icon name="refresh" class="size-4" /> Mis sincronizaciones
                                                 </a>
                                             @endif
                                         </div>
@@ -218,7 +218,7 @@
                                                 @csrf
                                                 <button type="submit" role="menuitem"
                                                         class="focus-ring flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--color-danger)] transition hover:bg-[color:var(--color-danger)]/10">
-                                                    <span aria-hidden="true">⇥</span> Cerrar sesión
+                                                    <x-ui.icon name="logout" class="size-4" /> Cerrar sesión
                                                 </button>
                                             </form>
                                         </div>
@@ -248,7 +248,7 @@
                    x-transition:leave-end="-translate-x-full">
                 <div class="flex shrink-0 items-center justify-between p-5 pb-0">
                     <x-ui.logo variant="symbol" class="h-10 w-10 rounded-xl" />
-                    <x-ui.icon-button x-on:click="mobileOpen = false" label="Cerrar menú">✕</x-ui.icon-button>
+                    <x-ui.icon-button x-on:click="mobileOpen = false" label="Cerrar menú"><x-ui.icon name="x" class="size-5" /></x-ui.icon-button>
                 </div>
                 <div class="mx-5 mt-5 shrink-0 border-b border-white/5 pb-4">
                     <a href="{{ route('profile.show') }}" class="focus-ring flex items-center gap-3 rounded-2xl bg-white/5 p-3">

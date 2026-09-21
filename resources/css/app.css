@@ -1,3 +1,7 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/jetbrains-mono";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,30 +9,30 @@
 @layer base {
   :root {
     color-scheme: dark;
-    --color-bg-app: #0b0710;
-    --color-bg-sidebar: #190d20;
-    --color-bg-surface: #1e1025;
-    --color-bg-elevated: #140c1b;
-    --color-bg-hover: #2a1630;
-    --color-background: #0b0710;
-    --color-background-elevated: #140c1b;
-    --color-sidebar: #190d20;
-    --color-surface: #1e1025;
-    --color-surface-hover: #2a1630;
-    --color-surface-active: #351a38;
-    --color-border: #5a2d4b;
-    --color-border-subtle: #352039;
-    --color-text-primary: #fff8f1;
-    --color-text-secondary: #c9b7c7;
-    --color-text-muted: #9c8199;
-    --color-text-disabled: #826a80;
-    --color-brand: #f20f4f;
-    --color-brand-hover: #ff3568;
-    --color-brand-active: #c50d42;
-    --color-brand-light: #ff6689;
-    --color-brand-soft: rgba(242, 15, 79, 0.16);
-    --color-accent-ivory: #f2d9a6;
-    --color-accent-ivory-muted: #cdb887;
+    --color-bg-app: #141413;
+    --color-bg-sidebar: #1d1d1a;
+    --color-bg-surface: #23231f;
+    --color-bg-elevated: #1a1a17;
+    --color-bg-hover: #30302a;
+    --color-background: #141413;
+    --color-background-elevated: #1a1a17;
+    --color-sidebar: #1d1d1a;
+    --color-surface: #23231f;
+    --color-surface-hover: #30302a;
+    --color-surface-active: #3a3931;
+    --color-border: #5a584e;
+    --color-border-subtle: #39382f;
+    --color-text-primary: #f7f4ea;
+    --color-text-secondary: #c9c4b5;
+    --color-text-muted: #9b9687;
+    --color-text-disabled: #777268;
+    --color-brand: #d53629;
+    --color-brand-hover: #e74738;
+    --color-brand-active: #b8281e;
+    --color-brand-light: #ff7568;
+    --color-brand-soft: rgba(213, 54, 41, 0.18);
+    --color-accent-ivory: #f1f0e9;
+    --color-accent-ivory-muted: #d2cdbd;
     --color-success: #22c55e;
     --color-warning: #f59e0b;
     --color-danger: #ef4444;
@@ -40,12 +44,12 @@
     --radius-card: 16px;
     --radius-modal: 20px;
     --radius-panel: 24px;
-    --shadow-elevated: 0 24px 80px rgba(5, 2, 12, 0.62);
+    --shadow-elevated: 0 24px 80px rgba(0, 0, 0, 0.42);
     --shadow-control: 0 1px 2px rgba(2, 6, 23, 0.24);
     --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.28);
-    --shadow-md: 0 16px 36px rgba(5, 2, 12, 0.42);
-    --shadow-lg: 0 28px 72px rgba(5, 2, 12, 0.58);
-    --shadow-brand: 0 12px 36px rgba(242, 15, 79, 0.28);
+    --shadow-md: 0 16px 36px rgba(0, 0, 0, 0.34);
+    --shadow-lg: 0 28px 72px rgba(0, 0, 0, 0.48);
+    --shadow-brand: 0 12px 30px rgba(213, 54, 41, 0.24);
     --radius-sm: 8px;
     --radius-md: 10px;
     --radius-lg: 14px;
@@ -81,9 +85,9 @@
 @layer components {
   .code-red-shell {
     background:
-      radial-gradient(circle at top left, rgba(225, 29, 72, 0.12), transparent 28%),
-      radial-gradient(circle at top right, rgba(242, 217, 166, 0.08), transparent 24%),
-      linear-gradient(180deg, var(--color-background) 0%, #0a101a 100%);
+      radial-gradient(circle at 100% 0, rgba(213, 54, 41, 0.14), transparent 30rem),
+      radial-gradient(circle at 0 100%, rgba(241, 240, 233, 0.04), transparent 26rem),
+      var(--color-background);
   }
 
   .glass-panel {
@@ -805,6 +809,116 @@ body {
         right: 1rem;
     }
 }
+
+/* --------------------------------------------------------- Oni foundation --- */
+
+/* These final rules replace the previous neon treatment while preserving every
+   Blade and Livewire contract that uses the shared component classes above. */
+html { color-scheme: dark; overflow-x: clip; }
+body { min-width: 320px; background: var(--color-background); }
+
+.code-red-shell {
+    background:
+        radial-gradient(circle at 100% 0, rgba(213, 54, 41, 0.14), transparent 30rem),
+        radial-gradient(circle at 0 100%, rgba(241, 240, 233, 0.04), transparent 26rem),
+        var(--color-background);
+}
+
+.code-red-shell::before,
+.auth-screen::before,
+.public-token-screen::before,
+.platform-app aside::after,
+.platform-app header.layer-header::after,
+.platform-app main::before,
+.platform-app .type-page-title::after,
+.auth-screen::after,
+.public-token-screen::after,
+.auth-promo::before,
+.auth-promo::after,
+.auth-form-shell::before {
+    content: none;
+}
+
+.glass-panel {
+    background: var(--color-surface);
+    border-color: var(--color-border-subtle);
+    box-shadow: var(--shadow-md);
+}
+
+.glass-panel::before,
+.platform-app main article::before,
+.token-request-card::before,
+.login-form::before { content: none; }
+.glass-panel:hover { border-color: var(--color-border); box-shadow: var(--shadow-md); }
+
+.platform-app aside {
+    background: var(--color-sidebar);
+    border-color: var(--color-border-subtle);
+    box-shadow: 1rem 0 3rem rgba(0, 0, 0, 0.2);
+}
+.platform-app .sidebar-navigation a[aria-current='page'] {
+    background: var(--color-brand-soft);
+    box-shadow: inset 0 0 0 1px rgba(213, 54, 41, 0.2);
+    color: var(--color-text-primary);
+}
+.platform-app .sidebar-navigation a[aria-current='page'] span:first-child { color: var(--color-brand-light); }
+.platform-app .sidebar-navigation a:not([aria-current='page']):hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text-primary);
+}
+
+.platform-app header.layer-header {
+    background: var(--color-background-elevated);
+    border-color: var(--color-border-subtle);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.platform-app main { background: var(--color-background); }
+.type-page-title,
+.platform-app main section > h2,
+.platform-app main article h2,
+.platform-app main article h3,
+.token-request-card h1 { text-shadow: none; }
+
+.platform-app main article { border-color: var(--color-border); box-shadow: var(--shadow-md); }
+.platform-app main article:hover { border-color: var(--color-border); }
+.platform-app input:not([type='checkbox']):not([type='radio']),
+.platform-app select,
+.platform-app textarea { border-color: var(--color-border); background: var(--color-surface); }
+.platform-app input:not([type='checkbox']):not([type='radio']):focus,
+.platform-app select:focus,
+.platform-app textarea:focus {
+    border-color: var(--color-brand-light);
+    box-shadow: 0 0 0 3px var(--color-brand-soft), var(--shadow-control);
+}
+.platform-app button.bg-\[color\:var\(--color-brand\)\] { box-shadow: var(--shadow-brand); }
+
+.auth-promo {
+    background:
+        radial-gradient(circle at 25% 18%, rgba(213, 54, 41, 0.22), transparent 25rem),
+        var(--color-background);
+    border-color: var(--color-border-subtle) !important;
+}
+.auth-promo img { filter: drop-shadow(0 1.5rem 2.25rem rgba(0, 0, 0, 0.32)); }
+.auth-promo .rounded-\[var\(--radius-card\)\] {
+    background: transparent;
+    border-color: var(--color-border-subtle);
+    box-shadow: none;
+}
+.auth-form-shell {
+    background:
+        radial-gradient(circle at 88% 12%, rgba(213, 54, 41, 0.12), transparent 22rem),
+        var(--color-background-elevated);
+}
+.login-form,
+.token-request-card { background: var(--color-surface); border-color: var(--color-border) !important; box-shadow: var(--shadow-elevated); }
+.login-form input:not([type='checkbox']):not([type='radio']),
+.token-request-card input:not([type='checkbox']):not([type='radio']),
+.token-request-card select,
+.token-request-card textarea { border-color: var(--color-border); background: var(--color-background-elevated); }
+.login-form button[type='submit'],
+.token-request-card button[type='submit'] { border-radius: var(--radius-control); box-shadow: var(--shadow-brand); }
+.login-form .size-16 { border-color: var(--color-border); background: var(--color-background-elevated); box-shadow: none; }
+.public-token-ornament { display: none; }
 
 @media (max-width: 639px) {
     .platform-app main::before {

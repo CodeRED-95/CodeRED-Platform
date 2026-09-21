@@ -391,3 +391,18 @@ En escritorio, gráficos y paneles recientes usan proporciones 65/35 aproximadas
 ## Documentación API interactiva
 
 La ruta `/docs/api` usa tarjetas oscuras del Design System como experiencia principal. Las categorías y operaciones se derivan del contrato OpenAPI; la configuración visual solo define orden, título amable y ability. Los formularios no usan selects nativos, los paneles expandibles conservan foco y scroll, y todo contenido de respuesta se representa como texto seguro. Swagger UI se carga una única vez y solo al abrir “OpenAPI avanzada”. El token de prueba debe permanecer exclusivamente en memoria y nunca aparecer en ejemplos, URLs, storage o consola.
+
+## Identidad oni aprobada
+
+El sistema visual se alinea con `codered.lat`: tinta profunda para el espacio de
+trabajo, papel mineral para el contenido y bermellón `--color-brand` como señal
+de acción. Los emblemas oni existentes son el recurso visual de marca; no se
+sustituyen por glifos japoneses, emojis o brillo decorativo.
+
+Inter usa texto e interfaz, Space Grotesk forma títulos y JetBrains Mono queda
+reservada para valores técnicos. Las fuentes se cargan localmente desde los
+paquetes `@fontsource-variable/*`, sin depender de una CDN.
+
+La navegación utiliza `x-ui.icon` con SVG de trazo uniforme. Las tarjetas,
+tablas y formularios priorizan contraste, densidad legible y estado operativo;
+los gradientes y las sombras solo apoyan la jerarquía, nunca ocultan contenido.
