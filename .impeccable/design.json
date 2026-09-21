@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-21T02:50:00.000Z",
+  "title": "Design System: CodeRED Platform — Oni",
+  "extensions": {
+    "colorMeta": {
+      "brand": { "role": "primary", "displayName": "Bermellón", "canonical": "#d53629" },
+      "ink": { "role": "neutral", "displayName": "Tinta", "canonical": "#141413" },
+      "paper": { "role": "neutral", "displayName": "Papel mineral", "canonical": "#f1f0e9" }
+    },
+    "breakpoints": [
+      { "name": "mobile", "value": "640px" },
+      { "name": "sidebar", "value": "1024px" }
+    ],
+    "shadows": [
+      { "name": "elevated", "value": "0 24px 80px rgba(0,0,0,.42)", "purpose": "Separa capas de trabajo." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Acción primaria",
+      "kind": "button",
+      "refersTo": "x-ui.button",
+      "html": "<button class=\"ds-primary\">Guardar cambios</button>",
+      "css": ".ds-primary{min-height:48px;border:0;border-radius:8px;padding:0 1rem;background:#d53629;color:#f1f0e9;font:600 .875rem Inter,sans-serif}.ds-primary:hover{background:#e74738}.ds-primary:focus-visible{outline:2px solid #ff7568;outline-offset:3px}"
+    },
+    {
+      "name": "Campo operativo",
+      "kind": "input",
+      "refersTo": "x-ui.input",
+      "html": "<label class=\"ds-field\">Correo<input type=\"email\"></label>",
+      "css": ".ds-field{display:grid;gap:.5rem;color:#f7f4ea;font:500 .875rem Inter,sans-serif}.ds-field input{min-height:48px;border:1px solid #5a584e;border-radius:8px;background:#1a1a17;color:#f7f4ea;padding:0 .75rem}.ds-field input:focus-visible{outline:2px solid #ff7568;outline-offset:2px}"
+    },
+    {
+      "name": "Navegación lateral",
+      "kind": "navigation",
+      "refersTo": "sidebar-navigation",
+      "html": "<nav class=\"ds-nav\"><a aria-current=\"page\">Dashboard</a><a>Agencias</a></nav>",
+      "css": ".ds-nav{display:grid;gap:.25rem;padding:.75rem;background:#1d1d1a}.ds-nav a{border-radius:8px;padding:.7rem;color:#c9c4b5;font:.875rem Inter,sans-serif}.ds-nav a[aria-current=page]{background:rgba(213,54,41,.18);color:#f7f4ea}.ds-nav a:focus-visible{outline:2px solid #ff7568;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Operar el ecosistema CodeRED con claridad.",
+    "overview": "La identidad oni de CodeRED Web se traslada a un panel operativo oscuro: tinta para concentración, papel mineral para legibilidad y bermellón para acciones.",
+    "keyCharacteristics": [
+      "Emblemas oni existentes como expresión de marca.",
+      "Inter, Space Grotesk y JetBrains Mono cargadas localmente.",
+      "SVG de trazo uniforme en navegación y acciones.",
+      "Superficies planas, bordes semánticos y contraste alto."
+    ],
+    "rules": [
+      { "name": "Operational clarity", "section": "Hierarchy", "body": "Los datos, estados y acciones deben leerse antes que cualquier tratamiento de marca." },
+      { "name": "Brand restraint", "section": "Identity", "body": "No se usan glifos japoneses ni brillo decorativo; el oni vive en sus emblemas originales." }
+    ]
+  }
+}
