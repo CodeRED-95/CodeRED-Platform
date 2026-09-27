@@ -23,6 +23,7 @@ class DesktopUpdateController
 {
     /** Ruta del manifiesto dentro del disco público. */
     private const MANIFEST = 'releases/desktop/manifest.json';
+    private const HISTORY = 'releases/desktop/history.json';
 
     public function __invoke(): JsonResponse
     {
@@ -56,14 +57,39 @@ class DesktopUpdateController
             'released_at' => $manifest['released_at'] ?? null,
             'notes' => $manifest['notes'] ?? null,
             'minimum_version' => $manifest['minimum_version'] ?? null,
-        ]);
+        ], $this->readHistory($disk));
+    }
+
+    /** @return list<array{version: string, released_at: mixed, notes: mixed}> */
+    private function readHistory($disk): array
+    {
+        if (! $disk->exists(self::HISTORY)) {
+            return [];
+        }
+
+        $history = json_decode((string) $disk->get(self::HISTORY), true);
+        if (! is_array($history)) {
+            return [];
+        }
+
+        return collect($history)
+            ->filter(fn ($item): bool => is_array($item) && filled($item['version'] ?? null))
+            ->map(fn (array $item): array => [
+                'version' => (string) $item['version'],
+                'released_at' => $item['released_at'] ?? null,
+                'notes' => filled($item['notes'] ?? null) ? (string) $item['notes'] : null,
+            ])
+            ->unique('version')
+            ->take(3)
+            ->values()
+            ->all();
     }
 
     /** @param array<string, mixed>|null $release */
-    private function respond(?array $release): JsonResponse
+    private function respond(?array $release, array $history = []): JsonResponse
     {
         return response()
-            ->json(['success' => true, 'data' => ['release' => $release]])
+            ->json(['success' => true, 'data' => ['release' => $release, 'history' => $history]])
             // Cinco minutos: suficiente para no castigar al servidor cuando
             // muchos clientes arrancan a la vez, y poco para que una
             // publicación llegue pronto.
