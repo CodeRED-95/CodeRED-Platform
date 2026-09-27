@@ -43,6 +43,12 @@ Todas las versiones siguen `Keep a Changelog`.
 
 ## [Unreleased]
 
+### Added
+
+- El canal público `GET /api/v1/desktop/update` puede entregar `data.history`
+  con las tres últimas versiones de Desktop y sus notas de cambio, usando el
+  historial publicado junto al manifiesto sin tocar la base de datos.
+
 ### Fixed
 
 - Se incorpora correo transaccional con Resend, verificación OTP de cuentas,
