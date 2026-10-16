@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.12 - 2026-10-16
+
+### Fixed
+
+- La detección de `OS` acepta ahora números completos de 8 o 9 dígitos. Los valores de 10 o más dígitos siguen siendo inválidos.
+
 ## 2.9.11 - 2026-08-28
 
 ### Fixed

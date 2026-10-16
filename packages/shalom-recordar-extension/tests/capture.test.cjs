@@ -443,15 +443,15 @@ test('OS progresiva por input termina en un solo registro final', () => {
     emit('input', { id: 'inputnroguia', value: '89906' });
     emit('input', { id: 'inputnroguia', value: '899061' });
     emit('input', { id: 'inputnroguia', value: '8990618' });
-    emit('input', { id: 'inputnroguia', value: '89906189' });
+    emit('input', { id: 'inputnroguia', value: '899061890' });
     runTimers();
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].data.field, 'OS');
-    assert.equal(messages[0].data.value, '89906189');
+    assert.equal(messages[0].data.value, '899061890');
 });
 
-test('OS de más de 8 dígitos se ignora', () => {
+test('OS de 9 dígitos se captura y de más de 9 se ignora', () => {
     reset();
     const sandbox = createSandbox();
     sandbox.globalThis = sandbox;
@@ -461,7 +461,13 @@ test('OS de más de 8 dígitos se ignora', () => {
     emit('input', { id: 'inputnroguia', value: '899061890' });
     runTimers();
 
-    assert.equal(messages.length, 0);
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].data.value, '899061890');
+
+    emit('input', { id: 'inputnroguia', value: '8990618901' }, { timeStamp: 20000 });
+    runTimers();
+
+    assert.equal(messages.length, 1);
 });
 
 test('debounce + blur en OS no duplica', () => {
@@ -471,12 +477,12 @@ test('debounce + blur en OS no duplica', () => {
     vm.createContext(sandbox);
     loadContentScript(sandbox);
 
-    emit('input', { id: 'inputnroguia', value: '89906189' });
-    emit('blur', { nodeType: 1, id: 'inputnroguia', value: '89906189' });
+    emit('input', { id: 'inputnroguia', value: '899061890' });
+    emit('blur', { nodeType: 1, id: 'inputnroguia', value: '899061890' });
     runTimers();
 
     assert.equal(messages.length, 1);
-    assert.equal(messages[0].data.value, '89906189');
+    assert.equal(messages[0].data.value, '899061890');
 });
 
 test('inputnroguia nunca se clasifica como DNI', () => {

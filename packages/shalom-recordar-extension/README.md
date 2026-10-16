@@ -2,7 +2,7 @@
 
 ## Versión
 
-Fuente única de verdad: `package.json` (`2.9.11`).
+Fuente única de verdad: `package.json` (`2.9.12`).
 
 Extensión Chrome para capturar y sincronizar datos de Shalom Recordar con CodeRED Platform.
 
@@ -118,7 +118,7 @@ Tipos capturados:
   - `OS`
   - origen: `#inputnroguia`
   - solo números
-  - máximo 8 dígitos
+  - entre 8 y 9 dígitos
   - captura automática del valor final mediante debounce
 - `Clave`: se teclea en las casillas `swal-input1..4`, que van llenando un buffer. La clave se envia (tomada del buffer) cuando el servidor confirma que el codigo fue correcto, es decir cuando aparece uno de los formularios de confirmacion:
   - `frmEntrega` (`action .../entrega/ajax`): registro de la entrega.

