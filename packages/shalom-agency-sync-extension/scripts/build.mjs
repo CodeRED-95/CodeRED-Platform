@@ -1,0 +1,17 @@
+import {cp, mkdir, readFile, writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const root = fileURLToPath(new URL('../', import.meta.url));
+const dist = path.join(root, 'dist');
+const manifest = JSON.parse(await readFile(path.join(root, 'manifest.json'), 'utf8'));
+const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+if (pkg.version !== manifest.version) throw new Error('Las versiones no coinciden.');
+await mkdir(path.join(dist, 'assets'), {recursive: true});
+await cp(path.join(root, 'src'), dist, {recursive: true});
+await writeFile(path.join(dist, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+await cp(path.join(root, '../../public/images/branding/codered-symbol.png'), path.join(dist, 'assets/icon.png'));
+await cp(path.join(root, '../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2'), path.join(dist, 'assets/inter.woff2'));
+await cp(path.join(root, '../../node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2'), path.join(dist, 'assets/display.woff2'));
+await cp(path.join(root, '../../node_modules/@fontsource-variable/inter/LICENSE'), path.join(dist, 'assets/inter-LICENSE.txt'));
+await cp(path.join(root, '../../node_modules/@fontsource-variable/space-grotesk/LICENSE'), path.join(dist, 'assets/display-LICENSE.txt'));
+console.log(`Compilada extensión independiente ${manifest.version}: ${dist}`);

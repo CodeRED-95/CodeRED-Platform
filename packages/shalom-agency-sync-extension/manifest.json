@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "CodeRED · Sincronizador de agencias Shalom",
+  "version": "1.0.0",
+  "minimum_chrome_version": "114",
+  "description": "Compara la lista terrestre nativa de Shalom y sincroniza estados en Platform con una cuenta administradora.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://platform.codered.lat/*", "https://sysnewos.shalomcontrol.com/*"],
+  "background": {"service_worker": "background.js", "type": "module"},
+  "action": {"default_title": "Abrir sincronizador de agencias"},
+  "icons": {"128": "assets/icon.png"},
+  "content_scripts": [{
+    "matches": ["https://sysnewos.shalomcontrol.com/service-order*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
+  "web_accessible_resources": [{"resources": ["capture.mjs"], "matches": ["https://sysnewos.shalomcontrol.com/*"]}],
+  "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'none'; connect-src https://platform.codered.lat"}
+}

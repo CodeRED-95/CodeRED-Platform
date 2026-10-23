@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sincronizador Shalom · CodeRED</title>
+  <link rel="icon" href="assets/icon.png"><link rel="stylesheet" href="dashboard.css">
+  <script type="module" src="dashboard.js"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="https://platform.codered.lat" target="_blank" rel="noopener"><img src="assets/icon.png" width="36" height="36" alt="CodeRED"><span>CodeRED <span class="secondary">/ Agencias</span></span></a><span class="version">Extensión independiente · v1.0.0</span></header>
+  <main>
+    <div class="page-heading"><div><h1>Sincronizador Shalom</h1><p>La lista terrestre nativa define qué agencias deben estar activas en Platform.</p></div><a class="text-link" href="https://sysnewos.shalomcontrol.com/service-order/items" target="_blank" rel="noopener">Abrir Shalom ↗</a></div>
+    <div id="message" class="notice" role="status" aria-live="polite" hidden></div>
+    <div id="pending" class="notice warning" role="status" hidden><h2>Resultado pendiente de comprobar</h2><p>Los cambios pudieron haberse aplicado aunque no llegara la respuesta. La automatización está apagada.</p><button id="check-result" type="button">Comprobar resultado</button> <button id="clear-pending" type="button">Ya revisé la operación en Platform</button></div>
+    <div class="workspace">
+      <aside>
+        <section class="panel" aria-labelledby="account-heading"><h2 id="account-heading">Cuenta de Platform</h2>
+          <form id="login-form"><p>Inicia sesión con tu cuenta de administrador. Se requieren permisos para consultar agencias y cambiar sus estados.</p>
+            <label for="email">Correo electrónico</label><input id="email" type="email" autocomplete="username" required maxlength="255">
+            <label for="password">Contraseña</label><input id="password" type="password" autocomplete="current-password" required maxlength="255">
+            <button class="primary full" type="submit">Iniciar sesión</button>
+            <p class="hint">La contraseña se envía únicamente a Platform y no se guarda en la extensión.</p>
+          </form>
+          <div id="account" hidden><p id="account-name" class="account-name"></p><p id="account-email"></p><p class="hint">Sesión administrativa verificada.</p><button id="logout" type="button">Cerrar sesión</button></div>
+        </section>
+        <section class="panel" aria-labelledby="auto-heading"><h2 id="auto-heading">Automatización</h2>
+          <label class="check-label"><input id="auto" type="checkbox" disabled><span>Aplicar capturas completas automáticamente</span></label>
+          <p class="hint">Al abrir la lista nativa terrestre sin filtro, se comparará y aplicará una nueva captura válida. Requiere esta sesión administrativa.</p>
+          <p class="policy">Activa las presentes y desactiva las ausentes. Conserva el origen; las desconocidas y ambiguas pasan a revisión.</p>
+        </section>
+      </aside>
+      <div class="content">
+        <section class="panel capture" aria-labelledby="capture-heading"><div class="section-heading"><h2 id="capture-heading">Lista terrestre de Shalom</h2><button id="capture" type="button">Capturar lista nativa</button></div>
+          <p id="auto-warning" class="notice warning" hidden>Modo automático activo: capturar esta lista puede activar y desactivar agencias en Platform sin otra confirmación.</p>
+          <p id="capture-description">En PRODUCTOS, selecciona TERRESTRE y abre el selector de destino sin escribir en su buscador. No se generará ninguna orden.</p>
+          <dl id="capture-data" hidden><div><dt>Agencias capturadas</dt><dd id="native-count"></dd></div><div><dt>Origen protegido</dt><dd id="origin"></dd></div><div><dt>Fecha de captura</dt><dd id="captured-at"></dd></div></dl>
+          <p class="hint">Shalom debe permitir abrir su selector: si el destino está deshabilitado, agrega un producto en tu borrador.</p>
+        </section>
+        <section class="panel comparison" aria-labelledby="comparison-heading"><div class="section-heading"><h2 id="comparison-heading">Comparación con Platform</h2><button id="compare" type="button" disabled>Comparar estados</button></div>
+          <div id="empty" class="empty"><h3>Aún no hay una comparación</h3><p>Captura la lista e inicia sesión para ver exactamente qué cambiará.</p></div>
+          <div id="plan" hidden>
+            <p id="summary" class="summary"></p><div id="blockers" class="notice warning" role="status" aria-live="polite" hidden></div>
+            <div class="table-scroll"><table><caption>Cambios de estado propuestos</caption><thead><tr><th scope="col">Agencia</th><th scope="col">Estado actual</th><th scope="col">Cambio</th></tr></thead><tbody id="changes"></tbody></table></div>
+            <details id="review"><summary id="review-summary">Agencias para revisión</summary><ul id="review-items"></ul></details>
+            <div class="apply-row"><p id="expiry" class="hint"></p><button id="apply" class="primary" type="button" disabled>Aplicar cambios en Platform</button></div>
+          </div>
+        </section>
+        <section id="receipt" class="notice success" aria-labelledby="receipt-heading" aria-live="polite" role="status" tabindex="-1" hidden><h2 id="receipt-heading">Sincronización completada</h2><p id="receipt-description"></p><p id="receipt-time" class="hint"></p></section>
+      </div>
+    </div>
+    <footer>Solo estados de agencias · Sin crear registros ni modificar órdenes de servicio.<br>Capturas filtradas, aéreas o con más del 10 % de desactivaciones quedan bloqueadas.</footer>
+  </main>
+</body>
+</html>

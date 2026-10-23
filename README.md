@@ -18,6 +18,9 @@ workflows.
 
 ## Qué incluye
 
+- **Sincronizador terrestre Shalom** — [extensión administrativa independiente](packages/shalom-agency-sync-extension/README.md)
+  con login de Platform, comparación y activación/desactivación auditada.
+
 - **Agencias Shalom** — panel administrativo y vista pública; sincronización Shalom
   y copias de seguridad con restauración portable.
 - **Padrón RUC** — consulta por panel y API, administrado con backup/restore en
