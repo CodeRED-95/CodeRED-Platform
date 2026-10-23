@@ -4,6 +4,12 @@
 
 CodeRED Platform usa la autorización nativa de Laravel mediante `Gate`, Policies, middleware y los helpers explícitos de `User`. Nunca se sobrescribe `User::can()`.
 
+El [sincronizador nativo terrestre](SHALOM_NATIVE_AGENCY_SYNC.md) exige una sesión
+oficial de Platform y rol `super-admin` (o `admin` heredado), además de
+`agencies.view` y `agencies.manage_status`. No concede permisos ni crea roles;
+un editor y un token técnico no acceden a esta automatización administrativa.
+Cada aplicación revalida permisos y usa `AgencyPolicy::manageStatus`.
+
 ## Roles definitivos
 
 | Rol visible | Slug | Alcance |

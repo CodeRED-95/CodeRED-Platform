@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminPermissionRequestController;
 use App\Http\Controllers\Api\V1\Admin\AdminTokenController;
 use App\Http\Controllers\Api\V1\Admin\AdminTokenRequestController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
+use App\Http\Controllers\Api\V1\Admin\NativeAgencySyncController;
 use App\Http\Controllers\Api\V1\AgenciesController;
 use App\Http\Controllers\Api\V1\AgencyCatalogController;
 use App\Http\Controllers\Api\V1\AgencyChangesController;
@@ -168,6 +169,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         // para aprobar y rechazar—, así que la auditoría y la emisión ocurren
         // en un único sitio.
         Route::prefix('admin')->name('admin.')->middleware(['throttle:api-admin', 'api.audit:admin'])->group(function (): void {
+            Route::prefix('agencies/native-sync')->middleware('access:profile:read')->name('agencies.native-sync.')->group(function (): void {
+                Route::get('/status', [NativeAgencySyncController::class, 'status'])->name('status');
+                Route::post('/preview', [NativeAgencySyncController::class, 'preview'])->name('preview');
+                Route::post('/apply', [NativeAgencySyncController::class, 'apply'])->name('apply');
+                Route::post('/result', [NativeAgencySyncController::class, 'result'])->name('result');
+            });
             Route::middleware(['access:admin:tokens'])->group(function (): void {
                 Route::get('/tokens', [AdminTokenController::class, 'index'])->name('tokens.index');
                 Route::get('/tokens/types', [AdminTokenController::class, 'types'])->name('tokens.types');
