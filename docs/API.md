@@ -2,6 +2,12 @@
 
 La API de integración vive bajo `/api/v1`, usa tokens personales de Laravel Sanctum y es de solo lectura. El contrato canónico es [OpenAPI 3](openapi.yaml) y la guía operativa está en [docs/api](api/README.md).
 
+La [sincronización administrativa de agencias terrestres](SHALOM_NATIVE_AGENCY_SYNC.md)
+es una API de escritura separada de los tokens de integración: exige sesión
+oficial de administrador de Platform y permisos vigentes. Expone
+`GET /admin/agencies/native-sync/status`, `POST /admin/agencies/native-sync/preview`
+y `POST /admin/agencies/native-sync/apply` bajo `/api/v1`.
+
 ## CodeRED Mobile API
 
 La capa móvil vive bajo `/api/v1/mobile` y reutiliza Sanctum, usuarios, roles y permisos existentes. Los tokens móviles usan ability `mobile` para identificar el cliente, pero los permisos reales siguen saliendo del RBAC del sistema.

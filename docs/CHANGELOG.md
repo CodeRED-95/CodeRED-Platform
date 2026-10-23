@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-22
+
+### Added
+
+- Extensión independiente `shalom-agency-sync-extension` 1.0.0: captura nativa
+  terrestre, login administrativo de Platform, comparación y aplicación manual
+  o automática por captura; conserva origen y deja desconocidas para revisión.
+- API administrativa de vista previa/aplicación con permisos, caducidad,
+  verificación de revisión del catálogo, límites de desactivación y auditoría.
+
 ## 2026-09-20
 
 ### Changed
